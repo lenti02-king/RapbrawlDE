@@ -3,6 +3,7 @@
 // art-authored scene can replace it.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const LED_VERT = /* glsl */ `
   varying vec2 vUv;
@@ -165,6 +166,7 @@ export class Arena {
     const bar = (w: number, h: number, d: number, x: number, y: number, z: number) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), trussMat);
       m.position.set(x, y, z);
+      m.userData.static = true;
       this.group.add(m);
     };
     for (const z of [-3.4, 1.2]) {
@@ -174,6 +176,7 @@ export class Arena {
         const d = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.5, 0.04), trussMat);
         d.position.set(x, 7.42, z);
         d.rotation.z = 0.6;
+        d.userData.static = true;
         this.group.add(d);
       }
     }
@@ -183,10 +186,12 @@ export class Arena {
     const beamGeo = new THREE.CylinderGeometry(0.08, 1.4, 9, 24, 1, true);
     beamGeo.translate(0, -4.5, 0);
     const colors = [0xff3df0, 0x32e6ff, 0xffd21f, 0x32e6ff, 0xff3df0, 0xffffff];
+    const fixtureMat = new THREE.MeshStandardMaterial({ color: 0x15151b, roughness: 0.5, metalness: 0.6 });
     colors.forEach((c, i) => {
       const x = -7.5 + i * 3;
-      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.4, 12), new THREE.MeshStandardMaterial({ color: 0x15151b, roughness: 0.5, metalness: 0.6 }));
+      const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.4, 12), fixtureMat);
       fixture.position.set(x, 6.95, 1.2);
+      fixture.userData.static = true;
       this.group.add(fixture);
       const mat = new THREE.ShaderMaterial({
         uniforms: { uColor: { value: new THREE.Color(c) }, uIntensity: { value: 0.35 } },
@@ -213,11 +218,13 @@ export class Arena {
       for (let k = 0; k < 3; k++) {
         const cab = new THREE.Mesh(new RoundedBoxGeometry(1.5, 1.1, 1.0, 2, 0.05), cabMat);
         cab.position.set(sx * 8.6, 0.55 + k * 1.12, -1.8);
+        cab.userData.static = true;
         this.group.add(cab);
         for (const dy of [-0.22, 0.22]) {
           const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.2, 0.06, 20), coneMat);
           cone.rotation.x = Math.PI / 2;
           cone.position.set(sx * 8.6, 0.55 + k * 1.12 + dy, -1.28);
+          cone.userData.static = true;
           this.group.add(cone);
         }
       }
@@ -239,12 +246,36 @@ export class Arena {
     this.group.add(sky);
 
     this.buildCrowd();
+    this.mergeStatic();
+  }
+
+  /** Merge static meshes that share a material into one draw call each. */
+  private mergeStatic(): void {
+    const byMat = new Map<THREE.Material, THREE.Mesh[]>();
+    for (const c of this.group.children) {
+      if (!(c instanceof THREE.Mesh) || !c.userData.static) continue;
+      const m = c.material as THREE.Material;
+      byMat.set(m, [...(byMat.get(m) ?? []), c]);
+    }
+    for (const [mat, meshes] of byMat) {
+      if (meshes.length < 2) continue;
+      const geos = meshes.map((m) => {
+        m.updateMatrix();
+        const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+        for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+        g.applyMatrix4(m.matrix);
+        return g;
+      });
+      const merged = new THREE.Mesh(mergeGeometries(geos), mat);
+      for (const m of meshes) this.group.remove(m);
+      this.group.add(merged);
+    }
   }
 
   private buildCrowd(): void {
-    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.55, 4, 8);
+    const bodyGeo = new THREE.CapsuleGeometry(0.2, 0.55, 2, 7);
     bodyGeo.translate(0, 0.45, 0);
-    const head = new THREE.SphereGeometry(0.13, 10, 8);
+    const head = new THREE.SphereGeometry(0.13, 7, 5);
     head.translate(0, 1.03, 0);
     const merged = mergeGeos([bodyGeo, head]);
     const mat = new THREE.MeshStandardMaterial({ color: 0x0b0a12, roughness: 0.9 });
@@ -256,7 +287,7 @@ export class Arena {
     let count = 0;
     for (const r of rows) count += r.n;
     this.crowd = new THREE.InstancedMesh(merged, mat, count);
-    const armGeo = new THREE.CapsuleGeometry(0.045, 0.5, 2, 6);
+    const armGeo = new THREE.CapsuleGeometry(0.045, 0.5, 1, 4);
     armGeo.translate(0, 0.25, 0);
     this.crowdArms = new THREE.InstancedMesh(armGeo, mat, count * 2);
     let seed = 1;

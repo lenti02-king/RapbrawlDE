@@ -252,6 +252,7 @@ export function buildCharacter(id: string, paletteIndex: number): Rig {
   const pal = v.palettes[paletteIndex % v.palettes.length];
   const rig = new Rig(v.spec, pal);
   v.decorate(rig, pal);
+  rig.bake();
   rig.root.traverse((o) => {
     o.frustumCulled = false;
   });

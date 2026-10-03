@@ -38,6 +38,32 @@ const outlineFrag = /* glsl */ `
 
 const outlineCache = new Map<number, THREE.ShaderMaterial>();
 
+const SKIN_OUTLINE_VERT = /* glsl */ `
+  #include <common>
+  #include <skinning_pars_vertex>
+  attribute float outlineW;
+  void main() {
+    #include <beginnormal_vertex>
+    #include <skinbase_vertex>
+    #include <skinnormal_vertex>
+    #include <begin_vertex>
+    #include <skinning_vertex>
+    transformed += normalize(objectNormal) * outlineW;
+    #include <project_vertex>
+  }
+`;
+
+let skinOutline: THREE.ShaderMaterial | null = null;
+/** Outline for baked skinned characters: per-vertex thickness attribute `outlineW`. */
+export function skinnedOutlineMat(color = 0x07060c): THREE.ShaderMaterial {
+  return (skinOutline ??= new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color(color) } },
+    vertexShader: SKIN_OUTLINE_VERT,
+    fragmentShader: outlineFrag,
+    side: THREE.BackSide,
+  }));
+}
+
 /** Inverted-hull outline material (vertices pushed along normals, back faces only). */
 export function outlineMat(thickness = 0.012, color = 0x07060c): THREE.ShaderMaterial {
   const key = Math.round(thickness * 10000) * 1000 + (color & 0xfff);

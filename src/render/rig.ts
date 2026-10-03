@@ -4,7 +4,8 @@
 // the same joint names to reuse every pose/animation in the game.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { addPart, latheProfile, taperedCapsule, toonMat } from './toon';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { addPart, latheProfile, skinnedOutlineMat, taperedCapsule, toonMat } from './toon';
 
 export const JOINTS = [
   'hips',
@@ -105,7 +106,7 @@ export class Rig {
   }
 
   private joint(name: JointName, parent: THREE.Object3D, pos: [number, number, number]): THREE.Object3D {
-    const j = new THREE.Group();
+    const j = new THREE.Bone();
     j.name = name;
     j.position.set(...pos);
     j.rotation.order = 'ZYX';
@@ -199,6 +200,70 @@ export class Rig {
         outline: 0.008,
       });
     }
+  }
+
+  /**
+   * Bake all rigid parts into ONE GPU-skinned mesh (vertex colours) plus ONE skinned
+   * outline mesh, bound to the joint hierarchy. Cuts ~80 draw calls per fighter to 2.
+   * Props (e.g. the mic) stay separate so they can be shown/hidden.
+   */
+  bake(): void {
+    this.root.updateMatrixWorld(true);
+    const invInner = this.inner.matrixWorld.clone().invert();
+    const boneIndex = new Map<THREE.Object3D, number>(JOINTS.map((n, i) => [this.joints[n], i]));
+    const propSet = new Set<THREE.Object3D>();
+    for (const p of Object.values(this.props)) p.traverse((o) => propSet.add(o));
+    const geos: THREE.BufferGeometry[] = [];
+    const remove: THREE.Mesh[] = [];
+    const m4 = new THREE.Matrix4();
+    this.inner.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || propSet.has(o) || o.material instanceof THREE.ShaderMaterial) return;
+      let j: THREE.Object3D | null = o.parent;
+      while (j && !boneIndex.has(j)) j = j.parent;
+      if (!j) return;
+      const bi = boneIndex.get(j)!;
+      const shell = o.children.find((c) => c instanceof THREE.Mesh && c.material instanceof THREE.ShaderMaterial) as THREE.Mesh | undefined;
+      const thick = shell ? ((shell.material as THREE.ShaderMaterial).uniforms.thickness.value as number) : 0;
+      let g = o.geometry.clone();
+      if (g.index) g = g.toNonIndexed();
+      for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+      g.applyMatrix4(m4.multiplyMatrices(invInner, o.matrixWorld));
+      const n = g.attributes.position.count;
+      const c = (o.material as THREE.MeshToonMaterial).color;
+      const col = new Float32Array(n * 3);
+      const si = new Uint16Array(n * 4);
+      const sw = new Float32Array(n * 4);
+      const ow = new Float32Array(n).fill(thick);
+      for (let i = 0; i < n; i++) {
+        col[i * 3] = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+        si[i * 4] = bi;
+        sw[i * 4] = 1;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+      g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+      g.setAttribute('outlineW', new THREE.Float32BufferAttribute(ow, 1));
+      geos.push(g);
+      remove.push(o);
+    });
+    const merged = mergeGeometries(geos);
+    for (const g of geos) g.dispose();
+    for (const m of remove) m.parent?.remove(m);
+    const bodyMat = toonMat(0xffffff);
+    bodyMat.vertexColors = true;
+    this.materials.push(bodyMat);
+    const skeleton = new THREE.Skeleton(JOINTS.map((n) => this.joints[n] as THREE.Bone));
+    const mesh = new THREE.SkinnedMesh(merged, bodyMat);
+    const outline = new THREE.SkinnedMesh(merged, skinnedOutlineMat());
+    for (const sm of [mesh, outline]) {
+      sm.frustumCulled = false;
+      this.inner.add(sm);
+    }
+    this.root.updateMatrixWorld(true);
+    mesh.bind(skeleton);
+    outline.bind(skeleton);
   }
 
   /** Apply a flat pose array. */
