@@ -1095,3 +1095,125 @@ button {
   border-color: var(--cyan);
   background: rgba(34, 211, 255, 0.18);
 }
+
+/* ---- touch layout: special cards in a column left of the action cluster */
+.pad {
+  flex-direction: row;
+  align-items: flex-end;
+}
+.cards {
+  flex-direction: column;
+}
+
+/* ---- short landscape screens (phones) */
+@media (max-height: 520px) {
+  .screen {
+    padding-top: calc(10px + var(--sat));
+    padding-bottom: calc(8px + var(--sab));
+  }
+  .screen h2 {
+    font-size: 30px;
+  }
+  .screen .hint {
+    font-size: 12px;
+  }
+  .loadout-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 8px 0 4px;
+  }
+  .lcard {
+    min-height: 0;
+    padding: 7px 10px 8px;
+    gap: 2px;
+  }
+  .lcard .lc-name {
+    font-size: 20px;
+  }
+  .lcard .lc-role {
+    font-size: 12px;
+  }
+  .lcard .lc-desc {
+    font-size: 11.5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .lcard .slot {
+    top: 6px;
+    font-size: 18px;
+  }
+  .cta {
+    font-size: 20px;
+    padding: 6px 22px 8px;
+  }
+  .toast {
+    min-height: 16px;
+    font-size: 13px;
+  }
+  .fighters {
+    margin-top: 8px;
+  }
+  .fcard {
+    padding: 10px 12px 12px;
+  }
+  .fcard .fname {
+    font-size: 32px;
+  }
+  .menu {
+    gap: 4px;
+    margin-top: 2vh;
+  }
+  .mbtn {
+    font-size: 24px;
+    padding: 6px 18px 8px;
+  }
+  .mbtn small {
+    font-size: 12px;
+  }
+  .logo {
+    font-size: 64px;
+  }
+  .card-btn {
+    width: 92px;
+    height: 46px;
+    padding: 4px 7px;
+  }
+  .act {
+    width: 17vh;
+    height: 17vh;
+  }
+  .act-light {
+    width: 21vh;
+    height: 21vh;
+  }
+  .training-info {
+    top: calc(84px + var(--sat));
+    font-size: 12px;
+  }
+  .pause-btn {
+    top: calc(64px + var(--sat));
+  }
+  .combo {
+    top: 30%;
+  }
+}
+
+/* keep primary actions reachable on short screens */
+.screen > .row:last-child {
+  position: sticky;
+  bottom: calc(-8px - var(--sab));
+  padding: 10px 0 8px;
+  margin-top: auto;
+  background: linear-gradient(180deg, rgba(7, 5, 13, 0), rgba(7, 5, 13, 0.92) 35%);
+  z-index: 2;
+}
+.screen.clear > .row:last-child {
+  background: none;
+}
+@media (max-height: 520px) {
+  .screen .hint {
+    display: none;
+  }
+}
