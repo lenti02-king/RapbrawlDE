@@ -582,6 +582,35 @@ export class App {
     return IN;
   }
 
+  /** Debug: list move keys of a fighter. */
+  moveList(idx: number): string[] {
+    const s = this.runner!.state;
+    return Object.keys(getFighter(s.fighters[idx].def).moves);
+  }
+
+  /** Debug: put a fighter into a move at its first active frame (for hitbox/pose checks). */
+  freezeMove(idx: number, key: string): number {
+    const s = this.runner!.state;
+    const f = s.fighters[idx];
+    const o = s.fighters[1 - idx];
+    const mv = getFighter(f.def).moves[key];
+    f.x = -6000;
+    o.x = 6000;
+    f.facing = 1;
+    o.facing = -1;
+    o.state = 'idle';
+    s.camX = 0;
+    f.state = 'move';
+    f.move = key;
+    f.mf = mv.hits[0]?.start ?? mv.projectile?.frame ?? 1;
+    f.hitMask = 0;
+    f.hitstop = 0;
+    f.crouching = !!mv.crouching;
+    f.y = mv.air ? 9000 : 0;
+    s.projectiles = [];
+    return f.mf;
+  }
+
   keyboard() {
     return keyboardState();
   }

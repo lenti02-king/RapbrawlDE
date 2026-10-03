@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RAPBRAWL</string>
+    <string name="title_activity_main">RAPBRAWL</string>
+    <string name="package_name">com.rapbrawl.prototype</string>
+    <string name="custom_url_scheme">com.rapbrawl.prototype</string>
+</resources>

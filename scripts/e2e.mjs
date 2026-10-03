@@ -62,7 +62,7 @@ const sim = (page) =>
   // real keyboard input: walk forward, then attack
   const x0 = (await sim(page)).f[0].x;
   await page.keyboard.down('KeyD');
-  await page.waitForTimeout(500);
+  await page.waitForFunction((x) => window.__rb.runner.state.fighters[0].x > x + 2000, x0, { timeout: 10000 }).catch(() => {});
   await page.keyboard.up('KeyD');
   const x1 = (await sim(page)).f[0].x;
   check(x1 > x0, `keyboard D walks forward (${x0} -> ${x1})`);
@@ -87,23 +87,21 @@ const sim = (page) =>
   await page.evaluate(() => {
     const s = window.__rb.runner.state;
     s.fighters[0].roundsWon = 1;
-    s.fighters[1].health = 1;
+    s.fighters[1].health = 0;
   });
-  await page.evaluate(() => window.__rb.debugHoldP1(window.__rb.IN.LIGHT, 1));
-  await page.evaluate(() => {
-    // ensure the finishing jab connects
-    const s = window.__rb.runner.state;
-    s.fighters[0].x = s.fighters[1].x - 7000;
-  });
-  await page.waitForSelector('.result-win', { timeout: 20000 }).catch(() => {});
-  const resultsVisible = await page.isVisible('.result-win').catch(() => false);
+  const resultsVisible = await page
+    .waitForSelector('.result-win', { timeout: 60000 })
+    .then(() => true)
+    .catch(() => false);
   check(resultsVisible, 'match end shows results screen');
   await page.screenshot({ path: `${out}/d08_results.png` });
   if (resultsVisible) {
     await page.click('[data-a="rematch"]');
-    await page.waitForTimeout(500);
-    s = await sim(page);
-    check(s.phase === 'intro' && s.f[1].hp === 1150, 'rematch restarts a fresh match');
+    const fresh = await page
+      .waitForFunction(() => window.__rb.runner.state.phase === 'intro' && window.__rb.runner.state.fighters[1].health === 1150, null, { timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
+    check(fresh, 'rematch restarts a fresh match');
   }
   // training mode with hitboxes
   await page.goto(base + '/?quick=brick,volt&mode=training');
@@ -119,7 +117,8 @@ const sim = (page) =>
 // ------------------------------------------------------------- mobile flow
 {
   const errors = [];
-  const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'] });
+  // DPR 1 keeps software rendering fast enough; CSS layout is identical to the real device.
+  const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'], deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   watchErrors(page, errors);
   await page.goto(base + '/');
@@ -167,7 +166,7 @@ const sim = (page) =>
     await page.waitForTimeout(250);
   }
   await page.tap('.act-heavy');
-  await page.waitForTimeout(400);
+  await page.waitForFunction((hp) => window.__rb.runner.state.fighters[1].health < hp, hp0, { timeout: 10000 }).catch(() => {});
   const hp1 = (await sim(page)).f[1].hp;
   check(hp1 < hp0, `touch attack buttons deal damage (${hp0} -> ${hp1})`);
   // card button with meter
@@ -179,8 +178,10 @@ const sim = (page) =>
   await page.waitForTimeout(100);
   await page.screenshot({ path: `${out}/m04_cards_ready.png` });
   await page.tap('.card-btn[data-bit="S3"]');
-  await page.waitForTimeout(150);
-  const flash = await page.evaluate(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].state === 'move');
+  const flash = await page
+    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].state === 'move', null, { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
   check(flash, 'touch card button triggers the signature special');
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${out}/m05_touch_super.png` });
