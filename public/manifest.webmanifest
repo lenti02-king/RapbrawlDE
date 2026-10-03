@@ -1,0 +1,10 @@
+{
+  "name": "RAPBRAWL",
+  "short_name": "RAPBRAWL",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07050d",
+  "theme_color": "#07050d",
+  "start_url": "./",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
