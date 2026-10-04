@@ -163,6 +163,14 @@ export class GlbRig implements CharacterRig {
         mesh.receiveShadow = true;
         const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
           const c = (m as THREE.Material).clone() as THREE.MeshStandardMaterial;
+          if (c.name.startsWith('cut_')) {
+            // hair cards, brows, lashes: alpha-tested (no sorting artefacts), soft edges via MSAA coverage
+            c.transparent = false;
+            c.depthWrite = true;
+            c.alphaTest = 0.45;
+            c.alphaToCoverage = true;
+            c.side = THREE.DoubleSide;
+          }
           if (c.emissive) this.materials.push(c);
           return c;
         });

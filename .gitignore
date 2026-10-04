@@ -11,3 +11,5 @@ ios/App/Pods/
 dist-single/
 public/test-models/
 scratch/
+.cache/
+__pycache__/

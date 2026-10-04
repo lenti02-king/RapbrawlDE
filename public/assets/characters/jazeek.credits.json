@@ -1,0 +1,45 @@
+[
+ {
+  "asset": "MakeHuman base mesh, targets, skeleton, skin textures",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "eyes/HighPolyEyes",
+  "author": "Manuel Bastioni, Thomas Larsson",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "eyebrows/eyebrow009",
+  "author": "Manuel Bastioni",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "eyelashes/Eyelashes01",
+  "author": "Manuel Bastioni",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "hair/afro01",
+  "author": "Manuel Bastioni",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "clothes/Tank_Top_01",
+  "author": "Mindfront (Sweden)",
+  "licence": "CC BY 4.0"
+ },
+ {
+  "asset": "clothes/male_casualsuit04",
+  "author": "Manuel Bastioni, Jonas Hauquier",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "clothes/shoes05",
+  "author": "Jonas Hauquier",
+  "licence": "CC0 (MakeHuman 1.1 bundled asset, see https://github.com/makehumancommunity/makehuman/blob/master/LICENSE.md)"
+ },
+ {
+  "asset": "accessories, beard, tattoos, fabric patterns, recolouring",
+  "licence": "original procedural work (tools/characters)"
+ }
+]

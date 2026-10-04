@@ -29,6 +29,7 @@ export function runLab(canvas: HTMLCanvasElement): void {
   cam.position.set(cx, Number(params.get('cy') ?? 1.35), 9 / zoom);
   cam.lookAt(cx, Number(params.get('ty') ?? 1.0), 0);
   const ids = [params.get('a') ?? 'jazeek', params.get('b') ?? 'bonez'];
+  const rigs: ReturnType<typeof buildCharacter>[] = [];
   ids.forEach((id, i) => {
     const set = ANIM_SETS[id];
     const pose: PoseDef = which === 'stance' ? set.stance : ((set.r as Record<string, PoseDef>)[which] ?? set.stance);
@@ -41,7 +42,28 @@ export function runLab(canvas: HTMLCanvasElement): void {
     rig.root.position.set(i ? 0.9 : -0.9, 0, 0);
     rig.apply(toArr(pose), i ? -1 : 1);
     if (params.get('teeth') && rig.props.teeth) rig.props.teeth.visible = true;
+    rigs.push(rig);
   });
+  // portrait framing: &frame=face|bust|body (&who=0|1, &yaw=deg around the fighter, 0 = 3/4 front)
+  const frame = params.get('frame');
+  if (frame) {
+    const who = rigs[Number(params.get('who') ?? 0)];
+    scene.updateMatrixWorld(true);
+    const head = who.joints.head.getWorldPosition(new THREE.Vector3());
+    const hips = who.joints.hips.getWorldPosition(new THREE.Vector3());
+    const facing = Number(params.get('who') ?? 0) ? -1 : 1;
+    const yaw = (Number(params.get('yaw') ?? 0) * Math.PI) / 180;
+    const dir = new THREE.Vector3(facing * Math.cos(0.75 + yaw), 0, Math.sin(0.75 + yaw));
+    const hand = who.joints.haL.getWorldPosition(new THREE.Vector3());
+    const spec = { hand: [hand, 0.55, 22], face: [head.clone().add(new THREE.Vector3(0, 0.07, 0)), 0.75, 18], bust: [head.clone().lerp(hips, 0.35), 1.6, 26], body: [hips.clone().setY(hips.y * 0.95), 4.2, 28] }[frame] as [THREE.Vector3, number, number];
+    const [target, dist, fov] = spec;
+    cam.fov = fov;
+    cam.position.copy(target).addScaledVector(dir, dist).add(new THREE.Vector3(0, 0.03 * dist, 0));
+    cam.lookAt(target);
+    cam.updateProjectionMatrix();
+    if (params.get('hide') === 'other') rigs.forEach((r, i) => (r.root.visible = i === Number(params.get('who') ?? 0)));
+  }
+  (window as unknown as { __lab: unknown }).__lab = { scene, cam, rigs };
   const post = new PostFX(renderer, scene, cam, params.get('q') === 'low' ? 'low' : 'high');
   post.setSize(window.innerWidth, window.innerHeight);
   const t0 = performance.now();

@@ -13,7 +13,7 @@ fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
 await page.goto(`${base}/?quick=${fighter},${other}&mode=training${process.env.EXTRA ?? ''}`);
-await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
+await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 180000 });
 await page.evaluate(() => {
   const r = window.__rb.runner;
   r.paused = true;
