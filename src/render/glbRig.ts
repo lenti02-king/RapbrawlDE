@@ -196,11 +196,16 @@ export class GlbRig implements CharacterRig {
     this.hips = bones.get('Hips')!;
     this.body = this.hips;
 
-    // ---- scale to the fighter's height, feet on the ground
+    // ---- scale: hip height matches the reference rig (keeps arm/leg reach on the sim's hitboxes even for
+    // big-headed cartoon models); bounding-box height as fallback
     this.root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(this.model);
     const h = Math.max(0.01, box.max.y - box.min.y);
-    const s = heightM / h;
+    this.ref.apply(this.zero, 1);
+    this.ref.root.updateMatrixWorld(true);
+    const refHips = this.ref.joints.hips.getWorldPosition(new THREE.Vector3()).y;
+    const modelHips = this.hips.getWorldPosition(new THREE.Vector3()).y - box.min.y;
+    const s = refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
     this.fit.scale.setScalar(s);
     this.root.updateMatrixWorld(true);
     const box2 = new THREE.Box3().setFromObject(this.model);

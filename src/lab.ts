@@ -10,6 +10,13 @@ import { buildCharacter } from './render/characters';
 import { toArr, type PoseDef } from './render/pose';
 
 export function runLab(canvas: HTMLCanvasElement): void {
+  if (new URLSearchParams(location.search).get('lab') === 'bake-export') {
+    // dev tool: serialise the courtyard for tools/arena/bake.py (read window.__bake)
+    const renderer = new THREE.WebGLRenderer({ canvas });
+    const arena = new CourtyardArena(new THREE.Scene(), renderer, 'high');
+    (window as unknown as { __bake: string }).__bake = JSON.stringify(arena.bakeScene());
+    return;
+  }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -55,7 +62,8 @@ export function runLab(canvas: HTMLCanvasElement): void {
     const yaw = (Number(params.get('yaw') ?? 0) * Math.PI) / 180;
     const dir = new THREE.Vector3(facing * Math.cos(0.75 + yaw), 0, Math.sin(0.75 + yaw));
     const hand = who.joints.haL.getWorldPosition(new THREE.Vector3());
-    const spec = { hand: [hand, 0.55, 22], face: [head.clone().add(new THREE.Vector3(0, 0.07, 0)), 0.75, 18], bust: [head.clone().lerp(hips, 0.35), 1.6, 26], body: [hips.clone().setY(hips.y * 0.95), 4.2, 28] }[frame] as [THREE.Vector3, number, number];
+    const fy = Number(params.get('fy') ?? 0.07);
+    const spec = { hand: [hand, 0.55, 22], face: [head.clone().add(new THREE.Vector3(0, fy, 0)), Number(params.get('fd') ?? 0.75), 18], bust: [head.clone().lerp(hips, 0.35), 1.6, 26], body: [hips.clone().setY(hips.y * 0.95), 4.2, 28] }[frame] as [THREE.Vector3, number, number];
     const [target, dist, fov] = spec;
     cam.fov = fov;
     cam.position.copy(target).addScaledVector(dir, dist).add(new THREE.Vector3(0, 0.03 * dist, 0));

@@ -21,7 +21,6 @@ import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
 import type { Transport } from '../net/rollback';
 import { TrainingMonitor } from './training';
-import * as THREE from 'three';
 
 type PlayMode = 'cpu' | 'local' | 'training';
 type Mode = 'menu' | PlayMode | 'online';
@@ -114,7 +113,8 @@ function rankOf(p: Profile): { name: string; next: string } {
 }
 
 export class App {
-  readonly view: GameView;
+  private canvas: HTMLCanvasElement;
+  private _view: GameView | null = null;
   readonly hud: Hud;
   readonly touch: TouchControls;
   readonly audio = new AudioEngine();
@@ -130,16 +130,24 @@ export class App {
   private touchEnabled: boolean;
   private resultsShown = false;
   private playerName: string;
-  private showAcc = 0;
   /** Which fighter this device controls (1 for an online guest). */
   localIdx = 0;
   private netTransport: Transport | null = null;
   private keyHandler = (e: KeyboardEvent) => this.onKey(e);
 
+  /** The 3D scene (arena + fighters) is only created when the first match starts; menus are plain 2D. */
+  get view(): GameView {
+    if (!this._view) {
+      this._view = new GameView(this.canvas);
+      installCinematics(this._view, this.audio);
+    }
+    return this._view;
+  }
+
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.ui = ui;
-    this.view = new GameView(canvas);
-    installCinematics(this.view, this.audio);
+    this.canvas = canvas;
+    canvas.classList.add('off');
     this.hud = new Hud(ui);
     this.touch = new TouchControls(ui);
     this.touch.bindCards(this.hud.handCards);
@@ -170,7 +178,7 @@ export class App {
         this.sel.loadouts[i] = getFighter(this.sel.fighters[i]).defaultLoadout.slice();
     }
     this.hud.pauseBtn.addEventListener('click', () => this.togglePause());
-    window.addEventListener('resize', () => this.view.resize());
+    window.addEventListener('resize', () => this._view?.resize());
     window.addEventListener('keydown', this.keyHandler);
     const rot = document.createElement('div');
     rot.className = 'rotate-hint';
@@ -195,7 +203,7 @@ export class App {
       if (mode === 'demo') this.startDemo();
       else this.startMatch(mode === 'menu' ? 'cpu' : mode, false);
     } else {
-      this.startShowcase();
+      this.enterMenu();
       this.showTitle();
     }
     (window as unknown as { __rb: App }).__rb = this;
@@ -207,7 +215,6 @@ export class App {
     const elapsed = now - this.last;
     this.last = now;
     if (this.runner) {
-      if (this.mode === 'menu') this.animateShowcase(elapsed);
       this.runner.tick(elapsed, this.audio.beat());
       const s = this.runner.state;
       if (this.mode !== 'menu' && !this.isDemo) {
@@ -226,61 +233,22 @@ export class App {
 
   // ------------------------------------------------------------ showcase
   private makeRunner(state: GameState, sources: [InputSource, InputSource]): MatchRunner {
+    this.canvas.classList.remove('off');
     const r = new MatchRunner(state, this.view, sources);
     r.listeners.push({ onEvents: (s, ev) => this.onEvents(s, ev) });
     return r;
   }
 
-  /** Home-screen hero: the selected fighter on the courtyard stage, cycling intro / idle / win poses. */
-  private startShowcase(): void {
+  /** Menus: no 3D scene running behind them (it is created/shown when a match starts). */
+  private enterMenu(): void {
     this.leaveNet();
     this.mode = 'menu';
     this.bots = [];
     this.training = null;
-    const a = this.sel.fighters[0];
-    const b = ROSTER.find((x) => x !== a) ?? a;
-    const state = createMatch(defaultConfig({ fighters: [a, b], training: true, seed: 7 }));
-    state.phase = 'fight';
-    const [f, o] = state.fighters;
-    f.x = 0;
-    f.facing = 1;
-    f.state = 'intro';
-    f.sf = 0;
-    o.x = 90000;
-    o.state = 'idle';
-    this.runner = this.makeRunner(state, [new NullSource(), new NullSource()]);
-    this.runner.paused = true;
-    this.showAcc = 0;
-    this.view.menuShot = {
-      pos: new THREE.Vector3(1.4, 1.25, 4.9),
-      target: new THREE.Vector3(1.0, 1.0, 0),
-      fov: 32,
-    };
+    this.runner = null;
+    this.canvas.classList.add('off');
     this.hud.show(false);
     this.touch.setVisible(false);
-  }
-
-  private animateShowcase(elapsedMs: number): void {
-    const s = this.runner!.state;
-    const f = s.fighters[0];
-    this.showAcc += (Math.min(100, elapsedMs) * 60) / 1000;
-    while (this.showAcc >= 1) {
-      this.showAcc -= 1;
-      f.sf++;
-    }
-    if (f.state === 'intro' && f.sf > 125) {
-      f.state = 'idle';
-      f.sf = 0;
-    } else if (f.state === 'idle' && f.sf > 420) {
-      f.state = 'win';
-      f.sf = 0;
-      s.phase = 'roundOver';
-      s.roundWinner = 0;
-    } else if (f.state === 'win' && f.sf > 260) {
-      f.state = 'idle';
-      f.sf = 0;
-      s.phase = 'fight';
-    }
   }
 
   /** Bot-vs-bot attract mode (dev/testing: ?quick=a,b&mode=demo). */
@@ -442,7 +410,9 @@ export class App {
 
   showTitle(): void {
     const el = this.open(
-      `<div class="logo">RAPBRAWL</div>
+      `<div class="watermark">BLOCK BEATS</div>
+       ${[0, 1].map((i) => (portrait(this.sel.fighters[i] ?? ROSTER[i], 'hero') ? `<img class="hero-art ${i ? 'r' : 'l'}" alt="" src="${portrait(ROSTER[i] ?? ROSTER[0], 'hero')}">` : '')).join('')}
+       <div class="logo">RAPBRAWL</div>
        <div class="logo-sub">HINTERHOF · BLOCK BEATS</div>
        <div class="press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div>
        <button data-default style="position:absolute;inset:0;opacity:0" aria-label="Start"></button>`,
@@ -465,8 +435,7 @@ export class App {
   }
 
   showHome(): void {
-    if (this.mode !== 'menu') this.startShowcase();
-    else if (this.runner && this.runner.state.fighters[0].def !== this.sel.fighters[0]) this.startShowcase();
+    if (this.mode !== 'menu') this.enterMenu();
     const fid = this.sel.fighters[0];
     const d = getFighter(fid);
     const deck = this.sel.loadouts[0].map((c) => cardHtml(fid, c, 'small')).join('');
@@ -476,7 +445,9 @@ export class App {
     const modeSub =
       this.sel.mode === 'cpu' ? `STUFE · ${LEVEL_DE[this.sel.level]}` : this.sel.mode === 'local' ? 'EIN GERÄT · LOKAL' : 'DUMMY · FRAME-DATEN';
     const el = this.open(
-      `<div class="brand"><div class="logo">RAPBRAWL</div><div class="season">SAISON 1<b>BLOCK BEATS</b></div></div>
+      `<div class="watermark">BLOCK BEATS</div>
+       ${portrait(fid, 'hero') ? `<img class="hero-art" alt="" src="${portrait(fid, 'hero')}">` : ''}
+       <div class="brand"><div class="logo">RAPBRAWL</div><div class="season">SAISON 1<b>BLOCK BEATS</b></div></div>
        <div class="top-right">
          <button class="player-chip" data-name><span class="avatar">${bust ? `<img alt="" src="${bust}">` : ''}</span>
            <span style="text-align:left"><div class="pname">${esc(this.playerName)}</div>
@@ -743,7 +714,6 @@ export class App {
           }
         }
         store.set('selection', this.sel);
-        if (player === 0) this.startShowcase();
         this.showFighters(player);
       }),
     );
@@ -990,7 +960,7 @@ export class App {
   private quitToMenu(): void {
     this.leaveNet();
     this.localIdx = 0;
-    this.startShowcase();
+    this.enterMenu();
     this.showHome();
   }
 
@@ -1078,6 +1048,7 @@ export class App {
     this.resultsShown = false;
     const src: InputSource[] = [new KeyboardSource(P1_KEYS), new KeyboardSource(P1_ARROWS), new GamepadSource(0)];
     if (this.touchEnabled) src.push(this.touch);
+    this.canvas.classList.remove('off');
     const r = new NetMatchRunner(res.cfg, this.view, res.local, new MergedSource(src), t);
     r.listeners.push({ onEvents: (s, ev) => this.onEvents(s, ev) });
     this.view.menuShot = null;

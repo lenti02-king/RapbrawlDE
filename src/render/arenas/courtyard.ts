@@ -5,6 +5,7 @@
 // PBR materials from procedural textures, real shadows, dusk-sky image-based lighting, planar
 // reflections on the wet ground (high quality only). Original artwork only (no real logos).
 import * as THREE from 'three';
+import { applyLightmap, collectBakeScene, loadLightmap, type BakeScene } from './bake';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -138,6 +139,33 @@ export class CourtyardArena implements ArenaLike {
     this.buildCables();
     this.batch.build(this.group, this.casters);
     if (this.low) this.simplifyForLowTier();
+    if (!new URLSearchParams(location.search).has('nobake')) void loadLightmap('assets/arena/courtyard').then((d) => d && this.useBaked(d));
+  }
+
+  /** Serialised scene for tools/arena/bake.py. */
+  bakeScene(): BakeScene {
+    return collectBakeScene(this.group, this.lights);
+  }
+
+  private bakedMats: THREE.MeshBasicMaterial[] = [];
+
+  /** Baked GI + shadows on the static arena (unlit materials); the fighters keep the dynamic lights. */
+  private useBaked(d: Parameters<typeof applyLightmap>[1]): void {
+    const mats = applyLightmap(this.group, d);
+    if (!mats) {
+      console.warn('[arena] lightmap does not match the arena geometry (re-run tools/arena/bake.py) — dynamic lighting kept');
+      return;
+    }
+    this.bakedMats = mats;
+    for (const p of this.pools) p.visible = false;
+    // real-time contact shadows of the fighters on the baked ground
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry(2 * SIDE_X, FRONT_Z - BACK_Z), new THREE.ShadowMaterial({ opacity: 0.42, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(0, 0.004, (FRONT_Z + BACK_Z) / 2);
+    shadow.receiveShadow = true;
+    shadow.userData.noBake = true;
+    this.group.add(shadow);
+    this.setDim(this.dim);
   }
 
   /** Low tier (weak phones, software GL): per-pixel cost dominates, so the arena switches to Lambert shading
@@ -295,6 +323,7 @@ export class CourtyardArena implements ArenaLike {
       m.position.set(x, y, z);
       m.renderOrder = 2;
       this.group.add(m);
+      m.userData.noBake = true;
       this.pools.push(m);
       m.userData.base = opacity;
     };
@@ -387,6 +416,7 @@ export class CourtyardArena implements ArenaLike {
       refl.position.set(0, 0.002, (FRONT_Z + BACK_Z) / 2);
       refl.renderOrder = 1;
       this.reflector = refl;
+      refl.userData.noBake = true;
       this.group.add(refl);
     }
     // court lines + chalk (decal)
@@ -1168,6 +1198,7 @@ export class CourtyardArena implements ArenaLike {
     this.dim = d;
     for (const l of this.lights) l.intensity = (l.userData.base as number) * (1 - d * 0.72);
     for (const p of this.pools) (p.material as THREE.MeshBasicMaterial).opacity = (p.userData.base as number) * (1 - d * 0.72);
+    for (const m of this.bakedMats) m.color.copy(m.userData.baseColor as THREE.Color).multiplyScalar(1 - d * 0.72);
     (this.sceneRef as THREE.Scene & { environmentIntensity: number }).environmentIntensity = this.envBase * (1 - d * 0.7);
     this.skyMat.color.setScalar(1 - d * 0.7);
     if (this.reflector) (this.reflector.material as THREE.ShaderMaterial).uniforms.uStrength.value = 0.55 * (1 - d * 0.6);

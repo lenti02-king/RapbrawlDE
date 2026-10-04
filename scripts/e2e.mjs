@@ -41,7 +41,7 @@ const sim = (page) =>
   await page.waitForSelector('.home');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/d02_home.png` });
-  check((await sim(page)).mode === 'menu', 'home screen shows the 3D fighter showcase');
+  check(await page.evaluate(() => window.__rb.mode === 'menu' && !window.__rb.runner), 'home screen is a plain menu (3D scene not running yet)');
   // fighter select: pick Bonez MC
   await page.click('[data-nav="fighters"]');
   await page.waitForSelector('.fcard[data-f="bonez"]');
