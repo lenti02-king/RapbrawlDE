@@ -14,6 +14,7 @@ import { GameView } from '../render/view';
 import { installCinematics } from '../render/cinematics';
 import { cardHtml, Hud } from '../ui/hud';
 import { CAT_COLOR, CAT_DE, UI_ICONS } from '../ui/icons';
+import { LINE } from '../ui/lines';
 import { portrait, renderPortraits } from '../ui/portraits';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
@@ -74,6 +75,44 @@ function fighterStats(id: string) {
   return { health: d.health, speed: d.walkF, reach, dmg };
 }
 
+interface MatchRecord {
+  f: string;
+  o: string;
+  r: 'W' | 'L' | 'D';
+  mode: string;
+  t: number;
+}
+interface Profile {
+  matches: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  bestCombo: number;
+  byFighter: Record<string, { m: number; w: number }>;
+  history: MatchRecord[];
+}
+const NEW_PROFILE: Profile = { matches: 0, wins: 0, losses: 0, draws: 0, bestCombo: 0, byFighter: {}, history: [] };
+
+/** Local progression (no server): XP from finished matches, street rank from wins. */
+function levelOf(p: Profile): { level: number; pct: number; xp: number } {
+  const xp = p.wins * 100 + p.losses * 40 + p.draws * 60 + p.matches * 10;
+  return { level: 1 + Math.floor(xp / 400), pct: (xp % 400) / 4, xp };
+}
+const RANKS: [number, string][] = [
+  [0, 'BRONZE'],
+  [3, 'SILBER'],
+  [10, 'GOLD'],
+  [25, 'PLATIN'],
+  [50, 'DIAMANT'],
+  [100, 'LEGENDE'],
+];
+function rankOf(p: Profile): { name: string; next: string } {
+  let i = 0;
+  while (i + 1 < RANKS.length && p.wins >= RANKS[i + 1][0]) i++;
+  const nxt = RANKS[i + 1];
+  return { name: RANKS[i][1], next: nxt ? `Noch ${nxt[0] - p.wins} Siege bis ${nxt[1]}` : 'Höchster Rang erreicht' };
+}
+
 export class App {
   readonly view: GameView;
   readonly hud: Hud;
@@ -106,8 +145,11 @@ export class App {
     this.touch.bindCards(this.hud.handCards);
     this.hud.onSigReady = () => this.audio.chime();
     const params = new URLSearchParams(location.search);
+    const touchPref = store.get<'auto' | 'on' | 'off'>('touch', 'auto');
     this.touchEnabled =
-      params.get('touch') === '1' || (params.get('touch') !== '0' && typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches);
+      params.get('touch') === '1' ||
+      (params.get('touch') !== '0' &&
+        (touchPref === 'on' || (touchPref === 'auto' && typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches)));
     try {
       renderPortraits(ROSTER);
     } catch {
@@ -325,6 +367,7 @@ export class App {
         this.stats.maxCombo[a] = Math.max(this.stats.maxCombo[a], d.combo);
       }
       if (e.t === 'throwHit') this.stats.damage[e.a] += e.damage;
+      if ((e.t === 'hit' || e.t === 'throwHit') && this.touchEnabled && store.get('vibrate', true)) navigator.vibrate?.(e.t === 'hit' && e.strength >= 2 ? 28 : 14);
       if (e.t === 'card') this.stats.specials[e.p]++;
     }
   }
@@ -394,7 +437,7 @@ export class App {
   }
 
   private header(title: string, extra = ''): string {
-    return `<div class="header"><button class="btn icon" data-back aria-label="Zurück">${UI_ICONS.back}</button><div class="title">${title}</div><div class="grow"></div>${extra}</div>`;
+    return `<div class="header"><button class="btn icon gray" data-back aria-label="Zurück">${LINE.back}</button><div class="title">${title}</div><div class="grow"></div>${extra}</div>`;
   }
 
   showTitle(): void {
@@ -417,6 +460,10 @@ export class App {
     return i === 0 ? 'DU' : this.sel.mode === 'training' ? 'DUMMY' : 'CPU';
   }
 
+  private get profileData(): Profile {
+    return { ...NEW_PROFILE, ...store.get<Partial<Profile>>('profile', {}) };
+  }
+
   showHome(): void {
     if (this.mode !== 'menu') this.startShowcase();
     else if (this.runner && this.runner.state.fighters[0].def !== this.sel.fighters[0]) this.startShowcase();
@@ -424,56 +471,53 @@ export class App {
     const d = getFighter(fid);
     const deck = this.sel.loadouts[0].map((c) => cardHtml(fid, c, 'small')).join('');
     const sig = getCard(fid, this.sel.loadouts[0][SIGNATURE_SLOT]);
-    const sub = this.sel.mode === 'cpu' ? `GEGEN CPU · ${LEVEL_DE[this.sel.level]}` : this.sel.mode === 'local' ? '2 SPIELER · EIN GERÄT' : 'TRAINING · DUMMY';
+    const lvl = levelOf(this.profileData);
+    const bust = portrait(fid, 'bust');
+    const modeSub =
+      this.sel.mode === 'cpu' ? `STUFE · ${LEVEL_DE[this.sel.level]}` : this.sel.mode === 'local' ? 'EIN GERÄT · LOKAL' : 'DUMMY · FRAME-DATEN';
     const el = this.open(
-      `<div class="topbar">
-         <button class="player-chip" data-name><span class="avatar">${portrait(fid, 'bust') ? `<img alt="" src="${portrait(fid, 'bust')}">` : ''}</span>
-           <span style="text-align:left"><div class="pname">${esc(this.playerName)}</div><div class="ptag">NAMEN ÄNDERN</div></span></button>
-         <div class="spacer"></div>
-         <button class="btn icon gray" data-sound aria-label="Ton">${this.audio.muted ? UI_ICONS.mute : UI_ICONS.sound}</button>
-         <button class="btn icon" data-help aria-label="Steuerung">${UI_ICONS.help}</button>
+      `<div class="brand"><div class="logo">RAPBRAWL</div><div class="season">SAISON 1<b>BLOCK BEATS</b></div></div>
+       <div class="top-right">
+         <button class="player-chip" data-name><span class="avatar">${bust ? `<img alt="" src="${bust}">` : ''}</span>
+           <span style="text-align:left"><div class="pname">${esc(this.playerName)}</div>
+           <div class="ptag"><span class="lvl">${lvl.level}</span><span class="xp"><b style="width:${lvl.pct.toFixed(0)}%"></b></span></div></span></button>
+         <button class="btn icon gray" data-sound aria-label="Ton">${this.audio.muted ? LINE.mute : LINE.sound}</button>
+         <button class="btn icon gray" data-settings aria-label="Einstellungen">${LINE.gear}</button>
        </div>
-       <div class="home-main">
-         <div class="logo home-logo">RAPBRAWL</div>
-         <div class="hero-card panel">
+       <div class="rail">
+         <button data-nav="profile">${LINE.user}PROFIL</button>
+         <button data-nav="modes">${LINE.grid}MODI</button>
+         <button data-nav="help">${LINE.pad}STEUERUNG</button>
+       </div>
+       <div class="side">
+         <div>
+           <div class="hero-arch">${d.archetype.toUpperCase()}</div>
            <div class="hero-name">${d.name}</div>
-           <span class="pill hero-arch">${d.archetype.toUpperCase()}</span>
            <div class="hero-tag">${d.tagline}</div>
-           <div class="row" style="justify-content:space-between;margin-top:0.2rem"><span class="disp" style="font-size:1.05rem">DEIN DECK</span><span class="pill" style="color:#ffe680">★ ${sig.name}</span></div>
-           <div class="row" style="justify-content:space-between"><div class="mini-deck">${deck}</div><button class="btn small" data-deck>DECK</button></div>
          </div>
-       </div>
-       <div class="home-bottom">
-         <div class="modes">
-           <div class="tabs">${(Object.keys(MODE_DE) as PlayMode[]).map((m) => `<button class="tab ${this.sel.mode === m ? 'on' : ''}" data-mode="${m}">${MODE_DE[m]}</button>`).join('')}</div>
-           ${this.sel.mode === 'cpu' ? `<button class="btn small gray" data-level>CPU: ${LEVEL_DE[this.sel.level]}</button>` : ''}
+         <div class="panel deck-strip">
+           <div class="row"><span class="lbl">DEIN DECK</span><span class="pill gold">★ ${sig.name}</span></div>
+           <div class="row"><div class="mini-deck">${deck}</div><button class="btn small" data-deck>KARTEN</button></div>
          </div>
-         <button class="btn gold fight-btn" data-fight data-default>KAMPF!<span class="sub">${sub}</span></button>
+         <button class="panel mode-card" data-modes>
+           <div><div class="mc-sub">SPIELMODUS</div><div class="mc-title">${MODE_DE[this.sel.mode]}</div><div class="mc-sub">${modeSub}</div></div>
+           <span class="chev">›</span>
+         </button>
+         <button class="btn gold play-btn" data-fight data-default>SPIELEN<span class="arrow">${LINE.play}</span></button>
        </div>
        <nav class="bottomnav">
-         <button class="navbtn" data-nav="fighters">${UI_ICONS.fighter}KÄMPFER</button>
-         <button class="navbtn" data-nav="deck">${UI_ICONS.cards}DECK</button>
-         <button class="navbtn on" data-nav="fight">${UI_ICONS.swords}KAMPF</button>
-         <button class="navbtn" data-nav="online">${UI_ICONS.online}ONLINE</button>
-         <button class="navbtn" data-nav="help">${UI_ICONS.pad}STEUERUNG</button>
+         <button class="navbtn on" data-nav="fight">${LINE.swords}LOBBY</button>
+         <button class="navbtn" data-nav="fighters">${LINE.fighter}KÄMPFER</button>
+         <button class="navbtn" data-nav="deck">${LINE.cards}KARTEN</button>
+         <button class="navbtn" data-nav="online">${LINE.online}ONLINE</button>
+         <button class="navbtn" data-nav="profile">${LINE.trophy}PROFIL</button>
        </nav>`,
-      'home',
+      'home lobby',
     );
-    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
-      b.addEventListener('click', () => {
-        this.sel.mode = b.dataset.mode as PlayMode;
-        store.set('selection', this.sel);
-        this.showHome();
-      }),
-    );
-    el.querySelector('[data-level]')?.addEventListener('click', () => {
-      this.sel.level = LEVELS[(LEVELS.indexOf(this.sel.level) + 1) % LEVELS.length];
-      store.set('selection', this.sel);
-      this.showHome();
-    });
     el.querySelector('[data-fight]')!.addEventListener('click', () => this.startMatch(this.sel.mode));
     el.querySelector('[data-deck]')!.addEventListener('click', () => this.showDeck(0, () => this.showHome()));
-    el.querySelector('[data-help]')!.addEventListener('click', () => this.showHelp(() => this.showHome()));
+    el.querySelector('[data-modes]')!.addEventListener('click', () => this.showModes());
+    el.querySelector('[data-settings]')!.addEventListener('click', () => this.showSettings());
     el.querySelector('[data-sound]')!.addEventListener('click', () => {
       this.audio.setMuted(!this.audio.muted);
       store.set('muted', this.audio.muted);
@@ -487,8 +531,133 @@ export class App {
         else if (n === 'deck') this.showDeck(0, () => this.showHome());
         else if (n === 'online') this.showOnlineLobby();
         else if (n === 'help') this.showHelp(() => this.showHome());
+        else if (n === 'profile') this.showProfile();
+        else if (n === 'modes') this.showModes();
       }),
     );
+  }
+
+  /** Mode select: big banner tiles with the fighters' key art. */
+  showModes(): void {
+    const a = this.sel.fighters[0];
+    const b = ROSTER.find((x) => x !== a) ?? a;
+    const hero = (id: string) => (portrait(id, 'hero') ? `<img alt="" src="${portrait(id, 'hero')}">` : '');
+    const tiles: { mode: PlayMode | 'online'; title: string; sub: string; art: string; bg: string }[] = [
+      { mode: 'cpu', title: 'GEGEN CPU', sub: 'Drei Stufen. Halte den Hinterhof gegen die KI.', art: hero(b), bg: 'linear-gradient(120deg, rgba(246,182,50,0.35), transparent 60%)' },
+      { mode: 'local', title: '2 SPIELER', sub: 'Zu zweit an einem Gerät – Tastatur oder zwei Controller.', art: hero(a) + hero(b), bg: 'linear-gradient(120deg, rgba(61,139,255,0.3), transparent 45%, rgba(255,59,78,0.3))' },
+      { mode: 'online', title: 'FREUNDE', sub: 'Online gegen Freunde per Code, mit Rollback-Netcode.', art: hero(a), bg: 'linear-gradient(120deg, rgba(155,92,255,0.38), transparent 60%)' },
+      { mode: 'training', title: 'TRAINING', sub: 'Frame-Daten, Hitboxen und Kombos in Ruhe üben.', art: hero(b), bg: 'linear-gradient(120deg, rgba(61,220,132,0.22), transparent 60%)' },
+    ];
+    const chips = LEVELS.map((l) => `<span class="chip ${this.sel.level === l ? 'on' : ''}" data-level="${l}">${LEVEL_DE[l]}</span>`).join('');
+    const el = this.open(
+      `${this.header('SPIELMODI')}
+       <div class="modes-grid">${tiles
+         .map(
+           (t) => `<button class="mode-tile ${this.sel.mode === t.mode ? 'on' : ''}" data-mode="${t.mode}" style="--tile-bg:${t.bg}">${t.art}
+             <div class="mt-text"><div class="mt-title">${t.title}</div><div class="mt-sub">${t.sub}</div>${t.mode === 'cpu' ? `<div class="mt-chips">${chips}</div>` : ''}</div></button>`,
+         )
+         .join('')}</div>`,
+    );
+    el.querySelectorAll<HTMLElement>('[data-level]').forEach((c) =>
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.sel.level = c.dataset.level as Level;
+        this.sel.mode = 'cpu';
+        store.set('selection', this.sel);
+        this.showModes();
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const m = b.dataset.mode as PlayMode | 'online';
+        if (m === 'online') return this.showOnlineLobby();
+        this.sel.mode = m;
+        store.set('selection', this.sel);
+        this.showHome();
+      }),
+    );
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
+  }
+
+  showProfile(): void {
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const rank = rankOf(p);
+    const rate = p.matches ? Math.round(((p.wins + p.draws * 0.5) / p.matches) * 100) : 0;
+    const fav = Object.entries(p.byFighter).sort((x, y) => y[1].m - x[1].m)[0]?.[0] ?? this.sel.fighters[0];
+    const bust = portrait(fav, 'bust');
+    const rows = p.history
+      .slice(-8)
+      .reverse()
+      .map(
+        (h) =>
+          `<div class="hrow"><span class="res ${h.r === 'L' ? 'l' : ''}">${h.r === 'W' ? 'SIEG' : h.r === 'L' ? 'NIEDERLAGE' : 'REMIS'}</span><span>${getFighter(h.f).name} <span style="color:var(--mute)">vs</span> ${getFighter(h.o).name}</span><span class="hint">${h.mode}</span></div>`,
+      )
+      .join('');
+    const el = this.open(
+      `${this.header('PROFIL')}
+       <div class="profile">
+         <div style="display:flex;flex-direction:column;gap:0.8rem;min-width:0">
+           <div class="panel pcard"><span class="avatar">${bust ? `<img alt="" src="${bust}">` : ''}</span>
+             <div style="display:flex;flex-direction:column;gap:0.4rem"><div class="pname">${esc(this.playerName)}</div>
+               <div class="ptag" style="display:flex;gap:0.5rem;align-items:center"><span class="lvl">${lvl.level}</span><span class="xp"><b style="width:${lvl.pct.toFixed(0)}%"></b></span><span class="lbl">${lvl.xp} XP</span></div>
+               <button class="btn small gray" data-name style="align-self:flex-start">NAMEN ÄNDERN</button></div></div>
+           <div class="panel rank">${LINE.trophy}<div><div class="lbl">STRASSEN-RANG · LOKAL</div><div class="rname">${rank.name}</div><div class="hint">${rank.next}</div></div></div>
+           <div class="kpis">
+             <div class="panel kpi"><b>${p.matches}</b><span>MATCHES</span></div>
+             <div class="panel kpi"><b>${p.wins}</b><span>SIEGE</span></div>
+             <div class="panel kpi"><b>${rate}%</b><span>SIEGQUOTE</span></div>
+           </div>
+         </div>
+         <div class="panel history"><div class="lbl" style="margin-bottom:0.3rem">LETZTE KÄMPFE · BESTE KOMBO ${p.bestCombo}</div>${rows || '<div class="hint">Noch keine Kämpfe. Ab in den Hinterhof!</div>'}</div>
+       </div>`,
+    );
+    el.querySelector('[data-name]')!.addEventListener('click', () => this.showNameDialog());
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
+  }
+
+  showSettings(): void {
+    const q = store.get<string>('quality', 'auto');
+    const touch = store.get<string>('touch', 'auto');
+    const seg = (key: string, cur: string, opts: [string, string][]) =>
+      `<div class="presets">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" data-set="${key}" data-v="${v}">${l}</button>`).join('')}</div>`;
+    const sw = (key: string, on: boolean) => `<button class="switch ${on ? 'on' : ''}" data-toggle="${key}" aria-pressed="${on}"></button>`;
+    const el = this.open(
+      `${this.header('EINSTELLUNGEN')}
+       <div class="settings">
+         <div class="panel setrow"><div><div class="sname">GRAFIKQUALITÄT</div><div class="sdesc">Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.</div></div>
+           ${seg('quality', q, [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']])}</div>
+         <div class="panel setrow"><div><div class="sname">TOUCH-STEUERUNG</div><div class="sdesc">Virtueller Stick und Tasten auf dem Bildschirm.</div></div>
+           ${seg('touch', touch, [['auto', 'AUTO'], ['on', 'AN'], ['off', 'AUS']])}</div>
+         <div class="panel setrow"><div><div class="sname">TON</div><div class="sdesc">Effekte und Musik.</div></div>${sw('sound', !this.audio.muted)}</div>
+         <div class="panel setrow"><div><div class="sname">VIBRATION</div><div class="sdesc">Kurzes Rütteln bei Treffern (Handy).</div></div>${sw('vibrate', store.get('vibrate', true))}</div>
+         <div class="panel setrow"><div><div class="sname">STEUERUNG & TASTEN</div><div class="sdesc">Alle Eingaben für Tastatur, Controller und Touch.</div></div><button class="btn small" data-help>ANSEHEN</button></div>
+       </div>`,
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-set]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.set!;
+        const v = b.dataset.v!;
+        store.set(key, v);
+        if (key === 'quality') location.reload();
+        else {
+          if (key === 'touch') this.touchEnabled = v === 'on' || (v === 'auto' && matchMedia('(pointer: coarse)').matches);
+          this.showSettings();
+        }
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.toggle!;
+        if (key === 'sound') {
+          this.audio.setMuted(!this.audio.muted);
+          store.set('muted', this.audio.muted);
+        } else store.set(key, !store.get(key, true));
+        this.showSettings();
+      }),
+    );
+    el.querySelector('[data-help]')!.addEventListener('click', () => this.showHelp(() => this.showSettings()));
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
   }
 
   /** In-game name dialog (window.prompt is unavailable in some hosts, e.g. sandboxed frames). */
@@ -524,51 +693,58 @@ export class App {
 
   showFighters(player: number): void {
     const all = ROSTER.map((id) => fighterStats(id));
-    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((s) => s[k]));
-    const cards = ROSTER.map((id, i) => {
-      const d = getFighter(id);
-      const st = all[i];
-      const bar = (label: string, v: number) => `<div class="stat">${label}<i><b style="transform:scaleX(${Math.max(0.08, v).toFixed(3)})"></b></i></div>`;
-      const img = portrait(id, 'card');
-      const color = id === 'bonez' ? '#3a3f55' : '#3d8bff';
-      return `<button class="fcard ${this.sel.fighters[player] === id ? 'sel' : ''}" data-f="${id}" style="--c:${color}">
-        <div class="portrait">${img ? `<img alt="" src="${img}">` : ''}</div>
-        <div class="fbanner">
-          <div class="fname">${d.name}</div>
-          <div class="farch">${d.archetype.toUpperCase()}</div>
-          ${bar('LEBEN', st.health / max('health'))}
-          ${bar('TEMPO', st.speed / max('speed'))}
-          ${bar('REICHWEITE', st.reach / max('reach'))}
-          ${bar('SCHADEN', st.dmg / max('dmg'))}
-        </div>
-        <span class="picked pill" style="background:#2fd06b">GEWÄHLT</span>
-      </button>`;
-    }).join('');
+    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((st) => st[k]));
+    const id = this.sel.fighters[player];
+    const d = getFighter(id);
+    const st = all[ROSTER.indexOf(id)] ?? fighterStats(id);
+    const bar = (label: string, v: number) => `<span>${label}</span><i><b style="width:${(Math.max(0.08, v) * 100).toFixed(0)}%"></b></i>`;
+    const tiles =
+      ROSTER.map((fid) => {
+        const img = portrait(fid, 'card');
+        const tags = [0, 1].filter((i) => this.sel.fighters[i] === fid).map((i) => `<span class="ptag">${i ? 'P2' : 'P1'}</span>`);
+        return `<button class="fcard rtile ${fid === id ? 'sel' : ''} ${player ? 'p2' : ''}" data-f="${fid}">${img ? `<img alt="" src="${img}">` : ''}${tags.join('')}<span class="rname">${getFighter(fid).name}</span></button>`;
+      }).join('') + Array.from({ length: Math.max(0, 8 - ROSTER.length) }, () => `<div class="rtile locked">?<small>BALD</small></div>`).join('');
     const tabs = `<div class="tabs">${[0, 1].map((i) => `<button class="tab ${player === i ? `on ${i ? 'red' : ''}` : ''}" data-p="${i}">${this.sideLabel(i)}</button>`).join('')}</div>`;
+    const hero = portrait(id, 'hero');
     const el = this.open(
       `${this.header('KÄMPFER', tabs)}
-       <div class="fighters">${cards}</div>
-       <div class="row" style="justify-content:center;margin-top:0.8rem">
-         <button class="btn" data-todeck>DECK ${player ? `(${this.sideLabel(1)})` : ''}</button>
+       <div class="stage">
+         <div class="crown">${LINE.crown}</div>
+         ${hero ? `<img class="hero" alt="" src="${hero}">` : ''}
+         <div class="who"><div class="hero-arch">${d.archetype.toUpperCase()}</div><div class="hero-name">${d.name}</div></div>
+       </div>
+       <div style="display:flex;flex-direction:column;gap:0.7rem;min-height:0">
+         <div class="hero-tag">${d.tagline}</div>
+         <div class="panel statbox">
+           ${bar('ANGRIFF', st.dmg / max('dmg'))}
+           ${bar('LEBEN', st.health / max('health'))}
+           ${bar('REICHWEITE', st.reach / max('reach'))}
+           ${bar('TEMPO', st.speed / max('speed'))}
+         </div>
+         <div class="roster">${tiles}</div>
+       </div>
+       <div class="actions">
+         <button class="btn" data-todeck>KARTEN ${player ? `(${this.sideLabel(1)})` : ''}</button>
          <button class="btn gold" data-ok data-default>FERTIG</button>
        </div>`,
+      'select',
     );
     el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
       b.addEventListener('click', () => {
-        const id = b.dataset.f!;
-        this.sel.fighters[player] = id;
-        if (validateLoadout(id, this.sel.loadouts[player])) this.sel.loadouts[player] = getFighter(id).defaultLoadout.slice();
+        const fid = b.dataset.f!;
+        this.sel.fighters[player] = fid;
+        if (validateLoadout(fid, this.sel.loadouts[player])) this.sel.loadouts[player] = this.presetDeck(fid);
         // vs CPU: the opponent defaults to the other fighter (a mirror match stays possible via the CPU tab)
-        if (player === 0 && this.sel.mode !== 'local' && this.sel.fighters[1] === id) {
-          const other = ROSTER.find((x) => x !== id);
+        if (player === 0 && this.sel.mode !== 'local' && this.sel.fighters[1] === fid) {
+          const other = ROSTER.find((x) => x !== fid);
           if (other) {
             this.sel.fighters[1] = other;
             this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
           }
         }
         store.set('selection', this.sel);
-        el.querySelectorAll('.fcard').forEach((x) => x.classList.toggle('sel', x === b));
         if (player === 0) this.startShowcase();
+        this.showFighters(player);
       }),
     );
     el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => b.addEventListener('click', () => this.showFighters(Number(b.dataset.p))));
@@ -577,15 +753,34 @@ export class App {
     el.querySelector('[data-todeck]')!.addEventListener('click', () => this.showDeck(player, () => this.showFighters(player)));
   }
 
+  /** Deck presets: three saved decks per fighter; returns the active one (or the default deck). */
+  private presetDeck(fid: string): string[] {
+    const all = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {});
+    const p = all[fid];
+    const deck = p?.decks[p.i];
+    return deck && !validateLoadout(fid, deck) ? deck.slice() : getFighter(fid).defaultLoadout.slice();
+  }
+
+  private savePreset(fid: string, i: number, deck: string[]): void {
+    const all = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {});
+    const p = all[fid] ?? { i: 0, decks: [] };
+    p.i = i;
+    p.decks[i] = deck.slice();
+    all[fid] = p;
+    store.set('presets', all);
+  }
+
   showDeck(player: number, done: () => void, doneLabel = 'FERTIG'): void {
     const fid = this.sel.fighters[player];
     const def = getFighter(fid);
     const deck = this.sel.loadouts[player].slice();
     let focus: string | null = deck[0] ?? null;
     let placing = false;
+    const presets = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {})[fid] ?? { i: 0, decks: [] };
+    let preset = presets.i;
     const tabs = `<div class="tabs">${[0, 1].map((i) => `<button class="tab ${player === i ? `on ${i ? 'red' : ''}` : ''}" data-p="${i}">${this.sideLabel(i)}</button>`).join('')}</div>`;
     const el = this.open(
-      `${this.header(`DECK · ${def.name}`, tabs)}
+      `${this.header(`KARTEN · ${def.name}`, `<div class="presets">${[0, 1, 2].map((i) => `<button data-preset="${i}" class="${i === preset ? 'on' : ''}">PRESET ${i + 1}</button>`).join('')}</div>${tabs}`)}
        <div class="deck-wrap">
          <div class="deck-left">
            <div class="panel deck-slots"></div>
@@ -671,8 +866,24 @@ export class App {
       if (!validateLoadout(fid, deck)) {
         this.sel.loadouts[player] = deck.slice();
         store.set('selection', this.sel);
+        this.savePreset(fid, preset, deck);
       }
     };
+    el.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+      b.addEventListener('click', () => {
+        save();
+        preset = Number(b.dataset.preset);
+        const all = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {});
+        const stored = all[fid]?.decks[preset];
+        const next = stored && !validateLoadout(fid, stored) ? stored : def.defaultLoadout;
+        deck.splice(0, deck.length, ...next);
+        focus = deck[0] ?? null;
+        placing = false;
+        el.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((x) => x.classList.toggle('on', x === b));
+        render();
+        save();
+      }),
+    );
     el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
       b.addEventListener('click', () => {
         save();
@@ -800,6 +1011,7 @@ export class App {
       banner = 'NIEDERLAGE';
       cls = 'lose';
     }
+    if (this.mode === 'cpu' || this.mode === 'online') this.recordResult(w === 2 ? 'D' : w === me ? 'W' : 'L', s);
     const winner = w === 2 ? s.fighters[me] : s.fighters[w];
     const img = portrait(winner.def, 'card');
     const crowns = Array.from({ length: s.config.roundsToWin }, (_, k) => `<i class="${k < winner.roundsWon ? 'on' : ''}">${UI_ICONS.crown}</i>`).join('');
@@ -828,6 +1040,22 @@ export class App {
         else this.quitToMenu();
       }),
     );
+  }
+
+  private recordResult(r: 'W' | 'L' | 'D', s: GameState): void {
+    const p = this.profileData;
+    const me = this.localIdx;
+    const f = s.fighters[me].def;
+    p.matches++;
+    if (r === 'W') p.wins++;
+    else if (r === 'L') p.losses++;
+    else p.draws++;
+    p.bestCombo = Math.max(p.bestCombo, this.stats.maxCombo[me]);
+    const bf = (p.byFighter[f] ??= { m: 0, w: 0 });
+    bf.m++;
+    if (r === 'W') bf.w++;
+    p.history = [...p.history, { f, o: s.fighters[1 - me].def, r, mode: this.mode === 'online' ? 'ONLINE' : `CPU ${LEVEL_DE[this.sel.level]}`, t: Date.now() }].slice(-30);
+    store.set('profile', p);
   }
 
   // -------------------------------------------------------------- online

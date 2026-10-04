@@ -1,0 +1,1255 @@
+/* RAPBRAWL — "Block Beats Night" design system (loaded after style.css and overrides it).
+   Night-time backyard: near-black glass panels, a single gold accent, violet only where the arena LEDs glow.
+   Type: Anton (display), Barlow Condensed (labels, buttons), Barlow (text). Angled cuts instead of rounded bubbles. */
+:root {
+  --bg: #08080b;
+  --ink: #f4f1ea;
+  --mute: #9a97a4;
+  --dim: #6a6774;
+  --glass: rgba(13, 13, 18, 0.78);
+  --glass-hi: rgba(26, 25, 34, 0.86);
+  --line: rgba(255, 255, 255, 0.09);
+  --line-hi: rgba(255, 255, 255, 0.16);
+  --gold-1: #ffe39a;
+  --gold: #f6b632;
+  --gold-3: #d4860b;
+  --gold-ink: #1b1204;
+  --gold-line: rgba(246, 182, 50, 0.55);
+  --violet: #9b5cff;
+  --p1: #3d8bff;
+  --p2: #ff3b4e;
+  --ok: #3ddc84;
+  --display: 'Anton', 'Impact', 'Arial Narrow Bold', sans-serif;
+  --cond: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --ui: 'Barlow', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --cut: 0.7rem;
+  --outline: none;
+}
+
+body {
+  font-family: var(--ui);
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- primitives */
+.disp {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-shadow: none;
+  text-transform: uppercase;
+}
+.btn {
+  position: relative;
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: none;
+  background: linear-gradient(180deg, rgba(40, 39, 50, 0.92), rgba(22, 21, 29, 0.92));
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--line-hi), 0 0.4rem 1.2rem rgba(0, 0, 0, 0.35);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  padding: 0.75rem 1.6rem;
+  transform: none;
+  transition: filter 0.12s, transform 0.08s;
+}
+.btn::after {
+  display: none;
+}
+.btn:hover {
+  filter: brightness(1.15);
+}
+.btn.down,
+.btn:active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: inset 0 0 0 1px var(--line-hi);
+}
+.btn.gold {
+  color: var(--gold-ink);
+  background: linear-gradient(180deg, var(--gold-1) 0%, var(--gold) 46%, var(--gold-3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.18), 0 0.6rem 1.6rem rgba(246, 170, 30, 0.28);
+}
+.btn.gold::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.45) 45%, transparent 60%);
+  transform: translateX(-120%);
+  animation: sheen 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes sheen {
+  0%,
+  70% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+.btn.red {
+  background: linear-gradient(180deg, #ff5a68, #c41f33);
+  color: #fff;
+}
+.btn.gray {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--mute);
+}
+.btn.small {
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+  --cut: 0.45rem;
+}
+.btn.icon {
+  width: 2.9rem;
+  height: 2.9rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  --cut: 0.5rem;
+}
+.btn.icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+.btn .sub {
+  display: block;
+  font-family: var(--cond);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  opacity: 0.72;
+  margin-top: 0.1rem;
+}
+.btn:disabled {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.panel {
+  background: var(--glass);
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1rem 2.5rem rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+.panel h3 {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gold);
+  text-shadow: none;
+}
+.hint {
+  font-family: var(--ui);
+  font-weight: 500;
+  color: var(--mute);
+}
+.pill {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-hi);
+  border-radius: 0;
+  color: var(--ink);
+  text-shadow: none;
+  padding: 0.18rem 0.55rem;
+}
+.pill.gold {
+  color: var(--gold);
+  border-color: var(--gold-line);
+  background: rgba(246, 182, 50, 0.08);
+}
+
+/* screens: dark gradient over the live 3D scene */
+.screen {
+  background: linear-gradient(90deg, rgba(5, 5, 8, 0.9) 0%, rgba(5, 5, 8, 0.55) 45%, rgba(5, 5, 8, 0.82) 100%);
+  padding: calc(1.1rem + var(--sat)) calc(1.6rem + var(--sar)) calc(1.1rem + var(--sab)) calc(1.6rem + var(--sal));
+}
+.screen.dim {
+  background: rgba(4, 4, 6, 0.72);
+  backdrop-filter: blur(4px);
+}
+.header {
+  gap: 1rem;
+  align-items: center;
+}
+.header .title {
+  font-family: var(--display);
+  font-size: 2.3rem;
+  letter-spacing: 0.03em;
+  text-shadow: none;
+  line-height: 1;
+}
+.header .title::after {
+  content: '';
+  display: block;
+  width: 2.6rem;
+  height: 0.22rem;
+  margin-top: 0.35rem;
+  background: var(--gold);
+}
+.tabs {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border-radius: 0;
+  padding: 0.2rem;
+  gap: 0.2rem;
+}
+.tab {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.95rem;
+  color: var(--mute);
+  border-radius: 0;
+  text-shadow: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.45rem 0.9rem;
+}
+.tab.on {
+  color: var(--gold-ink);
+  background: linear-gradient(180deg, var(--gold-1), var(--gold));
+  box-shadow: none;
+}
+.tab.on.red {
+  color: #fff;
+  background: linear-gradient(180deg, #ff6370, var(--p2));
+}
+
+/* ---------------------------------------------------------------- title */
+.splash {
+  background: radial-gradient(ellipse at 50% 60%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.85) 75%);
+}
+.logo {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 7.4rem;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+  transform: skewX(-8deg);
+  background: linear-gradient(180deg, #fff6d8 0%, var(--gold-1) 28%, var(--gold) 58%, var(--gold-3) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  filter: drop-shadow(0 0.35rem 0 rgba(0, 0, 0, 0.55)) drop-shadow(0 0 2.2rem rgba(246, 170, 30, 0.25));
+}
+.logo-sub {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.5em;
+  color: var(--ink);
+  text-shadow: none;
+  opacity: 0.85;
+}
+.logo-sub::before,
+.logo-sub::after {
+  content: '';
+  display: inline-block;
+  width: 2.2rem;
+  height: 1px;
+  background: var(--gold);
+  vertical-align: middle;
+  margin: 0 0.9rem;
+}
+.press {
+  font-family: var(--cond);
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: var(--mute);
+  text-shadow: none;
+}
+
+/* ---------------------------------------------------------------- lobby */
+.lobby {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.8rem 1.2rem;
+  background: linear-gradient(90deg, rgba(4, 4, 7, 0.82) 0%, rgba(4, 4, 7, 0.1) 30%, rgba(4, 4, 7, 0.05) 55%, rgba(4, 4, 7, 0.88) 78%),
+    linear-gradient(0deg, rgba(4, 4, 7, 0.85) 0%, transparent 25%);
+  padding-bottom: calc(0.6rem + var(--sab));
+}
+.lobby .brand {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.lobby .brand .logo {
+  font-size: 3.4rem;
+}
+.lobby .brand .season {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  font-size: 0.8rem;
+  color: var(--gold);
+  border-left: 2px solid var(--gold);
+  padding-left: 0.7rem;
+  line-height: 1.25;
+}
+.lobby .brand .season b {
+  display: block;
+  color: var(--ink);
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+}
+.lobby .top-right {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-self: end;
+}
+.player-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: var(--glass);
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: 0.3rem 1rem 0.3rem 0.3rem;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 0.5rem), calc(100% - 0.5rem) 100%, 0 100%);
+  color: var(--ink);
+  cursor: pointer;
+}
+.player-chip .avatar,
+.avatar {
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 0;
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(160deg, #2a2733, #0f0e14);
+  overflow: hidden;
+}
+.player-chip .pname {
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.06em;
+  text-shadow: none;
+}
+.player-chip .ptag {
+  font-family: var(--cond);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  color: var(--mute);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.lvl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4rem;
+  height: 1.1rem;
+  padding: 0 0.25rem;
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--gold-ink);
+  background: var(--gold);
+}
+.xp {
+  display: inline-block;
+  width: 5rem;
+  height: 0.25rem;
+  background: rgba(255, 255, 255, 0.1);
+  position: relative;
+}
+.xp b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--gold-3), var(--gold-1));
+}
+.rail {
+  grid-row: 2;
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-self: center;
+}
+.rail button {
+  width: 4.6rem;
+  padding: 0.65rem 0.2rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--mute);
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border: 0;
+  cursor: pointer;
+}
+.rail button svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--ink);
+}
+.rail button:hover {
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+}
+.lobby .side {
+  grid-row: 2;
+  grid-column: 3;
+  width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-self: center;
+}
+.hero-name {
+  font-family: var(--display);
+  font-size: 4.2rem;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0.3rem 1.4rem rgba(0, 0, 0, 0.6);
+}
+.hero-arch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--gold);
+  font-size: 0.95rem;
+}
+.hero-arch::before {
+  content: '';
+  width: 1.6rem;
+  height: 2px;
+  background: var(--gold);
+}
+.hero-tag {
+  font-family: var(--ui);
+  font-weight: 500;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.deck-strip {
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.deck-strip .row {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.lbl {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-size: 0.8rem;
+  color: var(--mute);
+}
+.mode-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.65rem 0.85rem;
+  cursor: pointer;
+  width: 100%;
+  border: 0;
+  color: var(--ink);
+  text-align: left;
+}
+.mode-card .mc-title {
+  font-family: var(--display);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.mode-card .mc-sub {
+  font-family: var(--cond);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--mute);
+  font-size: 0.8rem;
+}
+.mode-card .chev {
+  margin-left: auto;
+  color: var(--gold);
+  font-family: var(--display);
+  font-size: 1.4rem;
+}
+.play-btn {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 2.6rem;
+  letter-spacing: 0.04em;
+  padding: 0.65rem 1.6rem 0.55rem;
+  --cut: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+}
+.play-btn .arrow {
+  font-size: 1.8rem;
+}
+.lobby .bottomnav,
+.bottomnav {
+  grid-column: 1 / 4;
+  grid-row: 3;
+  justify-self: center;
+  display: flex;
+  gap: 0.3rem;
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border-radius: 0;
+  padding: 0.25rem;
+  position: static;
+  transform: none;
+}
+.navbtn {
+  min-width: 6.4rem;
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.78rem;
+  color: var(--mute);
+  border-radius: 0;
+  text-shadow: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 0.45rem 0.8rem 0.4rem;
+  position: relative;
+}
+.navbtn svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--ink);
+  filter: none;
+}
+.navbtn.on {
+  color: var(--gold);
+  background: rgba(246, 182, 50, 0.07);
+  box-shadow: none;
+  transform: none;
+}
+.navbtn.on::after {
+  content: '';
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: 0;
+  height: 2px;
+  background: var(--gold);
+}
+.navbtn.on svg {
+  color: var(--gold);
+  filter: none;
+}
+
+/* ---------------------------------------------------------------- cards */
+.card {
+  border-radius: 0;
+  border: 0;
+  background: linear-gradient(170deg, color-mix(in srgb, var(--c) 55%, #101015), #0b0b10 75%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.4rem 0.9rem rgba(0, 0, 0, 0.45);
+  clip-path: polygon(0 0, calc(100% - 0.55rem) 0, 100% 0.55rem, 100% 100%, 0.55rem 100%, 0 calc(100% - 0.55rem));
+}
+.card .art {
+  background: radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--c) 70%, #fff 0%), transparent 70%);
+  border-radius: 0;
+}
+.card.has-art .art > svg {
+  opacity: 0;
+}
+.card .cardimg {
+  background-size: cover;
+  background-position: 50% 30%;
+}
+.card .nm {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), transparent);
+}
+.card.sig {
+  background: linear-gradient(170deg, #7a5208, #1a1206 75%);
+  box-shadow: inset 0 0 0 1px var(--gold-line), inset 0 0 1.4rem rgba(246, 182, 50, 0.25), 0 0.4rem 0.9rem rgba(0, 0, 0, 0.45);
+}
+.cost {
+  border-radius: 0;
+  transform: rotate(45deg) scale(0.86);
+  background: linear-gradient(180deg, #c78cff, #7a32e6);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+.cost b {
+  transform: rotate(-45deg);
+  font-family: var(--cond);
+  font-weight: 700;
+  text-shadow: none;
+}
+
+/* ---------------------------------------------------------------- modes */
+.modes-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+  min-height: 0;
+}
+.mode-tile {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink);
+  text-align: left;
+  min-height: 8rem;
+  background: linear-gradient(120deg, #17161e, #0a0a0e);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: polygon(0 0, calc(100% - 1rem) 0, 100% 1rem, 100% 100%, 1rem 100%, 0 calc(100% - 1rem));
+}
+.mode-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--tile-bg, none);
+  opacity: 0.55;
+}
+.mode-tile img {
+  position: absolute;
+  right: -1rem;
+  bottom: -2.2rem;
+  height: 135%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 1.2rem rgba(0, 0, 0, 0.6));
+  transition: transform 0.25s;
+}
+.mode-tile img + img {
+  right: 7rem;
+  height: 120%;
+  opacity: 0.9;
+}
+.mode-tile:hover img {
+  transform: scale(1.04) translateX(-0.3rem);
+}
+.mode-tile .mt-text {
+  position: relative;
+  padding: 1.1rem 1.3rem;
+  max-width: 62%;
+}
+.mode-tile .mt-title {
+  font-family: var(--display);
+  font-size: 2.6rem;
+  line-height: 0.95;
+  text-shadow: 0 0.2rem 1rem rgba(0, 0, 0, 0.7);
+}
+.mode-tile .mt-sub {
+  font-family: var(--ui);
+  font-weight: 500;
+  color: var(--mute);
+  font-size: 0.95rem;
+  margin-top: 0.35rem;
+}
+.mode-tile .mt-chips {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+.mode-tile.on {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+.mode-tile.on .mt-title::after {
+  content: ' ●';
+  color: var(--gold);
+  font-size: 1.2rem;
+  vertical-align: middle;
+}
+.mode-tile .chip {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--line-hi);
+  color: var(--mute);
+  background: rgba(0, 0, 0, 0.4);
+}
+.mode-tile .chip.on {
+  color: var(--gold-ink);
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+/* ---------------------------------------------------------------- fighter select (versus style) */
+.select {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  gap: 0.6rem 1.4rem;
+  background: radial-gradient(ellipse at 22% 55%, rgba(246, 182, 50, 0.13), transparent 55%), linear-gradient(90deg, rgba(5, 5, 8, 0.65), rgba(5, 5, 8, 0.92) 60%);
+}
+.select .header {
+  grid-column: 1 / 3;
+}
+.select .stage {
+  position: relative;
+  grid-row: 2 / 4;
+  min-height: 0;
+}
+.select .stage .crown {
+  position: absolute;
+  left: 4%;
+  top: 6%;
+  width: 40%;
+  color: rgba(246, 182, 50, 0.16);
+}
+.select .stage img.hero {
+  position: absolute;
+  left: 50%;
+  bottom: -4%;
+  height: 112%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 1.5rem 2rem rgba(0, 0, 0, 0.7));
+}
+.select .stage .who {
+  position: absolute;
+  left: 0;
+  bottom: 6%;
+}
+.select .who .hero-name {
+  font-size: 5rem;
+}
+.select .statbox {
+  padding: 0.8rem 1rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem 0.9rem;
+  align-items: center;
+}
+.select .statbox span {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.85rem;
+  color: var(--mute);
+}
+.select .statbox i {
+  height: 0.42rem;
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  display: block;
+}
+.select .statbox i b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--gold-3), var(--gold-1));
+}
+.roster {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-content: start;
+}
+.rtile {
+  position: relative;
+  aspect-ratio: 1 / 1.15;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  background: linear-gradient(160deg, #24222d, #0c0b10);
+  box-shadow: inset 0 0 0 1px var(--line-hi);
+  clip-path: polygon(0 0, calc(100% - 0.6rem) 0, 100% 0.6rem, 100% 100%, 0.6rem 100%, 0 calc(100% - 0.6rem));
+}
+.rtile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 12%;
+}
+.rtile .rname {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0.6rem 0.4rem 0.3rem;
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.9), transparent);
+}
+.rtile.sel {
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 1.2rem rgba(246, 182, 50, 0.35);
+}
+.rtile .ptag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+.rtile.p2 .ptag {
+  left: auto;
+  right: 0;
+  background: var(--p2);
+  color: #fff;
+}
+.rtile.locked {
+  cursor: default;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  font-family: var(--display);
+  font-size: 2.2rem;
+}
+.rtile.locked small {
+  position: absolute;
+  bottom: 0.35rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-size: 0.65rem;
+}
+.select .actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* ---------------------------------------------------------------- loadout */
+.presets {
+  display: flex;
+  gap: 0.3rem;
+}
+.presets button {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.9rem;
+  border: 0;
+  cursor: pointer;
+  color: var(--mute);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.presets button.on {
+  color: var(--gold-ink);
+  background: linear-gradient(180deg, var(--gold-1), var(--gold));
+}
+.deck-slots .slot-l {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--mute);
+}
+.info .iname {
+  font-family: var(--display);
+  font-size: 2rem;
+  text-shadow: none;
+}
+.info .irole {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+.info .idesc {
+  font-family: var(--ui);
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+/* ---------------------------------------------------------------- profile + settings */
+.profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  min-height: 0;
+}
+.pcard {
+  padding: 1.1rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+.pcard .avatar {
+  width: 5.2rem;
+  height: 5.2rem;
+}
+.pcard .pname {
+  font-family: var(--display);
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.rank {
+  padding: 1rem 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.rank svg {
+  width: 3.6rem;
+  height: 3.6rem;
+  color: var(--gold);
+}
+.rank .rname {
+  font-family: var(--display);
+  font-size: 2rem;
+  color: var(--gold);
+  line-height: 1;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+.kpi {
+  padding: 0.8rem;
+  text-align: center;
+}
+.kpi b {
+  display: block;
+  font-family: var(--display);
+  font-size: 2rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.kpi span {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: 0.75rem;
+  color: var(--mute);
+}
+.history {
+  padding: 0.6rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  overflow: auto;
+}
+.history .hrow {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--cond);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.history .hrow .res {
+  font-weight: 700;
+  color: var(--ok);
+}
+.history .hrow .res.l {
+  color: var(--p2);
+}
+.settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+  margin-top: 1rem;
+  max-width: 46rem;
+}
+.setrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+.setrow .sname {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.setrow .sdesc {
+  font-family: var(--ui);
+  font-weight: 500;
+  color: var(--mute);
+  font-size: 0.85rem;
+}
+.switch {
+  width: 3.2rem;
+  height: 1.6rem;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  clip-path: polygon(0.35rem 0, 100% 0, calc(100% - 0.35rem) 100%, 0 100%);
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.35rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  background: var(--mute);
+  transition: left 0.15s, background 0.15s;
+}
+.switch.on {
+  background: rgba(246, 182, 50, 0.35);
+}
+.switch.on::after {
+  left: 1.7rem;
+  background: var(--gold);
+}
+
+/* ---------------------------------------------------------------- results, pause, VS */
+.result-banner {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  background: none;
+  color: var(--gold);
+  text-shadow: 0 0.3rem 1.5rem rgba(246, 170, 30, 0.4);
+  transform: skewX(-8deg);
+}
+.result-banner.lose {
+  color: var(--p2);
+  background: none;
+}
+.modal {
+  border-radius: 0;
+  background: var(--glass-hi);
+  box-shadow: inset 0 0 0 1px var(--line-hi), 0 2rem 4rem rgba(0, 0, 0, 0.6);
+}
+.modal .mtitle {
+  font-family: var(--display);
+  font-size: 2.6rem;
+  text-shadow: none;
+}
+.vs {
+  background: linear-gradient(100deg, rgba(61, 139, 255, 0.35) 0%, rgba(0, 0, 0, 0.75) 48%, rgba(0, 0, 0, 0.75) 52%, rgba(255, 59, 78, 0.35) 100%);
+}
+.vs .vname {
+  font-family: var(--display);
+  text-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.7);
+}
+.vs .vvs {
+  font-family: var(--display);
+  color: var(--gold);
+  text-shadow: 0 0 2rem rgba(246, 170, 30, 0.6);
+}
+
+/* ---------------------------------------------------------------- HUD */
+.nameplate .name {
+  font-family: var(--cond);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+.bar {
+  border-radius: 0;
+  background: rgba(10, 10, 14, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0.2rem 0.6rem rgba(0, 0, 0, 0.5);
+  transform: skewX(-18deg);
+}
+.side.p2 .bar {
+  transform: skewX(18deg);
+}
+.bar .fill {
+  border-radius: 0;
+  background: linear-gradient(180deg, #ffe9a6, var(--gold) 55%, var(--gold-3));
+}
+.side.p2 .bar .fill {
+  background: linear-gradient(180deg, #ffe9a6, var(--gold) 55%, var(--gold-3));
+}
+.side.danger .bar .fill {
+  background: linear-gradient(180deg, #ff9aa3, var(--p2));
+}
+.bar .hp {
+  font-family: var(--cond);
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.timer {
+  font-family: var(--display);
+  font-weight: 400;
+  border-radius: 0;
+  background: rgba(10, 10, 14, 0.85);
+  box-shadow: inset 0 0 0 1px var(--gold-line);
+  clip-path: polygon(0.5rem 0, calc(100% - 0.5rem) 0, 100% 100%, 0 100%);
+  text-shadow: none;
+}
+.side .avatar {
+  border-radius: 0;
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(160deg, #2a2733, #0f0e14);
+}
+.announce {
+  font-family: var(--display);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  -webkit-text-stroke: 0;
+  background: linear-gradient(180deg, #fff6d8, var(--gold) 60%, var(--gold-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0.3rem 0 rgba(0, 0, 0, 0.6));
+}
+.sig-ready {
+  font-family: var(--display);
+  font-weight: 400;
+  color: var(--gold);
+  text-shadow: 0 0 1rem rgba(246, 170, 30, 0.6);
+}
+.combo-n {
+  font-family: var(--display);
+}
+.hud .pause-btn {
+  border-radius: 0;
+  background: rgba(10, 10, 14, 0.8);
+  box-shadow: inset 0 0 0 1px var(--line-hi);
+}
+
+@media (max-aspect-ratio: 16/10) {
+  .lobby .side {
+    width: 21rem;
+  }
+  .hero-name {
+    font-size: 3.4rem;
+  }
+}
+@media (max-height: 520px) {
+  .lobby .brand .logo {
+    font-size: 2.6rem;
+  }
+  .rail button {
+    width: 4rem;
+    padding: 0.45rem 0.2rem;
+  }
+  .play-btn {
+    font-size: 2.1rem;
+  }
+}
+
+/* legacy .fcard rules (old select screen) must not leak into the roster tiles */
+.fcard.rtile {
+  width: auto;
+  height: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  display: block;
+  transform: none;
+  transition: box-shadow 0.15s;
+}
+.fcard.rtile.sel {
+  transform: none;
+}
+.play-btn .arrow svg {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+.lobby .mini-deck .card {
+  width: 3.6rem;
+}
+
+/* ---------------------------------------------------------------- overrides of the old chunky button + deck rules */
+.btn {
+  min-height: 0;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn:not(.gold)::before {
+  display: none;
+}
+.btn.sel,
+.btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.card.focus {
+  transform: translateY(-0.3rem);
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 1.2rem rgba(246, 182, 50, 0.35);
+}
+.card.equipped::before {
+  content: '✓';
+  left: auto;
+  right: 0.25rem;
+  top: 0.25rem;
+  transform: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  border: 0;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-family: var(--cond);
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-shadow: none;
+}
+.deck-wrap {
+  grid-template-columns: minmax(0, 1fr) 21rem;
+}
+.info {
+  padding: 1rem;
+  overflow: auto;
+}
+.info .iname {
+  font-size: 1.7rem;
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.deck-slots .slot-l,
+.lbl,
+.mc-sub {
+  color: var(--mute);
+}
+.modes-grid .mode-tile img {
+  height: 112%;
+  bottom: -0.6rem;
+}
+.modes-grid .mode-tile img + img {
+  height: 104%;
+}

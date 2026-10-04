@@ -12,6 +12,12 @@ export type Quality = 'low' | 'medium' | 'high';
 export function detectQuality(): Quality {
   const q = new URLSearchParams(location.search).get('q');
   if (q === 'low' || q === 'medium' || q === 'high') return q;
+  try {
+    const saved = JSON.parse(localStorage.getItem('rapbrawl.quality') ?? 'null');
+    if (saved === 'low' || saved === 'medium' || saved === 'high') return saved;
+  } catch {
+    /* storage unavailable */
+  }
   const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
   return coarse ? 'medium' : 'high';
 }
