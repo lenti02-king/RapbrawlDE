@@ -4,7 +4,7 @@ _Last updated: 2026-10-04 (session 4: fighters from the product owner's Meshy sc
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (single-file build, owner-only until shared): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (single-file build, owner-only until shared, version 6 = session 4): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
