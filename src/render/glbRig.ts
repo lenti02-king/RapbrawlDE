@@ -83,11 +83,20 @@ export async function loadCharacterModels(ids: string[], base = 'assets/characte
   const ok: string[] = [];
   await Promise.all(
     ids.map(async (id) => {
-      const url = overrides[id] ?? `${base}/${id}.glb`;
       try {
-        const res = await fetch(url);
-        const type = res.headers.get('content-type') ?? '';
-        if (!res.ok || type.includes('text/html')) return;
+        // .glb, or a self-contained .gltf.json for hosts that do not serve .glb (scripts/glb-to-json.mjs)
+        let url = '';
+        let res: Response | null = null;
+        for (const u of overrides[id] ? [overrides[id]] : [`${base}/${id}.glb`, `${base}/${id}.gltf.json`]) {
+          const r = await fetch(u).catch(() => null);
+          const type = r?.headers.get('content-type') ?? '';
+          if (r && r.ok && !type.includes('text/html')) {
+            url = u;
+            res = r;
+            break;
+          }
+        }
+        if (!res) return;
         const buf = await res.arrayBuffer();
         const gltf = await loader.parseAsync(buf, url.replace(/[^/]*$/, ''));
         if (!isHumanoid(gltf.scene)) {

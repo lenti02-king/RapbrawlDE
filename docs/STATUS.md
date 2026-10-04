@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-04 (end of session 2, Artifact republished as version 4 with the new courtyard)._
+_Last updated: 2026-10-04 (session 3: realistic fighters + AAA menus, Artifact version 5)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
@@ -38,6 +38,20 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Painted card art drop-in (`public/assets/cards/<id>.webp`) | BUILT, UNVERIFIED (no art yet) | |
 | Headless tests run at `q=low` (SwiftShader is too slow for the full pipeline). `low` = Lambert arena, no IBL, light-pool decals instead of local lights (≈2× cheaper per frame, D20) | VERIFIED: 22/22 E2E locally and on GitHub Actions (CI run 17 green) | `npm run e2e` |
 
+## Session 3 — realistic fighters with Blender, AAA menus (product owner: "SF6-realistisch, nur nicht so ultra detailliert"; menu reference image)
+| Area | Status | Evidence |
+|---|---|---|
+| Character build pipeline `tools/characters` (Blender as Python module): MakeHuman 1.1 data (npm `makehuman-data`, CC0) -> body shape, fitted clothes/hair/eyes, fists baked in, Mixamo-named 22-bone game skeleton -> GLB | VERIFIED (builds both fighters in ~25 s each) | `python3 tools/characters/build.py bonez|jazeek` |
+| Bonez: tall, light eyes, beard, black tee + puffer vest (open), black jeans, knit scarf, gold cuban chain + cross, gold watch, hand/forearm tattoos | VERIFIED (screenshots) | `/?lab=poses&a=bonez&frame=bust&hide=other` |
+| Jazeek: tan skin, curls, moustache + chin beard, white ribbed tank top, beige trousers with an original monogram, white sneakers, two silver chains + medallion, silver watch, arm tattoos | VERIFIED (screenshots) | `/?lab=poses&a=jazeek&frame=bust&hide=other` |
+| All moves with the new models + hitbox overlap | VERIFIED (contact sheets) | `EXTRA="&q=low" node scripts/moves.mjs jazeek|bonez` |
+| Licences: only CC0 (MakeHuman bundled) and CC-BY assets accepted by the build; per-asset list next to each GLB | VERIFIED | `public/assets/characters/*.credits.json` (Tank_Top_01: CC BY 4.0 Mindfront → credit in game credits) |
+| Likeness to the real Jazeek / Bonez MC | PARTIAL: hair, beard, outfit, body type and colouring follow the photos; faces are generic MakeHuman faces, not portraits | |
+| AAA menus ("Block Beats Night"): lobby with live 3D hero, modes, versus fighter select, card loadout with 3 presets, profile (local XP/rank/history), settings (quality, touch, sound, vibration), restyled HUD/results | VERIFIED (screenshots + 22/22 E2E) | `node scratch/menus.mjs` style captures, `npm run e2e` |
+| Card art and key art rendered in-engine from the models (pose = first active frame of each card's move) | VERIFIED (screenshots) | `src/ui/portraits.ts` |
+| Shop / Battle Pass from the reference | NOT BUILT: needs monetisation decisions by the product owner | |
+| Artifact: models shipped as `.gltf.json` (host does not serve .glb) | VERIFIED (published v5, smoke-tested) | `scripts/glb-to-json.mjs` |
+
 ## Earlier (session 1) — still valid
 Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollback netcode core, WebRTC copy/paste friend match (one machine only), Android debug APK in CI, iOS BLOCKED (needs macOS/Xcode/Apple account), CI green on GitHub Actions.
 
@@ -49,7 +63,8 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - Bot is reactive but exploitable. Back-throw victim animation assumes a forward throw.
 
 ## Needs the product owner
-- **3D models of Jazeek and Bonez MC** (see `docs/ASSETS.md`): photoreal look is impossible with procedural geometry.
+- **Faces**: real likeness needs a scan/sculpt or an image-to-3D head (see `docs/ASSETS.md`); everything else of the models is generated in `tools/characters`.
+- **Shop / Battle Pass / currencies**: monetisation is a business decision (not built).
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
 - Hosting decision for signaling/matchmaking + TURN.
