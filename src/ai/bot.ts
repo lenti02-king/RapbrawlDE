@@ -40,6 +40,8 @@ interface Snapshot {
 type Step = { bits: number; frames: number };
 
 export class Bot implements InputSource {
+  /** Marks bots of the attract/demo mode (no HUD, quiet audio). */
+  demo = false;
   private hist: Snapshot[] = [];
   private plan: Step[] = [];
   private seed: number;

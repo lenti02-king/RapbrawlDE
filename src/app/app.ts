@@ -1,41 +1,43 @@
-// Application flow: screens, match setup, pause/results. Owns the render loop.
+// Application flow: home (3D showcase), fighter select, deck, controls, matches, pause,
+// results, online lobby. Owns the render loop. All player-facing text is German.
 import '../content';
 import { BOT_LEVELS, Bot } from '../ai/bot';
-import type { CardCategory } from '../core/defs';
 import type { SimEvent } from '../core/events';
 import { IN } from '../core/input';
-import { getCard, getFighter, LOADOUT_SLOTS, validateLoadout } from '../core/registry';
+import { getCard, getFighter, getMove, SIGNATURE_SLOT, validateLoadout } from '../core/registry';
 import { createMatch, defaultConfig } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ROSTER } from '../content';
-import { GamepadSource, KeyboardSource, MergedSource, NullSource, P1_KEYS, P2_KEYS, keyboardState, type InputSource } from '../input/sources';
+import { GamepadSource, KeyboardSource, MergedSource, NullSource, P1_KEYS, P2_KEYS, keyboardState, type InputSource, type KeyMap } from '../input/sources';
 import { TouchControls } from '../input/touch';
-import { CHARACTER_VISUALS } from '../render/characters';
 import { GameView } from '../render/view';
 import { installCinematics } from '../render/cinematics';
-import { Hud } from '../ui/hud';
+import { cardHtml, Hud } from '../ui/hud';
+import { CAT_COLOR, CAT_DE, UI_ICONS } from '../ui/icons';
+import { portrait, renderPortraits } from '../ui/portraits';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
 import type { Transport } from '../net/rollback';
 import { TrainingMonitor } from './training';
+import * as THREE from 'three';
 
-type Mode = 'cpu' | 'local' | 'training' | 'demo' | 'online';
+type PlayMode = 'cpu' | 'local' | 'training';
+type Mode = 'menu' | PlayMode | 'online';
+type Level = keyof typeof BOT_LEVELS;
 
-const CAT_NAMES: Record<CardCategory, string> = {
-  offense: 'Offense',
-  zoning: 'Zoning',
-  mobility: 'Mobility',
-  counter: 'Counter',
-  utility: 'Utility',
-  grapple: 'Grapple',
-  signature: 'Signature',
-};
+const LEVEL_DE: Record<Level, string> = { easy: 'LEICHT', normal: 'MITTEL', hard: 'SCHWER' };
+const MODE_DE: Record<PlayMode, string> = { cpu: 'GEGEN CPU', local: '2 SPIELER', training: 'TRAINING' };
+const LEVELS: Level[] = ['easy', 'normal', 'hard'];
+
+/** Arrow keys also steer player 1 when the keyboard is not shared with a second player. */
+const P1_ARROWS: KeyMap = { ArrowLeft: IN.LEFT, ArrowRight: IN.RIGHT, ArrowUp: IN.UP, ArrowDown: IN.DOWN };
 
 interface Selection {
   fighters: [string, string];
   loadouts: [string[], string[]];
-  level: keyof typeof BOT_LEVELS;
+  level: Level;
+  mode: PlayMode;
 }
 
 interface Stats {
@@ -62,6 +64,16 @@ const store = {
   },
 };
 
+const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+function fighterStats(id: string) {
+  const d = getFighter(id);
+  const keys = ['5L', '5H', '2H'] as const;
+  const reach = Math.max(...keys.flatMap((k) => getMove(id, d.normals[k]).hits.flatMap((h) => h.boxes.map((b) => b.x1))));
+  const dmg = keys.reduce((a, k) => a + getMove(id, d.normals[k]).hits.reduce((x, h) => x + h.damage, 0), 0);
+  return { health: d.health, speed: d.walkF, reach, dmg };
+}
+
 export class App {
   readonly view: GameView;
   readonly hud: Hud;
@@ -70,7 +82,7 @@ export class App {
   private ui: HTMLElement;
   private screen: HTMLElement | null = null;
   runner: MatchRunner | null = null;
-  mode: Mode = 'demo';
+  mode: Mode = 'menu';
   private last = performance.now();
   sel: Selection;
   private stats: Stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
@@ -78,10 +90,12 @@ export class App {
   private training: TrainingMonitor | null = null;
   private touchEnabled: boolean;
   private resultsShown = false;
+  private playerName: string;
+  private showAcc = 0;
   /** Which fighter this device controls (1 for an online guest). */
   localIdx = 0;
   private netTransport: Transport | null = null;
-  private escHandler = (e: KeyboardEvent) => this.onKey(e);
+  private keyHandler = (e: KeyboardEvent) => this.onKey(e);
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.ui = ui;
@@ -89,38 +103,57 @@ export class App {
     installCinematics(this.view, this.audio);
     this.hud = new Hud(ui);
     this.touch = new TouchControls(ui);
+    this.touch.bindCards(this.hud.handCards);
+    this.hud.onSigReady = () => this.audio.chime();
     const params = new URLSearchParams(location.search);
     this.touchEnabled =
       params.get('touch') === '1' || (params.get('touch') !== '0' && typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches);
-    this.sel = store.get<Selection>('selection', {
-      fighters: ['volt', 'brick'],
-      loadouts: [getFighter('volt').defaultLoadout.slice(), getFighter('brick').defaultLoadout.slice()],
-      level: 'normal',
-    });
-    // sanitize persisted selection
+    try {
+      renderPortraits(ROSTER);
+    } catch {
+      /* portraits are optional */
+    }
+    this.playerName = store.get('name', 'Spieler');
+    this.audio.setMuted(store.get('muted', false));
+    const saved = store.get<Partial<Selection>>('selection', {});
+    this.sel = {
+      fighters: (saved.fighters as [string, string]) ?? [ROSTER[0], ROSTER[1] ?? ROSTER[0]],
+      loadouts: (saved.loadouts as [string[], string[]]) ?? [[], []],
+      level: saved.level && saved.level in BOT_LEVELS ? saved.level : 'normal',
+      mode: saved.mode && saved.mode in MODE_DE ? saved.mode : 'cpu',
+    };
     for (let i = 0; i < 2; i++) {
-      if (!ROSTER.includes(this.sel.fighters[i])) this.sel.fighters[i] = ROSTER[i];
-      if (validateLoadout(this.sel.fighters[i], this.sel.loadouts[i]))
+      if (!ROSTER.includes(this.sel.fighters[i])) this.sel.fighters[i] = ROSTER[i] ?? ROSTER[0];
+      if (!this.sel.loadouts[i] || validateLoadout(this.sel.fighters[i], this.sel.loadouts[i]))
         this.sel.loadouts[i] = getFighter(this.sel.fighters[i]).defaultLoadout.slice();
     }
     this.hud.pauseBtn.addEventListener('click', () => this.togglePause());
     window.addEventListener('resize', () => this.view.resize());
-    window.addEventListener('keydown', this.escHandler);
+    window.addEventListener('keydown', this.keyHandler);
     const rot = document.createElement('div');
     rot.className = 'rotate-hint';
-    rot.textContent = 'ROTATE YOUR DEVICE TO LANDSCAPE';
+    rot.innerHTML = `<div style="font-size:3rem">⟳</div>BITTE GERÄT QUER HALTEN`;
     ui.appendChild(rot);
 
     const quick = params.get('quick');
+    const known = (id: string) => {
+      try {
+        getFighter(id);
+        return true;
+      } catch {
+        return false;
+      }
+    };
     if (quick) {
       const [a, b] = quick.split(',');
-      if (ROSTER.includes(a)) this.sel.fighters[0] = a;
-      if (b && ROSTER.includes(b)) this.sel.fighters[1] = b;
+      if (a && known(a)) this.sel.fighters[0] = a;
+      if (b && known(b)) this.sel.fighters[1] = b;
       this.sel.loadouts = [getFighter(this.sel.fighters[0]).defaultLoadout.slice(), getFighter(this.sel.fighters[1]).defaultLoadout.slice()];
-      const mode = (params.get('mode') as Mode) ?? 'cpu';
-      this.startMatch(mode);
+      const mode = (params.get('mode') as Mode | 'demo') ?? 'cpu';
+      if (mode === 'demo') this.startDemo();
+      else this.startMatch(mode === 'menu' ? 'cpu' : mode, false);
     } else {
-      this.startDemo();
+      this.startShowcase();
       this.showTitle();
     }
     (window as unknown as { __rb: App }).__rb = this;
@@ -132,45 +165,97 @@ export class App {
     const elapsed = now - this.last;
     this.last = now;
     if (this.runner) {
+      if (this.mode === 'menu') this.animateShowcase(elapsed);
       this.runner.tick(elapsed, this.audio.beat());
       const s = this.runner.state;
-      if (this.mode !== 'demo') {
+      if (this.mode !== 'menu' && !this.isDemo) {
         this.hud.update(s, elapsed / 1000, this.view.screenFlash);
-        this.touch.updateCards(s, this.localIdx);
         if (this.runner instanceof NetMatchRunner && this.runner.silence > 6 && !this.resultsShown) this.connectionLost();
         this.training?.update(s, this.runner.lastInputs);
         if (s.phase === 'matchOver' && s.phaseFrame > 90 && !this.resultsShown) this.showResults();
-      } else if (s.phase === 'matchOver' && s.phaseFrame > 120) {
-        this.startDemo();
       }
     }
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  // ------------------------------------------------------------- matches
+  private get isDemo(): boolean {
+    return this.bots.length === 2 && this.bots.every((b) => b.demo);
+  }
+
+  // ------------------------------------------------------------ showcase
   private makeRunner(state: GameState, sources: [InputSource, InputSource]): MatchRunner {
     const r = new MatchRunner(state, this.view, sources);
-    r.listeners.push({
-      onEvents: (s, ev) => this.onEvents(s, ev),
-    });
+    r.listeners.push({ onEvents: (s, ev) => this.onEvents(s, ev) });
     return r;
   }
 
-  private startDemo(): void {
-    this.mode = 'demo';
-    const a = ROSTER[Math.floor(Math.random() * ROSTER.length)];
-    const b = ROSTER[Math.floor(Math.random() * ROSTER.length)];
-    const seed = (Math.random() * 1e9) | 0;
-    const state = createMatch(defaultConfig({ fighters: [a, b], seed }));
-    for (const f of state.fighters) f.meter = 200;
-    this.bots = [new Bot(BOT_LEVELS.hard, seed), new Bot(BOT_LEVELS.hard, seed + 1)];
-    this.runner = this.makeRunner(state, [this.bots[0], this.bots[1]]);
+  /** Home-screen hero: the selected fighter on the courtyard stage, cycling intro / idle / win poses. */
+  private startShowcase(): void {
+    this.leaveNet();
+    this.mode = 'menu';
+    this.bots = [];
+    this.training = null;
+    const a = this.sel.fighters[0];
+    const b = ROSTER.find((x) => x !== a) ?? a;
+    const state = createMatch(defaultConfig({ fighters: [a, b], training: true, seed: 7 }));
+    state.phase = 'fight';
+    const [f, o] = state.fighters;
+    f.x = 0;
+    f.facing = 1;
+    f.state = 'intro';
+    f.sf = 0;
+    o.x = 90000;
+    o.state = 'idle';
+    this.runner = this.makeRunner(state, [new NullSource(), new NullSource()]);
+    this.runner.paused = true;
+    this.showAcc = 0;
+    this.view.menuShot = {
+      pos: new THREE.Vector3(1.4, 1.25, 4.9),
+      target: new THREE.Vector3(1.0, 1.0, 0),
+      fov: 32,
+    };
     this.hud.show(false);
     this.touch.setVisible(false);
-    this.training = null;
   }
 
-  startMatch(mode: Mode): void {
+  private animateShowcase(elapsedMs: number): void {
+    const s = this.runner!.state;
+    const f = s.fighters[0];
+    this.showAcc += (Math.min(100, elapsedMs) * 60) / 1000;
+    while (this.showAcc >= 1) {
+      this.showAcc -= 1;
+      f.sf++;
+    }
+    if (f.state === 'intro' && f.sf > 125) {
+      f.state = 'idle';
+      f.sf = 0;
+    } else if (f.state === 'idle' && f.sf > 420) {
+      f.state = 'win';
+      f.sf = 0;
+      s.phase = 'roundOver';
+      s.roundWinner = 0;
+    } else if (f.state === 'win' && f.sf > 260) {
+      f.state = 'idle';
+      f.sf = 0;
+      s.phase = 'fight';
+    }
+  }
+
+  /** Bot-vs-bot attract mode (dev/testing: ?quick=a,b&mode=demo). */
+  private startDemo(): void {
+    this.mode = 'cpu';
+    const seed = (Math.random() * 1e9) | 0;
+    const state = createMatch(defaultConfig({ fighters: [...this.sel.fighters], seed }));
+    this.bots = [new Bot(BOT_LEVELS.hard, seed), new Bot(BOT_LEVELS.hard, seed + 1)];
+    for (const b of this.bots) b.demo = true;
+    this.runner = this.makeRunner(state, [this.bots[0], this.bots[1]]);
+    this.view.menuShot = null;
+    this.hud.show(false);
+    this.touch.setVisible(false);
+  }
+
+  // ------------------------------------------------------------- matches
+  startMatch(mode: PlayMode | 'online', splash = true): void {
     if (mode === 'online') return this.showOnlineLobby();
     this.leaveNet();
     this.localIdx = 0;
@@ -186,6 +271,7 @@ export class App {
       }),
     );
     const p1: InputSource[] = [new KeyboardSource(P1_KEYS), new GamepadSource(0)];
+    if (mode !== 'local') p1.push(new KeyboardSource(P1_ARROWS));
     if (this.touchEnabled) p1.push(this.touch);
     let p2: InputSource;
     this.bots = [];
@@ -200,19 +286,35 @@ export class App {
       this.bots = [bot];
       p2 = bot;
     }
+    this.view.menuShot = null;
     this.runner = this.makeRunner(state, [new MergedSource(p1), p2 ?? new NullSource()]);
     this.stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
-    this.hud.setup(state, [this.view.accentFor(state, 0), this.view.accentFor(state, 1)]);
+    this.hud.setup(state, 0, this.touchEnabled);
     this.hud.show(true);
     this.touch.setVisible(this.touchEnabled);
     this.training = mode === 'training' ? new TrainingMonitor(this.hud.trainingInfo) : null;
     this.closeScreen();
     this.audio.startMusic();
+    if (splash && mode !== 'training') this.vsSplash(state);
+  }
+
+  private vsSplash(s: GameState): void {
+    const el = document.createElement('div');
+    el.className = 'vs';
+    const side = (i: number) => {
+      const id = s.fighters[i].def;
+      const img = portrait(id, 'card');
+      return `<div class="vside ${i ? 'r' : 'l'}">${img ? `<img alt="" src="${img}" style="${i ? 'transform:scaleX(-1)' : ''}">` : ''}<div class="vname">${getFighter(id).name}</div></div>`;
+    };
+    el.innerHTML = `${side(0)}<div class="vvs">VS</div>${side(1)}`;
+    this.ui.appendChild(el);
+    window.setTimeout(() => el.remove(), 1900);
   }
 
   private onEvents(s: GameState, ev: readonly SimEvent[]): void {
-    this.audio.onEvents(s, ev, this.mode === 'demo' ? 0.35 : 1);
-    if (this.mode === 'demo') return;
+    const demo = this.mode === 'menu' || this.isDemo;
+    this.audio.onEvents(s, ev, demo ? 0.35 : 1);
+    if (demo) return;
     this.hud.onEvents(s, ev);
     this.training?.onEvents(s, ev);
     for (const e of ev) {
@@ -228,7 +330,7 @@ export class App {
   }
 
   togglePause(): void {
-    if (!this.runner || this.mode === 'demo' || this.resultsShown) return;
+    if (!this.runner || this.mode === 'menu' || this.resultsShown) return;
     if (this.mode === 'online') {
       if (this.screen) this.closeScreen();
       else this.showOnlinePause();
@@ -237,39 +339,39 @@ export class App {
     if (this.runner.paused) {
       this.runner.paused = false;
       this.closeScreen();
+      this.touch.setVisible(this.touchEnabled);
     } else {
       this.runner.paused = true;
+      this.touch.setVisible(false);
       this.showPause();
     }
   }
 
   private onKey(e: KeyboardEvent): void {
-    if (e.code === 'Escape' || e.code === 'KeyP') {
-      if (this.mode !== 'demo') this.togglePause();
+    const inMatch = this.mode !== 'menu';
+    if (this.screen) {
+      if (e.code === 'Enter') {
+        const def = this.screen.querySelector<HTMLButtonElement>('[data-default]:not(:disabled)');
+        if (def && document.activeElement?.tagName !== 'BUTTON' && document.activeElement?.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          def.click();
+        }
+      }
+      if (e.code === 'Escape') {
+        const back = this.screen.querySelector<HTMLButtonElement>('[data-back]');
+        if (back) {
+          back.click();
+          return;
+        }
+      }
     }
+    if (inMatch && (e.code === 'Escape' || e.code === 'KeyP')) this.togglePause();
     if (e.code === 'F1' || e.code === 'KeyH') {
       if (e.code === 'F1') e.preventDefault();
       if (e.code === 'F1' || this.mode === 'training') this.view.debug = !this.view.debug;
     }
-    if (this.mode === 'training' && e.code === 'KeyR') this.startMatch('training');
+    if (this.mode === 'training' && e.code === 'KeyR') this.startMatch('training', false);
     if (this.mode === 'training' && e.code === 'Period' && this.runner?.paused) this.runner.requestStep();
-    if (this.screen) {
-      if (e.code === 'Enter' || e.code === 'KeyJ') {
-        const sel = this.screen.querySelector<HTMLButtonElement>('button.sel') ?? this.screen.querySelector<HTMLButtonElement>('[data-default]');
-        if (sel && document.activeElement !== sel) sel.click();
-      }
-      if (e.code === 'ArrowDown' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'KeyS') this.moveFocus(e.code === 'ArrowDown' || e.code === 'KeyS' ? 1 : -1);
-    }
-  }
-
-  private moveFocus(dir: number): void {
-    const btns = [...this.screen!.querySelectorAll<HTMLButtonElement>('.menu button:not(:disabled)')];
-    if (!btns.length) return;
-    const i = btns.findIndex((b) => b.classList.contains('sel'));
-    btns.forEach((b) => b.classList.remove('sel'));
-    const n = btns[(i + dir + btns.length) % btns.length];
-    n.classList.add('sel');
-    n.focus();
   }
 
   // ------------------------------------------------------------- screens
@@ -285,238 +387,338 @@ export class App {
     el.innerHTML = html;
     this.ui.appendChild(el);
     this.screen = el;
-    const first = el.querySelector<HTMLButtonElement>('.menu button:not(:disabled)');
-    first?.classList.add('sel');
-    el.querySelectorAll<HTMLButtonElement>('.menu button').forEach((b) =>
-      b.addEventListener('pointerenter', () => {
-        el.querySelectorAll('.menu button').forEach((x) => x.classList.remove('sel'));
-        b.classList.add('sel');
-      }),
-    );
-    el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => this.audio.ui('click')));
+    el.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('button')) this.audio.ui('click');
+    });
     return el;
+  }
+
+  private header(title: string, extra = ''): string {
+    return `<div class="header"><button class="btn icon" data-back aria-label="Zurück">${UI_ICONS.back}</button><div class="title">${title}</div><div class="grow"></div>${extra}</div>`;
   }
 
   showTitle(): void {
     const el = this.open(
       `<div class="logo">RAPBRAWL</div>
-       <div class="subtitle">VERTICAL SLICE · PROTOTYPE BUILD</div>
-       <div class="press">${this.touchEnabled ? 'TAP TO START' : 'PRESS ENTER'}</div>
+       <div class="logo-sub">HINTERHOF · BLOCK BEATS</div>
+       <div class="press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div>
        <button data-default style="position:absolute;inset:0;opacity:0" aria-label="Start"></button>`,
-      'title-screen clear',
+      'splash',
     );
     el.querySelector('button')!.addEventListener('click', () => {
       this.audio.unlock();
       this.audio.startMusic();
-      this.showMenu();
+      this.showHome();
     });
   }
 
-  showMenu(): void {
+  private sideLabel(i: number): string {
+    if (this.sel.mode === 'local') return `SPIELER ${i + 1}`;
+    return i === 0 ? 'DU' : this.sel.mode === 'training' ? 'DUMMY' : 'CPU';
+  }
+
+  showHome(): void {
+    if (this.mode !== 'menu') this.startShowcase();
+    else if (this.runner && this.runner.state.fighters[0].def !== this.sel.fighters[0]) this.startShowcase();
+    const fid = this.sel.fighters[0];
+    const d = getFighter(fid);
+    const deck = this.sel.loadouts[0].map((c) => cardHtml(fid, c, 'small')).join('');
+    const sig = getCard(fid, this.sel.loadouts[0][SIGNATURE_SLOT]);
+    const sub = this.sel.mode === 'cpu' ? `GEGEN CPU · ${LEVEL_DE[this.sel.level]}` : this.sel.mode === 'local' ? '2 SPIELER · EIN GERÄT' : 'TRAINING · DUMMY';
     const el = this.open(
-      `<div class="logo" style="font-size:clamp(44px,7vw,90px)">RAPBRAWL</div>
-       <div class="menu">
-         <button class="mbtn" data-m="cpu"><span>VERSUS CPU<small>1 player vs the machine</small></span></button>
-         <button class="mbtn" data-m="local"><span>LOCAL VERSUS<small>2 players · one keyboard / gamepads</small></span></button>
-         <button class="mbtn" data-m="training"><span>TRAINING<small>Hitboxes · frame data · dummy</small></span></button>
-         <button class="mbtn" data-m="online"><span>ONLINE<small>Rollback netplay · experimental</small></span></button>
-         <button class="mbtn" data-m="help"><span>HOW TO PLAY</span></button>
-       </div>`,
-      'clear',
+      `<div class="topbar">
+         <button class="player-chip" data-name><span class="avatar">${portrait(fid, 'bust') ? `<img alt="" src="${portrait(fid, 'bust')}">` : ''}</span>
+           <span style="text-align:left"><div class="pname">${esc(this.playerName)}</div><div class="ptag">NAMEN ÄNDERN</div></span></button>
+         <div class="spacer"></div>
+         <button class="btn icon gray" data-sound aria-label="Ton">${this.audio.muted ? UI_ICONS.mute : UI_ICONS.sound}</button>
+         <button class="btn icon" data-help aria-label="Steuerung">${UI_ICONS.help}</button>
+       </div>
+       <div class="home-main">
+         <div class="logo home-logo">RAPBRAWL</div>
+         <div class="hero-card panel">
+           <div class="hero-name">${d.name}</div>
+           <span class="pill hero-arch">${d.archetype.toUpperCase()}</span>
+           <div class="hero-tag">${d.tagline}</div>
+           <div class="row" style="justify-content:space-between;margin-top:0.2rem"><span class="disp" style="font-size:1.05rem">DEIN DECK</span><span class="pill" style="color:#ffe680">★ ${sig.name}</span></div>
+           <div class="row" style="justify-content:space-between"><div class="mini-deck">${deck}</div><button class="btn small" data-deck>DECK</button></div>
+         </div>
+       </div>
+       <div class="home-bottom">
+         <div class="modes">
+           <div class="tabs">${(Object.keys(MODE_DE) as PlayMode[]).map((m) => `<button class="tab ${this.sel.mode === m ? 'on' : ''}" data-mode="${m}">${MODE_DE[m]}</button>`).join('')}</div>
+           ${this.sel.mode === 'cpu' ? `<button class="btn small gray" data-level>CPU: ${LEVEL_DE[this.sel.level]}</button>` : ''}
+         </div>
+         <button class="btn gold fight-btn" data-fight data-default>KAMPF!<span class="sub">${sub}</span></button>
+       </div>
+       <nav class="bottomnav">
+         <button class="navbtn" data-nav="fighters">${UI_ICONS.fighter}KÄMPFER</button>
+         <button class="navbtn" data-nav="deck">${UI_ICONS.cards}DECK</button>
+         <button class="navbtn on" data-nav="fight">${UI_ICONS.swords}KAMPF</button>
+         <button class="navbtn" data-nav="online">${UI_ICONS.online}ONLINE</button>
+         <button class="navbtn" data-nav="help">${UI_ICONS.pad}STEUERUNG</button>
+       </nav>`,
+      'home',
     );
-    el.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) =>
+    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
       b.addEventListener('click', () => {
-        const m = b.dataset.m!;
-        if (m === 'help') this.showHelp(() => this.showMenu());
-        else this.showSelect(m as Mode);
+        this.sel.mode = b.dataset.mode as PlayMode;
+        store.set('selection', this.sel);
+        this.showHome();
       }),
     );
+    el.querySelector('[data-level]')?.addEventListener('click', () => {
+      this.sel.level = LEVELS[(LEVELS.indexOf(this.sel.level) + 1) % LEVELS.length];
+      store.set('selection', this.sel);
+      this.showHome();
+    });
+    el.querySelector('[data-fight]')!.addEventListener('click', () => this.startMatch(this.sel.mode));
+    el.querySelector('[data-deck]')!.addEventListener('click', () => this.showDeck(0, () => this.showHome()));
+    el.querySelector('[data-help]')!.addEventListener('click', () => this.showHelp(() => this.showHome()));
+    el.querySelector('[data-sound]')!.addEventListener('click', () => {
+      this.audio.setMuted(!this.audio.muted);
+      store.set('muted', this.audio.muted);
+      this.showHome();
+    });
+    el.querySelector('[data-name]')!.addEventListener('click', () => {
+      const n = window.prompt('Dein Spielername', this.playerName);
+      if (n && n.trim()) {
+        this.playerName = n.trim().slice(0, 14);
+        store.set('name', this.playerName);
+        this.showHome();
+      }
+    });
+    el.querySelectorAll<HTMLButtonElement>('[data-nav]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const n = b.dataset.nav;
+        if (n === 'fighters') this.showFighters(0);
+        else if (n === 'deck') this.showDeck(0, () => this.showHome());
+        else if (n === 'online') this.showOnlineLobby();
+        else if (n === 'help') this.showHelp(() => this.showHome());
+      }),
+    );
+  }
+
+  showFighters(player: number): void {
+    const all = ROSTER.map((id) => fighterStats(id));
+    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((s) => s[k]));
+    const cards = ROSTER.map((id, i) => {
+      const d = getFighter(id);
+      const st = all[i];
+      const bar = (label: string, v: number) => `<div class="stat">${label}<i><b style="transform:scaleX(${Math.max(0.08, v).toFixed(3)})"></b></i></div>`;
+      const img = portrait(id, 'card');
+      const color = id === 'bonez' ? '#3a3f55' : '#3d8bff';
+      return `<button class="fcard ${this.sel.fighters[player] === id ? 'sel' : ''}" data-f="${id}" style="--c:${color}">
+        <div class="portrait">${img ? `<img alt="" src="${img}">` : ''}</div>
+        <div class="fbanner">
+          <div class="fname">${d.name}</div>
+          <div class="farch">${d.archetype.toUpperCase()}</div>
+          ${bar('LEBEN', st.health / max('health'))}
+          ${bar('TEMPO', st.speed / max('speed'))}
+          ${bar('REICHWEITE', st.reach / max('reach'))}
+          ${bar('SCHADEN', st.dmg / max('dmg'))}
+        </div>
+        <span class="picked pill" style="background:#2fd06b">GEWÄHLT</span>
+      </button>`;
+    }).join('');
+    const tabs = `<div class="tabs">${[0, 1].map((i) => `<button class="tab ${player === i ? `on ${i ? 'red' : ''}` : ''}" data-p="${i}">${this.sideLabel(i)}</button>`).join('')}</div>`;
+    const el = this.open(
+      `${this.header('KÄMPFER', tabs)}
+       <div class="fighters">${cards}</div>
+       <div class="row" style="justify-content:center;margin-top:0.8rem">
+         <button class="btn" data-todeck>DECK ${player ? `(${this.sideLabel(1)})` : ''}</button>
+         <button class="btn gold" data-ok data-default>FERTIG</button>
+       </div>`,
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const id = b.dataset.f!;
+        this.sel.fighters[player] = id;
+        if (validateLoadout(id, this.sel.loadouts[player])) this.sel.loadouts[player] = getFighter(id).defaultLoadout.slice();
+        store.set('selection', this.sel);
+        el.querySelectorAll('.fcard').forEach((x) => x.classList.toggle('sel', x === b));
+        if (player === 0) this.startShowcase();
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => b.addEventListener('click', () => this.showFighters(Number(b.dataset.p))));
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
+    el.querySelector('[data-ok]')!.addEventListener('click', () => this.showHome());
+    el.querySelector('[data-todeck]')!.addEventListener('click', () => this.showDeck(player, () => this.showFighters(player)));
+  }
+
+  showDeck(player: number, done: () => void, doneLabel = 'FERTIG'): void {
+    const fid = this.sel.fighters[player];
+    const def = getFighter(fid);
+    const deck = this.sel.loadouts[player].slice();
+    let focus: string | null = deck[0] ?? null;
+    let placing = false;
+    const tabs = `<div class="tabs">${[0, 1].map((i) => `<button class="tab ${player === i ? `on ${i ? 'red' : ''}` : ''}" data-p="${i}">${this.sideLabel(i)}</button>`).join('')}</div>`;
+    const el = this.open(
+      `${this.header(`DECK · ${def.name}`, tabs)}
+       <div class="deck-wrap">
+         <div class="deck-left">
+           <div class="panel deck-slots"></div>
+           <div class="panel collection"></div>
+         </div>
+         <div class="panel info"></div>
+       </div>
+       <div class="row" style="justify-content:center;margin-top:0.7rem">
+         <span class="hint deck-err"></span>
+         <button class="btn gold" data-ok data-default>${doneLabel}</button>
+       </div>`,
+    );
+    const slotsEl = el.querySelector<HTMLElement>('.deck-slots')!;
+    const collEl = el.querySelector<HTMLElement>('.collection')!;
+    const infoEl = el.querySelector<HTMLElement>('.info')!;
+    const errEl = el.querySelector<HTMLElement>('.deck-err')!;
+    const ok = el.querySelector<HTMLButtonElement>('[data-ok]')!;
+    const render = () => {
+      slotsEl.innerHTML =
+        `<div style="align-self:center;margin-right:0.4rem"><div class="disp" style="font-size:1.3rem">DEIN DECK</div><div class="hint" style="font-size:0.8rem">2 Specials + 1 Signature</div></div>` +
+        deck
+          .map(
+            (id, i) =>
+              `<button data-slot="${i}" style="display:flex;flex-direction:column;align-items:center">${cardHtml(fid, id, `big ${focus === id ? 'focus' : ''} ${placing && i !== SIGNATURE_SLOT ? 'wiggle' : ''}`)}<div class="slot-l">${
+                i === SIGNATURE_SLOT ? '★ SIGNATURE · O' : `SPECIAL ${i + 1} · ${i ? 'I' : 'U'}`
+              }</div></button>`,
+          )
+          .join('');
+      const specials = def.cards.filter((c) => c.category !== 'signature');
+      const sigs = def.cards.filter((c) => c.category === 'signature');
+      collEl.innerHTML =
+        `<div style="width:100%" class="disp">SAMMLUNG</div>` +
+        [...specials, ...sigs]
+          .map((c) => `<button data-card="${c.id}">${cardHtml(fid, c.id, `${focus === c.id ? 'focus' : ''} ${deck.includes(c.id) ? 'equipped' : ''}`)}</button>`)
+          .join('');
+      if (focus) {
+        const c = getCard(fid, focus);
+        const inDeck = deck.includes(c.id);
+        const isSig = c.category === 'signature';
+        infoEl.innerHTML = `<div class="row" style="flex-wrap:nowrap;align-items:flex-start">${cardHtml(fid, c.id)}<div style="display:flex;flex-direction:column;gap:0.35rem">
+            <div class="iname">${c.name}</div><span class="pill icat" style="border-color:${CAT_COLOR[c.category]}">${CAT_DE[c.category].toUpperCase()}</span>
+            <span class="pill" style="align-self:flex-start">HYPE-KOSTEN: ${c.cost / 100}</span></div></div>
+          <div class="irole">${c.role}</div>
+          <div class="idesc">${c.description}</div>
+          ${
+            isSig
+              ? `<div class="hint">Signature-Karten liegen immer im goldenen Slot 3 (Taste O / goldene Karte). Trifft sie, startet die Kino-Sequenz.</div>`
+              : inDeck
+                ? `<div class="hint">Ist in deinem Deck.</div>`
+                : `<button class="btn ${placing ? 'gray' : 'gold'}" data-use>${placing ? 'ABBRECHEN' : 'EINSETZEN'}</button>${placing ? '<div class="hint">Tippe oben auf die Karte, die ersetzt werden soll.</div>' : ''}`
+          }`;
+        infoEl.querySelector('[data-use]')?.addEventListener('click', () => {
+          placing = !placing;
+          render();
+        });
+      } else infoEl.innerHTML = `<div class="hint">Tippe auf eine Karte für Details.</div>`;
+      const err = validateLoadout(fid, deck);
+      errEl.textContent = err ?? '';
+      ok.disabled = !!err;
+      slotsEl.querySelectorAll<HTMLButtonElement>('[data-slot]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const i = Number(b.dataset.slot);
+          if (placing && focus && i !== SIGNATURE_SLOT) {
+            deck[i] = focus;
+            placing = false;
+          } else focus = deck[i];
+          render();
+        }),
+      );
+      collEl.querySelectorAll<HTMLButtonElement>('[data-card]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const id = b.dataset.card!;
+          const c = getCard(fid, id);
+          if (c.category === 'signature' && !deck.includes(id)) deck[SIGNATURE_SLOT] = id;
+          focus = id;
+          placing = false;
+          render();
+        }),
+      );
+    };
+    render();
+    const save = () => {
+      if (!validateLoadout(fid, deck)) {
+        this.sel.loadouts[player] = deck.slice();
+        store.set('selection', this.sel);
+      }
+    };
+    el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
+      b.addEventListener('click', () => {
+        save();
+        this.showDeck(Number(b.dataset.p), done, doneLabel);
+      }),
+    );
+    el.querySelector('[data-back]')!.addEventListener('click', () => {
+      save();
+      done();
+    });
+    ok.addEventListener('click', () => {
+      save();
+      done();
+    });
   }
 
   showHelp(back: () => void): void {
     const el = this.open(
-      `<h2>HOW TO PLAY</h2>
-       <dl class="movelist">
-         <dt>Move / Jump / Crouch</dt><dd>Keyboard A D W S · Touch: left-side stick · Double-tap forward/back to dash</dd>
-         <dt>Light / Heavy</dt><dd>J / K · Touch L / H · combine with ↓ for low attacks, → + Heavy = overhead</dd>
-         <dt>Grab</dt><dd>L · Beats blocking. Press Grab right when grabbed to tech.</dd>
-         <dt>Block</dt><dd>Hold Space (or hold back). Hold ↓ too to block lows. Overheads and jump-ins must be blocked standing.</dd>
-         <dt>Special cards</dt><dd>U / I / O · Touch: card buttons. Cost Hype meter (bars). Build Hype by attacking, blocking, getting hit.</dd>
-         <dt>Combos</dt><dd>Light → Light → Heavy chains. Lights and Heavies cancel into special cards when they connect.</dd>
-         <dt>Signature</dt><dd>3 bars. If it hits, a cinematic finisher plays. Blocked or whiffed = heavy punishment.</dd>
-         <dt>Player 2</dt><dd>Arrows move · , . / = Light Heavy Grab · Right Shift block · M N B cards</dd>
-         <dt>Pause</dt><dd>Esc / P · Training: H hitboxes, R reset, pause + . frame step</dd>
-       </dl>
-       <div class="row" style="margin-top:16px"><div class="menu" style="margin:0"><button class="mbtn" data-back><span>BACK</span></button></div></div>`,
+      `${this.header('STEUERUNG')}
+       <div class="help-grid">
+         <div class="panel">
+           <h3>TASTATUR</h3>
+           <div class="keys">
+             <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span><span>Laufen · 2× tippen = Dash</span>
+             <span><kbd>W</kbd> / <kbd>↑</kbd></span><span>Springen</span>
+             <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Ducken (tiefe Angriffe)</span>
+             <span><kbd>J</kbd> <kbd>K</kbd></span><span>Leicht · Schwer (mit ↓ = tief)</span>
+             <span><kbd>L</kbd></span><span>Griff – schlägt Block</span>
+             <span><kbd>Leertaste</kbd></span><span>Blocken (oder zurück halten)</span>
+             <span><kbd>U</kbd> <kbd>I</kbd></span><span>Special-Karten 1 und 2</span>
+             <span><kbd>O</kbd></span><span><b style="color:#ffd23a">★ SIGNATURE</b> – braucht volle Hype-Leiste (3)</span>
+             <span><kbd>Esc</kbd></span><span>Pause</span>
+           </div>
+           <div class="hint" style="margin-top:0.6rem">2 Spieler: Spieler 2 nutzt Pfeile, <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd> Angriffe, <kbd>⇧</kbd> rechts Block, <kbd>M</kbd><kbd>N</kbd><kbd>B</kbd> Karten. Gamepads werden erkannt.</div>
+         </div>
+         <div class="panel">
+           <h3>TOUCH</h3>
+           <div class="hint" style="color:#e6edff">Linke Bildschirmhälfte: Stick erscheint dort, wo du hintippst. Die gelben Punkte zeigen die erkannte Richtung. Schräg runter-zurück = tief blocken.</div>
+           <div class="hint" style="color:#e6edff;margin-top:0.4rem">Rechts: <b>L</b> leicht · <b>H</b> schwer · <b>GRIFF</b> · <b>BLOCK</b>. Die Karten unten in der Mitte sind deine Specials – die <b style="color:#ffd23a">goldene Karte</b> ist die Signature.</div>
+           <h3 style="margin-top:0.8rem">SO KÄMPFST DU</h3>
+           <div class="hint" style="color:#e6edff">Hype lädt sich durch Treffen, Blocken und Einstecken auf. Specials kosten 1–2 Hype, die Signature 3. Leicht → Leicht → Schwer verketten; Treffer lassen sich in Specials abbrechen. Trifft die Signature, startet die Kino-Sequenz – geblockt oder verfehlt ist sie gefährlich.</div>
+         </div>
+       </div>
+       <div class="row" style="justify-content:center;margin-top:0.7rem"><button class="btn gold" data-ok data-default>VERSTANDEN</button></div>`,
     );
     el.querySelector('[data-back]')!.addEventListener('click', back);
-  }
-
-  showSelect(mode: Mode, player = 0): void {
-    const who = mode === 'local' ? `PLAYER ${player + 1}` : player === 0 ? 'YOUR FIGHTER' : 'OPPONENT';
-    const cards = ROSTER.map((id) => {
-      const d = getFighter(id);
-      const accent = CHARACTER_VISUALS[id].accents[0];
-      const spd = Math.round((d.walkF / 600) * 100);
-      const pow = id === 'brick' ? 90 : 60;
-      const hp = Math.round((d.health / Math.max(...ROSTER.map((r) => getFighter(r).health))) * 100);
-      return `<button class="fcard ${this.sel.fighters[player] === id ? 'sel' : ''}" data-f="${id}" style="--accent:${accent}">
-        <div class="arch">${d.archetype.toUpperCase()}</div>
-        <div class="fname">${d.name}</div>
-        <div class="tag">${d.tagline}</div>
-        <div class="stat">HEALTH<i><b style="transform:scaleX(${hp / 100})"></b></i></div>
-        <div class="stat">SPEED<i><b style="transform:scaleX(${spd / 100})"></b></i></div>
-        <div class="stat">POWER<i><b style="transform:scaleX(${pow / 100})"></b></i></div>
-      </button>`;
-    }).join('');
-    const levels = Object.entries(BOT_LEVELS)
-      .map(([k, l]) => `<button class="toggle ${this.sel.level === k ? 'on' : ''}" data-lv="${k}">${l.name}</button>`)
-      .join('');
-    const el = this.open(
-      `<div class="who">${who}</div>
-       <h2>CHOOSE YOUR FIGHTER</h2>
-       <div class="fighters">${cards}</div>
-       ${mode !== 'local' && mode !== 'online' && player === 0 ? `<div class="row" style="margin-top:14px"><span class="hint">CPU LEVEL</span>${levels}</div>` : ''}
-       <div class="row" style="margin-top:18px">
-         <button class="cta alt" data-back><span>BACK</span></button>
-         <button class="cta" data-next data-default><span>NEXT</span></button>
-       </div>`,
-      'clear',
-    );
-    el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
-      b.addEventListener('click', () => {
-        this.sel.fighters[player] = b.dataset.f!;
-        if (validateLoadout(b.dataset.f!, this.sel.loadouts[player]))
-          this.sel.loadouts[player] = getFighter(b.dataset.f!).defaultLoadout.slice();
-        el.querySelectorAll('.fcard').forEach((x) => x.classList.toggle('sel', x === b));
-      }),
-    );
-    el.querySelectorAll<HTMLButtonElement>('[data-lv]').forEach((b) =>
-      b.addEventListener('click', () => {
-        this.sel.level = b.dataset.lv as keyof typeof BOT_LEVELS;
-        el.querySelectorAll('[data-lv]').forEach((x) => x.classList.toggle('on', x === b));
-      }),
-    );
-    el.querySelector('[data-back]')!.addEventListener('click', () => (player === 0 ? this.showMenu() : this.showSelect(mode, 0)));
-    el.querySelector('[data-next]')!.addEventListener('click', () => {
-      if (mode === 'local' && player === 0) this.showSelect(mode, 1);
-      else if (mode !== 'local' && player === 0) {
-        // CPU / dummy picks the other fighter by default
-        const other = ROSTER.find((id) => id !== this.sel.fighters[0]) ?? ROSTER[0];
-        this.sel.fighters[1] = mode === 'training' ? this.sel.fighters[1] : other;
-        if (validateLoadout(this.sel.fighters[1], this.sel.loadouts[1]))
-          this.sel.loadouts[1] = getFighter(this.sel.fighters[1]).defaultLoadout.slice();
-        this.showLoadout(mode, 0);
-      } else this.showLoadout(mode, 0);
-    });
-  }
-
-  showLoadout(mode: Mode, player: number): void {
-    const fid = this.sel.fighters[player];
-    const def = getFighter(fid);
-    const chosen = this.sel.loadouts[player].slice();
-    const render = () => {
-      const grid = def.cards
-        .map((c) => {
-          const slot = chosen.indexOf(c.id);
-          const bars = c.cost / 100;
-          const pips = [0, 1, 2].map((i) => `<i class="${i < bars ? '' : 'off'}"></i>`).join('');
-          return `<button class="lcard ${slot >= 0 ? 'on' : ''}" data-c="${c.id}">
-            ${slot >= 0 ? `<span class="slot">${slot + 1}</span>` : ''}
-            <span class="lc-cat cat-${c.category}">${CAT_NAMES[c.category].toUpperCase()}</span>
-            <span class="lc-name">${c.name}</span>
-            <span class="lc-role">${c.role}</span>
-            <span class="lc-desc">${c.description}</span>
-            <span class="lc-cost">${pips} ${c.cost ? `${bars} BAR${bars > 1 ? 'S' : ''}` : 'FREE'}</span>
-          </button>`;
-        })
-        .join('');
-      const err = chosen.length === LOADOUT_SLOTS ? validateLoadout(fid, chosen) : null;
-      return { grid, err };
-    };
-    const el = this.open(
-      `<div class="who">${mode === 'local' ? `PLAYER ${player + 1} · ` : ''}${def.name} · LOADOUT</div>
-       <h2>EQUIP ${LOADOUT_SLOTS} SPECIAL CARDS</h2>
-       <div class="hint">Same fighter, different game plan. Max one Signature card. Rarity never changes power.</div>
-       <div class="loadout-grid"></div>
-       <div class="toast"></div>
-       <div class="row">
-         <button class="cta alt" data-back><span>BACK</span></button>
-         <button class="cta alt" data-reset><span>DEFAULT</span></button>
-         <div class="spacer"></div>
-         <button class="cta" data-go data-default><span>${mode === 'local' && player === 0 ? 'NEXT' : 'FIGHT'}</span></button>
-       </div>`,
-    );
-    const grid = el.querySelector('.loadout-grid')!;
-    const toast = el.querySelector('.toast')!;
-    const go = el.querySelector<HTMLButtonElement>('[data-go]')!;
-    const refresh = () => {
-      const r = render();
-      grid.innerHTML = r.grid;
-      toast.textContent = chosen.length < LOADOUT_SLOTS ? `Select ${LOADOUT_SLOTS - chosen.length} more` : (r.err ?? '');
-      go.disabled = chosen.length !== LOADOUT_SLOTS || !!r.err;
-      grid.querySelectorAll<HTMLButtonElement>('[data-c]').forEach((b) =>
-        b.addEventListener('click', () => {
-          this.audio.ui('click');
-          const id = b.dataset.c!;
-          const i = chosen.indexOf(id);
-          if (i >= 0) chosen.splice(i, 1);
-          else {
-            const card = getCard(fid, id);
-            if (card.category === 'signature') {
-              const j = chosen.findIndex((x) => getCard(fid, x).category === 'signature');
-              if (j >= 0) chosen.splice(j, 1);
-            }
-            if (chosen.length >= LOADOUT_SLOTS) chosen.shift();
-            chosen.push(id);
-          }
-          refresh();
-        }),
-      );
-    };
-    refresh();
-    el.querySelector('[data-back]')!.addEventListener('click', () => (player === 1 ? this.showLoadout(mode, 0) : this.showSelect(mode, mode === 'local' ? 1 : 0)));
-    el.querySelector('[data-reset]')!.addEventListener('click', () => {
-      chosen.splice(0, chosen.length, ...def.defaultLoadout);
-      refresh();
-    });
-    go.addEventListener('click', () => {
-      if (go.disabled) return;
-      this.sel.loadouts[player] = chosen.slice();
-      if (mode === 'local' && player === 0) this.showLoadout(mode, 1);
-      else this.startMatch(mode);
-    });
+    el.querySelector('[data-ok]')!.addEventListener('click', back);
   }
 
   private showPause(): void {
     const training = this.mode === 'training';
     const dummyModes: [string, string][] = [
-      ['stand', 'STAND'],
-      ['crouch', 'CROUCH'],
-      ['blockAll', 'BLOCK ALL'],
-      ['block', 'BLOCK (BACK)'],
-      ['jump', 'JUMP'],
+      ['stand', 'STEHEN'],
+      ['crouch', 'DUCKEN'],
+      ['blockAll', 'ALLES BLOCKEN'],
+      ['block', 'BLOCKEN'],
+      ['jump', 'SPRINGEN'],
       ['cpu', 'CPU'],
     ];
     const bot = this.bots[0];
     const el = this.open(
-      `<h2>PAUSED</h2>
-       ${
-         training
-           ? `<div class="row" style="margin-top:10px"><span class="hint">DUMMY</span>${dummyModes
-               .map(([k, n]) => `<button class="toggle ${bot?.dummy === k ? 'on' : ''}" data-d="${k}">${n}</button>`)
-               .join('')}</div>
-              <div class="row" style="margin-top:8px"><button class="toggle ${this.view.debug ? 'on' : ''}" data-hb>HITBOXES</button></div>`
-           : ''
-       }
-       <div class="menu">
-         <button class="mbtn" data-a="resume"><span>RESUME</span></button>
-         <button class="mbtn" data-a="restart"><span>RESTART</span></button>
-         <button class="mbtn" data-a="loadout"><span>CHANGE LOADOUT</span></button>
-         <button class="mbtn" data-a="help"><span>CONTROLS</span></button>
-         <button class="mbtn" data-a="quit"><span>MAIN MENU</span></button>
+      `<div class="modal panel">
+         <div class="mtitle">PAUSE</div>
+         ${
+           training
+             ? `<div class="row" style="justify-content:center"><span class="hint">DUMMY</span>${dummyModes
+                 .map(([k, n]) => `<button class="toggle ${bot?.dummy === k ? 'on' : ''}" data-d="${k}">${n}</button>`)
+                 .join('')}</div>
+                <div class="row" style="justify-content:center"><button class="toggle ${this.view.debug ? 'on' : ''}" data-hb>HITBOXEN</button></div>`
+             : ''
+         }
+         <button class="btn gold" data-a="resume" data-default>WEITER</button>
+         <button class="btn" data-a="restart">NEUSTART</button>
+         <button class="btn" data-a="deck">DECK ÄNDERN</button>
+         <button class="btn" data-a="help">STEUERUNG</button>
+         <button class="btn red" data-a="quit" data-back>HAUPTMENÜ</button>
        </div>`,
-      'center',
+      'dim',
     );
     el.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -529,11 +731,13 @@ export class App {
       (e.currentTarget as HTMLElement).classList.toggle('on', this.view.debug);
     });
     el.querySelectorAll<HTMLButtonElement>('[data-a]').forEach((b) =>
-      b.addEventListener('click', () => {
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
         const a = b.dataset.a;
+        const mode = this.mode as PlayMode;
         if (a === 'resume') this.togglePause();
-        else if (a === 'restart') this.startMatch(this.mode);
-        else if (a === 'loadout') this.showLoadout(this.mode, 0);
+        else if (a === 'restart') this.startMatch(mode);
+        else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
         else if (a === 'help') this.showHelp(() => this.showPause());
         else if (a === 'quit') this.quitToMenu();
       }),
@@ -543,46 +747,53 @@ export class App {
   private quitToMenu(): void {
     this.leaveNet();
     this.localIdx = 0;
-    this.startDemo();
-    this.showMenu();
+    this.startShowcase();
+    this.showHome();
   }
 
   private showResults(): void {
     this.resultsShown = true;
+    this.touch.setVisible(false);
     const s = this.runner!.state;
     const w = s.matchWinner;
-    const name = w === 2 ? 'DRAW' : `${getFighter(s.fighters[w].def).name} WINS`;
-    const sub =
-      this.mode === 'cpu'
-        ? w === 0 ? 'YOU WIN' : w === 1 ? 'CPU WINS' : ''
-        : this.mode === 'online'
-          ? w === this.localIdx ? 'YOU WIN' : w < 2 ? 'YOU LOSE' : ''
-          : w < 2 ? `PLAYER ${w + 1}` : '';
+    const me = this.localIdx;
+    let banner: string;
+    let cls = '';
+    if (w === 2) {
+      banner = 'UNENTSCHIEDEN';
+      cls = 'draw';
+    } else if (this.mode === 'local') banner = `SPIELER ${w + 1} GEWINNT`;
+    else if (w === me) banner = 'SIEG!';
+    else {
+      banner = 'NIEDERLAGE';
+      cls = 'lose';
+    }
+    const winner = w === 2 ? s.fighters[me] : s.fighters[w];
+    const img = portrait(winner.def, 'card');
+    const crowns = Array.from({ length: s.config.roundsToWin }, (_, k) => `<i class="${k < winner.roundsWon ? 'on' : ''}">${UI_ICONS.crown}</i>`).join('');
     const el = this.open(
-      `<div class="who">${sub}</div>
-       <div class="result-win">${name}</div>
-       <div class="stats">
-         <div>MAX COMBO<b>${this.stats.maxCombo[0]} / ${this.stats.maxCombo[1]}</b></div>
-         <div>DAMAGE<b>${this.stats.damage[0]} / ${this.stats.damage[1]}</b></div>
-         <div>CARDS USED<b>${this.stats.specials[0]} / ${this.stats.specials[1]}</b></div>
-       </div>
-       <div class="menu">
-         ${this.mode === 'online' ? '' : '<button class="mbtn" data-a="rematch"><span>REMATCH</span></button><button class="mbtn" data-a="loadout"><span>CHANGE LOADOUT</span></button>'}
-         <button class="mbtn" data-a="select"><span>CHARACTER SELECT</span></button>
-         <button class="mbtn" data-a="menu"><span>MAIN MENU</span></button>
+      `<div class="result">
+         <div class="result-banner ${cls}">${banner}</div>
+         <div class="result-who">${img ? `<img alt="" src="${img}">` : ''}<div><div class="disp" style="font-size:2rem">${getFighter(winner.def).name}</div><div class="crowns">${crowns}</div></div></div>
+         <div class="stats">
+           <span class="pill">MAX. KOMBO <b>${this.stats.maxCombo[0]} : ${this.stats.maxCombo[1]}</b></span>
+           <span class="pill">SCHADEN <b>${this.stats.damage[0]} : ${this.stats.damage[1]}</b></span>
+           <span class="pill">KARTEN <b>${this.stats.specials[0]} : ${this.stats.specials[1]}</b></span>
+         </div>
+         <div class="row" style="justify-content:center;margin-top:0.4rem">
+           ${this.mode === 'online' ? '' : '<button class="btn gold" data-a="rematch" data-default>NOCHMAL</button><button class="btn" data-a="deck">DECK</button>'}
+           <button class="btn gray" data-a="menu">MENÜ</button>
+         </div>
        </div>`,
-      'center',
+      'dim',
     );
     el.querySelectorAll<HTMLButtonElement>('[data-a]').forEach((b) =>
       b.addEventListener('click', () => {
         const a = b.dataset.a;
-        if (a === 'rematch') this.startMatch(this.mode);
-        else if (a === 'loadout') this.showLoadout(this.mode, 0);
-        else if (a === 'select') {
-          const m = this.mode;
-          this.quitToMenu();
-          this.showSelect(m, 0);
-        } else this.quitToMenu();
+        const mode = this.mode as PlayMode;
+        if (a === 'rematch') this.startMatch(mode);
+        else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
+        else this.quitToMenu();
       }),
     );
   }
@@ -605,42 +816,46 @@ export class App {
     this.mode = 'online';
     this.localIdx = res.local;
     this.resultsShown = false;
-    const src: InputSource[] = [new KeyboardSource(P1_KEYS), new GamepadSource(0)];
+    const src: InputSource[] = [new KeyboardSource(P1_KEYS), new KeyboardSource(P1_ARROWS), new GamepadSource(0)];
     if (this.touchEnabled) src.push(this.touch);
     const r = new NetMatchRunner(res.cfg, this.view, res.local, new MergedSource(src), t);
     r.listeners.push({ onEvents: (s, ev) => this.onEvents(s, ev) });
+    this.view.menuShot = null;
     this.runner = r;
     this.bots = [];
     this.stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
-    this.hud.setup(r.state, [this.view.accentFor(r.state, 0), this.view.accentFor(r.state, 1)]);
+    this.hud.setup(r.state, res.local, this.touchEnabled);
     this.hud.show(true);
     this.touch.setVisible(this.touchEnabled);
     this.training = null;
     this.closeScreen();
     this.audio.startMusic();
+    this.vsSplash(r.state);
   }
 
   private connectionLost(): void {
     this.resultsShown = true;
     this.leaveNet();
     const el = this.open(
-      `<h2>CONNECTION LOST</h2>
-       <div class="hint">No data from the other player for 6 seconds.</div>
-       <div class="menu"><button class="mbtn" data-a="menu"><span>MAIN MENU</span></button></div>`,
-      'center',
+      `<div class="modal panel">
+         <div class="mtitle">VERBINDUNG WEG</div>
+         <div class="hint">Seit 6 Sekunden keine Daten vom anderen Spieler.</div>
+         <button class="btn gold" data-a="menu" data-default>HAUPTMENÜ</button>
+       </div>`,
+      'dim',
     );
     el.querySelector('[data-a]')!.addEventListener('click', () => this.quitToMenu());
   }
 
   private showOnlinePause(): void {
     const el = this.open(
-      `<h2>ONLINE MATCH</h2>
-       <div class="hint">The match keeps running while this menu is open.</div>
-       <div class="menu">
-         <button class="mbtn" data-a="resume"><span>BACK TO FIGHT</span></button>
-         <button class="mbtn" data-a="quit"><span>LEAVE MATCH</span></button>
+      `<div class="modal panel">
+         <div class="mtitle">ONLINE-MATCH</div>
+         <div class="hint">Das Match läuft weiter, während dieses Menü offen ist.</div>
+         <button class="btn gold" data-a="resume" data-default>ZURÜCK ZUM KAMPF</button>
+         <button class="btn red" data-a="quit">MATCH VERLASSEN</button>
        </div>`,
-      'center',
+      'dim',
     );
     el.querySelector('[data-a="resume"]')!.addEventListener('click', () => this.closeScreen());
     el.querySelector('[data-a="quit"]')!.addEventListener('click', () => this.quitToMenu());
@@ -660,27 +875,25 @@ export class App {
     store.set('selection', this.sel);
     const mine = { fighter: this.sel.fighters[0], loadout: this.sel.loadouts[0].slice() };
     const el = this.open(
-      `<div class="who">ONLINE · EXPERIMENTAL · ${getFighter(mine.fighter).name}</div>
-       <h2>PLAY ONLINE</h2>
+      `${this.header('ONLINE', `<span class="pill">EXPERIMENTELL · ${getFighter(mine.fighter).name}</span>`)}
        <div class="online-grid">
-         <section class="opanel">
-           <h3>FRIEND MATCH</h3>
-           <p class="hint">Direct peer-to-peer connection. Exchange two codes with your friend over chat. Strict mobile networks can block it.</p>
-           <div class="row"><button class="cta" data-host><span>CREATE INVITE</span></button><button class="cta alt" data-join><span>JOIN INVITE</span></button></div>
-           <div class="rtc-flow"></div>
+         <section class="panel">
+           <h3>FREUNDE-MATCH</h3>
+           <p class="hint">Direkte Peer-to-Peer-Verbindung. Ihr tauscht zwei Codes über einen Chat aus. Strenge Mobilfunknetze können das blockieren.</p>
+           <div class="row"><button class="btn gold small" data-host>EINLADUNG ERSTELLEN</button><button class="btn small" data-join>EINLADUNG ANNEHMEN</button></div>
+           <div class="rtc-flow" style="margin-top:0.6rem"></div>
          </section>
-         <section class="opanel">
-           <h3>SAME-DEVICE TEST</h3>
-           <p class="hint">Open the game in a second browser tab on this device, then host here and join there. Simulated lag shows rollback at work.</p>
+         <section class="panel">
+           <h3>TEST AUF EINEM GERÄT</h3>
+           <p class="hint">Öffne das Spiel in einem zweiten Browser-Tab, erstelle hier einen Raum und tritt dort bei. Simulierte Verzögerung zeigt Rollback in Aktion.</p>
            <div class="row"><span class="hint">LAG</span>
              <button class="toggle on" data-lag="0">0 ms</button><button class="toggle" data-lag="60">60 ms</button><button class="toggle" data-lag="120">120 ms</button></div>
-           <div class="row"><button class="cta alt" data-bhost><span>HOST ROOM</span></button>
+           <div class="row" style="margin-top:0.6rem"><button class="btn small" data-bhost>RAUM ERSTELLEN</button>
              <input id="room-code" class="code-in" maxlength="4" placeholder="CODE" autocomplete="off" />
-             <button class="cta alt" data-bjoin><span>JOIN</span></button></div>
+             <button class="btn small" data-bjoin>BEITRETEN</button></div>
          </section>
        </div>
-       <div class="net-status" role="status"></div>
-       <div class="row"><button class="cta alt" data-back><span>BACK</span></button></div>`,
+       <div class="net-status" role="status"></div>`,
     );
     const status = el.querySelector<HTMLElement>('.net-status')!;
     const flow = el.querySelector<HTMLElement>('.rtc-flow')!;
@@ -690,7 +903,7 @@ export class App {
       status.classList.toggle('err', err);
     };
     const go = (t: Transport, host: boolean) => {
-      say(host ? 'Waiting for the other player…' : 'Joining…');
+      say(host ? 'Warte auf den anderen Spieler…' : 'Trete bei…');
       runLobby(t, host, mine, (g) => this.onlineConfig(g))
         .then((res) => this.startOnline(res, t))
         .catch((e: Error) => say(e.message, true));
@@ -705,11 +918,11 @@ export class App {
       const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
       (el.querySelector('#room-code') as HTMLInputElement).value = code;
       go(sameDeviceTransport(code, true, lag), true);
-      say(`Room ${code} — in the second tab choose ONLINE, enter ${code} and press JOIN.`);
+      say(`Raum ${code} – im zweiten Tab ONLINE öffnen, ${code} eingeben und BEITRETEN drücken.`);
     });
     el.querySelector('[data-bjoin]')!.addEventListener('click', () => {
       const code = (el.querySelector('#room-code') as HTMLInputElement).value.trim().toUpperCase();
-      if (code.length !== 4) return say('Enter the 4-letter room code shown in the host tab.', true);
+      if (code.length !== 4) return say('Gib den 4-stelligen Raum-Code aus dem anderen Tab ein.', true);
       go(sameDeviceTransport(code, false, lag), false);
     });
     const codeBox = (label: string, value: string, editable: boolean, id: string) =>
@@ -717,57 +930,60 @@ export class App {
     const copyBtn = (id: string) => {
       const b = document.createElement('button');
       b.className = 'toggle';
-      b.textContent = 'COPY CODE';
+      b.textContent = 'CODE KOPIEREN';
       b.addEventListener('click', () => {
         const ta = el.querySelector<HTMLTextAreaElement>('#' + id)!;
         navigator.clipboard?.writeText(ta.value).then(
-          () => (b.textContent = 'COPIED'),
+          () => (b.textContent = 'KOPIERT'),
           () => {
             ta.select();
-            b.textContent = 'SELECTED — COPY IT';
+            b.textContent = 'MARKIERT – JETZT KOPIEREN';
           },
         );
       });
       return b;
     };
     el.querySelector('[data-host]')!.addEventListener('click', async () => {
-      if (typeof RTCPeerConnection === 'undefined') return say('This browser cannot make peer-to-peer connections. Use the same-device test.', true);
+      if (typeof RTCPeerConnection === 'undefined') return say('Dieser Browser kann keine Peer-to-Peer-Verbindung. Nutze den Test auf einem Gerät.', true);
       const rtc = new RtcTransport();
-      flow.innerHTML = '<div class="hint">Creating invite…</div>';
+      flow.innerHTML = '<div class="hint">Erstelle Einladung…</div>';
       try {
         const invite = await rtc.createInvite();
-        flow.innerHTML = `${codeBox('1. Send this invite code to your friend', invite, false, 'inv')}<div class="row copy-row"></div>${codeBox('2. Paste your friend’s reply code', '', true, 'rep')}<div class="row"><button class="cta" data-connect><span>CONNECT</span></button></div>`;
+        flow.innerHTML = `${codeBox('1. Schick diesen Einladungs-Code an deinen Freund', invite, false, 'inv')}<div class="row copy-row"></div>${codeBox('2. Füge den Antwort-Code deines Freundes ein', '', true, 'rep')}<div class="row" style="margin-top:0.4rem"><button class="btn gold small" data-connect>VERBINDEN</button></div>`;
         flow.querySelector('.copy-row')!.appendChild(copyBtn('inv'));
         rtc.onOpen = () => go(rtc, true);
         flow.querySelector('[data-connect]')!.addEventListener('click', async () => {
           try {
             await rtc.acceptReply(flow.querySelector<HTMLTextAreaElement>('#rep')!.value);
-            say('Connecting…');
+            say('Verbinde…');
           } catch {
-            say('That reply code is not valid. Ask your friend to copy it again.', true);
+            say('Dieser Antwort-Code ist ungültig. Bitte nochmal kopieren lassen.', true);
           }
         });
       } catch (e) {
-        say(`Could not create an invite: ${(e as Error).message}`, true);
+        say(`Einladung konnte nicht erstellt werden: ${(e as Error).message}`, true);
       }
     });
     el.querySelector('[data-join]')!.addEventListener('click', () => {
-      if (typeof RTCPeerConnection === 'undefined') return say('This browser cannot make peer-to-peer connections. Use the same-device test.', true);
-      flow.innerHTML = `${codeBox('1. Paste the invite code from your friend', '', true, 'inv')}<div class="row"><button class="cta" data-next><span>CREATE REPLY</span></button></div>`;
+      if (typeof RTCPeerConnection === 'undefined') return say('Dieser Browser kann keine Peer-to-Peer-Verbindung. Nutze den Test auf einem Gerät.', true);
+      flow.innerHTML = `${codeBox('1. Füge den Einladungs-Code deines Freundes ein', '', true, 'inv')}<div class="row" style="margin-top:0.4rem"><button class="btn gold small" data-next>ANTWORT ERSTELLEN</button></div>`;
       flow.querySelector('[data-next]')!.addEventListener('click', async () => {
         const rtc = new RtcTransport();
         try {
           const reply = await rtc.acceptInvite(flow.querySelector<HTMLTextAreaElement>('#inv')!.value);
-          flow.innerHTML = `${codeBox('2. Send this reply code back. The match starts when you are connected.', reply, false, 'rep')}<div class="row copy-row"></div>`;
+          flow.innerHTML = `${codeBox('2. Schick diesen Antwort-Code zurück. Das Match startet, sobald ihr verbunden seid.', reply, false, 'rep')}<div class="row copy-row"></div>`;
           flow.querySelector('.copy-row')!.appendChild(copyBtn('rep'));
           rtc.onOpen = () => go(rtc, false);
-          say('Waiting for the host to connect…');
+          say('Warte, bis der Host verbindet…');
         } catch {
-          say('That invite code is not valid. Ask your friend to copy it again.', true);
+          say('Dieser Einladungs-Code ist ungültig. Bitte nochmal kopieren lassen.', true);
         }
       });
     });
-    el.querySelector('[data-back]')!.addEventListener('click', () => this.showLoadout('online', 0));
+    el.querySelector('[data-back]')!.addEventListener('click', () => {
+      this.leaveNet();
+      this.showHome();
+    });
   }
 
   // ----------------------------------------------------- test / debug API

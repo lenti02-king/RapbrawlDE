@@ -8,7 +8,7 @@ import type { GameState } from '../core/state';
 import { ANIM_SETS, FighterAnimator } from './animator';
 import { Arena } from './arena';
 import { HinterhofArena, type ArenaLike } from './arenas/hinterhof';
-import { CameraDirector } from './camera';
+import { CameraDirector, type CamShot } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
 import type { Rig } from './rig';
 import { SpecialFX } from './specials';
@@ -49,6 +49,8 @@ export class GameView {
   /** Exposed for UI: screen-space flash request (0..1). */
   screenFlash = 0;
   private matchKey = '';
+  /** Fixed camera for menu showcases (null during matches). */
+  menuShot: CamShot | null = null;
   /** Cinematics may request a custom darkening level (0..1). */
   dimOverride: number | null = null;
 
@@ -266,7 +268,7 @@ export class GameView {
     const slow = s.slowmo > 0 ? 0.35 : 1;
     this.vfx.timeScale = slow;
     const cineActive = this.hooks.cinematic ? this.hooks.cinematic(this, s, dt, alpha) : false;
-    if (!cineActive) this.director.setOverride(null);
+    if (!cineActive) this.director.setOverride(this.menuShot);
     for (let i = 0; i < 2; i++) {
       const f = s.fighters[i];
       const anim = this.anims[i];

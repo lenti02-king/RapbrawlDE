@@ -1,7 +1,8 @@
-// Mobile touch controls: floating 8-way stick on the left half, action buttons
-// and special-move cards on the right. Multi-touch via Pointer Events.
+// Mobile touch controls: floating 8-way stick on the left (sector-based with hysteresis and a
+// generous deadzone, so walking never turns into an accidental jump/crouch), action buttons on
+// the right, and the HUD's card hand bound as special/signature buttons. Multi-touch via Pointer
+// Events; every button captures its pointer, so a hold survives the finger drifting off it.
 import { IN } from '../core/input';
-import { getCard } from '../core/registry';
 import type { GameState } from '../core/state';
 import { type InputSource, socd } from './sources';
 
@@ -12,70 +13,69 @@ interface Btn {
   latched: boolean;
 }
 
+/** Direction index 0..7 counter-clockwise from "right"; -1 = neutral. */
+const DIR_BITS = [IN.RIGHT, IN.RIGHT | IN.UP, IN.UP, IN.LEFT | IN.UP, IN.LEFT, IN.LEFT | IN.DOWN, IN.DOWN, IN.RIGHT | IN.DOWN];
+/** Half-widths (degrees) of each sector: horizontals wide (walking is safe), verticals medium, diagonals the rest. */
+const HALF = [26, 19, 21, 19, 26, 19, 21, 19];
+const CENTERS = [0, 45, 90, 135, 180, 225, 270, 315];
+const HYST = 7;
+
+function angDiff(a: number, b: number): number {
+  let d = Math.abs(a - b) % 360;
+  if (d > 180) d = 360 - d;
+  return d;
+}
+
+/** Pick the sector for an angle, keeping the current one while within its half-width + hysteresis. */
+export function sectorFor(angle: number, current: number): number {
+  if (current >= 0 && angDiff(angle, CENTERS[current]) <= HALF[current] + HYST) return current;
+  for (let i = 0; i < 8; i++) if (angDiff(angle, CENTERS[i]) <= HALF[i]) return i;
+  // gaps between unequal sectors: nearest center
+  let best = 0;
+  for (let i = 1; i < 8; i++) if (angDiff(angle, CENTERS[i]) < angDiff(angle, CENTERS[best])) best = i;
+  return best;
+}
+
 export class TouchControls implements InputSource {
   readonly root: HTMLElement;
   private stickZone: HTMLElement;
   private base: HTMLElement;
   private knob: HTMLElement;
+  private dirEls: HTMLElement[];
   private stickPointer = -1;
   private origin = { x: 0, y: 0 };
+  private dir = -1;
   private dirBits = 0;
   private dirLatched = 0;
   private buttons: Btn[] = [];
-  private cardEls: HTMLElement[] = [];
   private visible = false;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.className = 'touch';
     this.root.innerHTML = `
-      <div class="stick-zone"><div class="stick-base"><div class="stick-knob"></div></div></div>
+      <div class="stick-zone"><div class="stick-base"><div class="dirs">${CENTERS.map((a) => `<i style="--a:${90 - a}deg"></i>`).join('')}</div><div class="stick-knob"></div></div></div>
       <div class="pad">
-        <div class="cards">
-          <button class="card-btn" data-bit="S1"><span class="c-name"></span><span class="c-cost"></span></button>
-          <button class="card-btn" data-bit="S2"><span class="c-name"></span><span class="c-cost"></span></button>
-          <button class="card-btn" data-bit="S3"><span class="c-name"></span><span class="c-cost"></span></button>
-        </div>
-        <div class="actions">
-          <button class="act act-block" data-bit="BLOCK">BLOCK</button>
-          <button class="act act-grab" data-bit="GRAB">GRAB</button>
-          <button class="act act-heavy" data-bit="HEAVY">H</button>
-          <button class="act act-light" data-bit="LIGHT">L</button>
-        </div>
+        <button class="act act-block" data-bit="BLOCK">BLOCK</button>
+        <button class="act act-grab" data-bit="GRAB">GRIFF</button>
+        <button class="act act-heavy" data-bit="HEAVY"><span>H<small>SCHWER</small></span></button>
+        <button class="act act-light" data-bit="LIGHT"><span>L<small>LEICHT</small></span></button>
       </div>`;
     parent.appendChild(this.root);
     this.stickZone = this.root.querySelector('.stick-zone')!;
     this.base = this.root.querySelector('.stick-base')!;
     this.knob = this.root.querySelector('.stick-knob')!;
-    for (const el of this.root.querySelectorAll<HTMLElement>('[data-bit]')) {
-      const key = el.dataset.bit as keyof typeof IN;
-      const btn: Btn = { el, bit: IN[key], pointers: new Set(), latched: false };
-      this.buttons.push(btn);
-      if (el.classList.contains('card-btn')) this.cardEls.push(el);
-      const down = (e: PointerEvent) => {
-        e.preventDefault();
-        btn.pointers.add(e.pointerId);
-        btn.latched = true;
-        el.classList.add('down');
-        navigator.vibrate?.(8);
-      };
-      const up = (e: PointerEvent) => {
-        btn.pointers.delete(e.pointerId);
-        if (!btn.pointers.size) el.classList.remove('down');
-      };
-      el.addEventListener('pointerdown', down);
-      el.addEventListener('pointerup', up);
-      el.addEventListener('pointercancel', up);
-      el.addEventListener('pointerleave', up);
-      el.addEventListener('contextmenu', (e) => e.preventDefault());
-    }
+    this.dirEls = [...this.root.querySelectorAll<HTMLElement>('.dirs i')];
+    for (const el of this.root.querySelectorAll<HTMLElement>('[data-bit]')) this.bindButton(el, IN[el.dataset.bit as keyof typeof IN]);
     this.stickZone.addEventListener('pointerdown', (e) => this.stickDown(e));
     this.stickZone.addEventListener('pointermove', (e) => this.stickMove(e));
     const end = (e: PointerEvent) => {
       if (e.pointerId !== this.stickPointer) return;
       this.stickPointer = -1;
-      this.dirBits = 0;
+      this.setDir(-1);
       this.base.classList.remove('active');
+      this.base.style.left = '';
+      this.base.style.top = '';
       this.knob.style.transform = 'translate(-50%, -50%)';
     };
     this.stickZone.addEventListener('pointerup', end);
@@ -83,9 +83,60 @@ export class TouchControls implements InputSource {
     this.setVisible(false);
   }
 
+  private bindButton(el: HTMLElement, bit: number): void {
+    const btn: Btn = { el, bit, pointers: new Set(), latched: false };
+    this.buttons.push(btn);
+    el.addEventListener('pointerdown', (e: PointerEvent) => {
+      e.preventDefault();
+      el.setPointerCapture?.(e.pointerId);
+      btn.pointers.add(e.pointerId);
+      btn.latched = true;
+      el.classList.add('down');
+      navigator.vibrate?.(8);
+    });
+    const up = (e: PointerEvent) => {
+      btn.pointers.delete(e.pointerId);
+      if (!btn.pointers.size) el.classList.remove('down');
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('lostpointercapture', up);
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  /** Bind the HUD's hand cards (S1, S2, S3) as tappable buttons. */
+  bindCards(cards: HTMLElement[]): void {
+    const bits = [IN.S1, IN.S2, IN.S3];
+    cards.forEach((el, i) => {
+      if (!el.dataset.bound) {
+        el.dataset.bound = '1';
+        this.bindButton(el, bits[i]);
+      }
+    });
+  }
+
   setVisible(v: boolean): void {
     this.visible = v;
     this.root.style.display = v ? '' : 'none';
+    if (!v) {
+      for (const b of this.buttons) {
+        b.pointers.clear();
+        b.el.classList.remove('down');
+      }
+      this.stickPointer = -1;
+      this.setDir(-1);
+    }
+  }
+
+  private setDir(d: number): void {
+    if (d === this.dir) return;
+    if (this.dir >= 0) this.dirEls[this.dir].classList.remove('on');
+    if (d >= 0) this.dirEls[d].classList.add('on');
+    this.dir = d;
+    const bits = d >= 0 ? DIR_BITS[d] : 0;
+    this.dirLatched |= bits & ~this.dirBits;
+    this.dirBits = bits;
+    if (d >= 0) navigator.vibrate?.(4);
   }
 
   private stickDown(e: PointerEvent): void {
@@ -107,9 +158,9 @@ export class TouchControls implements InputSource {
     let dx = e.clientX - this.origin.x;
     let dy = e.clientY - this.origin.y;
     const len = Math.hypot(dx, dy);
-    // drag the base along when the thumb goes far (floating stick)
-    if (len > R * 1.25) {
-      const k = (len - R * 1.25) / len;
+    // floating stick: drag the base along when the thumb travels far
+    if (len > R * 1.2) {
+      const k = (len - R * 1.2) / len;
       this.origin.x += dx * k;
       this.origin.y += dy * k;
       const r = this.stickZone.getBoundingClientRect();
@@ -118,22 +169,17 @@ export class TouchControls implements InputSource {
       dx = e.clientX - this.origin.x;
       dy = e.clientY - this.origin.y;
     }
-    const cl = Math.min(1, R / Math.max(1, Math.hypot(dx, dy)));
+    const d = Math.hypot(dx, dy);
+    const cl = Math.min(1, (R * 0.8) / Math.max(1, d));
     this.knob.style.transform = `translate(calc(-50% + ${dx * cl}px), calc(-50% + ${dy * cl}px))`;
-    let bits = 0;
-    const dead = R * 0.3;
-    if (dx < -dead) bits |= IN.LEFT;
-    if (dx > dead) bits |= IN.RIGHT;
-    if (dy < -R * 0.5) bits |= IN.UP;
-    if (dy > R * 0.42) bits |= IN.DOWN;
-    // favor pure horizontal near the axis so walking does not jump by accident
-    if (bits & IN.UP && Math.abs(dx) > Math.abs(dy) * 1.9) bits &= ~IN.UP;
-    const newly = bits & ~this.dirBits;
-    this.dirLatched |= newly;
-    this.dirBits = bits;
+    // deadzone with hysteresis: engage at 32% of the radius, release below 22%
+    const engage = this.dir >= 0 ? R * 0.22 : R * 0.32;
+    if (d < engage) return this.setDir(-1);
+    const angle = ((Math.atan2(-dy, dx) * 180) / Math.PI + 360) % 360;
+    this.setDir(sectorFor(angle, this.dir));
   }
 
-  poll(): number {
+  poll(_s?: GameState, _i?: number): number {
     if (!this.visible) return 0;
     let bits = this.dirBits | (this.dirLatched & (IN.LEFT | IN.RIGHT | IN.UP));
     this.dirLatched = 0;
@@ -142,23 +188,5 @@ export class TouchControls implements InputSource {
       b.latched = false;
     }
     return socd(bits);
-  }
-
-  /** Update card labels / affordability for the local player. */
-  updateCards(s: GameState, idx: number): void {
-    if (!this.visible) return;
-    const f = s.fighters[idx];
-    this.cardEls.forEach((el, i) => {
-      const id = f.loadout[i];
-      if (!id) return;
-      const card = getCard(f.def, id);
-      const name = el.querySelector('.c-name')!;
-      if (name.textContent !== card.name) {
-        name.textContent = card.name;
-        el.querySelector('.c-cost')!.textContent = card.cost ? `${card.cost / 100}` : 'FREE';
-        el.dataset.cat = card.category;
-      }
-      el.classList.toggle('ready', s.config.training || f.meter >= card.cost);
-    });
   }
 }

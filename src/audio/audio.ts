@@ -46,7 +46,7 @@ export class AudioEngine {
     comp.attack.value = 0.003;
     comp.release.value = 0.2;
     this.master = ctx.createGain();
-    this.master.gain.value = 0.85;
+    this.master.gain.value = this.muted ? 0 : 0.85;
     this.master.connect(comp).connect(ctx.destination);
     this.sfx = ctx.createGain();
     this.sfx.gain.value = 0.9;
@@ -92,6 +92,11 @@ export class AudioEngine {
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
     }
     return buf;
+  }
+
+  setMuted(m: boolean): void {
+    this.muted = m;
+    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 0.85, this.ctx.currentTime, 0.05);
   }
 
   /** 0..1 pulse on each beat (kick), for visuals. */
