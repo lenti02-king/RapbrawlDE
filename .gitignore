@@ -10,3 +10,4 @@ android/.gradle/
 ios/App/Pods/
 dist-single/
 public/test-models/
+scratch/

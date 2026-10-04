@@ -68,3 +68,6 @@ The product owner asked for an "Unreal Engine realistic" look like their referen
 
 ## D19 — Real character models via retargeting, procedural rig as reference (2026-10-04)
 Photoreal characters need authored/generated meshes. `GlbRig` loads `assets/characters/<id>.glb` (humanoid, Mixamo bone names), aligns its rest pose to the procedural reference rig (bone directions), and applies each joint's world-space rotation delta every frame, plus scaled hip translation. All existing clips (moves, throws, cinematics, intros, wins) work unchanged; the procedural rig remains the fallback. Verified with Mixamo test models (not shipped).
+
+## D20 — Low tier is a genuinely cheap renderer (2026-10-04)
+CI ran red twice after the realistic courtyard landed: even at `q=low` a frame cost ~650-800 ms in SwiftShader, so wall-clock-bound E2E steps timed out. Measured cost split: image-based light ~40 %, arena PBR shading most of the rest. `low` now converts the arena to Lambert materials (same geometry, colours and albedo maps), skips the PMREM environment, and replaces the three local lights (LED point light, two stage spots) with additive light-pool decals: ~340 ms per frame in SwiftShader, about half. The same tier is meant for weak phones. E2E steps now wait for events (VS splash recorded by a MutationObserver, stick sampled by the sim) instead of fixed sleeps.

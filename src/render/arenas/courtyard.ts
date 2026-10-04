@@ -92,6 +92,7 @@ const FLOORS = [3.7, 6.9, 10.1, 13.3];
 export class CourtyardArena implements ArenaLike {
   readonly group = new THREE.Group();
   private lights: THREE.Light[] = [];
+  private pools: THREE.Mesh[] = [];
   private batch = new Batch();
   private casters = new Set<THREE.Material>();
   private ledMats: THREE.MeshStandardMaterial[] = [];
@@ -101,6 +102,7 @@ export class CourtyardArena implements ArenaLike {
   private flash = 0;
   private hype = 0;
   private envBase = 0.6;
+  private low = false;
   private sceneRef: THREE.Scene;
   private skyMat!: THREE.MeshBasicMaterial;
   private atlasMat!: THREE.MeshStandardMaterial;
@@ -120,11 +122,12 @@ export class CourtyardArena implements ArenaLike {
 
   constructor(scene: THREE.Scene, renderer?: THREE.WebGLRenderer, quality: 'low' | 'medium' | 'high' = 'high') {
     this.sceneRef = scene;
+    this.low = quality === 'low';
     scene.background = new THREE.Color(0x384058);
     scene.fog = new THREE.Fog(0x4a4f63, 26, 60);
     scene.add(this.group);
     for (const m of [this.mBack, this.mLeft, this.mRight, this.mPlinth, this.mConcrete, this.mMetal, this.mRail, this.mSteel, this.mBlack, this.mCab, this.mWhite]) this.casters.add(m);
-    this.buildSky(renderer);
+    this.buildSky(this.low ? undefined : renderer);
     this.buildLights();
     this.buildGround(quality === 'high');
     this.buildBackWall();
@@ -134,6 +137,45 @@ export class CourtyardArena implements ArenaLike {
     this.buildFencesAndBarriers();
     this.buildCables();
     this.batch.build(this.group, this.casters);
+    if (this.low) this.simplifyForLowTier();
+  }
+
+  /** Low tier (weak phones, software GL): per-pixel cost dominates, so the arena switches to Lambert shading
+   *  (no PBR, no image-based light, no normal maps, no anisotropic filtering). Same geometry and colours. */
+  private simplifyForLowTier(): void {
+    const swap = new Map<THREE.Material, THREE.Material>();
+    const toLambert = (m: THREE.Material): THREE.Material => {
+      const sm = m as THREE.MeshStandardMaterial;
+      if (!sm.isMeshStandardMaterial) return m;
+      let l = swap.get(m);
+      if (!l) {
+        l = new THREE.MeshLambertMaterial({
+          color: sm.userData.lowColor !== undefined ? new THREE.Color(sm.userData.lowColor as number) : sm.color,
+          map: sm.map,
+          emissive: sm.emissive,
+          emissiveMap: sm.emissiveMap,
+          emissiveIntensity: sm.emissiveIntensity,
+          alphaMap: sm.alphaMap,
+          transparent: sm.transparent,
+          opacity: sm.opacity,
+          alphaTest: sm.alphaTest,
+          side: sm.side,
+          vertexColors: sm.vertexColors,
+          depthWrite: sm.depthWrite,
+          fog: sm.fog,
+        });
+        // darker metals/glossy surfaces read too bright without their missing reflections
+        if (sm.metalness > 0.3) (l as THREE.MeshLambertMaterial).color.multiplyScalar(0.75);
+        for (const t of [sm.map, sm.emissiveMap, sm.alphaMap]) if (t) t.anisotropy = 1;
+        swap.set(m, l);
+      }
+      return l;
+    };
+    this.group.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || (mesh as unknown as { isReflector?: boolean }).isReflector) return;
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(toLambert) : toLambert(mesh.material);
+    });
   }
 
   // ------------------------------------------------------------ sky + environment
@@ -222,11 +264,43 @@ export class CourtyardArena implements ArenaLike {
     spotB.position.set(1.4, 3.55, -7.2);
     spotB.target.position.set(1.0, 0, -4.2);
     this.group.add(spotA.target, spotB.target);
-    for (const l of [hemi, key, front, rim, ledGlow, spotA, spotB]) {
+    // low tier: local lights are faked with additive light pools (each real light is paid per pixel)
+    const local = this.low ? [] : [ledGlow, spotA, spotB];
+    if (this.low) {
+      hemi.intensity *= 1.6; // stands in for the image-based light that low tier skips
+      this.buildLightPools();
+    }
+    for (const l of [hemi, key, front, rim, ...local]) {
       this.group.add(l);
       this.lights.push(l);
       l.userData.base = l.intensity;
     }
+  }
+
+  private buildLightPools(): void {
+    const tex = canvasTexture(128, 128, (g) => {
+      const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      grd.addColorStop(0, 'rgba(255,255,255,1)');
+      grd.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+      grd.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grd;
+      g.fillRect(0, 0, 128, 128);
+    });
+    const pool = (color: number, opacity: number, w: number, d: number, x: number, y: number, z: number, vertical = false) => {
+      const m = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, d),
+        new THREE.MeshBasicMaterial({ map: tex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }),
+      );
+      if (!vertical) m.rotation.x = -Math.PI / 2;
+      m.position.set(x, y, z);
+      m.renderOrder = 2;
+      this.group.add(m);
+      this.pools.push(m);
+      m.userData.base = opacity;
+    };
+    pool(0xffd9a8, 0.32, 3.6, 4.2, -1.0, 0.012, -4.6);
+    pool(0xffd9a8, 0.32, 3.6, 4.2, 1.0, 0.013, -4.6);
+    pool(0xa64dff, 0.35, 7.5, 4.5, 0, 3.0, -8.05, true);
   }
 
   setShadowQuality(size: number): void {
@@ -241,6 +315,7 @@ export class CourtyardArena implements ArenaLike {
     mat.roughnessMap = null;
     mat.roughness = 0.58;
     mat.normalScale.set(0.25, 0.25);
+    mat.userData.lowColor = 0xd0d0d8; // wet asphalt gets most of its brightness from reflections; Lambert needs a lighter base
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * SIDE_X + 2, FRONT_Z - BACK_Z + 4), mat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.set(0, 0, (FRONT_Z + BACK_Z) / 2);
@@ -1092,6 +1167,7 @@ export class CourtyardArena implements ArenaLike {
   setDim(d: number): void {
     this.dim = d;
     for (const l of this.lights) l.intensity = (l.userData.base as number) * (1 - d * 0.72);
+    for (const p of this.pools) (p.material as THREE.MeshBasicMaterial).opacity = (p.userData.base as number) * (1 - d * 0.72);
     (this.sceneRef as THREE.Scene & { environmentIntensity: number }).environmentIntensity = this.envBase * (1 - d * 0.7);
     this.skyMat.color.setScalar(1 - d * 0.7);
     if (this.reflector) (this.reflector.material as THREE.ShaderMaterial).uniforms.uStrength.value = 0.55 * (1 - d * 0.6);

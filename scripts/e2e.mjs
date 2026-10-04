@@ -62,15 +62,21 @@ const sim = (page) =>
   check(!(await page.isDisabled('[data-ok]')), 'legal 2+1 deck enables FERTIG');
   await page.click('[data-ok]');
   await page.waitForSelector('.home');
+  await page.evaluate(() => {
+    window.__vsSeen = false;
+    new MutationObserver(() => {
+      if (document.querySelector('.vs')) window.__vsSeen = true;
+    }).observe(document.body, { childList: true, subtree: true });
+  });
   await page.click('[data-fight]');
   await page.waitForFunction(() => window.__rb.mode === 'cpu');
   let s = await sim(page);
   check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['bon_croc', 'bon_smoke', 'bon_palm']), `chosen deck reaches the match (${s.f[0].loadout})`);
-  check(await page.isVisible('.vs'), 'VS intro is shown at match start');
+  check(await page.evaluate(() => window.__vsSeen), 'VS intro is shown at match start');
   const fullHp = s.f[1].hp;
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/d05_vs.png` });
-  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 });
   // real keyboard input: walk forward, then attack
   const x0 = (await sim(page)).f[0].x;
   await page.keyboard.down('KeyD');
@@ -105,14 +111,14 @@ const sim = (page) =>
     s.fighters[0].x = s.fighters[1].x - 12000;
   });
   const banner = await page
-    .waitForFunction(() => Number(document.querySelector('.sig-ready').style.opacity) > 0.5, null, { timeout: 5000 })
+    .waitForFunction(() => Number(document.querySelector('.sig-ready').style.opacity) > 0.5, null, { timeout: 20000 })
     .then(() => true)
     .catch(() => false);
   check(banner, '"SIGNATURE BEREIT!" banner appears when Hype is full');
   await page.screenshot({ path: `${out}/d07_sig_ready.png` });
   await page.keyboard.press('KeyO');
   const sig = await page
-    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].move === 'bon_palm', null, { timeout: 10000 })
+    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].move === 'bon_palm', null, { timeout: 20000 })
     .then(() => true)
     .catch(() => false);
   check(sig, 'key O fires the Signature card');
@@ -132,7 +138,7 @@ const sim = (page) =>
     window.__rb.runner.speed = 4;
   });
   const resultsVisible = await page
-    .waitForSelector('.result-banner', { timeout: 90000 })
+    .waitForSelector('.result-banner', { timeout: 150000 })
     .then(() => true)
     .catch(() => false);
   check(resultsVisible, 'match end shows results screen');
@@ -149,7 +155,7 @@ const sim = (page) =>
   }
   // training mode with hitboxes
   await page.goto(base + '/?quick=bonez,jazeek&mode=training&q=low');
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
   await page.keyboard.press('KeyH');
   await page.keyboard.press('KeyK');
   await page.waitForTimeout(160);
@@ -180,7 +186,7 @@ const sim = (page) =>
   await page.evaluate(() => {
     window.__rb.runner.sources[1].poll = () => 0; // freeze CPU for deterministic checks
   });
-  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 });
   check(await page.isVisible('.touch .act-light'), 'touch controls visible on a phone');
   check(await page.isVisible('.hand.tap .hcard.sig'), 'golden Signature card is visible as a touch button');
   // drag the stick to the right using touch events
@@ -193,11 +199,12 @@ const sim = (page) =>
   for (let i = 1; i <= 5; i++) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + i * 12, y: sy - i * 4, id: 1 }] });
   }
-  await page.waitForTimeout(300);
-  const bits = await page.evaluate(() => window.__rb.runner.lastInputs[0]);
   const IN = await page.evaluate(() => window.__rb.IN);
+  // wait for the sim to sample the stick (frames are slow in software GL)
+  await page.waitForFunction((R) => (window.__rb.runner.lastInputs[0] & R) !== 0, IN.RIGHT, { timeout: 15000 }).catch(() => {});
+  const bits = await page.evaluate(() => window.__rb.runner.lastInputs[0]);
   check((bits & IN.RIGHT) !== 0 && (bits & IN.UP) === 0, `stick 18° above horizontal walks without jumping (bits ${bits})`);
-  await page.waitForTimeout(300);
+  await page.waitForFunction((x) => window.__rb.runner.state.fighters[0].x > x + 1000, x0, { timeout: 15000 }).catch(() => {});
   await page.screenshot({ path: `${out}/m03_touch_walk.png` });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const x1 = (await sim(page)).f[0].x;
@@ -213,7 +220,7 @@ const sim = (page) =>
     await page.waitForTimeout(250);
   }
   await page.tap('.act-heavy');
-  await page.waitForFunction((hp) => window.__rb.runner.state.fighters[1].health < hp, hp0, { timeout: 10000 }).catch(() => {});
+  await page.waitForFunction((hp) => window.__rb.runner.state.fighters[1].health < hp, hp0, { timeout: 20000 }).catch(() => {});
   const hp1 = (await sim(page)).f[1].hp;
   check(hp1 < hp0, `touch attack buttons deal damage (${hp0} -> ${hp1})`);
   // signature card with meter
@@ -227,7 +234,7 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/m04_sig_ready.png` });
   await page.tap('.hcard[data-slot="2"]');
   const flash = await page
-    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].state === 'move', null, { timeout: 10000 })
+    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].state === 'move', null, { timeout: 20000 })
     .then(() => true)
     .catch(() => false);
   check(flash, 'tapping the golden card triggers the Signature');
