@@ -35,3 +35,12 @@ Characters are procedural toon rigs (primitives + outlines), arena is procedural
 
 ## D8 — Paid generative tools not used (2026-10-03)
 A Higgsfield MCP (generative image/video/3D, credit-based) is connected in this environment. Not used: it incurs costs and outputs need licensing review. Ask the product owner before using.
+
+## D9 — Online v1: serverless P2P with copy/paste codes (2026-10-04)
+To prove netplay without any hosted service or cost: WebRTC DataChannel (unordered, no retransmits) with manual signaling (deflate+base64 invite/reply codes, ~600 chars) and Google's public STUN. Same-device BroadcastChannel transport for testing with simulated lag. Known limits: no TURN relay (symmetric NATs fail), no matchmaking. A real signaling/matchmaking server + TURN needs a hosting decision from the product owner (cost).
+
+## D10 — Single-file web build for instant sharing (2026-10-04)
+`scripts/single-file.mjs` inlines JS, CSS and fonts into one HTML page (~1.2 MB) so the build can be hosted anywhere that serves a single page (used for the claude.ai Artifact preview). The normal build (`dist/`) stays multi-file for Capacitor/Pages.
+
+## D11 — Characters baked to one skinned mesh (2026-10-04)
+Procedural rig parts are baked into one vertex-coloured SkinnedMesh + one skinned outline pass (2 draw calls per fighter, was ~80). Poses still drive the same joint bones, so authored glTF characters can drop in later.

@@ -18,7 +18,14 @@ npm run build          # tsc + vite build -> dist/
 npm run e2e            # Playwright E2E against BASE_URL (default localhost:5173); start dev server first
 node scripts/play.mjs basic|super   # scripted gameplay screenshots -> artifacts/
 node scripts/shot.mjs "/?lab=poses&pose=crouch" out.png   # pose lab screenshot
+node scripts/moves.mjs volt|brick   # every move at first active frame + hitbox overlay -> contact sheet
+node scripts/cine.mjs volt|brick    # frame-accurate signature cinematic capture
+node scripts/ko.mjs                 # KO -> round over -> next round capture
+node scripts/netplay.mjs 60         # two pages play online (same-device transport, 60 ms lag), checksums compared
+npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
+node scripts/single-file.mjs out.html  # one self-contained HTML page (used for the claude.ai Artifact)
 ```
+Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Useful URLs: `/?quick=volt,brick&mode=cpu|local|training|demo`, `/?touch=1` (force touch UI), `/?lab=poses&pose=<name>&zoom=2`.
 Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1(bits, frames)`, `.view.debug = true` for hitboxes).
@@ -29,6 +36,7 @@ Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1
   `sim.ts` `step(state, [p1Bits, p2Bits]) -> events`. `registry.ts` looks up content by id.
 - `content/` — fighters as data (frame data, hitboxes in meters via `build.ts` helpers, cards, cinematic hit timings).
 - `net/rollback.ts` — GGPO-style rollback session + simulated link + BroadcastChannel transport.
+- `net/online.ts` — NetMatchRunner (rollback inside the real loop), lobby handshake, WebRTC copy/paste transport.
 - `render/` — presentation only (reads state, never writes): `view.ts` (GameView), `rig.ts` (procedural toon humanoid),
   `characters.ts` (looks), `anims/*` (pose clips keyed to move frames), `animator.ts` (state -> pose),
   `cinematics.ts` (signature super timelines keyed to sim cine frame), `camera.ts`, `vfx.ts`, `arena.ts`.
