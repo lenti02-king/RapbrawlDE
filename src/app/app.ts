@@ -479,14 +479,7 @@ export class App {
       store.set('muted', this.audio.muted);
       this.showHome();
     });
-    el.querySelector('[data-name]')!.addEventListener('click', () => {
-      const n = window.prompt('Dein Spielername', this.playerName);
-      if (n && n.trim()) {
-        this.playerName = n.trim().slice(0, 14);
-        store.set('name', this.playerName);
-        this.showHome();
-      }
-    });
+    el.querySelector('[data-name]')!.addEventListener('click', () => this.showNameDialog());
     el.querySelectorAll<HTMLButtonElement>('[data-nav]').forEach((b) =>
       b.addEventListener('click', () => {
         const n = b.dataset.nav;
@@ -496,6 +489,37 @@ export class App {
         else if (n === 'help') this.showHelp(() => this.showHome());
       }),
     );
+  }
+
+  /** In-game name dialog (window.prompt is unavailable in some hosts, e.g. sandboxed frames). */
+  private showNameDialog(): void {
+    const el = this.open(
+      `<div class="modal panel">
+         <div class="mtitle">DEIN NAME</div>
+         <input id="player-name" class="code-in" style="width:100%;letter-spacing:0.04em" maxlength="14" autocomplete="off" value="${esc(this.playerName)}" />
+         <button class="btn gold" data-save data-default>SPEICHERN</button>
+         <button class="btn gray" data-back>ABBRECHEN</button>
+       </div>`,
+      'dim',
+    );
+    const input = el.querySelector<HTMLInputElement>('#player-name')!;
+    input.focus();
+    input.select();
+    const save = () => {
+      const n = input.value.trim().slice(0, 14);
+      if (n) {
+        this.playerName = n;
+        store.set('name', n);
+      }
+      this.showHome();
+    };
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') save();
+      if (e.key === 'Escape') this.showHome();
+    });
+    el.querySelector('[data-save]')!.addEventListener('click', save);
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
   }
 
   showFighters(player: number): void {

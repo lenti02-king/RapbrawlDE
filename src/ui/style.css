@@ -214,7 +214,6 @@ svg {
   display: flex;
   flex-direction: column;
   padding: calc(0.8rem + var(--sat)) calc(1.2rem + var(--sar)) calc(0.8rem + var(--sab)) calc(1.2rem + var(--sal));
-  animation: screen-in 0.22s ease-out;
   background:
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1.6rem, transparent 1.6rem 3.2rem),
     radial-gradient(120% 90% at 50% 0%, #3a74ff 0%, #2148b8 40%, #142a70 75%, #0d1b4d 100%);
@@ -225,14 +224,6 @@ svg {
 .screen.dim {
   background: rgba(8, 14, 40, 0.72);
   backdrop-filter: blur(3px);
-}
-@keyframes screen-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 .header {
   display: flex;

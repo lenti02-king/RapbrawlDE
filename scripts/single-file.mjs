@@ -14,7 +14,9 @@ const js = [...html.matchAll(/<script type="module"[^>]*src="\.\/([^"]+)"[^>]*><
 if (!css.length || !js.length) throw new Error('could not find built assets in index.html');
 const body = html.match(/<body>([\s\S]*?)<\/body>/)[1].replace(/<script[\s\S]*?<\/script>/g, '').trim();
 const safeJs = js.join('\n').replace(/<\/script/gi, '<\\/script');
-const page = `<title>RAPBRAWL</title>
+const page = `<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>RAPBRAWL</title>
 <style>
 ${css.join('\n')}
 </style>
