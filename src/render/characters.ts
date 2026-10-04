@@ -73,7 +73,7 @@ const VOLT: CharacterVisual = {
   spec: VOLT_SPEC,
   accents: ['#2f7bff', '#ff3b4f'],
   palettes: [
-    { skin: 0xa86b47, top: 0x1f5fff, top2: 0xffd21f, pants: 0x15161c, pants2: 0xffd21f, shoes: 0xf2f2f2, sole: 0xffd21f, hat: 0x101014, metal: 0xffc63a, shades: 0x1a1a1a },
+    { skin: 0xa86b47, top: 0x1f5fff, top2: 0xffd21f, pants: 0x2a2c38, pants2: 0xffd21f, shoes: 0xf2f2f2, sole: 0xffd21f, hat: 0x101014, metal: 0xffc63a, shades: 0x1a1a1a },
     { skin: 0xa86b47, top: 0xe8203a, top2: 0xf5f5f5, pants: 0x1b1b1f, pants2: 0xf5f5f5, shoes: 0x101010, sole: 0xe8203a, hat: 0xf5f5f5, metal: 0xd9d9e3, shades: 0x101010 },
   ],
   decorate(rig, p) {

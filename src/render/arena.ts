@@ -110,7 +110,7 @@ export class Arena {
     deckTex.repeat.set(6, 2);
     const deck = new THREE.Mesh(
       new THREE.BoxGeometry(26, 0.4, 7),
-      new THREE.MeshStandardMaterial({ color: 0x2a2633, map: deckTex, roughness: 0.42, metalness: 0.25 }),
+      new THREE.MeshStandardMaterial({ color: 0x5a5468, map: deckTex, roughness: 0.5, metalness: 0.15 }),
     );
     deck.position.set(0, -0.2, -1.2);
     this.group.add(deck);
@@ -131,6 +131,15 @@ export class Arena {
     glow.rotation.x = -Math.PI / 2;
     glow.position.set(0, 0.01, -3.2);
     this.group.add(glow);
+
+    // warm light pool on the fighting area (stage wash) for readability
+    const pool = new THREE.Mesh(
+      new THREE.PlaneGeometry(17, 4.6),
+      new THREE.MeshBasicMaterial({ map: radialTexture('#ffe2c4'), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(0, 0.008, 0);
+    this.group.add(pool);
 
     // --- LED wall
     this.led = new THREE.ShaderMaterial({
