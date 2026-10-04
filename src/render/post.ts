@@ -30,11 +30,13 @@ const GradeShader = {
     uContrast: { value: 1.06 },
     uLift: { value: new THREE.Vector3(0.012, 0.008, 0.02) },
     uGain: { value: new THREE.Vector3(1.02, 1.0, 0.97) },
+    /** 0..1: manga impact frame (ink / paper / red tri-tone), see ToonFX.impactFrame */
+    uImpact: { value: 0 },
   },
   vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse; uniform float uVignette; uniform float uSaturation; uniform float uContrast;
-    uniform vec3 uLift; uniform vec3 uGain; varying vec2 vUv;
+    uniform vec3 uLift; uniform vec3 uGain; uniform float uImpact; varying vec2 vUv;
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
       vec3 col = c.rgb;
@@ -45,6 +47,16 @@ const GradeShader = {
       vec2 d = vUv - 0.5;
       float v = smoothstep(0.85, 0.2, length(d * vec2(1.25, 1.0)));
       col *= mix(1.0 - uVignette, 1.0, v);
+      if (uImpact > 0.0) {
+        // impact frame: bright shapes turn to ink, dark ones to paper, a red band in between
+        float il = dot(clamp(col, 0.0, 1.0), vec3(0.2126, 0.7152, 0.0722));
+        vec3 paper = vec3(1.0, 0.96, 0.9);
+        vec3 ink = vec3(0.07, 0.02, 0.07);
+        vec3 red = vec3(0.86, 0.08, 0.2);
+        vec3 tri = mix(paper, red, smoothstep(0.3, 0.34, il));
+        tri = mix(tri, ink, smoothstep(0.5, 0.54, il));
+        col = mix(col, tri, uImpact);
+      }
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), c.a);
     }`,
 };

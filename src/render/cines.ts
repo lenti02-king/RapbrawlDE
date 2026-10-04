@@ -25,6 +25,8 @@ function hitFx(c: FxCtx, strength: number, color = 0xffd36b): void {
   const p = c.def.clone().add(new THREE.Vector3(0, 0.45, 0.25));
   c.view.vfx.sparks(p.x, p.y, 14 + strength * 6, C(color), 8 + strength, -c.facing);
   c.view.vfx.flash(p.x, p.y, 0.55 + strength * 0.15, C(0xfff4c2), 0.08);
+  c.view.toon.impact(p.x, p.y, 0.8 + strength * 0.25, C(color), { spikes: 9 + strength * 2, life: 0.2 + strength * 0.04 });
+  if (strength >= 2) c.view.toon.speedLines(p.x, p.y, C(0xffffff), 0.25, 0.55);
   c.view.director.shake(0.18 + strength * 0.08);
 }
 
@@ -254,6 +256,11 @@ export const HERZBRECHER: CineDef = {
         c.view.vfx.ring(x, y, 1.8, C(0xff3d7f), 0.4);
         c.view.vfx.sparks(x, y, 70, C(0xff6fae), 14, -c.facing, 2);
         c.view.fx.heartBurst(x, y, 12, 2.2);
+        c.view.toon.impactFrame(0.07);
+        c.view.after(0.07, () => {
+          c.view.toon.impact(x, y, 2.2, C(0xff6fae), { spikes: 14, life: 0.45, core: C(0xffe4f0) });
+          c.view.toon.speedLines(x, y, C(0xffe0ee), 0.6, 0.4);
+        });
         c.view.director.shake(1);
         c.view.director.punch(5);
         c.view.director.kick(-c.facing * 0.2, 0, -0.2);
@@ -466,7 +473,10 @@ export const PALMEN_BASSDROP: CineDef = {
         c.audio.bassDrop();
         c.view.vfx.ring(x, 0.03, 2.2 + i * 0.8, C(0xffa23a), 0.4 + i * 0.1, true);
         c.view.vfx.ring(x, 0.05, 1.4 + i * 0.6, C(0xff4f7b), 0.3 + i * 0.1, true);
-        c.view.vfx.dust(x, 0, 14 + i * 12, 1 + i * 0.6);
+        c.view.vfx.dust(x, 0, 6 + i * 6, 1 + i * 0.6);
+        c.view.toon.puff(x, 0, 6 + i * 4, 1 + i * 0.6, new THREE.Color(0xe9dfd0), 0.26 + i * 0.05, 0.8);
+        c.view.toon.crack(x, 1.4 + i * 0.5);
+        c.view.toon.rubble(x, 0, 5 + i * 4, 3 + i);
         c.view.director.shake(0.35 + i * 0.3);
         c.view.arena.pulse(0.6 + i * 0.2);
         if (i < 2) hitFx(c, i + 1, 0xffa23a);
@@ -483,6 +493,11 @@ export const PALMEN_BASSDROP: CineDef = {
         c.view.vfx.ring(x, 0.6, 2.8, C(0xffffff), 0.45);
         c.view.vfx.sparks(x, 0.4, 70, C(0xffd36b), 14, 1, 2);
         c.view.vfx.confetti(x, 3.5, 60);
+        c.view.toon.impactFrame(0.07);
+        c.view.after(0.07, () => {
+          c.view.toon.impact(x, 0.6, 2.4, C(0xffa23a), { spikes: 14, life: 0.45 });
+          c.view.toon.speedLines(x, 0.6, C(0xffffff), 0.6, 0.4);
+        });
         c.view.director.shake(1);
         c.view.director.punch(5);
         c.view.director.kick(0, -0.08, -0.15);

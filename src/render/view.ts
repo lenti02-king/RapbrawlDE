@@ -15,6 +15,7 @@ import { buildCharacter, CHARACTER_VISUALS } from './characters';
 import type { CharacterRig } from './glbRig';
 import { SpecialFX } from './specials';
 import { addPart } from './toon';
+import { ToonFX } from './toonfx';
 import { VFX } from './vfx';
 
 const U = UNITS_PER_METER;
@@ -22,6 +23,21 @@ const C = (hex: number) => new THREE.Color(hex);
 const HIT_COLORS = [C(0xfff4c2), C(0xffd36b), C(0xff9a3c), C(0xffffff)];
 const BLOCK_COLOR = C(0x7fd8ff);
 const COUNTER_COLOR = C(0xff3b5c);
+/** Impact-star fill per strength (light .. super) and smear widths (m). */
+const STAR_FILL = [C(0xfff1a8), C(0xffd34d), C(0xff8a2a), C(0xffe066)];
+const STAR_SIZE = [0.55, 0.75, 1.05, 1.4];
+const SMEAR_W = [0.06, 0.085, 0.12, 0.15];
+const DUST = C(0xd9cdb8);
+
+/** Setting "Blitzeffekte" (impact frames). Stored like the app store: localStorage 'rapbrawl.flashes' as JSON. */
+function flashesEnabled(): boolean {
+  try {
+    const v = localStorage.getItem('rapbrawl.flashes');
+    return v === null ? true : JSON.parse(v) !== false;
+  } catch {
+    return true;
+  }
+}
 
 export interface ViewHooks {
   /** Cinematic presentation hook (camera + poses + fx); returns true while active. */
@@ -35,6 +51,15 @@ export class GameView {
   readonly director = new CameraDirector();
   readonly vfx = new VFX();
   readonly fx = new SpecialFX(this.vfx);
+  readonly toon = new ToonFX();
+  /** Strength of the last hit each fighter took (for knockdown dust / cracks). */
+  private lastHit = [0, 0];
+  /** Presentation-only delayed effects (real seconds). */
+  private delayed: { t: number; run: () => void }[] = [];
+
+  after(seconds: number, run: () => void): void {
+    this.delayed.push({ t: seconds, run });
+  }
   rigs: CharacterRig[] = [];
   anims: FighterAnimator[] = [];
   private shadows: THREE.Mesh[] = [];
@@ -80,6 +105,10 @@ export class GameView {
     this.scene.add(this.vfx.group);
     this.scene.add(this.fx.group);
     this.vfx.setCamera(this.director.cam);
+    this.scene.add(this.toon.group);
+    this.toon.setCamera(this.director.cam);
+    this.toon.impactFrames = flashesEnabled();
+    this.toon.postImpact = !!this.post.grade;
     this.scene.add(this.debugGroup);
     this.resize();
   }
@@ -141,12 +170,17 @@ export class GameView {
           const y = e.y / U;
           const dir = e.projectile ? Math.sign(s.fighters[e.d].x - e.x) || 1 : s.fighters[e.a].facing;
           const col = e.counter ? COUNTER_COLOR : HIT_COLORS[e.strength];
-          const n = [12, 18, 28, 40][e.strength];
+          const n = [8, 12, 18, 26][e.strength];
           this.vfx.sparks(x, y, n, col, [6, 8, 11, 13][e.strength], dir);
-          this.vfx.flash(x, y, [0.45, 0.6, 0.9, 1.2][e.strength], col, 0.09);
-          this.vfx.flash(x, y, [0.2, 0.25, 0.35, 0.45][e.strength], C(0xffffff), 0.06);
-          if (e.strength >= 2) this.vfx.ring(x, y, [0, 0, 0.55, 0.95][e.strength], col, 0.18);
+          this.vfx.flash(x, y, [0.25, 0.32, 0.45, 0.6][e.strength], C(0xffffff), 0.05);
+          this.toon.impact(x, y, STAR_SIZE[e.strength] * (e.counter ? 1.25 : 1), e.counter ? COUNTER_COLOR : STAR_FILL[e.strength], {
+            spikes: [8, 9, 11, 13][e.strength],
+            life: [0.16, 0.19, 0.24, 0.3][e.strength],
+          });
           if (e.counter) this.vfx.ring(x, y, 1.4, COUNTER_COLOR, 0.32);
+          if (e.strength >= 2 || e.counter) this.toon.speedLines(x, y, e.counter ? C(0xffd0d8) : C(0xffffff), e.strength === 3 ? 0.32 : 0.22, e.strength === 3 ? 0.45 : 0.6);
+          if (e.counter && e.strength >= 2) this.toon.impactFrame(0.05);
+          this.lastHit[e.d] = e.strength;
           this.director.shake([0.1, 0.18, 0.32, 0.45][e.strength] + (e.counter ? 0.15 : 0));
           this.director.kick(dir * [0.02, 0.035, 0.06, 0.08][e.strength], 0, -[0.02, 0.04, 0.08, 0.1][e.strength]);
           if (e.strength >= 2) this.director.punch(e.strength === 3 ? 2.2 : 1.2);
@@ -171,9 +205,9 @@ export class GameView {
           const x = e.x / U;
           const y = e.y / U;
           const dir = s.fighters[e.a].facing;
-          this.vfx.sparks(x, y, 10 + e.strength * 4, BLOCK_COLOR, 5 + e.strength, dir, 0.6);
+          this.vfx.sparks(x, y, 6 + e.strength * 3, BLOCK_COLOR, 5 + e.strength, dir, 0.6);
           this.vfx.ring(x, y, 0.45 + e.strength * 0.12, BLOCK_COLOR, 0.18);
-          this.vfx.flash(x, y, 0.4, BLOCK_COLOR, 0.07);
+          this.toon.impact(x, y, 0.55 + e.strength * 0.1, BLOCK_COLOR, { spikes: 6, jag: 0.08, life: 0.14, core: C(0xe8fbff) });
           this.director.shake(0.06 + e.strength * 0.04);
           this.director.kick(dir * 0.015, 0, 0);
           this.shakeT[e.d] = 0.6;
@@ -182,8 +216,9 @@ export class GameView {
         case 'armor': {
           const x = e.x / U;
           const y = e.y / U;
-          this.vfx.sparks(x, y, 18, C(0xffa040), 7, s.fighters[e.a].facing);
+          this.vfx.sparks(x, y, 12, C(0xffa040), 7, s.fighters[e.a].facing);
           this.vfx.ring(x, y, 0.9, C(0xffa040), 0.25);
+          this.toon.impact(x, y, 0.8, C(0xffa040), { spikes: 7, jag: 0.2, life: 0.2 });
           this.flash[e.d] = 1;
           this.flashColor[e.d].set(0xff9a30);
           this.director.shake(0.25);
@@ -193,7 +228,9 @@ export class GameView {
           const x = e.x / U;
           const y = e.y / U;
           this.vfx.ring(x, y, 1.6, C(0x8af7ff), 0.35);
-          this.vfx.sparks(x, y, 30, C(0x8af7ff), 9, 1, 2);
+          this.vfx.sparks(x, y, 18, C(0x8af7ff), 9, 1, 2);
+          this.toon.impact(x, y, 1.1, C(0x8af7ff), { spikes: 12, jag: 0.3, life: 0.26 });
+          this.toon.speedLines(x, y, C(0xd8fbff), 0.3, 0.5);
           this.flash[e.p] = 1;
           this.flashColor[e.p].set(0x8af7ff);
           this.screenFlash = Math.max(this.screenFlash, 0.5);
@@ -203,9 +240,13 @@ export class GameView {
         }
         case 'throwHit': {
           const x = e.x / U;
-          this.vfx.dust(x, 0, 24, 1.2);
+          this.toon.puff(x, 0, 12, 1.2, DUST, 0.3, 0.9);
           this.vfx.ring(x, 0.05, 1.6, C(0xffffff), 0.3, true);
-          this.vfx.sparks(x, 0.4, 20, HIT_COLORS[2], 8, 1, 2);
+          this.vfx.sparks(x, 0.4, 12, HIT_COLORS[2], 8, 1, 2);
+          this.toon.impact(x, 0.45, 1.2, STAR_FILL[2], { spikes: 11, life: 0.26 });
+          this.toon.crack(x, 1.8);
+          this.toon.rubble(x, 0, 10);
+          this.toon.speedLines(x, 0.5, C(0xffffff), 0.28, 0.5);
           this.director.shake(0.45);
           this.director.kick(0, -0.06, 0);
           this.flash[e.d] = 1;
@@ -213,13 +254,18 @@ export class GameView {
           break;
         }
         case 'tech': {
-          this.vfx.sparks(e.x / U, e.y / U, 22, C(0xffffff), 7, 1, 2);
-          this.vfx.ring(e.x / U, e.y / U, 0.9, C(0xffffff), 0.25);
+          this.vfx.sparks(e.x / U, e.y / U, 14, C(0xffffff), 7, 1, 2);
+          this.toon.impact(e.x / U, e.y / U, 0.9, C(0xeaf2ff), { spikes: 8, jag: 0.15, life: 0.2 });
           this.director.shake(0.15);
           break;
         }
         case 'knockdown': {
-          this.vfx.dust(e.x / U, 0, 16, 1);
+          const hard = this.lastHit[e.p] >= 2;
+          this.toon.puff(e.x / U, 0, hard ? 10 : 6, 1, DUST, hard ? 0.3 : 0.24, 0.7);
+          if (hard) {
+            this.toon.crack(e.x / U, 1.3);
+            this.toon.rubble(e.x / U, 0, 6, 3);
+          }
           this.director.shake(0.15);
           break;
         }
@@ -227,7 +273,7 @@ export class GameView {
         case 'jump':
         case 'dash': {
           const f = s.fighters[e.p];
-          this.vfx.dust(f.x / U, 0, e.t === 'land' ? 6 : 4, 0.5);
+          this.toon.puff(f.x / U - (e.t === 'dash' ? f.facing * (e.forward ? 0.3 : -0.3) : 0), 0, e.t === 'land' ? 4 : 3, 0.5, DUST, 0.17, 0.4);
           break;
         }
         case 'superFlash': {
@@ -239,6 +285,7 @@ export class GameView {
             this.vfx.emit(x, 1.1, 0.3, Math.cos(a) * 6, Math.sin(a) * 6, 0, C(0xffd21f), 1.4, 0.05, 0.05, 0.35, 4, 0);
           }
           this.screenFlash = Math.max(this.screenFlash, 0.6);
+          this.toon.speedLines(x, 1.1, C(0xffe27a), 0.45, 0.35);
           this.director.punch(3);
           this.arena.pulse(0.8);
           break;
@@ -246,13 +293,20 @@ export class GameView {
         case 'ko': {
           const loser = e.loser >= 0 ? s.fighters[e.loser] : s.fighters[0];
           const x = loser.x / U;
-          this.vfx.flash(x, 1.2, 2.5, C(0xffffff), 0.25);
-          this.vfx.ring(x, 1.2, 3, C(0xffd21f), 0.6);
-          this.vfx.sparks(x, 1.2, 60, C(0xffd21f), 12, 1, 2);
+          // impact frame first (silhouettes), then the burst
+          this.toon.impactFrame(0.07);
+          this.after(this.toon.impactFrames ? 0.07 : 0, () => {
+            this.vfx.flash(x, 1.2, 1.2, C(0xffffff), 0.18);
+            this.vfx.ring(x, 1.2, 3, C(0xffd21f), 0.6);
+            this.vfx.sparks(x, 1.2, 40, C(0xffd21f), 12, 1, 2);
+            this.toon.impact(x, 1.1, 2.2, STAR_FILL[3], { spikes: 14, life: 0.45 });
+            this.toon.speedLines(x, 1.1, C(0xffffff), 0.6, 0.4);
+            this.toon.rubble(x, 0, 12, 4);
+          });
           this.director.shake(0.7);
           this.director.punch(4);
           this.arena.pulse(1);
-          this.screenFlash = 1;
+          this.screenFlash = this.toon.impactFrames ? 0.45 : 0.8;
           break;
         }
         case 'projectileEnd': {
@@ -265,8 +319,10 @@ export class GameView {
           break;
         }
         case 'clash': {
-          this.vfx.sparks(e.x / U, e.y / U, 30, C(0xffffff), 9, 1, 2);
+          this.vfx.sparks(e.x / U, e.y / U, 18, C(0xffffff), 9, 1, 2);
           this.vfx.ring(e.x / U, e.y / U, 1.2, C(0xffffff), 0.3);
+          this.toon.impact(e.x / U, e.y / U, 1.1, C(0xffffff), { spikes: 12, life: 0.24, core: C(0xfff3b0) });
+          this.toon.speedLines(e.x / U, e.y / U, C(0xffffff), 0.25, 0.55);
           this.director.shake(0.25);
           break;
         }
@@ -277,6 +333,29 @@ export class GameView {
           this.arena.pulse(0.4);
           break;
         }
+        case 'active': {
+          // boxes from the move data: on a connecting frame activeHitboxes() is already empty (hit consumed)
+          const f = s.fighters[e.p];
+          let mv;
+          try {
+            mv = getMove(f.def, e.move);
+          } catch {
+            break;
+          }
+          const h = mv.hits.find((q) => q.start === f.mf) ?? mv.hits[0];
+          if (!h?.boxes.length) break;
+          let cx = 0;
+          let cy = 0;
+          for (const b of h.boxes) {
+            cx += f.x + f.facing * (b.x0 + b.x1) / 2;
+            cy += f.y + (b.y0 + b.y1) / 2;
+          }
+          cx /= h.boxes.length;
+          cy /= h.boxes.length;
+          const tint = new THREE.Color(this.accentFor(s, e.p)).lerp(C(0xffffff), 0.35);
+          this.toon.smear(e.p, cx / U, cy / U, tint, SMEAR_W[e.strength] ?? 0.08, Math.min(10, h.end - h.start + 3));
+          break;
+        }
         default:
           break;
       }
@@ -285,6 +364,12 @@ export class GameView {
 
   render(s: GameState, dt: number, alpha: number, beat: number): void {
     this.time += dt;
+    if (this.delayed.length) {
+      for (const d of this.delayed) d.t -= dt;
+      const due = this.delayed.filter((d) => d.t <= 0);
+      this.delayed = this.delayed.filter((d) => d.t > 0);
+      for (const d of due) d.run();
+    }
     const slow = s.slowmo > 0 ? 0.35 : 1;
     this.vfx.timeScale = slow;
     const cineActive = this.hooks.cinematic ? this.hooks.cinematic(this, s, dt, alpha) : false;
@@ -308,6 +393,8 @@ export class GameView {
       sh.scale.set(sc * 1.15, sc * 0.55, 1);
       sh.position.set(anim.vx, 0.006, 0);
       if (rig.props.mic) rig.props.mic.visible = !s.projectiles.some((p) => p.owner === i && p.kind === 'mic');
+      rig.root.updateMatrixWorld(true);
+      this.toon.track(i, rig);
     }
 
     this.fx.update(s, dt * slow, this.time, this.anims, this.rigs);
@@ -324,6 +411,9 @@ export class GameView {
     const b = this.anims[1];
     if (a && b) this.director.update(dt, a.vx, a.vy, b.vx, b.vy, s.phase === 'intro' ? -0.4 : 0);
     this.vfx.update(dt);
+    this.toon.timeScale = slow;
+    this.toon.update(dt, [s.fighters[0].hitstop > 0 || s.freeze > 0, s.fighters[1].hitstop > 0 || s.freeze > 0]);
+    if (this.post.grade) this.post.grade.uniforms.uImpact.value = this.toon.impactNow;
     this.updateDebug(s);
     this.screenFlash = Math.max(0, this.screenFlash - dt * 3.5);
     this.post.render(this.scene, this.director.cam);

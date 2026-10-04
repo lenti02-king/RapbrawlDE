@@ -354,6 +354,11 @@ const SECURITY: CineDef = {
         c.view.vfx.ring(p.x, p.y, 2.6, C(0xffffff), 0.45);
         c.view.vfx.ring(p.x, p.y, 1.6, C(0xff2d55), 0.35);
         c.view.vfx.sparks(p.x, p.y, 70, C(0xff9a3c), 14, -c.facing, 2);
+        c.view.toon.impactFrame(0.07);
+        c.view.after(0.07, () => {
+          c.view.toon.impact(p.x, p.y, 2.2, C(0xff9a3c), { spikes: 14, life: 0.45 });
+          c.view.toon.speedLines(p.x, p.y, C(0xffffff), 0.6, 0.4);
+        });
         c.view.director.shake(1);
         c.view.director.punch(5);
         c.view.director.kick(-c.facing * 0.2, 0, -0.2);
@@ -365,7 +370,9 @@ const SECURITY: CineDef = {
     {
       f: 140,
       run: (c) => {
-        c.view.vfx.dust(c.def.x, 0, 30, 1.6);
+        c.view.vfx.dust(c.def.x, 0, 12, 1.6);
+        c.view.toon.puff(c.def.x, 0, 12, 1.6, C(0xe9dfd0), 0.3, 0.8);
+        c.view.toon.crack(c.def.x, 1.8);
         c.view.vfx.ring(c.def.x, 0.02, 2.4, C(0xffffff), 0.4, true);
         c.view.director.shake(0.4);
       },

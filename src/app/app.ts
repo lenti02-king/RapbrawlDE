@@ -214,7 +214,7 @@ export class App {
   private loop(now: number): void {
     const elapsed = now - this.last;
     this.last = now;
-    if (this.runner) {
+    if (this.runner && !this.debugHold) {
       this.runner.tick(elapsed, this.audio.beat());
       const s = this.runner.state;
       if (this.mode !== 'menu' && !this.isDemo) {
@@ -602,6 +602,7 @@ export class App {
            ${seg('touch', touch, [['auto', 'AUTO'], ['on', 'AN'], ['off', 'AUS']])}</div>
          <div class="panel setrow"><div><div class="sname">TON</div><div class="sdesc">Effekte und Musik.</div></div>${sw('sound', !this.audio.muted)}</div>
          <div class="panel setrow"><div><div class="sname">VIBRATION</div><div class="sdesc">Kurzes Rütteln bei Treffern (Handy).</div></div>${sw('vibrate', store.get('vibrate', true))}</div>
+         <div class="panel setrow"><div><div class="sname">BLITZEFFEKTE</div><div class="sdesc">Kurze Farbumkehr bei Kontern, Signature und K.O. Aus = augenschonender.</div></div>${sw('flashes', store.get('flashes', true))}</div>
          <div class="panel setrow"><div><div class="sname">STEUERUNG & TASTEN</div><div class="sdesc">Alle Eingaben für Tastatur, Controller und Touch.</div></div><button class="btn small" data-help>ANSEHEN</button></div>
        </div>`,
     );
@@ -624,6 +625,7 @@ export class App {
           this.audio.setMuted(!this.audio.muted);
           store.set('muted', this.audio.muted);
         } else store.set(key, !store.get(key, true));
+        if (key === 'flashes' && this._view) this._view.toon.impactFrames = store.get('flashes', true);
         this.showSettings();
       }),
     );
@@ -1240,6 +1242,19 @@ export class App {
   }
 
   // ----------------------------------------------------- test / debug API
+  /** Debug: stop the real-time loop; captures then advance deterministically with debugAdvance(). */
+  debugHold = false;
+
+  /** Debug: run n sim frames (or only n renders with step=false), rendering each at a fixed 1/60 s. */
+  debugAdvance(frames: number, step = true): void {
+    const r = this.runner;
+    if (!r) return;
+    for (let i = 0; i < frames; i++) {
+      if (step) r.frame();
+      this.view.render(r.state, 1 / 60, 0, this.audio.beat());
+    }
+  }
+
   /** Inject inputs for P1 for automated tests (OR-ed with real input). */
   debugHoldP1(bits: number, frames: number): void {
     const src = this.runner?.sources[this.localIdx];
