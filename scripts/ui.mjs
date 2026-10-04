@@ -46,7 +46,7 @@ for (const [tag, vp, touch] of [
   await page.waitForSelector('.vs');
   await frames(page, 2);
   await page.screenshot({ path: `${out}/${tag}_5_vs.png` });
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 120000 });
   await page.evaluate(() => { const s = window.__rb.runner.state; s.fighters[0].meter = 300; s.fighters[1].meter = 150; });
   await page.waitForTimeout(1200);
   await frames(page, 6);

@@ -31,9 +31,9 @@ const sim = (page) =>
   const errors = [];
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   watchErrors(page, errors);
-  await page.goto(base + '/?touch=0');
+  await page.goto(base + '/?touch=0&q=low');
   await page.evaluate(() => localStorage.clear());
-  await page.goto(base + '/?touch=0');
+  await page.goto(base + '/?touch=0&q=low');
   await page.waitForSelector('.splash');
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${out}/d01_title.png` });
@@ -148,7 +148,7 @@ const sim = (page) =>
     check(fresh, 'rematch restarts a fresh match');
   }
   // training mode with hitboxes
-  await page.goto(base + '/?quick=bonez,jazeek&mode=training');
+  await page.goto(base + '/?quick=bonez,jazeek&mode=training&q=low');
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
   await page.keyboard.press('KeyH');
   await page.keyboard.press('KeyK');
@@ -165,9 +165,9 @@ const sim = (page) =>
   const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'], deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   watchErrors(page, errors);
-  await page.goto(base + '/');
+  await page.goto(base + '/?q=low');
   await page.evaluate(() => localStorage.clear());
-  await page.goto(base + '/');
+  await page.goto(base + '/?q=low');
   await page.waitForSelector('.splash');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/m01_title.png` });
@@ -245,8 +245,8 @@ const sim = (page) =>
 // ------------------------------------------------------- performance probe
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await page.goto(base + '/?quick=jazeek,bonez');
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 20000 });
+  await page.goto(base + '/?quick=jazeek,bonez&q=low');
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
   const perf = await page.evaluate(
     () =>
       new Promise((res) => {

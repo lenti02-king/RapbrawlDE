@@ -27,6 +27,17 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Audio: new procedural cues (sung notes, chime, bass drop, croc snap, smoke) | BUILT, UNVERIFIED (never heard by a human) | |
 | Real-device feel / FPS | UNVERIFIED (headless SwiftShader only; 42 draw calls, ~72k triangles per frame) | |
 
+## Session 2b — realism pass (product owner: "Unreal-Engine-realistisch wie die Referenzen")
+| Area | Status | Evidence |
+|---|---|---|
+| Rendering: MSAA HDR + bloom + colour grade + vignette, real-time shadows, dusk-sky image-based lighting, quality tiers (`?q=low|medium|high`, phones default to medium) | VERIFIED (screenshots) | `src/render/post.ts`, `view.ts` |
+| Procedural PBR materials (asphalt, plaster with peeling, brick, shutters, wood, concrete, window atlas) | VERIFIED (screenshots) | `src/render/textures.ts` |
+| Courtyard arena rebuilt after the reference image (default arena) incl. planar reflections on wet asphalt (high tier) | VERIFIED (screenshots); real-device FPS UNVERIFIED (high ≈150 draw calls/≈225k tris, medium ≈100/≈150k per frame) | `src/render/arenas/courtyard.ts` |
+| Real character models: `public/assets/characters/<id>.glb` (Mixamo skeleton) drive all poses via retargeting | VERIFIED with two Mixamo test models (not in repo): stance, every move, hitbox overlap | `src/render/glbRig.ts`, `EXTRA=... node scripts/moves.mjs` |
+| Photoreal Jazeek / Bonez models | BLOCKED: need models from the product owner (spec in `docs/ASSETS.md`); placeholders are procedural | |
+| Painted card art drop-in (`public/assets/cards/<id>.webp`) | BUILT, UNVERIFIED (no art yet) | |
+| Headless tests run at `q=low` (SwiftShader is too slow for the full pipeline) | VERIFIED: 22/22 E2E | `npm run e2e` |
+
 ## Earlier (session 1) — still valid
 Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollback netcode core, WebRTC copy/paste friend match (one machine only), Android debug APK in CI, iOS BLOCKED (needs macOS/Xcode/Apple account), CI green on GitHub Actions.
 
@@ -38,6 +49,7 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - Bot is reactive but exploitable. Back-throw victim animation assumes a forward throw.
 
 ## Needs the product owner
+- **3D models of Jazeek and Bonez MC** (see `docs/ASSETS.md`): photoreal look is impossible with procedural geometry.
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
 - Hosting decision for signaling/matchmaking + TURN.

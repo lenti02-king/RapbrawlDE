@@ -53,10 +53,11 @@ function popHold(k: number, from: number, inEnd = 0.12, outStart = 0.8): [number
 export function cardHtml(fighter: string, id: string, cls = ''): string {
   const c = getCard(fighter, id);
   const sig = c.category === 'signature';
+  // painted card art (assets/cards/<id>.webp) covers the SVG icon when the file exists
   return `<div class="card ${sig ? 'sig' : ''} ${cls}" style="--c:${CAT_COLOR[c.category]}">${c.cost ? costBadge(c.cost) : ''}<div class="art">${cardIcon(
     c.id,
     c.category,
-  )}</div><div class="nm">${c.name}</div></div>`;
+  )}<div class="cardimg" style="background-image:url('assets/cards/${c.id}.webp')"></div></div><div class="nm">${c.name}</div></div>`;
 }
 
 export class Hud {

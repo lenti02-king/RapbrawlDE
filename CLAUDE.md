@@ -7,6 +7,7 @@ Product owner defines WHAT; the agent owns HOW. Read `docs/STATUS.md` first — 
 - `docs/STATUS.md` — what works / verified / unverified, known issues, next objectives. **Update at end of every session.**
 - `docs/DECISIONS.md` — architecture decision log (engine, perspective, netcode, …). Append, don't rewrite history.
 - `docs/DESIGN.md` — combat design: controls, mechanics, frame-data conventions, cards, fighters.
+- `docs/ASSETS.md` — asset specs for the product owner (character models, card art, rights).
 
 ## Commands
 ```
@@ -22,6 +23,7 @@ node scripts/moves.mjs jazeek|bonez # every move at first active frame + hitbox 
 node scripts/cine.mjs jazeek|bonez [f1,f2,..]  # frame-accurate signature cinematic capture
 node scripts/specials.mjs           # special-move VFX/props sheet (voice wave, spotlight, croc, smoke, grin)
 node scripts/ui.mjs                 # menu flow + HUD screenshots, desktop and phone landscape -> artifacts/ui
+EXTRA="&glb=jazeek:test-models/Xbot.glb" node scripts/moves.mjs jazeek   # test a GLB model (public/test-models is gitignored)
 node scripts/ko.mjs                 # KO -> round over -> next round capture
 node scripts/netplay.mjs 60         # two pages play online (same-device transport, 60 ms lag), checksums compared
 npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
@@ -29,6 +31,8 @@ node scripts/single-file.mjs out.html  # one self-contained HTML page (used for 
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
+Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
+Real character models: `public/assets/characters/<id>.glb` (Mixamo skeleton) replace placeholders automatically — see `docs/ASSETS.md`.
 Useful URLs: `/?quick=jazeek,bonez&mode=cpu|local|training|demo` (any registered id, incl. hidden volt/brick), `/?touch=1` (force touch UI), `/?lab=poses&a=jazeek&b=bonez&pose=<name>&zoom=2&teeth=1`.
 Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1(bits, frames)`, `.view.debug = true` for hitboxes).
 
@@ -44,7 +48,9 @@ Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1
   `stylized.ts` (Jazeek/Bonez faces, hair, outfits), `cinematics.ts` (runtime + VOLT/BRICK) and `cines.ts`
   (Herzbrecher, Palmen-Bassdrop) keyed to the sim cine frame, `props.ts` (hearts, croc, palms, spotlight, sprites),
   `specials.ts` (in-match special VFX, gold teeth, win flourishes), `camera.ts`, `vfx.ts`,
-  `arenas/hinterhof.ts` (default arena; `arena.ts` = old club stage).
+  `arenas/courtyard.ts` (default, realistic, after the reference image), `arenas/hinterhof.ts` (old toon version),
+  `arena.ts` (club stage), `post.ts` (post-processing + quality tiers), `textures.ts` (procedural PBR sets),
+  `glbRig.ts` (GLB character import + pose retargeting).
 - `audio/audio.ts` — procedural Web Audio SFX + generative music (no external assets).
 - `input/` — keyboard/gamepad/touch sources -> input bitmask (`core/input.ts`).
 - `ai/bot.ts` — CPU opponent (InputSource; seeded RNG; reads state with reaction delay).

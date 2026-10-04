@@ -540,6 +540,12 @@ svg {
   height: 78%;
   filter: drop-shadow(0 0.15rem 0 rgba(0, 0, 0, 0.3));
 }
+.card .cardimg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
 .card .nm {
   position: absolute;
   left: 0.15rem;

@@ -62,3 +62,9 @@ Announcer, card banners, signature card reveal and the "SIGNATURE BEREIT!" banne
 
 ## D17 — Cinematic props and prop lights are created up front (2026-10-04)
 Signature props (hearts, palms, crocodile, spotlights) are built when cinematics are installed; their real lights stay in the scene at intensity 0, so the first signature in a match never triggers shader recompilation or allocation hitches.
+
+## D18 — Realistic rendering on WebGL with quality tiers (2026-10-04) — supersedes the cartoon look of D13 for 3D
+The product owner asked for an "Unreal Engine realistic" look like their reference renders. Approach within WebGL/mobile limits: PBR materials from procedurally generated texture sets, real-time shadows, image-based lighting from a dusk sky, HDR post-processing (bloom, grading, vignette, MSAA), planar reflections on wet ground on the high tier. Tiers: `high` (desktop), `medium` (phones: smaller shadow maps, cheaper bloom, no reflections), `low` (no post/shadows; used by headless tests). The menu UI stays in the chunky mobile-game style.
+
+## D19 — Real character models via retargeting, procedural rig as reference (2026-10-04)
+Photoreal characters need authored/generated meshes. `GlbRig` loads `assets/characters/<id>.glb` (humanoid, Mixamo bone names), aligns its rest pose to the procedural reference rig (bone directions), and applies each joint's world-space rotation delta every frame, plus scaled hip translation. All existing clips (moves, throws, cinematics, intros, wins) work unchanged; the procedural rig remains the fallback. Verified with Mixamo test models (not shipped).
