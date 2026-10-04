@@ -8,7 +8,7 @@
 // deterministic (integer math, plain-data state).
 import type { SimEvent } from '../core/events';
 import { step } from '../core/sim';
-import { cloneState, type GameState, hashState } from '../core/state';
+import { cloneState, type GameState, hashState, type MatchConfig } from '../core/state';
 
 export type NetMessage =
   /** Inputs for frames [f, f + bits.length). ack = highest remote frame we have confirmed. cur = sender's current frame. */
@@ -16,9 +16,18 @@ export type NetMessage =
   /** Checksum of the state at the START of confirmed frame f. */
   | { t: 'cs'; f: number; h: number };
 
+/** Pre-match lobby messages (sent over the same transport before the session starts). */
+export type LobbyMessage =
+  | { t: 'join'; v: number; fighter: string; loadout: string[] }
+  | { t: 'hello'; v: number; cfg: MatchConfig }
+  | { t: 'ping' }
+  | { t: 'bye' };
+
+export type WireMessage = NetMessage | LobbyMessage;
+
 export interface Transport {
-  send(msg: NetMessage): void;
-  onMessage: ((msg: NetMessage) => void) | null;
+  send(msg: WireMessage): void;
+  onMessage: ((msg: WireMessage) => void) | null;
   close?(): void;
 }
 
@@ -52,7 +61,7 @@ export class RollbackSession {
   private remoteAdv = 0;
   private advAvgLocal = 0;
   private advAvgRemote = 0;
-  private inbox: NetMessage[] = [];
+  private inbox: WireMessage[] = [];
   private ticks = 0;
   /** Hash of the state at the start of each confirmed frame (sampled every checksumEvery). */
   readonly confirmedHashes = new Map<number, number>();
@@ -164,7 +173,7 @@ export class RollbackSession {
     return n;
   }
 
-  private receive(m: NetMessage): void {
+  private receive(m: WireMessage): void {
     if (m.t === 'in') {
       this.remoteAck = Math.max(this.remoteAck, m.ack);
       if (m.cur >= this.remoteCur) {
@@ -194,7 +203,8 @@ export class RollbackSession {
   }
 
   private sendInputs(): void {
-    const from = Math.min(this.localIn.length, Math.max(this.remoteAck + 1, this.localIn.length - 16));
+    // resend everything the peer has not acknowledged (bounded: 2 s of inputs)
+    const from = Math.min(this.localIn.length, Math.max(this.remoteAck + 1, this.localIn.length - 120));
     this.transport.send({
       t: 'in',
       f: from,
@@ -244,7 +254,7 @@ export class RollbackSession {
 
 /** In-memory link with configurable latency (in ticks), jitter and packet loss. */
 export class SimulatedLink {
-  private queue: { at: number; to: 0 | 1; msg: NetMessage }[] = [];
+  private queue: { at: number; to: 0 | 1; msg: WireMessage }[] = [];
   private tick = 0;
   readonly ends: [Transport, Transport];
   private seed: number;
@@ -283,18 +293,18 @@ export class SimulatedLink {
 
 /** Same-browser transport between two tabs (dev testing of netplay without a server). */
 export class BroadcastTransport implements Transport {
-  onMessage: ((msg: NetMessage) => void) | null = null;
+  onMessage: ((msg: WireMessage) => void) | null = null;
   private ch: BroadcastChannel;
   constructor(
     room: string,
     private self: number,
   ) {
     this.ch = new BroadcastChannel(`rapbrawl-${room}`);
-    this.ch.onmessage = (e: MessageEvent<{ from: number; msg: NetMessage }>) => {
+    this.ch.onmessage = (e: MessageEvent<{ from: number; msg: WireMessage }>) => {
       if (e.data.from !== this.self) this.onMessage?.(e.data.msg);
     };
   }
-  send(msg: NetMessage): void {
+  send(msg: WireMessage): void {
     this.ch.postMessage({ from: this.self, msg });
   }
   close(): void {

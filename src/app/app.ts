@@ -16,9 +16,11 @@ import { installCinematics } from '../render/cinematics';
 import { Hud } from '../ui/hud';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
+import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
+import type { Transport } from '../net/rollback';
 import { TrainingMonitor } from './training';
 
-type Mode = 'cpu' | 'local' | 'training' | 'demo';
+type Mode = 'cpu' | 'local' | 'training' | 'demo' | 'online';
 
 const CAT_NAMES: Record<CardCategory, string> = {
   offense: 'Offense',
@@ -76,6 +78,9 @@ export class App {
   private training: TrainingMonitor | null = null;
   private touchEnabled: boolean;
   private resultsShown = false;
+  /** Which fighter this device controls (1 for an online guest). */
+  localIdx = 0;
+  private netTransport: Transport | null = null;
   private escHandler = (e: KeyboardEvent) => this.onKey(e);
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
@@ -131,7 +136,8 @@ export class App {
       const s = this.runner.state;
       if (this.mode !== 'demo') {
         this.hud.update(s, elapsed / 1000, this.view.screenFlash);
-        this.touch.updateCards(s, 0);
+        this.touch.updateCards(s, this.localIdx);
+        if (this.runner instanceof NetMatchRunner && this.runner.silence > 6 && !this.resultsShown) this.connectionLost();
         this.training?.update(s, this.runner.lastInputs);
         if (s.phase === 'matchOver' && s.phaseFrame > 90 && !this.resultsShown) this.showResults();
       } else if (s.phase === 'matchOver' && s.phaseFrame > 120) {
@@ -165,6 +171,9 @@ export class App {
   }
 
   startMatch(mode: Mode): void {
+    if (mode === 'online') return this.showOnlineLobby();
+    this.leaveNet();
+    this.localIdx = 0;
     this.mode = mode;
     this.resultsShown = false;
     store.set('selection', this.sel);
@@ -220,6 +229,11 @@ export class App {
 
   togglePause(): void {
     if (!this.runner || this.mode === 'demo' || this.resultsShown) return;
+    if (this.mode === 'online') {
+      if (this.screen) this.closeScreen();
+      else this.showOnlinePause();
+      return;
+    }
     if (this.runner.paused) {
       this.runner.paused = false;
       this.closeScreen();
@@ -305,7 +319,7 @@ export class App {
          <button class="mbtn" data-m="cpu"><span>VERSUS CPU<small>1 player vs the machine</small></span></button>
          <button class="mbtn" data-m="local"><span>LOCAL VERSUS<small>2 players · one keyboard / gamepads</small></span></button>
          <button class="mbtn" data-m="training"><span>TRAINING<small>Hitboxes · frame data · dummy</small></span></button>
-         <button class="mbtn" disabled><span>ONLINE<small>Rollback netplay — coming soon</small></span></button>
+         <button class="mbtn" data-m="online"><span>ONLINE<small>Rollback netplay · experimental</small></span></button>
          <button class="mbtn" data-m="help"><span>HOW TO PLAY</span></button>
        </div>`,
       'clear',
@@ -362,7 +376,7 @@ export class App {
       `<div class="who">${who}</div>
        <h2>CHOOSE YOUR FIGHTER</h2>
        <div class="fighters">${cards}</div>
-       ${mode !== 'local' && player === 0 ? `<div class="row" style="margin-top:14px"><span class="hint">CPU LEVEL</span>${levels}</div>` : ''}
+       ${mode !== 'local' && mode !== 'online' && player === 0 ? `<div class="row" style="margin-top:14px"><span class="hint">CPU LEVEL</span>${levels}</div>` : ''}
        <div class="row" style="margin-top:18px">
          <button class="cta alt" data-back><span>BACK</span></button>
          <button class="cta" data-next data-default><span>NEXT</span></button>
@@ -527,6 +541,8 @@ export class App {
   }
 
   private quitToMenu(): void {
+    this.leaveNet();
+    this.localIdx = 0;
     this.startDemo();
     this.showMenu();
   }
@@ -536,7 +552,12 @@ export class App {
     const s = this.runner!.state;
     const w = s.matchWinner;
     const name = w === 2 ? 'DRAW' : `${getFighter(s.fighters[w].def).name} WINS`;
-    const sub = this.mode === 'cpu' ? (w === 0 ? 'YOU WIN' : w === 1 ? 'CPU WINS' : '') : w < 2 ? `PLAYER ${w + 1}` : '';
+    const sub =
+      this.mode === 'cpu'
+        ? w === 0 ? 'YOU WIN' : w === 1 ? 'CPU WINS' : ''
+        : this.mode === 'online'
+          ? w === this.localIdx ? 'YOU WIN' : w < 2 ? 'YOU LOSE' : ''
+          : w < 2 ? `PLAYER ${w + 1}` : '';
     const el = this.open(
       `<div class="who">${sub}</div>
        <div class="result-win">${name}</div>
@@ -546,8 +567,7 @@ export class App {
          <div>CARDS USED<b>${this.stats.specials[0]} / ${this.stats.specials[1]}</b></div>
        </div>
        <div class="menu">
-         <button class="mbtn" data-a="rematch"><span>REMATCH</span></button>
-         <button class="mbtn" data-a="loadout"><span>CHANGE LOADOUT</span></button>
+         ${this.mode === 'online' ? '' : '<button class="mbtn" data-a="rematch"><span>REMATCH</span></button><button class="mbtn" data-a="loadout"><span>CHANGE LOADOUT</span></button>'}
          <button class="mbtn" data-a="select"><span>CHARACTER SELECT</span></button>
          <button class="mbtn" data-a="menu"><span>MAIN MENU</span></button>
        </div>`,
@@ -558,16 +578,202 @@ export class App {
         const a = b.dataset.a;
         if (a === 'rematch') this.startMatch(this.mode);
         else if (a === 'loadout') this.showLoadout(this.mode, 0);
-        else if (a === 'select') this.showSelect(this.mode, 0);
-        else this.quitToMenu();
+        else if (a === 'select') {
+          const m = this.mode;
+          this.quitToMenu();
+          this.showSelect(m, 0);
+        } else this.quitToMenu();
       }),
     );
+  }
+
+  // -------------------------------------------------------------- online
+  private leaveNet(): void {
+    if (this.netTransport) {
+      try {
+        this.netTransport.send({ t: 'bye' });
+      } catch {
+        /* ignore */
+      }
+      this.netTransport.close?.();
+      this.netTransport = null;
+    }
+  }
+
+  private startOnline(res: LobbyResult, t: Transport): void {
+    this.netTransport = t;
+    this.mode = 'online';
+    this.localIdx = res.local;
+    this.resultsShown = false;
+    const src: InputSource[] = [new KeyboardSource(P1_KEYS), new GamepadSource(0)];
+    if (this.touchEnabled) src.push(this.touch);
+    const r = new NetMatchRunner(res.cfg, this.view, res.local, new MergedSource(src), t);
+    r.listeners.push({ onEvents: (s, ev) => this.onEvents(s, ev) });
+    this.runner = r;
+    this.bots = [];
+    this.stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
+    this.hud.setup(r.state, [this.view.accentFor(r.state, 0), this.view.accentFor(r.state, 1)]);
+    this.hud.show(true);
+    this.touch.setVisible(this.touchEnabled);
+    this.training = null;
+    this.closeScreen();
+    this.audio.startMusic();
+  }
+
+  private connectionLost(): void {
+    this.resultsShown = true;
+    this.leaveNet();
+    const el = this.open(
+      `<h2>CONNECTION LOST</h2>
+       <div class="hint">No data from the other player for 6 seconds.</div>
+       <div class="menu"><button class="mbtn" data-a="menu"><span>MAIN MENU</span></button></div>`,
+      'center',
+    );
+    el.querySelector('[data-a]')!.addEventListener('click', () => this.quitToMenu());
+  }
+
+  private showOnlinePause(): void {
+    const el = this.open(
+      `<h2>ONLINE MATCH</h2>
+       <div class="hint">The match keeps running while this menu is open.</div>
+       <div class="menu">
+         <button class="mbtn" data-a="resume"><span>BACK TO FIGHT</span></button>
+         <button class="mbtn" data-a="quit"><span>LEAVE MATCH</span></button>
+       </div>`,
+      'center',
+    );
+    el.querySelector('[data-a="resume"]')!.addEventListener('click', () => this.closeScreen());
+    el.querySelector('[data-a="quit"]')!.addEventListener('click', () => this.quitToMenu());
+  }
+
+  private onlineConfig(guest: { fighter: string; loadout: string[] }) {
+    const gf = ROSTER.includes(guest.fighter) ? guest.fighter : ROSTER[0];
+    const gl = validateLoadout(gf, guest.loadout) ? getFighter(gf).defaultLoadout.slice() : guest.loadout.slice();
+    return defaultConfig({
+      fighters: [this.sel.fighters[0], gf],
+      loadouts: [this.sel.loadouts[0].slice(), gl],
+      seed: (Math.random() * 1e9) | 0,
+    });
+  }
+
+  showOnlineLobby(): void {
+    store.set('selection', this.sel);
+    const mine = { fighter: this.sel.fighters[0], loadout: this.sel.loadouts[0].slice() };
+    const el = this.open(
+      `<div class="who">ONLINE · EXPERIMENTAL · ${getFighter(mine.fighter).name}</div>
+       <h2>PLAY ONLINE</h2>
+       <div class="online-grid">
+         <section class="opanel">
+           <h3>FRIEND MATCH</h3>
+           <p class="hint">Direct peer-to-peer connection. Exchange two codes with your friend over chat. Strict mobile networks can block it.</p>
+           <div class="row"><button class="cta" data-host><span>CREATE INVITE</span></button><button class="cta alt" data-join><span>JOIN INVITE</span></button></div>
+           <div class="rtc-flow"></div>
+         </section>
+         <section class="opanel">
+           <h3>SAME-DEVICE TEST</h3>
+           <p class="hint">Open the game in a second browser tab on this device, then host here and join there. Simulated lag shows rollback at work.</p>
+           <div class="row"><span class="hint">LAG</span>
+             <button class="toggle on" data-lag="0">0 ms</button><button class="toggle" data-lag="60">60 ms</button><button class="toggle" data-lag="120">120 ms</button></div>
+           <div class="row"><button class="cta alt" data-bhost><span>HOST ROOM</span></button>
+             <input id="room-code" class="code-in" maxlength="4" placeholder="CODE" autocomplete="off" />
+             <button class="cta alt" data-bjoin><span>JOIN</span></button></div>
+         </section>
+       </div>
+       <div class="net-status" role="status"></div>
+       <div class="row"><button class="cta alt" data-back><span>BACK</span></button></div>`,
+    );
+    const status = el.querySelector<HTMLElement>('.net-status')!;
+    const flow = el.querySelector<HTMLElement>('.rtc-flow')!;
+    let lag = 0;
+    const say = (t: string, err = false) => {
+      status.textContent = t;
+      status.classList.toggle('err', err);
+    };
+    const go = (t: Transport, host: boolean) => {
+      say(host ? 'Waiting for the other player…' : 'Joining…');
+      runLobby(t, host, mine, (g) => this.onlineConfig(g))
+        .then((res) => this.startOnline(res, t))
+        .catch((e: Error) => say(e.message, true));
+    };
+    el.querySelectorAll<HTMLButtonElement>('[data-lag]').forEach((b) =>
+      b.addEventListener('click', () => {
+        lag = Number(b.dataset.lag);
+        el.querySelectorAll('[data-lag]').forEach((x) => x.classList.toggle('on', x === b));
+      }),
+    );
+    el.querySelector('[data-bhost]')!.addEventListener('click', () => {
+      const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
+      (el.querySelector('#room-code') as HTMLInputElement).value = code;
+      go(sameDeviceTransport(code, true, lag), true);
+      say(`Room ${code} — in the second tab choose ONLINE, enter ${code} and press JOIN.`);
+    });
+    el.querySelector('[data-bjoin]')!.addEventListener('click', () => {
+      const code = (el.querySelector('#room-code') as HTMLInputElement).value.trim().toUpperCase();
+      if (code.length !== 4) return say('Enter the 4-letter room code shown in the host tab.', true);
+      go(sameDeviceTransport(code, false, lag), false);
+    });
+    const codeBox = (label: string, value: string, editable: boolean, id: string) =>
+      `<label class="hint" for="${id}">${label}</label><textarea id="${id}" class="code-box" ${editable ? '' : 'readonly'} spellcheck="false">${value}</textarea>`;
+    const copyBtn = (id: string) => {
+      const b = document.createElement('button');
+      b.className = 'toggle';
+      b.textContent = 'COPY CODE';
+      b.addEventListener('click', () => {
+        const ta = el.querySelector<HTMLTextAreaElement>('#' + id)!;
+        navigator.clipboard?.writeText(ta.value).then(
+          () => (b.textContent = 'COPIED'),
+          () => {
+            ta.select();
+            b.textContent = 'SELECTED — COPY IT';
+          },
+        );
+      });
+      return b;
+    };
+    el.querySelector('[data-host]')!.addEventListener('click', async () => {
+      if (typeof RTCPeerConnection === 'undefined') return say('This browser cannot make peer-to-peer connections. Use the same-device test.', true);
+      const rtc = new RtcTransport();
+      flow.innerHTML = '<div class="hint">Creating invite…</div>';
+      try {
+        const invite = await rtc.createInvite();
+        flow.innerHTML = `${codeBox('1. Send this invite code to your friend', invite, false, 'inv')}<div class="row copy-row"></div>${codeBox('2. Paste your friend’s reply code', '', true, 'rep')}<div class="row"><button class="cta" data-connect><span>CONNECT</span></button></div>`;
+        flow.querySelector('.copy-row')!.appendChild(copyBtn('inv'));
+        rtc.onOpen = () => go(rtc, true);
+        flow.querySelector('[data-connect]')!.addEventListener('click', async () => {
+          try {
+            await rtc.acceptReply(flow.querySelector<HTMLTextAreaElement>('#rep')!.value);
+            say('Connecting…');
+          } catch {
+            say('That reply code is not valid. Ask your friend to copy it again.', true);
+          }
+        });
+      } catch (e) {
+        say(`Could not create an invite: ${(e as Error).message}`, true);
+      }
+    });
+    el.querySelector('[data-join]')!.addEventListener('click', () => {
+      if (typeof RTCPeerConnection === 'undefined') return say('This browser cannot make peer-to-peer connections. Use the same-device test.', true);
+      flow.innerHTML = `${codeBox('1. Paste the invite code from your friend', '', true, 'inv')}<div class="row"><button class="cta" data-next><span>CREATE REPLY</span></button></div>`;
+      flow.querySelector('[data-next]')!.addEventListener('click', async () => {
+        const rtc = new RtcTransport();
+        try {
+          const reply = await rtc.acceptInvite(flow.querySelector<HTMLTextAreaElement>('#inv')!.value);
+          flow.innerHTML = `${codeBox('2. Send this reply code back. The match starts when you are connected.', reply, false, 'rep')}<div class="row copy-row"></div>`;
+          flow.querySelector('.copy-row')!.appendChild(copyBtn('rep'));
+          rtc.onOpen = () => go(rtc, false);
+          say('Waiting for the host to connect…');
+        } catch {
+          say('That invite code is not valid. Ask your friend to copy it again.', true);
+        }
+      });
+    });
+    el.querySelector('[data-back]')!.addEventListener('click', () => this.showLoadout('online', 0));
   }
 
   // ----------------------------------------------------- test / debug API
   /** Inject inputs for P1 for automated tests (OR-ed with real input). */
   debugHoldP1(bits: number, frames: number): void {
-    const src = this.runner?.sources[0];
+    const src = this.runner?.sources[this.localIdx];
     if (!src) return;
     const orig = src.poll.bind(src);
     let left = frames;

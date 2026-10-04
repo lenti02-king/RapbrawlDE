@@ -78,3 +78,30 @@ describe('rollback netcode', () => {
     expect(Math.abs(A.frame - B.frame)).toBeLessThanOrEqual(6);
   });
 });
+
+describe('rollback startup', () => {
+  it('recovers when one peer starts 30 frames late and early packets are lost', () => {
+    const link = new SimulatedLink(3, 1, 0.02, 11);
+    const cfg = defaultConfig({ seed: 5 });
+    const A = new RollbackSession(createMatch(cfg), 0, link.ends[0]);
+    let B: RollbackSession | null = null;
+    const r = lcg(99);
+    let ia = 0;
+    let ib = 0;
+    for (let t = 0; t < 900; t++) {
+      if (t === 30) B = new RollbackSession(createMatch(cfg), 1, link.ends[1]);
+      link.pump();
+      if (r() < 0.12) ia = Math.floor(r() * 2048);
+      if (r() < 0.12) ib = Math.floor(r() * 2048);
+      A.tick(ia);
+      B?.tick(ib);
+    }
+    expect(B).not.toBeNull();
+    expect(A.confirmedFrame).toBeGreaterThan(600);
+    expect(B!.confirmedFrame).toBeGreaterThan(600);
+    expect(A.desyncFrame).toBe(-1);
+    expect(B!.desyncFrame).toBe(-1);
+    const F = Math.min(A.confirmedFrame, B!.confirmedFrame);
+    for (let f = 0; f < F; f += 7) expect(A.inputsUsed(f)).toEqual(B!.inputsUsed(f));
+  });
+});
