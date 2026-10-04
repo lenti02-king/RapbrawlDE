@@ -8,3 +8,4 @@ artifacts/
 android/app/build/
 android/.gradle/
 ios/App/Pods/
+dist-single/
