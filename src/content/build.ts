@@ -11,9 +11,9 @@ export const box = (x0: number, x1: number, y0: number, y1: number): Box => ({
 });
 
 const STRENGTH_DEFAULTS: Record<Strength, Pick<HitDef, 'hitstop' | 'pushHit' | 'pushBlock' | 'meterOnHit' | 'meterOnBlock'>> = {
-  0: { hitstop: 7, pushHit: 650, pushBlock: 750, meterOnHit: 8, meterOnBlock: 4 },
-  1: { hitstop: 9, pushHit: 850, pushBlock: 950, meterOnHit: 12, meterOnBlock: 6 },
-  2: { hitstop: 12, pushHit: 1100, pushBlock: 1150, meterOnHit: 16, meterOnBlock: 8 },
+  0: { hitstop: 7, pushHit: 650, pushBlock: 750, meterOnHit: 12, meterOnBlock: 6 },
+  1: { hitstop: 9, pushHit: 850, pushBlock: 950, meterOnHit: 18, meterOnBlock: 9 },
+  2: { hitstop: 12, pushHit: 1100, pushBlock: 1150, meterOnHit: 24, meterOnBlock: 12 },
   3: { hitstop: 14, pushHit: 1200, pushBlock: 1300, meterOnHit: 0, meterOnBlock: 0 },
 };
 

@@ -1,0 +1,283 @@
+// BONEZ MC — very tall street-rap fighter. Reach, pressure, calm presence.
+// Role (product profile): long reach, heavy single hits, big moves with clear wind-ups
+// so opponents can read and counter them. Crocodile is the central special motif.
+
+import type { FighterDef, MoveDef } from '../core/defs';
+import { jumpPhysics, m, mps } from '../core/math';
+import { box, hit, simpleMove } from './build';
+
+const [gravity, jumpVy] = jumpPhysics(46, 1.3);
+
+const N = {
+  L5: 'bon_5L',
+  L2: 'bon_2L',
+  H5: 'bon_5H',
+  H2: 'bon_2H',
+  jL: 'bon_jL',
+  jH: 'bon_jH',
+  throw: 'bon_throw',
+};
+const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
+
+const moves: MoveDef[] = [
+  simpleMove(N.L5, 'normal', {
+    name: 'Langer Jab',
+    startup: 7,
+    active: 3,
+    recovery: 10,
+    hit: { damage: 45, strength: 0, hitstun: 15, blockstun: 11, boxes: [box(0.25, 0.98, 1.22, 1.66)], reaction: 'high' },
+    extra: { chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 6, end: 13, boxes: [box(0.25, 0.8, 1.25, 1.62)] }] },
+  }),
+  simpleMove(N.L2, 'normal', {
+    name: 'Stiefeltritt',
+    startup: 8,
+    active: 3,
+    recovery: 11,
+    hit: { damage: 42, strength: 0, hitstun: 15, blockstun: 11, level: 'low', boxes: [box(0.2, 0.98, 0.0, 0.32)], reaction: 'low' },
+    extra: { crouching: true, chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 7, end: 15, boxes: [box(0.2, 0.85, 0, 0.35)] }] },
+  }),
+  simpleMove(N.H5, 'normal', {
+    name: 'Rechte Gerade',
+    startup: 13,
+    active: 4,
+    recovery: 19,
+    hit: { damage: 100, strength: 2, hitstun: 22, blockstun: 17, boxes: [box(0.3, 1.25, 1.18, 1.72)], reaction: 'high' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 8, vx: mps(1.0) },
+        { frame: 15, vx: 0 },
+      ],
+      hurt: [{ start: 11, end: 30, boxes: [box(0.25, 1.05, 1.15, 1.7)] }],
+    },
+  }),
+  simpleMove(N.H2, 'normal', {
+    name: 'Aufwärtshaken',
+    startup: 11,
+    active: 5,
+    recovery: 23,
+    hit: {
+      damage: 85,
+      strength: 2,
+      blockstun: 15,
+      boxes: [box(0.15, 0.92, 0.6, 2.25)],
+      launch: { vx: 120, vy: 1500 },
+      reaction: 'gut',
+    },
+    extra: { specialCancel: true, hurt: [{ start: 10, end: 30, boxes: [box(0.1, 0.72, 1.4, 2.2)] }] },
+  }),
+  simpleMove(N.jL, 'normal', {
+    name: 'Sprung-Ellbogen',
+    startup: 6,
+    active: 6,
+    recovery: 8,
+    hit: { damage: 50, strength: 0, hitstun: 13, blockstun: 10, level: 'overhead', boxes: [box(0.05, 0.65, 0.3, 1.0)] },
+    extra: { air: true, landingLag: 3 },
+  }),
+  simpleMove(N.jH, 'normal', {
+    name: 'Hammerfaust',
+    startup: 10,
+    active: 6,
+    recovery: 10,
+    hit: { damage: 95, strength: 2, hitstun: 19, blockstun: 15, level: 'overhead', boxes: [box(-0.2, 0.82, -0.1, 0.65)] },
+    extra: { air: true, landingLag: 5 },
+  }),
+  simpleMove(N.throw, 'throw', {
+    name: 'Schulterwurf',
+    startup: 6,
+    active: 2,
+    recovery: 22,
+    hit: {
+      damage: 0,
+      strength: 2,
+      level: 'unblockable',
+      boxes: [box(0.2, 0.8, 0.4, 1.6)],
+      throw: { kind: 'normal', frames: 50, damageFrame: 34, damage: 135, endDx: m(1.8), anim: 'bon_throw' },
+    },
+  }),
+
+  // ---- Specials ----
+  {
+    key: 'bon_croc',
+    name: 'Krokodil-Schnapper',
+    kind: 'special',
+    total: 52,
+    hits: [
+      hit(20, 23, {
+        damage: 110,
+        chip: 12,
+        strength: 2,
+        blockstun: 16,
+        knockdown: true,
+        pushBlock: 1500,
+        boxes: [box(0.9, 2.6, 0.0, 1.3)],
+        meterOnHit: 0,
+        meterOnBlock: 0,
+      }),
+    ],
+    hurt: [{ start: 14, end: 30, boxes: [box(0.2, 0.9, 0.6, 1.5)] }],
+  },
+  {
+    key: 'bon_smoke',
+    name: 'Rauchwand',
+    kind: 'special',
+    total: 34,
+    hits: [],
+    projectile: {
+      frame: 10,
+      def: {
+        kind: 'smoke',
+        x: m(1.1),
+        y: m(1.0),
+        speed: 0,
+        half: { w: m(0.45), h: m(1.0) },
+        life: 100,
+        barrier: true,
+        hit: hit(1, 1, { damage: 0, strength: 0, boxes: [], meterOnHit: 0, meterOnBlock: 0 }),
+      },
+    },
+  },
+  {
+    key: 'bon_abriss',
+    name: 'Abriss',
+    kind: 'special',
+    total: 44,
+    armor: { start: 4, end: 17, hits: 1 },
+    velocity: [
+      { frame: 8, vx: mps(3) },
+      { frame: 17, vx: 0 },
+    ],
+    hits: [
+      hit(18, 21, {
+        damage: 95,
+        chip: 8,
+        strength: 2,
+        hitstun: 24,
+        blockstun: 18,
+        pushHit: 1500,
+        boxes: [box(0.2, 1.2, 1.0, 1.75)],
+        meterOnHit: 0,
+        meterOnBlock: 0,
+      }),
+    ],
+  },
+  {
+    key: 'bon_grin',
+    name: 'Goldzahn-Grinsen',
+    kind: 'special',
+    total: 64,
+    hits: [],
+    meterGain: { frame: 36, amount: 70 },
+  },
+  {
+    key: 'bon_palm',
+    name: 'Palmen-Bassdrop',
+    kind: 'signature',
+    total: 64,
+    superFlash: 36,
+    fullInvuln: [1, 10],
+    hits: [
+      hit(14, 17, {
+        damage: 40,
+        chip: 30,
+        strength: 3,
+        level: 'low',
+        blockstun: 22,
+        boxes: [box(-2.0, 2.0, 0.0, 0.45)],
+        cinematic: 'bon_palm',
+        meterOnHit: 0,
+        meterOnBlock: 0,
+      }),
+    ],
+  },
+];
+
+export const BONEZ: FighterDef = {
+  id: 'bonez',
+  name: 'BONEZ MC',
+  tagline: 'Reichweite, Druck, Ruhe. 187.',
+  archetype: 'Reichweite & Druck',
+  health: 1050,
+  walkF: mps(2.7),
+  walkB: mps(2.2),
+  jumpSquat: 5,
+  jumpVy,
+  jumpVx: mps(3.0),
+  gravity,
+  dashF: { frames: 20, speed: mps(5.4) },
+  dashB: { frames: 22, speed: mps(4.0), invuln: 6 },
+  pushHalf: m(0.29),
+  height: m(2.0),
+  hurtStand: [box(-0.29, 0.31, 0, 1.62), box(-0.14, 0.22, 1.62, 2.02)],
+  hurtCrouch: [box(-0.33, 0.35, 0, 1.15)],
+  hurtAir: [box(-0.3, 0.3, 0.1, 1.75)],
+  normals: { '5L': N.L5, '2L': N.L2, '5H': N.H5, '2H': N.H2, jL: N.jL, jH: N.jH, throw: N.throw },
+  moves: Object.fromEntries(moves.map((mv) => [mv.key, mv])),
+  cards: [
+    {
+      id: 'bon_croc',
+      name: 'Krokodil-Schnapper',
+      category: 'offense',
+      cost: 100,
+      move: 'bon_croc',
+      role: 'Riesige Reichweite, lesbar',
+      description: 'Ein Krokodil schnappt vor ihm zu. Enorme Reichweite und Knockdown – das Maul öffnet sich sichtbar vorher. Kontern erlaubt.',
+      ai: 'range',
+      aiRange: [1.4, 2.7],
+    },
+    {
+      id: 'bon_smoke',
+      name: 'Rauchwand',
+      category: 'utility',
+      cost: 100,
+      move: 'bon_smoke',
+      role: 'Blockt Projektile, verdeckt',
+      description: 'Eine Rauchwolke vor ihm schluckt gegnerische Projektile und verdeckt seine nächste Bewegung. Umrisse bleiben sichtbar.',
+      ai: 'antiProjectile',
+    },
+    {
+      id: 'bon_abriss',
+      name: 'Abriss',
+      category: 'offense',
+      cost: 100,
+      move: 'bon_abriss',
+      role: 'Gepanzerter Schlag',
+      description: 'Ruhige Ausholbewegung, dann eine Gerade, die einen Treffer wegsteckt. Würfe schlagen ihn.',
+      ai: 'combo',
+    },
+    {
+      id: 'bon_grin',
+      name: 'Goldzahn-Grinsen',
+      category: 'utility',
+      cost: 0,
+      move: 'bon_grin',
+      role: 'Lädt Hype, sehr riskant',
+      description: 'Lässiges Grinsen mit Goldzähnen. Füllt fast einen Hype-Balken – wenn er dabei nicht getroffen wird.',
+      ai: 'buff',
+    },
+    {
+      id: 'bon_palm',
+      name: 'Palmen-Bassdrop',
+      category: 'signature',
+      cost: 300,
+      move: 'bon_palm',
+      role: 'Cinematic Signature, Bodenwelle',
+      description: 'Schwerer Bodenschlag mit Bassimpuls nach beiden Seiten. Tief: Ducken-Blocken oder Springen. Bei Treffer: Palmen, Bassdrop, Krokodil.',
+      ai: 'combo',
+    },
+  ],
+  cinematics: {
+    bon_palm: {
+      id: 'bon_palm',
+      frames: 160,
+      startDx: m(1.0),
+      hits: [
+        { frame: 30, damage: 40, strength: 2 },
+        { frame: 74, damage: 40, strength: 1 },
+        { frame: 118, damage: 180, strength: 3 },
+      ],
+      endDx: m(2.3),
+    },
+  },
+  defaultLoadout: ['bon_croc', 'bon_abriss', 'bon_palm'],
+};

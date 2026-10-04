@@ -99,6 +99,7 @@ export class Bot implements InputSource {
     const seen = this.hist[Math.max(0, this.hist.length - 1 - this.level.reaction)];
     const dist = Math.abs(op.x - me.x) / 10000;
     const myDef = getFighter(me.def);
+    if (!seen) return;
 
     // defense: perceived attack
     if (seen.state === 'move' && seen.move && dist < 3.2 && isActionableish(me)) {
@@ -130,7 +131,8 @@ export class Bot implements InputSource {
     // anti-air: opponent jumping in
     if ((op.state === 'air' || (op.state === 'move' && op.y > 0)) && dist < 2.0 && op.vy < 600 && isActionableish(me)) {
       if (this.chance(this.level.punish * 0.8)) {
-        const aa = me.def === 'brick' ? IN.DOWN | IN.HEAVY : IN.HEAVY;
+        const launcher = getMove(me.def, myDef.normals['2H']).hits[0]?.launch;
+        const aa = launcher ? IN.DOWN | IN.HEAVY : IN.HEAVY;
         this.queue([{ bits: aa, frames: 1 }, { bits: 0, frames: 24 }]);
         return;
       }
@@ -147,27 +149,54 @@ export class Bot implements InputSource {
 
     if (!isActionableish(me)) return;
 
-    const jabRange = me.def === 'brick' ? 1.05 : 0.95;
+    const jabRange = getMove(me.def, myDef.normals['5L']).hits[0].boxes[0].x1 / 10000 + 0.2;
+    const ready = (pred: (c: ReturnType<typeof getCard>) => boolean) => this.usableCard(s, me, pred);
+    const useCard = (slot: number, after = 24) => this.queue([{ bits: slotBit(slot), frames: 1 }, { bits: 0, frames: after }]);
+
+    // smoke wall vs incoming projectile
+    const incoming = s.projectiles.some((p) => p.owner !== me.idx && Math.sign(me.x - p.x) === p.dir && Math.abs(me.x - p.x) < 40000);
+    if (incoming) {
+      const smoke = ready((c) => c.ai === 'antiProjectile');
+      if (smoke >= 0 && this.chance(this.level.meterUse * 0.6)) return useCard(smoke, 20);
+    }
+    // counter stance when the opponent is starting an attack up close
+    if (seen.state === 'move' && seen.mf <= 3 && dist < 1.6) {
+      const ctr = ready((c) => c.ai === 'counter');
+      if (ctr >= 0 && this.chance(this.level.meterUse * 0.35)) return useCard(ctr, 30);
+    }
+    // cornered: escape through the opponent
+    const wallDist = 75000 - Math.abs(me.x);
+    if (wallDist < 9000 && dist < 1.6) {
+      const esc = ready((c) => c.ai === 'escape');
+      if (esc >= 0 && this.chance(this.level.meterUse * 0.5)) return useCard(esc, 20);
+    }
+    // long-reach specials in their sweet spot
+    const rangeCard = ready((c) => c.ai === 'range' && !!c.aiRange && dist >= c.aiRange[0] && dist <= c.aiRange[1]);
+    if (rangeCard >= 0 && this.chance(this.level.meterUse * 0.18)) return useCard(rangeCard, 30);
+
     // neutral game
     if (dist > 3.6) {
-      const proj = this.usableCard(s, me, (c) => c.category === 'zoning');
-      if (proj >= 0 && this.chance(this.level.meterUse * 0.25)) {
-        this.queue([{ bits: slotBit(proj), frames: 1 }, { bits: 0, frames: 30 }]);
-      } else if (this.chance(0.25)) this.queue([{ bits: FWD, frames: 1 }, { bits: 0, frames: 2 }, { bits: FWD, frames: 1 }, { bits: 0, frames: 14 }]);
+      const proj = ready((c) => c.category === 'zoning' && c.ai !== 'zone');
+      const buff = ready((c) => c.ai === 'buff');
+      if (proj >= 0 && this.chance(this.level.meterUse * 0.25)) useCard(proj, 30);
+      else if (buff >= 0 && me.meter < 200 && this.chance(0.08)) useCard(buff, 20);
+      else if (this.chance(0.25)) this.queue([{ bits: FWD, frames: 1 }, { bits: 0, frames: 2 }, { bits: FWD, frames: 1 }, { bits: 0, frames: 14 }]);
       else this.queue([{ bits: FWD, frames: 10 + Math.floor(this.rnd() * 12) }]);
     } else if (dist > jabRange + 0.25) {
+      const zone = ready((c) => c.ai === 'zone');
       const r = this.rnd();
-      if (r < 0.55) this.queue([{ bits: FWD, frames: 6 + Math.floor(this.rnd() * 10) }]);
+      if (zone >= 0 && dist > 1.8 && this.chance(this.level.meterUse * 0.2)) useCard(zone, 26);
+      else if (r < 0.55) this.queue([{ bits: FWD, frames: 6 + Math.floor(this.rnd() * 10) }]);
       else if (r < 0.65) this.queue([{ bits: IN.UP | FWD, frames: 3 }, { bits: FWD, frames: 16 }, { bits: IN.HEAVY, frames: 1 }, { bits: 0, frames: 16 }]);
       else if (r < 0.8) this.queue([{ bits: BACK, frames: 8 }]);
-      else if (r < 0.9 && myDef.id === 'volt') this.queue([{ bits: FWD, frames: 1 }, { bits: 0, frames: 2 }, { bits: FWD, frames: 1 }, { bits: 0, frames: 10 }]);
+      else if (r < 0.9) this.queue([{ bits: FWD, frames: 1 }, { bits: 0, frames: 2 }, { bits: FWD, frames: 1 }, { bits: 0, frames: 10 }]);
       else this.queue([{ bits: 0, frames: 6 }]);
     } else {
       // in range: offense or defense
       if (this.chance(this.level.aggression)) {
         const r = this.rnd();
         if (r < 0.15 && dist < 0.8) this.queue([{ bits: IN.GRAB, frames: 1 }, { bits: 0, frames: 20 }]);
-        else if (r < 0.25) this.queue([{ bits: FWD | IN.HEAVY, frames: 1 }, { bits: 0, frames: 30 }]);
+        else if (r < 0.25) this.queue([{ bits: IN.HEAVY, frames: 1 }, { bits: 0, frames: 30 }]);
         else this.queue(this.combo(me, op, false));
       } else if (this.chance(0.5)) {
         this.queue([{ bits: IN.BLOCK | (this.chance(0.4) ? IN.DOWN : 0), frames: 10 + Math.floor(this.rnd() * 12) }]);
@@ -201,7 +230,7 @@ export class Bot implements InputSource {
     // special cancel with meter
     const s = { config: { training: false } } as GameState;
     const sig = this.usableCard(s, me, (c) => c.category === 'signature');
-    const off = this.usableCard(s, me, (c) => c.category === 'offense' || c.category === 'grapple');
+    const off = this.usableCard(s, me, (c) => c.category !== 'signature' && (c.ai === 'combo' || c.category === 'grapple' || (!c.ai && c.category === 'offense')));
     if (sig >= 0 && this.chance(this.level.meterUse)) out.push({ bits: slotBit(sig), frames: 1 });
     else if (off >= 0 && this.chance(this.level.meterUse * 0.7)) out.push({ bits: slotBit(off), frames: 1 });
     out.push({ bits: 0, frames: 16 });

@@ -12,7 +12,7 @@ function mirror(bits: number): number {
 }
 
 describe('P1/P2 symmetry', () => {
-  for (const fighter of ['volt', 'brick']) {
+  for (const fighter of ['volt', 'brick', 'jazeek', 'bonez']) {
     it(`${fighter} mirror match with mirrored inputs stays mirror-symmetric`, () => {
       for (let seed = 1; seed <= 6; seed++) {
         const s = createMatch(defaultConfig({ fighters: [fighter, fighter], seed }));

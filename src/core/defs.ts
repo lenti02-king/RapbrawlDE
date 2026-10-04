@@ -84,6 +84,8 @@ export interface ProjectileDef {
   hit: HitDef;
   /** Returns toward the owner after `returnAfter` frames (boomerang). */
   returnAfter?: number;
+  /** Barrier: never hits fighters; destroys enemy projectiles it touches and survives. */
+  barrier?: boolean;
 }
 
 export interface CounterDef {
@@ -119,6 +121,8 @@ export interface MoveDef {
   strikeInvuln?: [number, number];
   /** Invulnerable to everything during [start,end]. */
   fullInvuln?: [number, number];
+  /** No collision with the opponent's pushbox during [start,end] (pass-through dashes). */
+  passThrough?: [number, number];
   /** Absorbs `hits` strikes during [start,end] taking reduced damage, no stun. */
   armor?: { start: number; end: number; hits: number };
   counter?: CounterDef;
@@ -147,6 +151,10 @@ export interface CardDef {
   description: string;
   /** Short tactical role shown in the loadout screen. */
   role: string;
+  /** Hint for the CPU on when to use the card. */
+  ai?: 'combo' | 'range' | 'zone' | 'escape' | 'counter' | 'buff' | 'antiProjectile';
+  /** Optimal distance window (meters) for 'range' cards. */
+  aiRange?: [number, number];
 }
 
 export interface CinematicDef {
@@ -161,6 +169,8 @@ export interface CinematicDef {
 
 export interface FighterDef {
   id: string;
+  /** Hidden from the roster UI (legacy/dev test fighters). */
+  hidden?: boolean;
   name: string;
   tagline: string;
   archetype: string;
@@ -186,7 +196,8 @@ export interface FighterDef {
     '2L': string;
     '5H': string;
     '2H': string;
-    '6H': string;
+    /** Optional overhead normal; NOT mapped to forward+Heavy (precision on touch). Reserved for future input. */
+    '6H'?: string;
     jL: string;
     jH: string;
     throw: string;

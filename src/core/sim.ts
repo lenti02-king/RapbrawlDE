@@ -373,6 +373,7 @@ function addMeter(s: GameState, f: FighterState, amount: number): void {
 function timers(s: GameState, f: FighterState, o: FighterState, ev: SimEvent[]): void {
   f.sf++;
   if (f.invuln > 0) f.invuln--;
+  if (f.pendingFollowup && f.state !== 'move') f.pendingFollowup = null;
   if (f.pendingFollowup) {
     const key = f.pendingFollowup;
     f.pendingFollowup = null;
@@ -462,7 +463,8 @@ function normalKeyFor(f: FighterState, heavy: boolean): string {
   const n = getFighter(f.def).normals;
   if (f.state === 'air') return heavy ? n.jH : n.jL;
   if (held(f, IN.DOWN)) return heavy ? n['2H'] : n['2L'];
-  if (heavy && held(f, fwdBit(f))) return n['6H'];
+  // Forward+Heavy deliberately maps to the standard heavy: holding the stick forward
+  // while attacking must never produce an unexpected slow move (touch precision).
   return heavy ? n['5H'] : n['5L'];
 }
 
@@ -545,7 +547,7 @@ function threatened(s: GameState, f: FighterState, o: FighterState): boolean {
     for (const h of mv.hits) if (o.mf <= h.end) return true;
   }
   for (const p of s.projectiles) {
-    if (!p.alive || p.owner === f.idx) continue;
+    if (!p.alive || p.owner === f.idx || projDef(s, p).barrier) continue;
     const dx = f.x - p.x;
     if (iabs(dx) < RULES.PROX_GUARD * 2 && Math.sign(dx) === p.dir) return true;
   }
@@ -743,7 +745,12 @@ function land(_s: GameState, f: FighterState, ev: SimEvent[]): void {
 }
 
 function solid(f: FighterState): boolean {
-  return f.state !== 'thrown' && f.state !== 'cineDef' && f.state !== 'cineAtk';
+  if (f.state === 'thrown' || f.state === 'cineDef' || f.state === 'cineAtk') return false;
+  if (f.state === 'move') {
+    const pt = getMove(f.def, f.move!).passThrough;
+    if (pt && f.mf >= pt[0] && f.mf <= pt[1]) return false;
+  }
+  return true;
 }
 
 function resolvePush(s: GameState): void {
@@ -986,9 +993,12 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
     c.atk.hitMask |= 1 << c.k;
     applyHit(s, c.atk, c.def, c.hit, c.x, c.y, null, ev);
   }
-  // projectiles vs fighters
+  // Trade: a fighter that got hit this frame never keeps a follow-up it earned the same
+  // frame (order-independent, keeps P1/P2 symmetric).
+  for (const c of hits) if (hits.some((o) => o.def === c.atk)) c.atk.pendingFollowup = null;
+  // projectiles vs fighters (barriers never hit fighters)
   for (const p of s.projectiles) {
-    if (!p.alive) continue;
+    if (!p.alive || projDef(s, p).barrier) continue;
     const target = s.fighters[1 - p.owner];
     const pb = projectileBox(s, p);
     for (const hb of hurtboxes(target)) {
@@ -1008,9 +1018,13 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
       const p = alive[i];
       const q = alive[j];
       if (p.owner === q.owner || !p.alive || !q.alive) continue;
+      const pb = projDef(s, p).barrier;
+      const qb = projDef(s, q).barrier;
+      if (pb && qb) continue;
       if (overlaps(projectileBox(s, p), projectileBox(s, q))) {
-        p.alive = false;
-        q.alive = false;
+        // a barrier absorbs the projectile and survives; two projectiles cancel out
+        if (!pb) p.alive = false;
+        if (!qb) q.alive = false;
         ev.push({ t: 'clash', x: idiv(p.x + q.x, 2), y: idiv(p.y + q.y, 2) });
       }
     }
@@ -1155,7 +1169,7 @@ function applyHit(
       atk.connected = 'block';
     }
     addMeter(s, atk, h.meterOnBlock);
-    addMeter(s, def, 4);
+    addMeter(s, def, 6);
     ev.push({ t: 'block', a: atk.idx, d: def.idx, x, y, strength: h.strength, projectile: !!proj });
     return;
   }
@@ -1190,7 +1204,7 @@ function applyHit(
   def.health = Math.max(s.config.training ? 1 : 0, def.health - dmg);
   def.comboDamage += dmg;
   addMeter(s, atk, h.meterOnHit);
-  addMeter(s, def, idiv(dmg, 8));
+  addMeter(s, def, idiv(dmg, 5));
   if (!proj) atk.connected = 'hit';
   const airborne = def.y > 0 || AIR_STATES.has(def.state);
   const wasMoveCrouch = def.crouching;

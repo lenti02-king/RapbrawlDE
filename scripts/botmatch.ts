@@ -77,7 +77,8 @@ function runPairing(a: string, b: string, loadA?: string[], loadB?: string[]) {
   });
 }
 
-runPairing('volt', 'brick');
-runPairing('brick', 'volt');
-runPairing('volt', 'volt');
-runPairing('brick', 'brick');
+const pairs = (process.argv[4] ?? 'jazeek:bonez,bonez:jazeek,jazeek:jazeek,bonez:bonez').split(',');
+for (const p of pairs) {
+  const [a, b] = p.split(':');
+  runPairing(a, b);
+}

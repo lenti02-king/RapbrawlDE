@@ -33,20 +33,22 @@ export function getCard(fighterId: string, cardId: string): CardDef {
 }
 
 export const LOADOUT_SLOTS = 3;
+/** Slot layout: two special cards (S1, S2) + exactly one Signature card in the last slot (S3). */
+export const SIGNATURE_SLOT = 2;
 export const MAX_SIGNATURES = 1;
 
-/** Returns null if the loadout is legal, otherwise a human-readable reason. */
+/** Returns null if the loadout is legal, otherwise a human-readable (German) reason. */
 export function validateLoadout(fighterId: string, loadout: string[]): string | null {
   const def = getFighter(fighterId);
-  if (loadout.length !== LOADOUT_SLOTS) return `Equip exactly ${LOADOUT_SLOTS} cards`;
-  if (new Set(loadout).size !== loadout.length) return 'Duplicate card';
-  let sigs = 0;
-  for (const id of loadout) {
-    const c = def.cards.find((x) => x.id === id);
-    if (!c) return `Card '${id}' does not belong to ${def.name}`;
-    if (c.category === 'signature') sigs++;
+  if (loadout.length !== LOADOUT_SLOTS) return `Wähle 2 Specials und 1 Signature`;
+  if (new Set(loadout).size !== loadout.length) return 'Karte doppelt';
+  for (let i = 0; i < loadout.length; i++) {
+    const c = def.cards.find((x) => x.id === loadout[i]);
+    if (!c) return `Karte '${loadout[i]}' gehört nicht zu ${def.name}`;
+    const isSig = c.category === 'signature';
+    if (i === SIGNATURE_SLOT && !isSig) return 'Der dritte Slot ist für eine Signature-Karte';
+    if (i !== SIGNATURE_SLOT && isSig) return 'Nur eine Signature pro Deck (Slot 3)';
   }
-  if (sigs > MAX_SIGNATURES) return 'Only one Signature card per loadout';
   return null;
 }
 
@@ -66,7 +68,7 @@ function validateFighter(def: FighterDef): void {
       throw new Error(`${def.id}/${key}: unknown counter followup`);
   }
   for (const n of Object.values(def.normals))
-    if (!def.moves[n]) throw new Error(`${def.id}: normal '${n}' missing`);
+    if (n && !def.moves[n]) throw new Error(`${def.id}: normal '${n}' missing`);
   for (const c of def.cards) if (!def.moves[c.move]) throw new Error(`${def.id}: card ${c.id} -> missing move ${c.move}`);
   const reason = (() => {
     fighters.set(def.id, def);

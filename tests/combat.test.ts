@@ -132,18 +132,29 @@ describe('attacks and defense', () => {
     expect(ofType(evs, 'block')).toHaveLength(1);
   });
 
-  it('overheads must be stand-blocked', () => {
-    let s = newMatch();
+  it('forward + heavy is the normal heavy (no accidental slow overhead)', () => {
+    const s = newMatch();
     place(s, 1.0);
-    let evs = run(s, 1, IN.RIGHT | H, IN.BLOCK | IN.DOWN);
-    evs.push(...run(s, 40, 0, IN.BLOCK | IN.DOWN));
-    expect(ofType(evs, 'hit')).toHaveLength(1);
+    run(s, 1, IN.RIGHT | H);
+    expect(s.fighters[0].move).toBe('volt_5H');
+  });
 
-    s = newMatch();
-    place(s, 1.0);
-    evs = run(s, 1, IN.RIGHT | H, IN.BLOCK);
-    evs.push(...run(s, 40, 0, IN.BLOCK));
-    expect(ofType(evs, 'block')).toHaveLength(1);
+  it('jump-in attacks are overheads: must be stand-blocked', () => {
+    const runJumpIn = (pressAt: number, p2: number) => {
+      const s = newMatch();
+      place(s, 2.2);
+      const evs = run(s, 1, IN.UP | IN.RIGHT, p2);
+      evs.push(...run(s, pressAt, IN.RIGHT, p2));
+      evs.push(...run(s, 1, H, p2));
+      evs.push(...run(s, 50, 0, p2));
+      return evs;
+    };
+    // find a timing deep enough to reach a crouching defender
+    let timing = -1;
+    for (let t = 10; t < 40 && timing < 0; t++) if (ofType(runJumpIn(t, IN.BLOCK | IN.DOWN), 'hit').length) timing = t;
+    expect(timing).toBeGreaterThan(0);
+    expect(ofType(runJumpIn(timing, IN.BLOCK | IN.DOWN), 'hit').length).toBe(1);
+    expect(ofType(runJumpIn(timing, IN.BLOCK), 'block').length).toBe(1);
   });
 
   it('throws beat block, and can be teched', () => {
