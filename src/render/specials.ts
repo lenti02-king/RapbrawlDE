@@ -8,7 +8,7 @@ import { getMove } from '../core/registry';
 import type { GameState, ProjectileState } from '../core/state';
 import type { FighterAnimator } from './animator';
 import { HeartPool, makeCroc, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
-import type { Rig } from './rig';
+import type { CharacterRig } from './glbRig';
 import type { VFX } from './vfx';
 
 const U = UNITS_PER_METER;
@@ -100,7 +100,7 @@ export class SpecialFX {
     }
   }
 
-  update(s: GameState, dt: number, time: number, anims: FighterAnimator[], rigs: Rig[]): void {
+  update(s: GameState, dt: number, time: number, anims: FighterAnimator[], rigs: CharacterRig[]): void {
     this.notes.update(dt);
     this.hearts.update(dt);
     this.acc += dt;

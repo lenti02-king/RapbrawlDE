@@ -12,7 +12,8 @@ import { VOLT_ANIMS } from './anims/volt';
 import { buildCharacter } from './characters';
 import { Clip, compose, EASE, sampleDef, type EaseName, type PoseDef } from './pose';
 import { ANIM_SETS } from './animator';
-import { POSE_LEN, R_X, R_Y, type Rig } from './rig';
+import type { CharacterRig } from './glbRig';
+import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
 import { HERZBRECHER, PALMEN_BASSDROP } from './cines';
@@ -410,7 +411,7 @@ function samplePath(path: ExtraActor['path'], f: number): V3 {
 class CinematicRuntime {
   private active: string | null = null;
   private lastFrame = -1;
-  private extras: Rig[] = [];
+  private extras: CharacterRig[] = [];
   private tmp = new Float32Array(POSE_LEN);
   private tmpA = new Float32Array(POSE_LEN);
   private tmpD = new Float32Array(POSE_LEN);
@@ -547,7 +548,7 @@ class CinematicRuntime {
     return c;
   }
 
-  private makeExtra(visual: string): Rig {
+  private makeExtra(visual: string): CharacterRig {
     const rig = buildCharacter(visual, 0);
     this.view.scene.add(rig.root);
     return rig;

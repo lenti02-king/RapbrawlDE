@@ -2,6 +2,9 @@
 // Replaceable later by authored glTF models exposing the same joint names.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { getFighter } from '../core/registry';
+import { UNITS_PER_METER } from '../core/math';
+import { type CharacterRig, GlbRig, hasModel } from './glbRig';
 import { type HumanoidSpec, type Palette, Rig } from './rig';
 import { BONEZ_VISUAL, JAZEEK_VISUAL } from './stylized';
 import { addPart, taperedCapsule } from './toon';
@@ -256,7 +259,21 @@ export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
   bonez: BONEZ_VISUAL,
 };
 
-export function buildCharacter(id: string, paletteIndex: number): Rig {
+/** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. */
+export function buildCharacter(id: string, paletteIndex: number): CharacterRig {
+  if (hasModel(id)) {
+    let h = 1.8;
+    try {
+      h = getFighter(id).height / UNITS_PER_METER;
+    } catch {
+      /* non-fighter visual */
+    }
+    return new GlbRig(id, buildProceduralRig(id, paletteIndex), h);
+  }
+  return buildProceduralRig(id, paletteIndex);
+}
+
+export function buildProceduralRig(id: string, paletteIndex: number): Rig {
   const v = CHARACTER_VISUALS[id];
   const pal = v.palettes[paletteIndex % v.palettes.length];
   const rig = new Rig(v.spec, pal);

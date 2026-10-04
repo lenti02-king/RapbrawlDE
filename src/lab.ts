@@ -2,7 +2,9 @@
 // /?lab=poses&a=jazeek&b=bonez&pose=stance|crouch|hitHigh|...&zoom=2
 import * as THREE from 'three';
 import { Arena } from './render/arena';
+import { CourtyardArena } from './render/arenas/courtyard';
 import { HinterhofArena } from './render/arenas/hinterhof';
+import { PostFX } from './render/post';
 import { ANIM_SETS } from './render/animator';
 import { buildCharacter } from './render/characters';
 import { toArr, type PoseDef } from './render/pose';
@@ -13,8 +15,12 @@ export function runLab(canvas: HTMLCanvasElement): void {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   const scene = new THREE.Scene();
-  const arena = new URLSearchParams(location.search).get('arena') === 'club' ? new Arena(scene) : new HinterhofArena(scene);
+  const arenaId = new URLSearchParams(location.search).get('arena');
+  const arena = arenaId === 'club' ? new Arena(scene) : arenaId === 'toon' ? new HinterhofArena(scene) : new CourtyardArena(scene, renderer);
   const cam = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 200);
   const params = new URLSearchParams(location.search);
   const which = params.get('pose') ?? 'stance';
@@ -27,16 +33,22 @@ export function runLab(canvas: HTMLCanvasElement): void {
     const set = ANIM_SETS[id];
     const pose: PoseDef = which === 'stance' ? set.stance : ((set.r as Record<string, PoseDef>)[which] ?? set.stance);
     const rig = buildCharacter(id, Number(params.get(i ? 'pb' : 'pa') ?? 0));
+    rig.root.traverse((o) => {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
     scene.add(rig.root);
     rig.root.position.set(i ? 0.9 : -0.9, 0, 0);
     rig.apply(toArr(pose), i ? -1 : 1);
     if (params.get('teeth') && rig.props.teeth) rig.props.teeth.visible = true;
   });
+  const post = new PostFX(renderer, scene, cam, params.get('q') === 'low' ? 'low' : 'high');
+  post.setSize(window.innerWidth, window.innerHeight);
   const t0 = performance.now();
   const loop = () => {
     const t = (performance.now() - t0) / 1000;
     arena.update(t, 0.5 + 0.5 * Math.sin(t * 9.4));
-    renderer.render(scene, cam);
+    post.render(scene, cam);
     requestAnimationFrame(loop);
   };
   loop();

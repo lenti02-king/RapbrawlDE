@@ -7,10 +7,12 @@ import { activeHitboxes, hurtboxes, projectileBox } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ANIM_SETS, FighterAnimator } from './animator';
 import { Arena } from './arena';
+import { CourtyardArena } from './arenas/courtyard';
 import { HinterhofArena, type ArenaLike } from './arenas/hinterhof';
+import { detectQuality, PostFX, type Quality } from './post';
 import { CameraDirector, type CamShot } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
-import type { Rig } from './rig';
+import type { CharacterRig } from './glbRig';
 import { SpecialFX } from './specials';
 import { addPart } from './toon';
 import { VFX } from './vfx';
@@ -33,7 +35,7 @@ export class GameView {
   readonly director = new CameraDirector();
   readonly vfx = new VFX();
   readonly fx = new SpecialFX(this.vfx);
-  rigs: Rig[] = [];
+  rigs: CharacterRig[] = [];
   anims: FighterAnimator[] = [];
   private shadows: THREE.Mesh[] = [];
   private projMeshes = new Map<number, THREE.Object3D>();
@@ -54,14 +56,27 @@ export class GameView {
   /** Cinematics may request a custom darkening level (0..1). */
   dimOverride: number | null = null;
 
-  constructor(canvas: HTMLCanvasElement, arenaId = 'hinterhof') {
+  readonly quality: Quality;
+  readonly post: PostFX;
+
+  constructor(canvas: HTMLCanvasElement, arenaId = 'courtyard') {
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.arena = arenaId === 'club' ? new Arena(this.scene) : new HinterhofArena(this.scene);
+    this.quality = detectQuality();
+    this.renderer.shadowMap.enabled = this.quality !== 'low';
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    if (arenaId === 'club') this.arena = new Arena(this.scene);
+    else if (arenaId === 'toon') this.arena = new HinterhofArena(this.scene);
+    else {
+      const a = new CourtyardArena(this.scene, this.renderer);
+      a.setShadowQuality(this.quality === 'high' ? 2048 : 1024);
+      this.arena = a;
+    }
+    this.post = new PostFX(this.renderer, this.scene, this.director.cam, this.quality);
     this.scene.add(this.vfx.group);
     this.scene.add(this.fx.group);
     this.vfx.setCamera(this.director.cam);
@@ -74,6 +89,7 @@ export class GameView {
     const w = c.clientWidth || window.innerWidth;
     const h = c.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.post?.setSize(w, h);
     this.director.resize(w / Math.max(1, h));
   }
 
@@ -92,11 +108,15 @@ export class GameView {
     s.fighters.forEach((f, i) => {
       const palette = i === 1 && s.fighters[0].def === f.def ? 1 : 0;
       const rig = buildCharacter(f.def, palette);
+      rig.root.traverse((o) => {
+        o.castShadow = true;
+        o.receiveShadow = true;
+      });
       this.rigs.push(rig);
       this.scene.add(rig.root);
       const sh = new THREE.Mesh(
         new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.75 }),
+        new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: this.quality === 'low' ? 0.75 : 0.45 }),
       );
       sh.rotation.x = -Math.PI / 2;
       sh.renderOrder = 1;
@@ -306,7 +326,7 @@ export class GameView {
     this.vfx.update(dt);
     this.updateDebug(s);
     this.screenFlash = Math.max(0, this.screenFlash - dt * 3.5);
-    this.renderer.render(this.scene, this.director.cam);
+    this.post.render(this.scene, this.director.cam);
   }
 
   private updateProjectiles(s: GameState, dt: number): void {
