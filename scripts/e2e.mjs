@@ -66,15 +66,25 @@ const sim = (page) =>
   await page.keyboard.up('KeyD');
   const x1 = (await sim(page)).f[0].x;
   check(x1 > x0, `keyboard D walks forward (${x0} -> ${x1})`);
-  for (let i = 0; i < 6; i++) {
+  // deterministic attack check: freeze the CPU and stand in jab range
+  await page.evaluate(() => {
+    const r = window.__rb.runner;
+    r.sources[1].poll = () => 0;
+    const s = r.state;
+    s.fighters[1].state = 'idle';
+    s.fighters[0].state = 'idle';
+    s.fighters[0].x = s.fighters[1].x - 7000;
+  });
+  const hpBefore = (await sim(page)).f[1].hp;
+  for (let i = 0; i < 3; i++) {
     await page.keyboard.press('KeyJ');
-    await page.waitForTimeout(120);
-    await page.keyboard.press('KeyK');
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(200);
   }
+  await page.keyboard.press('KeyK');
+  await page.waitForFunction((hp) => window.__rb.runner.state.fighters[1].health < hp, hpBefore, { timeout: 10000 }).catch(() => {});
   await page.screenshot({ path: `${out}/d06_fight.png` });
   s = await sim(page);
-  check(s.f[1].hp < 1100 || s.f[0].hp < 1000, `damage happened in a live fight (hp ${s.f[0].hp}/${s.f[1].hp})`);
+  check(s.f[1].hp < hpBefore, `keyboard attacks deal damage (${hpBefore} -> ${s.f[1].hp})`);
   // pause menu
   await page.keyboard.press('Escape');
   await page.waitForSelector('.screen h2');

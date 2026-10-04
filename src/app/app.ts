@@ -345,7 +345,7 @@ export class App {
       const accent = CHARACTER_VISUALS[id].accents[0];
       const spd = Math.round((d.walkF / 600) * 100);
       const pow = id === 'brick' ? 90 : 60;
-      const hp = Math.round((d.health / 1150) * 100);
+      const hp = Math.round((d.health / Math.max(...ROSTER.map((r) => getFighter(r).health))) * 100);
       return `<button class="fcard ${this.sel.fighters[player] === id ? 'sel' : ''}" data-f="${id}" style="--accent:${accent}">
         <div class="arch">${d.archetype.toUpperCase()}</div>
         <div class="fname">${d.name}</div>
