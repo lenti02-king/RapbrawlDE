@@ -23,9 +23,12 @@ export function run(s: GameState, frames: number, p1 = 0, p2 = 0): (SimEvent & {
 }
 
 /** Run a script: list of [p1, p2] inputs, one per frame. */
-export function script(s: GameState, inputs: [number, number][]): (SimEvent & { frame: number })[] {
+export function script(s: GameState, inputs: [number, number][], onStep?: () => void): (SimEvent & { frame: number })[] {
   const out: (SimEvent & { frame: number })[] = [];
-  for (const inp of inputs) for (const e of step(s, inp)) out.push({ ...e, frame: s.frame });
+  for (const inp of inputs) {
+    for (const e of step(s, inp)) out.push({ ...e, frame: s.frame });
+    onStep?.();
+  }
   return out;
 }
 

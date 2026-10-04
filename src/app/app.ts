@@ -894,13 +894,35 @@ export class App {
            <div class="hint" style="color:#e6edff">Linke Bildschirmhälfte: Stick erscheint dort, wo du hintippst. Die gelben Punkte zeigen die erkannte Richtung. Schräg runter-zurück = tief blocken.</div>
            <div class="hint" style="color:#e6edff;margin-top:0.4rem">Rechts: <b>L</b> leicht · <b>H</b> schwer · <b>GRIFF</b> · <b>BLOCK</b>. Die Karten unten in der Mitte sind deine Specials – die <b style="color:#ffd23a">goldene Karte</b> ist die Signature.</div>
            <h3 style="margin-top:0.8rem">SO KÄMPFST DU</h3>
-           <div class="hint" style="color:#e6edff">Hype lädt sich durch Treffen, Blocken und Einstecken auf. Specials kosten 1–2 Hype, die Signature 3. Leicht → Leicht → Schwer verketten; Treffer lassen sich in Specials abbrechen. Trifft die Signature, startet die Kino-Sequenz – geblockt oder verfehlt ist sie gefährlich.</div>
+           <div class="hint" style="color:#e6edff">Hype lädt sich durch Treffen, Blocken und Einstecken auf. Specials kosten 1–2 Hype, die Signature 3. Treffer lassen sich in Specials abbrechen. Trifft die Signature, startet die Kino-Sequenz – geblockt oder verfehlt ist sie gefährlich.</div>
+           <h3 style="margin-top:0.8rem">KOMBOS</h3>
+           <div class="hint" style="color:#e6edff">Schläge und Tritte brauchen keine Karten – nur Knöpfe. Karten sind nur für Fähigkeiten und die Signature (Handy: Karte antippen).</div>
+           <div class="combos">${this.comboList()}</div>
          </div>
        </div>
        <div class="row" style="justify-content:center;margin-top:0.7rem"><button class="btn gold" data-ok data-default>VERSTANDEN</button></div>`,
     );
     el.querySelector('[data-back]')!.addEventListener('click', back);
     el.querySelector('[data-ok]')!.addEventListener('click', back);
+  }
+
+  /** Button-only target combos per fighter, read from the sim content (MoveDef.targets). */
+  private comboList(): string {
+    const btn = (k: 'light' | 'heavy') => (k === 'light' ? 'L' : 'H');
+    return ROSTER.map((id) => {
+      const def = getFighter(id);
+      const rows: string[] = [];
+      for (const mv of Object.values(def.moves)) {
+        for (const k of ['light', 'heavy'] as const) {
+          const t = mv.targets?.[k];
+          if (!t) continue;
+          const seq = Array((t.minDepth ?? 0) + 2).fill(btn(k)).map((b) => `<kbd>${b}</kbd>`).join('<i>·</i>');
+          rows.push(`<span class="seq">${seq}</span><span>${getMove(id, t.move).name}</span>`);
+        }
+      }
+      rows.push(`<span class="seq"><kbd>L</kbd><i>·</i><kbd>L</kbd><i>·</i><kbd>H</kbd></span><span>Kette, dann Special</span>`);
+      return `<div class="combo-f"><b>${def.name}</b><div class="keys">${rows.join('')}</div></div>`;
+    }).join('');
   }
 
   private showPause(): void {

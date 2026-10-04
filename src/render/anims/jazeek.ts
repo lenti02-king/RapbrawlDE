@@ -93,6 +93,28 @@ const moves: Record<string, Clip> = {
     ],
     S,
   ),
+  // L·L·L finisher: spinning high kick (startup 8)
+  jaz_LLL: new Clip(
+    [
+      { f: 1, p: {} },
+      { f: 5, p: { x: -0.02, j: { hips: [0, -70, 0], spine: [0, -24, 0], chest: [0, -30, 4], thR: [-6, 10, 70], knR: [0, 0, -120], shL: [30, 0, 60], elL: [0, 0, 90] } } },
+      { f: 8, p: compose(kickHigh, { x: 0.12, j: { hips: [0, 50, 14], chest: [0, 20, 10], thR: [-6, 10, 112], knR: [0, 0, -4] } }), e: 'snap' },
+      { f: 11, p: compose(kickHigh, { x: 0.12, j: { hips: [0, 50, 14], chest: [0, 20, 10], thR: [-6, 10, 112], knR: [0, 0, -4] } }) },
+      { f: 29, p: {} },
+    ],
+    S,
+  ),
+  // H·H finisher: rising uppercut (startup 7)
+  jaz_HH: new Clip(
+    [
+      { f: 1, p: backhand },
+      { f: 4, p: { y: -0.1, j: { spine: [0, -10, -20], chest: [0, -24, -14], shR: [-20, 0, -10], elR: [0, 0, 124], thL: [6, 20, 40], knL: [0, 0, -60] } } },
+      { f: 7, p: { y: 0.06, x: 0.1, j: { spine: [0, 16, 12], chest: [0, 26, 10], head: [0, -10, 12], shR: [-14, 0, 168], elR: [0, 0, 22], shL: [24, 0, 30], elL: [0, 0, 110], thR: [-10, 14, -20], knR: [0, 0, -2] } }, e: 'snap' },
+      { f: 10, p: { y: 0.06, x: 0.1, j: { spine: [0, 16, 12], chest: [0, 26, 10], head: [0, -10, 12], shR: [-14, 0, 168], elR: [0, 0, 22], shL: [24, 0, 30], elL: [0, 0, 110] } } },
+      { f: 31, p: {} },
+    ],
+    S,
+  ),
   jaz_2L: new Clip(
     [
       { f: 1, p: r.crouch },

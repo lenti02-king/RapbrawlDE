@@ -98,6 +98,11 @@ export interface CounterDef {
 
 export type MoveKind = 'normal' | 'throw' | 'special' | 'signature';
 
+export interface TargetDef {
+  move: string;
+  minDepth?: number;
+}
+
 export interface MoveDef {
   key: string;
   name: string;
@@ -114,6 +119,9 @@ export interface MoveDef {
   crouching?: boolean;
   /** Normals this move may chain into once it has connected. */
   chains?: string[];
+  /** Target combos: a specific follow-up for Light/Heavy (standing) once this move connected, taking precedence
+   *  over `chains`. `minDepth` = how many chained moves must precede (e.g. 1 = only from the 2nd jab of L·L·L). */
+  targets?: { light?: TargetDef; heavy?: TargetDef };
   /** May cancel into a special card once it has connected. */
   specialCancel?: boolean;
   velocity?: VelocityKey[];

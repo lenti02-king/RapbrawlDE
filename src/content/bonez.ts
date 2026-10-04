@@ -16,6 +16,8 @@ const N = {
   jL: 'bon_jL',
   jH: 'bon_jH',
   throw: 'bon_throw',
+  LLL: 'bon_LLL',
+  HH: 'bon_HH',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -25,8 +27,8 @@ const moves: MoveDef[] = [
     startup: 7,
     active: 3,
     recovery: 10,
-    hit: { damage: 45, strength: 0, hitstun: 15, blockstun: 11, boxes: [box(0.25, 0.98, 1.22, 1.66)], reaction: 'high' },
-    extra: { chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 6, end: 13, boxes: [box(0.25, 0.8, 1.25, 1.62)] }] },
+    hit: { pushHit: 300, pushBlock: 520, damage: 45, strength: 0, hitstun: 15, blockstun: 11, boxes: [box(0.25, 0.98, 1.22, 1.66)], reaction: 'high' },
+    extra: { chains: LIGHT_CHAINS, targets: { light: { move: N.LLL, minDepth: 1 } }, specialCancel: true, hurt: [{ start: 6, end: 13, boxes: [box(0.25, 0.8, 1.25, 1.62)] }] },
   }),
   simpleMove(N.L2, 'normal', {
     name: 'Stiefeltritt',
@@ -44,11 +46,42 @@ const moves: MoveDef[] = [
     hit: { damage: 100, strength: 2, hitstun: 22, blockstun: 17, boxes: [box(0.3, 1.25, 1.18, 1.72)], reaction: 'high' },
     extra: {
       specialCancel: true,
+      targets: { heavy: { move: N.HH } },
       velocity: [
         { frame: 8, vx: mps(1.0) },
         { frame: 15, vx: 0 },
       ],
       hurt: [{ start: 11, end: 30, boxes: [box(0.25, 1.05, 1.15, 1.7)] }],
+    },
+  }),
+  // target combo finishers (button strings, no cards)
+  simpleMove(N.LLL, 'normal', {
+    name: 'Ellbogen-Crash',
+    startup: 10,
+    active: 3,
+    recovery: 20,
+    hit: { damage: 72, strength: 2, blockstun: 15, knockdown: true, boxes: [box(0.25, 1.1, 1.15, 1.8)], reaction: 'high' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 4, vx: mps(1.2) },
+        { frame: 12, vx: 0 },
+      ],
+      hurt: [{ start: 9, end: 22, boxes: [box(0.25, 0.95, 1.15, 1.75)] }],
+    },
+  }),
+  simpleMove(N.HH, 'normal', {
+    name: 'Abrissbirne',
+    startup: 12,
+    active: 4,
+    recovery: 24,
+    hit: { damage: 95, strength: 3, blockstun: 18, knockdown: true, boxes: [box(0.3, 1.35, 1.0, 1.85)], reaction: 'high' },
+    extra: {
+      velocity: [
+        { frame: 6, vx: mps(1.4) },
+        { frame: 14, vx: 0 },
+      ],
+      hurt: [{ start: 10, end: 32, boxes: [box(0.25, 1.15, 1.0, 1.8)] }],
     },
   }),
   simpleMove(N.H2, 'normal', {

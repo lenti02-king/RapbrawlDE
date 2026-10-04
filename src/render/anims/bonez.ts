@@ -88,6 +88,28 @@ const moves: Record<string, Clip> = {
     ],
     S,
   ),
+  // L·L·L finisher: stepping elbow (startup 10)
+  bon_LLL: new Clip(
+    [
+      { f: 1, p: {} },
+      { f: 6, p: { x: -0.03, j: { chest: [0, -34, 0], spine: [0, -14, 0], shR: [-30, 0, 60], elR: [0, 0, 140] } } },
+      { f: 10, p: { x: 0.16, j: { hips: [0, 22, 0], spine: [0, 18, -12], chest: [0, 38, -10], shR: [-10, 10, 96], elR: [0, 0, 150], shL: [30, 0, 30], elL: [0, 0, 96], thL: [12, 14, 34], knL: [0, 0, -36] } }, e: 'snap' },
+      { f: 13, p: { x: 0.16, j: { hips: [0, 22, 0], spine: [0, 18, -12], chest: [0, 38, -10], shR: [-10, 10, 96], elR: [0, 0, 150], shL: [30, 0, 30], elL: [0, 0, 96] } } },
+      { f: 32, p: {} },
+    ],
+    S,
+  ),
+  // H·H finisher: huge haymaker (startup 12)
+  bon_HH: new Clip(
+    [
+      { f: 1, p: straight },
+      { f: 8, p: { x: -0.1, j: { chest: [0, -64, 4], spine: [0, -28, 0], shR: [-60, 0, 24], elR: [0, 0, 64], shL: [20, 0, 50], elL: [0, 0, 110] } } },
+      { f: 12, p: { x: 0.26, j: { hips: [0, 32, 0], spine: [0, 30, -12], chest: [0, 52, -8], head: [0, -10, 8], shR: [-72, 0, 86], elR: [0, 0, 28], shL: [30, 0, 30], elL: [0, 0, 100], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8] } }, e: 'snap' },
+      { f: 16, p: { x: 0.26, j: { hips: [0, 32, 0], spine: [0, 30, -12], chest: [0, 52, -8], shR: [-72, 0, 86], elR: [0, 0, 28], shL: [30, 0, 30], elL: [0, 0, 100] } } },
+      { f: 39, p: {} },
+    ],
+    S,
+  ),
   bon_5H: new Clip(
     [
       { f: 1, p: {} },

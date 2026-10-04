@@ -125,3 +125,53 @@ describe('Bonez MC', () => {
     expect(s.fighters[1].meter).toBeGreaterThanOrEqual(70);
   });
 });
+
+describe('target combos (buttons only)', () => {
+  const at = (n: number, bits: number) => [...idle(n), [bits, 0] as [number, number]];
+  it('Jazeek: L·L·L ends in the Drehkick, H·H in the Encore-Haken', () => {
+    const s = newMatch(JB);
+    place(s, 0.9);
+    const moves: string[] = [];
+    const evs = script(s, [[IN.LIGHT, 0], ...at(8, IN.LIGHT), ...at(8, IN.LIGHT), ...idle(40)], () => {
+      const f = s.fighters[0];
+      if (f.state === 'move' && f.mf === 1) moves.push(f.move!);
+    });
+    expect(moves.slice(0, 3)).toEqual(['jaz_5L', 'jaz_5L', 'jaz_LLL']);
+    expect(ofType(evs, 'hit').filter((h) => h.a === 0)).toHaveLength(3);
+    const s2 = newMatch(JB);
+    place(s2, 0.9);
+    const m2: string[] = [];
+    script(s2, [[IN.HEAVY, 0], ...at(13, IN.HEAVY), ...idle(40)], () => {
+      const f = s2.fighters[0];
+      if (f.state === 'move' && f.mf === 1) m2.push(f.move!);
+    });
+    expect(m2.slice(0, 2)).toEqual(['jaz_5H', 'jaz_HH']);
+  });
+
+  it('Bonez: L·L·L ends in the Ellbogen-Crash, H·H in the Abrissbirne; a whiffed jab does not combo', () => {
+    const s = newMatch({ fighters: ['bonez', 'jazeek'] });
+    place(s, 1.0);
+    const moves: string[] = [];
+    script(s, [[IN.LIGHT, 0], ...at(9, IN.LIGHT), ...at(9, IN.LIGHT), ...idle(40)], () => {
+      const f = s.fighters[0];
+      if (f.state === 'move' && f.mf === 1) moves.push(f.move!);
+    });
+    expect(moves.slice(0, 3)).toEqual(['bon_5L', 'bon_5L', 'bon_LLL']);
+    const s2 = newMatch({ fighters: ['bonez', 'jazeek'] });
+    place(s2, 1.0);
+    const m2: string[] = [];
+    script(s2, [[IN.HEAVY, 0], ...at(17, IN.HEAVY), ...idle(50)], () => {
+      const f = s2.fighters[0];
+      if (f.state === 'move' && f.mf === 1) m2.push(f.move!);
+    });
+    expect(m2.slice(0, 2)).toEqual(['bon_5H', 'bon_HH']);
+    const far = newMatch({ fighters: ['bonez', 'jazeek'] });
+    place(far, 3.0);
+    const m3: string[] = [];
+    script(far, [[IN.LIGHT, 0], ...at(9, IN.LIGHT), ...at(9, IN.LIGHT), ...idle(40)], () => {
+      const f = far.fighters[0];
+      if (f.state === 'move' && f.mf === 1) m3.push(f.move!);
+    });
+    expect(m3).not.toContain('bon_LLL');
+  });
+});

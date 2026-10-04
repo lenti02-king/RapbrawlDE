@@ -16,6 +16,8 @@ const N = {
   jL: 'jaz_jL',
   jH: 'jaz_jH',
   throw: 'jaz_throw',
+  LLL: 'jaz_LLL',
+  HH: 'jaz_HH',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -25,8 +27,8 @@ const moves: MoveDef[] = [
     startup: 5,
     active: 2,
     recovery: 8,
-    hit: { damage: 38, strength: 0, hitstun: 14, blockstun: 11, boxes: [box(0.2, 0.8, 1.12, 1.5)], reaction: 'high' },
-    extra: { chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 4, end: 10, boxes: [box(0.2, 0.62, 1.2, 1.48)] }] },
+    hit: { pushHit: 300, pushBlock: 520, damage: 38, strength: 0, hitstun: 14, blockstun: 11, boxes: [box(0.2, 0.8, 1.12, 1.5)], reaction: 'high' },
+    extra: { chains: LIGHT_CHAINS, targets: { light: { move: N.LLL, minDepth: 1 } }, specialCancel: true, hurt: [{ start: 4, end: 10, boxes: [box(0.2, 0.62, 1.2, 1.48)] }] },
   }),
   simpleMove(N.L2, 'normal', {
     name: 'Tiefer Kick',
@@ -44,12 +46,37 @@ const moves: MoveDef[] = [
     hit: { damage: 82, strength: 2, hitstun: 20, blockstun: 15, boxes: [box(0.25, 1.0, 1.1, 1.55)], reaction: 'high' },
     extra: {
       specialCancel: true,
+      targets: { heavy: { move: N.HH } },
       velocity: [
         { frame: 5, vx: mps(1.4) },
         { frame: 12, vx: 0 },
       ],
       hurt: [{ start: 8, end: 20, boxes: [box(0.2, 0.82, 1.15, 1.5)] }],
     },
+  }),
+  // target combo finishers (button strings, no cards)
+  simpleMove(N.LLL, 'normal', {
+    name: 'Drehkick',
+    startup: 8,
+    active: 3,
+    recovery: 19,
+    hit: { damage: 64, strength: 2, blockstun: 14, knockdown: true, boxes: [box(0.3, 1.25, 0.95, 1.6)], reaction: 'high' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 3, vx: mps(1.6) },
+        { frame: 10, vx: 0 },
+      ],
+      hurt: [{ start: 7, end: 18, boxes: [box(0.25, 1.0, 0.9, 1.5)] }],
+    },
+  }),
+  simpleMove(N.HH, 'normal', {
+    name: 'Encore-Haken',
+    startup: 7,
+    active: 3,
+    recovery: 22,
+    hit: { damage: 78, strength: 3, blockstun: 16, knockdown: true, boxes: [box(0.2, 0.95, 1.0, 1.95)], reaction: 'gut' },
+    extra: { hurt: [{ start: 6, end: 22, boxes: [box(0.2, 0.8, 1.1, 1.9)] }] },
   }),
   simpleMove(N.H2, 'normal', {
     name: 'Breakdance-Sweep',

@@ -558,6 +558,18 @@ function tryCancel(s: GameState, f: FighterState, ev: SimEvent[]): void {
   if (f.connected === 'none') return;
   const mv = getMove(f.def, f.move!);
   if (mv.specialCancel && tryCards(s, f, ev, !!mv.air)) return;
+  if (mv.targets && f.chainDepth < 3 && f.state !== 'air' && !held(f, IN.DOWN)) {
+    const heavy = f.buf[B_HEAVY] > 0;
+    const light = f.buf[B_LIGHT] > 0;
+    const t = heavy ? mv.targets.heavy : light ? mv.targets.light : undefined;
+    if (t && f.chainDepth >= (t.minDepth ?? 0)) {
+      f.buf[heavy ? B_HEAVY : B_LIGHT] = 0;
+      const depth = f.chainDepth + 1;
+      startMove(s, f, t.move, ev);
+      f.chainDepth = depth;
+      return;
+    }
+  }
   if (mv.chains && f.chainDepth < 3) {
     const heavy = f.buf[B_HEAVY] > 0;
     const light = f.buf[B_LIGHT] > 0;

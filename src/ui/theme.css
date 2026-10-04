@@ -1324,3 +1324,11 @@ body {
 .splash button[data-default] {
   z-index: 3;
 }
+
+/* help: combo list (button-only target combos) */
+.combos { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1rem; margin-top: 0.45rem; }
+.combo-f > b { display: block; font-family: var(--display); font-weight: 400; letter-spacing: 0.06em; color: var(--gold); margin-bottom: 0.25rem; }
+.combo-f .keys { gap: 0.25rem 0.6rem; font-size: 0.85rem; }
+.combo-f .seq { display: inline-flex; align-items: center; gap: 0.12rem; }
+.combo-f .seq i { font-style: normal; opacity: 0.6; }
+.combo-f kbd { min-width: 1.35rem; height: 1.35rem; font-size: 0.75rem; }
