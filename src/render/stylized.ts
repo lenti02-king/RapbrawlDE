@@ -48,12 +48,12 @@ function buildFace(rig: Rig, c: THREE.Group, o: FaceOpts): void {
     const ex = r * sx * 0.8;
     const ey = r * sy * 0.14;
     const ez = z * r * sz * 0.4;
-    addPart(c, new THREE.SphereGeometry(r * 0.25, 18, 14), white, { pos: [ex, ey, ez], scale: [0.62, 1.12, 0.9], ...NO });
-    addPart(c, new THREE.SphereGeometry(r * 0.155, 16, 12), iris, { pos: [ex + r * 0.1, ey - r * 0.02, ez + z * r * 0.01], scale: [0.45, 1, 1], ...NO });
-    addPart(c, new THREE.SphereGeometry(r * 0.085, 12, 10), pupil, { pos: [ex + r * 0.15, ey - r * 0.02, ez + z * r * 0.01], scale: [0.4, 1, 1], ...NO });
-    addPart(c, new THREE.SphereGeometry(r * 0.04, 8, 6), white, { pos: [ex + r * 0.165, ey + r * 0.05, ez - z * r * 0.03], ...NO });
-    const b = addPart(c, new RoundedBoxGeometry(r * 0.15, r * (o.browThick ?? 0.11), r * 0.46, 2, r * 0.045), brow, {
-      pos: [ex + r * 0.05, ey + r * 0.38, ez + z * r * 0.02],
+    addPart(c, new THREE.SphereGeometry(r * 0.17, 18, 14), white, { pos: [ex + r * 0.05, ey, ez], scale: [0.5, 0.62, 1.05], ...NO });
+    addPart(c, new THREE.SphereGeometry(r * 0.095, 16, 12), iris, { pos: [ex + r * 0.12, ey - r * 0.005, ez + z * r * 0.01], scale: [0.45, 1, 1], ...NO });
+    addPart(c, new THREE.SphereGeometry(r * 0.05, 12, 10), pupil, { pos: [ex + r * 0.155, ey - r * 0.005, ez + z * r * 0.01], scale: [0.4, 1, 1], ...NO });
+    addPart(c, new THREE.SphereGeometry(r * 0.02, 8, 6), white, { pos: [ex + r * 0.17, ey + r * 0.03, ez - z * r * 0.02], ...NO });
+    const b = addPart(c, new RoundedBoxGeometry(r * 0.12, r * (o.browThick ?? 0.11) * 0.7, r * 0.42, 2, r * 0.03), brow, {
+      pos: [ex + r * 0.08, ey + r * 0.24, ez + z * r * 0.02],
       ...NO,
     });
     b.rotation.x = z * o.browTilt;
@@ -141,8 +141,8 @@ const JAZEEK_SPEC: HumanoidSpec = {
   torsoHigh: 0.32,
   shoulderHalf: 0.22,
   neckLen: 0.05,
-  headR: 0.175,
-  headScale: [0.95, 1.05, 0.92],
+  headR: 0.135,
+  headScale: [0.95, 1.12, 0.9],
   upperArm: 0.27,
   foreArm: 0.26,
   armR: [0.072, 0.06],
@@ -220,8 +220,8 @@ const BONEZ_SPEC: HumanoidSpec = {
   torsoHigh: 0.36,
   shoulderHalf: 0.26,
   neckLen: 0.06,
-  headR: 0.17,
-  headScale: [0.95, 1.22, 0.88],
+  headR: 0.13,
+  headScale: [0.95, 1.25, 0.88],
   upperArm: 0.31,
   foreArm: 0.3,
   armR: [0.085, 0.07],

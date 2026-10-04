@@ -181,12 +181,12 @@ export function asphalt(): PBRSet {
         const grain = hash(x, y, 3);
         const fine = fbm(u, v, 64, 2, 5);
         let c = 0.2 + large * 0.07 + (fine - 0.5) * 0.05;
-        if (grain > 0.97) c += 0.12; // light aggregate
-        else if (grain < 0.03) c -= 0.06;
+        if (grain > 0.97) c += 0.05; // light aggregate
+        else if (grain < 0.03) c -= 0.04;
         f.r[i] = c * 1.0;
         f.g[i] = c * 0.99;
         f.b[i] = c * 1.03;
-        f.h[i] = fine * 0.6 + (grain > 0.97 ? 0.4 : 0);
+        f.h[i] = fine * 0.6 + (grain > 0.97 ? 0.15 : 0);
         f.rough[i] = 0.82 + (fine - 0.5) * 0.1;
       }
     // repaired patches (darker, smoother rectangles)
@@ -245,9 +245,9 @@ export function asphalt(): PBRSet {
   });
 }
 
-/** Old-building plaster (Altbau facade). tint = base colour 0..1. */
-export function plaster(tint: [number, number, number], seed: number): PBRSet {
-  return cached(`plaster${seed}${tint.join()}`, () => {
+/** Old-building plaster (Altbau facade). tint = base colour 0..1; peel = share of flaked-off patches. */
+export function plaster(tint: [number, number, number], seed: number, peel = 0): PBRSet {
+  return cached(`plaster${seed}${tint.join()}${peel}`, () => {
     const N = 512;
     const f = new Field(N, N);
     for (let y = 0; y < N; y++)
@@ -256,18 +256,36 @@ export function plaster(tint: [number, number, number], seed: number): PBRSet {
         const u = x / N;
         const v = y / N;
         const big = fbm(u, v, 2, 4, seed);
-        const fine = fbm(u, v, 48, 2, seed + 7);
-        // vertical rain streaks
+        const fine = fbm(u, v, 32, 2, seed + 7);
+        // vertical rain streaks and grime
         const streak = fbm(u * 1, v * 0.08, 24, 2, seed + 31);
-        let k = 0.9 + (big - 0.5) * 0.22 + (fine - 0.5) * 0.06 - Math.max(0, streak - 0.55) * 0.5;
-        k = Math.max(0.45, k);
-        f.r[i] = tint[0] * k;
-        f.g[i] = tint[1] * k;
-        f.b[i] = tint[2] * k;
-        f.h[i] = fine * 0.8 + big * 0.2;
+        const grime = fbm(u, v, 6, 3, seed + 13);
+        let k = 0.92 + (big - 0.5) * 0.24 + (fine - 0.5) * 0.07 - Math.max(0, streak - 0.55) * 0.55 - Math.max(0, grime - 0.6) * 0.5;
+        k = Math.max(0.4, k);
+        let r = tint[0] * k;
+        let g = tint[1] * k;
+        let b = tint[2] * k;
+        let h = fine * 0.8 + big * 0.2;
+        if (peel > 0) {
+          const pn = fbm(u, v, 3, 3, seed + 77);
+          const th = 1 - peel * 0.38;
+          if (pn > th) {
+            // exposed older layer: pale, flat, with a dark broken rim
+            const rim = pn < th + 0.012;
+            const pale = 0.8 + fine * 0.12;
+            r = rim ? r * 0.55 : pale;
+            g = rim ? g * 0.55 : pale * 0.98;
+            b = rim ? b * 0.55 : pale * 0.93;
+            h = rim ? h + 0.6 : h - 0.7;
+          }
+        }
+        f.r[i] = r;
+        f.g[i] = g;
+        f.b[i] = b;
+        f.h[i] = h;
         f.rough[i] = 0.9;
       }
-    return finish(f, 3);
+    return finish(f, 2);
   });
 }
 
@@ -506,6 +524,16 @@ export function windowAtlas(): { map: THREE.Texture; emissive: THREE.Texture } {
       if (k % 2 === 0) {
         g.fillRect(x, y, 26, 192);
         g.fillRect(x + 102, y, 26, 192);
+      }
+      // roller shutter partly down on some windows
+      if (k === 3 || k === 6) {
+        const down = k === 3 ? 0.55 : 0.95;
+        g.fillStyle = emissive ? '#000' : '#8a8578';
+        g.fillRect(x, y, 128, 192 * down);
+        if (!emissive) {
+          g.fillStyle = 'rgba(0,0,0,0.25)';
+          for (let sy = y + 6; sy < y + 192 * down; sy += 9) g.fillRect(x, sy, 128, 2);
+        }
       }
       // frame cross
       g.fillStyle = emissive ? '#000' : '#e8e2d6';

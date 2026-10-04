@@ -72,7 +72,7 @@ export class GameView {
     if (arenaId === 'club') this.arena = new Arena(this.scene);
     else if (arenaId === 'toon') this.arena = new HinterhofArena(this.scene);
     else {
-      const a = new CourtyardArena(this.scene, this.renderer);
+      const a = new CourtyardArena(this.scene, this.renderer, this.quality);
       a.setShadowQuality(this.quality === 'high' ? 2048 : 1024);
       this.arena = a;
     }
