@@ -27,6 +27,9 @@ Touch stick: horizontal sectors are ±26°, vertical ±21°, diagonals the rest;
 
 ## Offense
 - Chains: Light → Light → Heavy (max 3 chains). Lights and heavies cancel into special cards on connect.
+- Target combos (buttons only, standing, on contact): L·L·L ends in a finisher (Jazeek Drehkick / Bonez Ellbogen-Crash), H·H in a launcher-style hit (Encore-Haken / Abrissbirne). Data: `MoveDef.targets`.
+- Cards are only abilities and the Signature; punches and kicks never cost cards.
+- Hit language (presentation): impact star size = strength, speed lines from heavy, impact frame on counter-heavy / KO / Signature finisher (setting BLITZEFFEKTE), smears on the striking limb, cracks + rubble on slams.
 - Counter-hit: +20 % damage, +4 hitstun. Damage scaling: hits 1–2 at 100 %, then −12 % per hit, floor 30 %.
 - Juggles: max 4 juggle hits, then the opponent becomes intangible until landing.
 

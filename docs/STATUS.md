@@ -1,12 +1,26 @@
 # Project status
 
-_Last updated: 2026-10-04 (session 3: realistic fighters + AAA menus, Artifact version 5)._
+_Last updated: 2026-10-04 (session 4: fighters from the product owner's Meshy sculpts, cartoon VFX, target combos, plain start menu)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (single-file build, owner-only until shared): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 4 — Meshy fighters, VFX, combos, plain menu (product owner: "Klötze/Stickmans", more combos, better VFX, menu outside the arena)
+| Area | Status | Evidence |
+|---|---|---|
+| Interim cartoon fighters (`tools/cartoon`, metaball "clay" in Blender) after the PO chose "Cartoon wie Clash Royale" | SUPERSEDED the same session by the PO's own Meshy sculpts (kept as a pipeline) | `python3 tools/cartoon/build.py jazeek` |
+| **Jazeek + Bonez MC from the PO's Meshy sculpts** (`tools/meshy`): painted skin/face/eyes/brows/beard/hair/clothes/chains/tattoos, AO, 50k tris, 2048 albedo + normal + ORM, rig, fists, ~3.4 MB GLB each | VERIFIED (Blender previews, in-engine close-ups, match screenshots) | `python3 tools/meshy/build.py jazeek|bonez`, `artifacts/meshy/` |
+| Moves + hitbox overlap with the new models (height-fitted to 1.8 m / 2.0 m) | VERIFIED (contact sheets: jab, heavy, Drehkick, low kick, Bonez punches reach their boxes) | `node scripts/moves.mjs jazeek|bonez` |
+| Likeness | PARTIAL: as good as the PO's sculpts; colours/hair/beard/eyes painted by rules, faces not hand-painted | |
+| Menus outside the arena: start screen/lobby/select are plain UI, the 3D scene is created on the first match | VERIFIED (E2E checks "home screen is a plain menu") | `npm run e2e` |
+| Target combos L·L·L / H·H per fighter (Drehkick, Encore-Haken, Ellbogen-Crash, Abrissbirne), listed in STEUERUNG | VERIFIED (unit tests + help screenshot desktop/phone) | `tests/fighters.test.ts` |
+| Cards only for abilities + Signature; punches/kicks are buttons | VERIFIED (unchanged design, stated in help) | |
+| Cartoon VFX: impact stars, speed lines, smears, toon dust, cracks, rubble, impact frames (setting BLITZEFFEKTE) | VERIFIED (frame-accurate capture sheet) | `node scripts/vfx.mjs` |
+| Arena in cartoon style (task from the cartoon direction) | NOT DONE: the realistic courtyard stays; with realistic fighters it fits again | |
+| Cost of the new fighters | VERIFIED in SwiftShader only: 2×50k skinned tris + 2048 textures, 62 draw calls; low-tier probe 433 ms/frame (was ~240 ms with the cartoon fighters, software GL). Phone FPS UNVERIFIED | E2E PERF line |
 
 ## Session 2 summary (product-owner request: precise controls, findable Signature, real start menu, Clash-Royale-inspired look, real roster)
 | Area | Status | Evidence |
@@ -58,12 +72,14 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 ## Known issues / risks
 - Feel/timing (hitstop, damage, meter gain, touch layout) has never been tested by a human; the bot balance number is only a sanity check.
 - In headless Chromium, CSS animations started while the sim runs stay frozen (load artifact of software rendering). HUD pop-ups were therefore moved to JS tweens; remaining CSS animations (combo bump, card glow) are cosmetic.
-- Characters are procedural placeholders in the right style, not final art. Likeness/name rights for Jazeek and Bonez MC are not cleared (see below).
+- Fighters come from the PO's Meshy sculpts; up close the fists are 'mitten' fists (fingers curled as one block) and tattoos are simple line art. Likeness/name rights for Jazeek and Bonez MC are not cleared (see below).
+- Meshy licence: free-plan generations are CC BY 4.0 (credit Meshy), paid plans grant ownership; the PO must confirm which applies.
 - Online: no matchmaking/TURN/rematch; the Artifact host blocks WebRTC.
 - Bot is reactive but exploitable. Back-throw victim animation assumes a forward throw.
 
 ## Needs the product owner
-- **Faces**: real likeness needs a scan/sculpt or an image-to-3D head (see `docs/ASSETS.md`); everything else of the models is generated in `tools/characters`.
+- **Meshy licence**: confirm the plan the two sculpts were generated on (free = CC BY 4.0 attribution; paid = ownership).
+- **Source sculpts**: keep the two Meshy GLBs; the build expects them in `.cache/meshy/` (not in git, see `public/assets/characters/README.md`).
 - **Shop / Battle Pass / currencies**: monetisation is a business decision (not built).
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.

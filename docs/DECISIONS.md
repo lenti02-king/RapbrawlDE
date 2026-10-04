@@ -77,3 +77,15 @@ The product owner asked for SF6-like realism without ultra detail, made by the a
 
 ## D22 — "Block Beats Night" UI (2026-10-04) — supersedes the CR-inspired look of D13 for menus
 Product owner's reference: dark AAA mobile-fighter menus. Own design: near-black glass panels, one gold accent, violet only from the arena LEDs, Anton/Barlow Condensed/Barlow (OFL, bundled), angled cuts, line icons, in-engine renders as key art and card art. Only features that exist are shown (no shop/battle pass/currency); profile progression is local and labelled as such.
+
+## D23 — Menus without the 3D scene (2026-10-04)
+Product owner: the start screen should be a plain menu; arena and fighters load only when a fight starts. `App.view` is created lazily on the first match; menus use in-engine renders (portraits, key art) instead of a live scene, so the title/lobby cost no GPU time on phones.
+
+## D24 — Button-only target combos (2026-10-04)
+Normal punches and kicks never use cards; cards are only abilities and the Signature (tap on phones). More combos come from target combos in the move data (`MoveDef.targets`, light/heavy with a minimum chain depth): L·L·L and H·H end in a dedicated finisher per fighter, standing only and only on contact, so they cannot be used to whiff-cancel. Jab push on hit was lowered so jab strings stay in range.
+
+## D25 — Cartoon hit language on top of the particles (2026-10-04)
+Hit VFX use one readable vocabulary instead of more particles: ink-outlined impact stars sized by strength, screen-space speed lines on heavy hits, smears behind the striking limb (limb chosen from the hitbox and recent travel), cel-shaded dust, ground cracks and rubble on slams, and an impact frame (manga tri-tone in the grade pass, inversion on the low tier) on counters, KOs and Signature finishers. Bursts follow the impact frame so silhouettes read. A setting ("Blitzeffekte") turns impact frames off for photosensitive players.
+
+## D26 — Fighters from the product owner's Meshy sculpts (2026-10-04) — supersedes D21 and the cartoon fighters
+After the cartoon pass the product owner supplied two Meshy AI sculpts (untextured, unrigged, 300k/500k vertices) to be turned into Jazeek and Bonez MC. `tools/meshy` paints them per region (rules on position + a surface-detail measure that separates curls, stubble and quilting from skin), bakes AO, decimates to 50k triangles with face/hands protected, unwraps a smoothed proxy with seams per body part (face on its own island at ~3× density), bakes albedo/normal/ORM, rigs with bone heat and bakes fists into the rest mesh. The game fits these models to the fighter's gameplay height (glTF extras) instead of the cartoon rig's hip height, so reach matches the hitboxes. Sources stay outside git; licence depends on the product owner's Meshy plan.

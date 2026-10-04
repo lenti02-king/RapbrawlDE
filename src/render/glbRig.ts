@@ -151,6 +151,7 @@ export class GlbRig implements CharacterRig {
   private flashColor = new THREE.Color(1, 1, 1);
   private zero = new Float32Array(POSE_LEN);
   private world = new Map<THREE.Object3D, THREE.Quaternion>();
+  private headPitch = new THREE.Quaternion();
 
   constructor(
     id: string,
@@ -205,7 +206,14 @@ export class GlbRig implements CharacterRig {
     this.ref.root.updateMatrixWorld(true);
     const refHips = this.ref.joints.hips.getWorldPosition(new THREE.Vector3()).y;
     const modelHips = this.hips.getWorldPosition(new THREE.Vector3()).y - box.min.y;
-    const s = refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
+    // realistic models (tools/meshy) ask to be fitted to the fighter's gameplay height instead (glTF extras rb_fit)
+    let fitHeight = false;
+    this.model.traverse((o) => {
+      if (o.userData?.rb_fit === 'height') fitHeight = true;
+      // realistic heads read the cartoon chin-up attitude as "looking at the sky": per-model pitch offset (deg)
+      if (typeof o.userData?.rb_head_pitch === 'number') this.headPitch.setFromAxisAngle(new THREE.Vector3(0, 0, 1), (o.userData.rb_head_pitch * Math.PI) / 180);
+    });
+    const s = !fitHeight && refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
     this.fit.scale.setScalar(s);
     this.root.updateMatrixWorld(true);
     const box2 = new THREE.Box3().setFromObject(this.model);
@@ -289,6 +297,7 @@ export class GlbRig implements CharacterRig {
         // delta of the reference joint from its rest, applied to the aligned model rest
         ref.joints[e.joint].getWorldQuaternion(_q);
         _q.multiply(e.srcRestInv);
+        if (e.joint === 'head') _q.premultiply(this.headPitch);
         wq.copy(_q).multiply(e.alignedRest);
         bone.quaternion.copy(_q2.copy(parentQ).invert().multiply(wq));
       } else {

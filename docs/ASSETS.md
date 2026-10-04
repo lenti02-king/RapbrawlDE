@@ -9,6 +9,11 @@ abgelegt wird, übernimmt automatisch alle Moves, Kombos, Intros, Siege und beid
 Pro Figur eine Datei: `public/assets/characters/jazeek.glb` und `public/assets/characters/bonez.glb`.
 Alternativ einfach die FBX-Dateien aus Mixamo schicken – die Umwandlung in GLB übernehme ich.
 
+**Stand Session 4:** Beide Figuren stammen aus deinen Meshy-Modellen („Diamond Confidence“ = Jazeek, „Golden Hour
+Stare“ = Bonez MC). Ungefärbte Meshy-Modelle (auch neue Versionen) reichen: Farben, Gesicht, Texturen, Rig und Fäuste
+erzeugt `tools/meshy`. Ein neues Modell einfach schicken – die Bemalungsregeln in `tools/meshy/<id>.py` werden angepasst.
+Bitte angeben, mit welchem Meshy-Tarif sie erstellt wurden (Free = CC BY 4.0 mit Nennung von Meshy; bezahlt = Eigentum).
+
 ### Schritt A – Ganzkörper-Referenz für die 3D-Erzeugung (Higgsfield, Bild)
 Wichtig für gute 3D-Ergebnisse: ganze Figur inkl. Füße, **A-Pose** (Arme ca. 45° vom Körper), frontal,
 neutraler grauer Hintergrund, gleichmäßiges Studiolicht, keine Requisiten in den Händen.
