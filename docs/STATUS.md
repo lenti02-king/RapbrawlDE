@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-04 (end of session 2)._
+_Last updated: 2026-10-04 (end of session 2, Artifact republished as version 4 with the new courtyard)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
@@ -34,7 +34,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Procedural PBR materials (asphalt, plaster with peeling, brick, shutters, wood, concrete, window atlas) | VERIFIED (screenshots) | `src/render/textures.ts` |
 | Courtyard arena rebuilt after the reference image (default arena) incl. planar reflections on wet asphalt (high tier) | VERIFIED (screenshots); real-device FPS UNVERIFIED (high ≈150 draw calls/≈225k tris, medium ≈100/≈150k per frame) | `src/render/arenas/courtyard.ts` |
 | Real character models: `public/assets/characters/<id>.glb` (Mixamo skeleton) drive all poses via retargeting | VERIFIED with two Mixamo test models (not in repo): stance, every move, hitbox overlap | `src/render/glbRig.ts`, `EXTRA=... node scripts/moves.mjs` |
-| Photoreal Jazeek / Bonez models | BLOCKED: need models from the product owner (spec in `docs/ASSETS.md`); placeholders are procedural | |
+| Photoreal Jazeek / Bonez models | BLOCKED: need models from the product owner (spec in `docs/ASSETS.md`); placeholders are procedural. The Higgsfield connector available to the agent in session 2 had no image→3D or image-generation tool (only scene builder / ads), so the models cannot be made from here | |
 | Painted card art drop-in (`public/assets/cards/<id>.webp`) | BUILT, UNVERIFIED (no art yet) | |
 | Headless tests run at `q=low` (SwiftShader is too slow for the full pipeline) | VERIFIED: 22/22 E2E | `npm run e2e` |
 
