@@ -27,7 +27,7 @@ const moves: MoveDef[] = [
     startup: 5,
     active: 2,
     recovery: 8,
-    hit: { damage: 35, strength: 0, hitstun: 14, blockstun: 11, boxes: [box(0.2, 0.78, 1.18, 1.52)], reaction: 'high' },
+    hit: { damage: 40, strength: 0, hitstun: 14, blockstun: 11, boxes: [box(0.2, 0.78, 1.18, 1.52)], reaction: 'high' },
     extra: { chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 4, end: 10, boxes: [box(0.2, 0.6, 1.25, 1.5)] }] },
   }),
   simpleMove(N.L2, 'normal', {
@@ -35,7 +35,7 @@ const moves: MoveDef[] = [
     startup: 6,
     active: 2,
     recovery: 9,
-    hit: { damage: 30, strength: 0, hitstun: 14, blockstun: 11, level: 'low', boxes: [box(0.15, 0.82, 0.0, 0.35)], reaction: 'low' },
+    hit: { damage: 34, strength: 0, hitstun: 14, blockstun: 11, level: 'low', boxes: [box(0.15, 0.82, 0.0, 0.35)], reaction: 'low' },
     extra: { crouching: true, chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 5, end: 12, boxes: [box(0.2, 0.7, 0.0, 0.3)] }] },
   }),
   simpleMove(N.H5, 'normal', {
@@ -43,7 +43,7 @@ const moves: MoveDef[] = [
     startup: 9,
     active: 3,
     recovery: 16,
-    hit: { damage: 75, strength: 2, hitstun: 20, blockstun: 15, boxes: [box(0.25, 0.98, 1.12, 1.52)], reaction: 'high' },
+    hit: { damage: 82, strength: 2, hitstun: 20, blockstun: 15, boxes: [box(0.25, 0.98, 1.12, 1.52)], reaction: 'high' },
     extra: {
       specialCancel: true,
       velocity: [
@@ -58,7 +58,7 @@ const moves: MoveDef[] = [
     startup: 10,
     active: 3,
     recovery: 21,
-    hit: { damage: 70, strength: 2, blockstun: 14, level: 'low', knockdown: true, boxes: [box(0.2, 1.08, 0.0, 0.3)], reaction: 'low' },
+    hit: { damage: 76, strength: 2, blockstun: 14, level: 'low', knockdown: true, boxes: [box(0.2, 1.08, 0.0, 0.3)], reaction: 'low' },
     extra: { crouching: true, specialCancel: true, hurt: [{ start: 9, end: 26, boxes: [box(0.2, 0.95, 0.0, 0.3)] }] },
   }),
   simpleMove(N.H6, 'normal', {
@@ -66,7 +66,7 @@ const moves: MoveDef[] = [
     startup: 19,
     active: 3,
     recovery: 14,
-    hit: { damage: 70, strength: 2, hitstun: 19, blockstun: 13, level: 'overhead', boxes: [box(0.15, 0.88, 0.9, 1.75)], reaction: 'high' },
+    hit: { damage: 76, strength: 2, hitstun: 19, blockstun: 13, level: 'overhead', boxes: [box(0.15, 0.88, 0.9, 1.75)], reaction: 'high' },
     extra: {
       velocity: [
         { frame: 5, vx: mps(2.0) },
@@ -79,7 +79,7 @@ const moves: MoveDef[] = [
     startup: 5,
     active: 7,
     recovery: 6,
-    hit: { damage: 40, strength: 0, hitstun: 13, blockstun: 10, level: 'overhead', boxes: [box(0.05, 0.52, 0.25, 0.95)] },
+    hit: { damage: 45, strength: 0, hitstun: 13, blockstun: 10, level: 'overhead', boxes: [box(0.05, 0.52, 0.25, 0.95)] },
     extra: { air: true, landingLag: 3 },
   }),
   simpleMove(N.jH, 'normal', {
@@ -87,7 +87,7 @@ const moves: MoveDef[] = [
     startup: 8,
     active: 4,
     recovery: 10,
-    hit: { damage: 70, strength: 2, hitstun: 18, blockstun: 14, level: 'overhead', boxes: [box(-0.12, 0.72, -0.08, 0.7)] },
+    hit: { damage: 78, strength: 2, hitstun: 18, blockstun: 14, level: 'overhead', boxes: [box(-0.12, 0.72, -0.08, 0.7)] },
     extra: { air: true, landingLag: 4 },
   }),
   simpleMove(N.throw, 'throw', {
@@ -192,9 +192,9 @@ const moves: MoveDef[] = [
       { frame: 40, vx: 0 },
     ],
     hits: [
-      hit(6, 6, { damage: 30, strength: 1, hitstun: 30, hitstop: 6, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
-      hit(14, 14, { damage: 30, strength: 1, hitstun: 30, hitstop: 6, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
-      hit(22, 22, { damage: 35, strength: 1, hitstun: 30, hitstop: 7, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
+      hit(6, 6, { damage: 34, strength: 1, hitstun: 30, hitstop: 6, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
+      hit(14, 14, { damage: 34, strength: 1, hitstun: 30, hitstop: 6, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
+      hit(22, 22, { damage: 40, strength: 1, hitstun: 30, hitstop: 7, boxes: [box(0, 0.95, 0.8, 1.65)], pushHit: 200, meterOnHit: 0 }),
       hit(32, 33, {
         damage: 60,
         strength: 2,
@@ -271,6 +271,7 @@ export const VOLT: FighterDef = {
   tagline: 'Battle-rap rushdown. Never lets you breathe.',
   archetype: 'Rushdown',
   health: 1000,
+  meterGainPct: 130,
   walkF: mps(3.6),
   walkB: mps(2.9),
   jumpSquat: 4,

@@ -42,7 +42,7 @@ const moves: MoveDef[] = [
     startup: 12,
     active: 4,
     recovery: 20,
-    hit: { damage: 105, strength: 2, hitstun: 22, blockstun: 17, boxes: [box(0.3, 1.12, 1.1, 1.62)], reaction: 'high' },
+    hit: { damage: 95, strength: 2, hitstun: 22, blockstun: 17, boxes: [box(0.3, 1.12, 1.1, 1.62)], reaction: 'high' },
     extra: {
       specialCancel: true,
       velocity: [
@@ -146,14 +146,14 @@ const moves: MoveDef[] = [
     name: 'Bulldozer',
     kind: 'special',
     total: 46,
-    armor: { start: 4, end: 20, hits: 1 },
+    armor: { start: 4, end: 15, hits: 1 },
     velocity: [
       { frame: 6, vx: mps(6.5) },
       { frame: 22, vx: 0 },
     ],
     hits: [
       hit(10, 22, {
-        damage: 100,
+        damage: 80,
         chip: 10,
         strength: 2,
         blockstun: 18,
@@ -261,7 +261,7 @@ export const BRICK: FighterDef = {
   name: 'BRICK',
   tagline: 'Producer. Bodyguard. Wall.',
   archetype: 'Heavy Grappler',
-  health: 1150,
+  health: 1100,
   walkF: mps(2.5),
   walkB: mps(2.0),
   jumpSquat: 5,

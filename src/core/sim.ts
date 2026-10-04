@@ -274,7 +274,16 @@ function timeOver(s: GameState, ev: SimEvent[]): void {
 // Input handling
 // ---------------------------------------------------------------------------
 
+/** Resolve impossible direction combos inside the sim (SOCD: L+R = neutral, U+D = up),
+ *  so behaviour never depends on processing order and stays P1/P2 symmetric. */
+export function sanitizeInput(bits: number): number {
+  if (bits & IN.LEFT && bits & IN.RIGHT) bits &= ~(IN.LEFT | IN.RIGHT);
+  if (bits & IN.UP && bits & IN.DOWN) bits &= ~IN.DOWN;
+  return bits;
+}
+
 function readInput(f: FighterState, bits: number): void {
+  bits = sanitizeInput(bits);
   f.prevInput = f.input;
   f.input = bits;
   const edge = bits & ~f.prevInput;
@@ -353,7 +362,8 @@ function toNeutral(f: FighterState): void {
 
 function addMeter(s: GameState, f: FighterState, amount: number): void {
   if (s.config.training) return;
-  f.meter = clamp(f.meter + amount, 0, RULES.METER_MAX);
+  const pct = getFighter(f.def).meterGainPct ?? 100;
+  f.meter = clamp(f.meter + idiv(amount * pct, 100), 0, RULES.METER_MAX);
 }
 
 // ---------------------------------------------------------------------------

@@ -74,7 +74,7 @@ const sim = (page) =>
   }
   await page.screenshot({ path: `${out}/d06_fight.png` });
   s = await sim(page);
-  check(s.f[1].hp < 1150 || s.f[0].hp < 1000, `damage happened in a live fight (hp ${s.f[0].hp}/${s.f[1].hp})`);
+  check(s.f[1].hp < 1100 || s.f[0].hp < 1000, `damage happened in a live fight (hp ${s.f[0].hp}/${s.f[1].hp})`);
   // pause menu
   await page.keyboard.press('Escape');
   await page.waitForSelector('.screen h2');
@@ -98,7 +98,7 @@ const sim = (page) =>
   if (resultsVisible) {
     await page.click('[data-a="rematch"]');
     const fresh = await page
-      .waitForFunction(() => window.__rb.runner.state.phase === 'intro' && window.__rb.runner.state.fighters[1].health === 1150, null, { timeout: 15000 })
+      .waitForFunction(() => window.__rb.runner.state.phase === 'intro' && window.__rb.runner.state.fighters[1].health === 1100, null, { timeout: 15000 })
       .then(() => true)
       .catch(() => false);
     check(fresh, 'rematch restarts a fresh match');

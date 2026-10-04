@@ -43,7 +43,7 @@ describe('round flow', () => {
   it('time over awards the round to the healthier fighter (by percentage)', () => {
     const s = newMatch({ roundFrames: 60 });
     s.fighters[0].health = 900; // 90% of 1000
-    s.fighters[1].health = 1000; // 87% of 1150
+    s.fighters[1].health = 980; // 89% of 1100: more HP in absolute terms, less in percent
     const evs = run(s, 70);
     expect(ofType(evs, 'timeover')).toHaveLength(1);
     expect(s.roundWinner).toBe(0);

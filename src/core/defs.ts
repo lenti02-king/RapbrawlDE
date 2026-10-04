@@ -165,6 +165,8 @@ export interface FighterDef {
   tagline: string;
   archetype: string;
   health: number;
+  /** Hype meter gain multiplier in percent (character trait). Default 100. */
+  meterGainPct?: number;
   walkF: number;
   walkB: number;
   jumpSquat: number;
