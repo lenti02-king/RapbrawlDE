@@ -1,12 +1,12 @@
 // Captures every move of a fighter at its first active frame with the hitbox overlay,
 // to verify that poses visually match sim hitboxes.
-// Usage: node scripts/moves.mjs volt|brick   (dev server must be running)
+// Usage: node scripts/moves.mjs jazeek|bonez|volt|brick   (dev server must be running)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
 const fighter = process.argv[2] ?? 'volt';
-const other = fighter === 'volt' ? 'brick' : 'volt';
+const other = { volt: 'brick', brick: 'volt', jazeek: 'bonez', bonez: 'jazeek' }[fighter] ?? 'jazeek';
 const base = process.env.BASE_URL ?? 'http://localhost:5173';
 const out = `artifacts/moves_${fighter}`;
 fs.mkdirSync(out, { recursive: true });

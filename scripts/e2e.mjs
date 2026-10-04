@@ -31,34 +31,46 @@ const sim = (page) =>
   const errors = [];
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   watchErrors(page, errors);
-  await page.goto(base + '/');
-  await page.waitForSelector('.title-screen');
-  await page.waitForTimeout(1200);
+  await page.goto(base + '/?touch=0');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(base + '/?touch=0');
+  await page.waitForSelector('.splash');
+  await page.waitForTimeout(800);
   await page.screenshot({ path: `${out}/d01_title.png` });
   await page.keyboard.press('Enter');
-  await page.waitForSelector('.menu');
-  await page.screenshot({ path: `${out}/d02_menu.png` });
-  check((await sim(page)).mode === 'demo', 'menu shows a live CPU-vs-CPU demo fight behind it');
-  await page.click('[data-m="cpu"]');
-  await page.waitForSelector('.fcard');
-  await page.click('.fcard[data-f="volt"]');
-  await page.screenshot({ path: `${out}/d03_select.png` });
-  await page.click('[data-next]');
-  await page.waitForSelector('.lcard');
-  // build a non-default loadout: Stage Dive, Punchline, Headliner
-  await page.click('[data-reset]');
-  for (const id of ['volt_mic', 'volt_rush']) await page.click(`.lcard[data-c="${id}"]`); // unequip
-  await page.click('.lcard[data-c="volt_dive"]');
-  await page.click('.lcard[data-c="volt_counter"]');
-  await page.screenshot({ path: `${out}/d04_loadout.png` });
-  check(!(await page.isDisabled('[data-go]')), 'legal 3-card loadout enables FIGHT');
-  await page.click('[data-go]');
+  await page.waitForSelector('.home');
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${out}/d02_home.png` });
+  check((await sim(page)).mode === 'menu', 'home screen shows the 3D fighter showcase');
+  // fighter select: pick Bonez MC
+  await page.click('[data-nav="fighters"]');
+  await page.waitForSelector('.fcard[data-f="bonez"]');
+  await page.click('.fcard[data-f="bonez"]');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/d03_fighters.png` });
+  check((await page.evaluate(() => window.__rb.sel.fighters[0])) === 'bonez', 'fighter select picks Bonez MC');
+  await page.click('[data-ok]');
+  await page.waitForSelector('.home');
+  // deck: swap special 2 (Abriss) for Rauchwand
+  await page.click('[data-nav="deck"]');
+  await page.waitForSelector('.collection [data-card="bon_smoke"]');
+  await page.click('.collection [data-card="bon_smoke"]');
+  await page.click('[data-use]');
+  await page.click('.deck-slots [data-slot="1"]');
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: `${out}/d04_deck.png` });
+  check(!(await page.isDisabled('[data-ok]')), 'legal 2+1 deck enables FERTIG');
+  await page.click('[data-ok]');
+  await page.waitForSelector('.home');
+  await page.click('[data-fight]');
   await page.waitForFunction(() => window.__rb.mode === 'cpu');
   let s = await sim(page);
-  check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['volt_headliner', 'volt_dive', 'volt_counter']), `chosen loadout reaches the match (${s.f[0].loadout})`);
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: `${out}/d05_intro.png` });
-  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 20000 });
+  check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['bon_croc', 'bon_smoke', 'bon_palm']), `chosen deck reaches the match (${s.f[0].loadout})`);
+  check(await page.isVisible('.vs'), 'VS intro is shown at match start');
+  const fullHp = s.f[1].hp;
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/d05_vs.png` });
+  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 30000 });
   // real keyboard input: walk forward, then attack
   const x0 = (await sim(page)).f[0].x;
   await page.keyboard.down('KeyD');
@@ -73,7 +85,7 @@ const sim = (page) =>
     const s = r.state;
     s.fighters[1].state = 'idle';
     s.fighters[0].state = 'idle';
-    s.fighters[0].x = s.fighters[1].x - 7000;
+    s.fighters[0].x = s.fighters[1].x - 8000;
   });
   const hpBefore = (await sim(page)).f[1].hp;
   for (let i = 0; i < 3; i++) {
@@ -85,41 +97,63 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/d06_fight.png` });
   s = await sim(page);
   check(s.f[1].hp < hpBefore, `keyboard attacks deal damage (${hpBefore} -> ${s.f[1].hp})`);
+  // Signature: full Hype shows the banner, O fires it
+  await page.waitForFunction(() => ['idle', 'crouch', 'walkF', 'walkB'].includes(window.__rb.runner.state.fighters[0].state), null, { timeout: 10000 }).catch(() => {});
+  await page.evaluate(() => {
+    const s = window.__rb.runner.state;
+    s.fighters[0].meter = 300;
+    s.fighters[0].x = s.fighters[1].x - 12000;
+  });
+  const banner = await page
+    .waitForFunction(() => Number(document.querySelector('.sig-ready').style.opacity) > 0.5, null, { timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  check(banner, '"SIGNATURE BEREIT!" banner appears when Hype is full');
+  await page.screenshot({ path: `${out}/d07_sig_ready.png` });
+  await page.keyboard.press('KeyO');
+  const sig = await page
+    .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].move === 'bon_palm', null, { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check(sig, 'key O fires the Signature card');
+  await page.waitForFunction(() => !window.__rb.runner.state.cine && window.__rb.runner.state.freeze === 0 && window.__rb.runner.state.fighters[0].state !== 'move', null, { timeout: 30000 }).catch(() => {});
   // pause menu
   await page.keyboard.press('Escape');
-  await page.waitForSelector('.screen h2');
-  const paused = await page.evaluate(() => window.__rb.runner.paused);
-  check(paused, 'Escape pauses the match');
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `${out}/d07_pause.png` });
+  await page.waitForSelector('.modal');
+  check(await page.evaluate(() => window.__rb.runner.paused), 'Escape pauses the match');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/d08_pause.png` });
   await page.click('[data-a="resume"]');
   // force a fast match end and check results + rematch
   await page.evaluate(() => {
     const s = window.__rb.runner.state;
     s.fighters[0].roundsWon = 1;
     s.fighters[1].health = 0;
+    window.__rb.runner.speed = 4;
   });
   const resultsVisible = await page
-    .waitForSelector('.result-win', { timeout: 60000 })
+    .waitForSelector('.result-banner', { timeout: 90000 })
     .then(() => true)
     .catch(() => false);
   check(resultsVisible, 'match end shows results screen');
-  await page.screenshot({ path: `${out}/d08_results.png` });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/d09_results.png` });
   if (resultsVisible) {
+    check((await page.textContent('.result-banner')).includes('SIEG'), 'results show SIEG! for the winner');
     await page.click('[data-a="rematch"]');
     const fresh = await page
-      .waitForFunction(() => window.__rb.runner.state.phase === 'intro' && window.__rb.runner.state.fighters[1].health === 1100, null, { timeout: 15000 })
+      .waitForFunction((hp) => window.__rb.runner.state.phase === 'intro' && window.__rb.runner.state.fighters[1].health === hp, fullHp, { timeout: 15000 })
       .then(() => true)
       .catch(() => false);
     check(fresh, 'rematch restarts a fresh match');
   }
   // training mode with hitboxes
-  await page.goto(base + '/?quick=brick,volt&mode=training');
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 20000 });
+  await page.goto(base + '/?quick=bonez,jazeek&mode=training');
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
   await page.keyboard.press('KeyH');
   await page.keyboard.press('KeyK');
   await page.waitForTimeout(160);
-  await page.screenshot({ path: `${out}/d09_training_hitboxes.png` });
+  await page.screenshot({ path: `${out}/d10_training_hitboxes.png` });
   check(errors.length === 0, `no page errors on desktop (${errors.slice(0, 3).join(' | ')})`);
   await page.close();
 }
@@ -132,25 +166,24 @@ const sim = (page) =>
   const page = await ctx.newPage();
   watchErrors(page, errors);
   await page.goto(base + '/');
-  await page.waitForSelector('.title-screen');
-  await page.waitForTimeout(800);
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(base + '/');
+  await page.waitForSelector('.splash');
+  await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/m01_title.png` });
-  await page.tap('.title-screen button');
-  await page.waitForSelector('.menu');
-  await page.tap('[data-m="cpu"]');
-  await page.waitForSelector('.fcard');
-  await page.tap('[data-next]');
-  await page.waitForSelector('.lcard');
-  await page.screenshot({ path: `${out}/m02_loadout.png` });
-  await page.tap('[data-go]');
+  await page.tap('.splash button');
+  await page.waitForSelector('.home');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${out}/m02_home.png` });
+  await page.tap('[data-fight]');
   await page.waitForFunction(() => window.__rb.mode === 'cpu');
   await page.evaluate(() => {
     window.__rb.runner.sources[1].poll = () => 0; // freeze CPU for deterministic checks
   });
-  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 20000 });
-  const touchVisible = await page.isVisible('.touch .act-light');
-  check(touchVisible, 'touch controls visible on a phone');
-  // drag the stick to the right using touch-like pointer events
+  await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 30000 });
+  check(await page.isVisible('.touch .act-light'), 'touch controls visible on a phone');
+  check(await page.isVisible('.hand.tap .hcard.sig'), 'golden Signature card is visible as a touch button');
+  // drag the stick to the right using touch events
   const zone = await page.locator('.stick-zone').boundingBox();
   const x0 = (await sim(page)).f[0].x;
   const cdp = await ctx.newCDPSession(page);
@@ -158,14 +191,18 @@ const sim = (page) =>
   const sy = zone.y + zone.height * 0.6;
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: sx, y: sy, id: 1 }] });
   for (let i = 1; i <= 5; i++) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + i * 12, y: sy, id: 1 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + i * 12, y: sy - i * 4, id: 1 }] });
   }
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(300);
+  const bits = await page.evaluate(() => window.__rb.runner.lastInputs[0]);
+  const IN = await page.evaluate(() => window.__rb.IN);
+  check((bits & IN.RIGHT) !== 0 && (bits & IN.UP) === 0, `stick 18° above horizontal walks without jumping (bits ${bits})`);
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/m03_touch_walk.png` });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   const x1 = (await sim(page)).f[0].x;
   check(x1 > x0, `touch stick walks forward (${x0} -> ${x1})`);
-  // tap attack buttons (multi-touch: hold stick + tap)
+  // tap attack buttons
   await page.evaluate(() => {
     const s = window.__rb.runner.state;
     s.fighters[0].x = s.fighters[1].x - 8000;
@@ -179,20 +216,21 @@ const sim = (page) =>
   await page.waitForFunction((hp) => window.__rb.runner.state.fighters[1].health < hp, hp0, { timeout: 10000 }).catch(() => {});
   const hp1 = (await sim(page)).f[1].hp;
   check(hp1 < hp0, `touch attack buttons deal damage (${hp0} -> ${hp1})`);
-  // card button with meter
+  // signature card with meter
+  await page.waitForFunction(() => ['idle', 'crouch', 'walkF', 'walkB'].includes(window.__rb.runner.state.fighters[0].state), null, { timeout: 10000 }).catch(() => {});
   await page.evaluate(() => {
     const s = window.__rb.runner.state;
     s.fighters[0].meter = 300;
     s.fighters[0].x = s.fighters[1].x - 15000;
   });
-  await page.waitForTimeout(100);
-  await page.screenshot({ path: `${out}/m04_cards_ready.png` });
-  await page.tap('.card-btn[data-bit="S3"]');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/m04_sig_ready.png` });
+  await page.tap('.hcard[data-slot="2"]');
   const flash = await page
     .waitForFunction(() => window.__rb.runner.state.freeze > 0 || window.__rb.runner.state.fighters[0].state === 'move', null, { timeout: 10000 })
     .then(() => true)
     .catch(() => false);
-  check(flash, 'touch card button triggers the signature special');
+  check(flash, 'tapping the golden card triggers the Signature');
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${out}/m05_touch_super.png` });
   check(errors.length === 0, `no page errors on mobile (${errors.slice(0, 3).join(' | ')})`);
@@ -207,7 +245,7 @@ const sim = (page) =>
 // ------------------------------------------------------- performance probe
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  await page.goto(base + '/?quick=volt,brick');
+  await page.goto(base + '/?quick=jazeek,bonez');
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 20000 });
   const perf = await page.evaluate(
     () =>

@@ -7,7 +7,7 @@ const out = 'artifacts/ko';
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
-await page.goto(`${base}/?quick=volt,brick&mode=cpu`);
+await page.goto(`${base}/?quick=jazeek,bonez&mode=cpu`);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
 await page.evaluate(() => {
   const r = window.__rb.runner;

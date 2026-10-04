@@ -534,6 +534,14 @@ export class App {
         const id = b.dataset.f!;
         this.sel.fighters[player] = id;
         if (validateLoadout(id, this.sel.loadouts[player])) this.sel.loadouts[player] = getFighter(id).defaultLoadout.slice();
+        // vs CPU: the opponent defaults to the other fighter (a mirror match stays possible via the CPU tab)
+        if (player === 0 && this.sel.mode !== 'local' && this.sel.fighters[1] === id) {
+          const other = ROSTER.find((x) => x !== id);
+          if (other) {
+            this.sel.fighters[1] = other;
+            this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
+          }
+        }
         store.set('selection', this.sel);
         el.querySelectorAll('.fcard').forEach((x) => x.classList.toggle('sel', x === b));
         if (player === 0) this.startShowcase();

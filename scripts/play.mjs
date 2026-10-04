@@ -13,7 +13,7 @@ page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') 
 page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 const shot = async (name) => { await page.screenshot({ path: `${outdir}/${scenario}_${name}.png` }); console.log('shot', name); };
 const state = () => page.evaluate(() => { const s = window.__rb.runner.state; return { frame: s.frame, phase: s.phase, f: s.fighters.map((f) => ({ st: f.state, x: f.x, hp: f.health, m: f.meter, mv: f.move })) }; });
-await page.goto(base + '/?quick=volt,brick&mode=' + (scenario === 'training' ? 'training' : 'cpu'));
+await page.goto(base + '/?quick=jazeek,bonez&mode=' + (scenario === 'training' ? 'training' : 'cpu'));
 await page.waitForFunction(() => window.__rb && window.__rb.runner, null, { timeout: 15000 });
 const waitPhase = async (p) => page.waitForFunction((p) => window.__rb.runner.state.phase === p, p, { timeout: 20000 });
 if (scenario === 'basic') {

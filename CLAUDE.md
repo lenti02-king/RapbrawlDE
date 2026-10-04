@@ -18,8 +18,10 @@ npm run build          # tsc + vite build -> dist/
 npm run e2e            # Playwright E2E against BASE_URL (default localhost:5173); start dev server first
 node scripts/play.mjs basic|super   # scripted gameplay screenshots -> artifacts/
 node scripts/shot.mjs "/?lab=poses&pose=crouch" out.png   # pose lab screenshot
-node scripts/moves.mjs volt|brick   # every move at first active frame + hitbox overlay -> contact sheet
-node scripts/cine.mjs volt|brick    # frame-accurate signature cinematic capture
+node scripts/moves.mjs jazeek|bonez # every move at first active frame + hitbox overlay -> contact sheet
+node scripts/cine.mjs jazeek|bonez [f1,f2,..]  # frame-accurate signature cinematic capture
+node scripts/specials.mjs           # special-move VFX/props sheet (voice wave, spotlight, croc, smoke, grin)
+node scripts/ui.mjs                 # menu flow + HUD screenshots, desktop and phone landscape -> artifacts/ui
 node scripts/ko.mjs                 # KO -> round over -> next round capture
 node scripts/netplay.mjs 60         # two pages play online (same-device transport, 60 ms lag), checksums compared
 npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
@@ -27,7 +29,7 @@ node scripts/single-file.mjs out.html  # one self-contained HTML page (used for 
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
-Useful URLs: `/?quick=volt,brick&mode=cpu|local|training|demo`, `/?touch=1` (force touch UI), `/?lab=poses&pose=<name>&zoom=2`.
+Useful URLs: `/?quick=jazeek,bonez&mode=cpu|local|training|demo` (any registered id, incl. hidden volt/brick), `/?touch=1` (force touch UI), `/?lab=poses&a=jazeek&b=bonez&pose=<name>&zoom=2&teeth=1`.
 Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1(bits, frames)`, `.view.debug = true` for hitboxes).
 
 ## Architecture (src/)
@@ -39,18 +41,25 @@ Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1
 - `net/online.ts` — NetMatchRunner (rollback inside the real loop), lobby handshake, WebRTC copy/paste transport.
 - `render/` — presentation only (reads state, never writes): `view.ts` (GameView), `rig.ts` (procedural toon humanoid),
   `characters.ts` (looks), `anims/*` (pose clips keyed to move frames), `animator.ts` (state -> pose),
-  `cinematics.ts` (signature super timelines keyed to sim cine frame), `camera.ts`, `vfx.ts`, `arena.ts`.
+  `stylized.ts` (Jazeek/Bonez faces, hair, outfits), `cinematics.ts` (runtime + VOLT/BRICK) and `cines.ts`
+  (Herzbrecher, Palmen-Bassdrop) keyed to the sim cine frame, `props.ts` (hearts, croc, palms, spotlight, sprites),
+  `specials.ts` (in-match special VFX, gold teeth, win flourishes), `camera.ts`, `vfx.ts`,
+  `arenas/hinterhof.ts` (default arena; `arena.ts` = old club stage).
 - `audio/audio.ts` — procedural Web Audio SFX + generative music (no external assets).
 - `input/` — keyboard/gamepad/touch sources -> input bitmask (`core/input.ts`).
 - `ai/bot.ts` — CPU opponent (InputSource; seeded RNG; reads state with reaction delay).
-- `app/` — `app.ts` screens/flow, `match.ts` fixed-step runner, `training.ts` readouts. `ui/` HUD + CSS.
+- `app/` — `app.ts` screens/flow (home showcase, fighters, deck, help, pause, results, online), `match.ts` fixed-step runner,
+  `training.ts` readouts. `ui/` — `hud.ts` (HUD + card hand, JS tweens), `icons.ts` (original SVG card/UI icons),
+  `portraits.ts` (menu portraits rendered from the rigs), `style.css` (design tokens, chunky buttons). All UI text is German.
 
 ## Conventions
-- New fighter = `src/content/<id>.ts` (sim data) + `src/render/anims/<id>.ts` + visual in `render/characters.ts`; register in `content/index.ts` and `render/animator.ts` ANIM_SETS.
+- New fighter = `src/content/<id>.ts` (sim data) + `src/render/anims/<id>.ts` + visual in `render/characters.ts`/`stylized.ts`; register in `content/index.ts` (+ `ROSTER`) and `render/animator.ts` ANIM_SETS; card icons in `ui/icons.ts`; signature presentation in `render/cines.ts`.
 - Move frame data: `startup` = first active frame (1-based); `total = startup - 1 + active + recovery`.
 - Sim changes MUST keep `npm test` green (determinism + rollback tests). Add a test for new mechanics.
 - Presentation may lag/blend; gameplay truth is the sim. Hitboxes are authored in sim content, poses must visually match (check with hitbox overlay: F1 / training H).
-- Card rarity must never change power (competitive integrity). Max 1 Signature per loadout (`registry.ts`).
-- Placeholder art/audio is procedural and original. Never add copyrighted likenesses, music or logos.
+- Card rarity must never change power (competitive integrity). Deck = 2 specials + 1 Signature in slot 3 (`registry.ts`).
+- Placeholder art/audio is procedural and original. Never add third-party logos/music. Real people (Jazeek, Bonez MC) are in the
+  roster at the product owner's request; their likeness/name rights must be cleared by the product owner before release.
+- Paid generative tools (Higgsfield MCP): do not spend credits without explicit product-owner approval.
 - Verify visually with Playwright screenshots before claiming a visual feature works. Report honestly (VERIFIED vs UNVERIFIED).
 - Commit at working checkpoints on the session's designated branch; push with `git push -u origin <branch>`.

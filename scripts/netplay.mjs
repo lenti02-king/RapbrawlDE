@@ -12,12 +12,11 @@ const [A, B] = [await ctx.newPage(), await ctx.newPage()];
 const errors = [];
 for (const p of [A, B]) p.on('pageerror', (e) => errors.push(e.message));
 const toLobby = async (p) => {
-  await p.goto(base + '/');
-  await p.waitForSelector('.title-screen');
-  await p.click('.title-screen button');
-  await p.click('[data-m="online"]');
-  await p.click('[data-next]');
-  await p.click('[data-go]');
+  await p.goto(base + '/?touch=0');
+  await p.waitForSelector('.splash');
+  await p.click('.splash button');
+  await p.waitForSelector('.home');
+  await p.click('[data-nav="online"]');
   await p.waitForSelector('.online-grid');
   await p.click(`[data-lag="${lag}"]`);
 };

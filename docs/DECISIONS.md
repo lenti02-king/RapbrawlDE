@@ -27,13 +27,13 @@ Free 3D arena combat needs 360° movement (bad on a virtual stick), lock-on came
 ## D5 — Controls: dedicated buttons, mobile-first (2026-10-03)
 Light, Heavy, Grab, Block (+ hold-back also blocks), 3 special-card buttons, left floating stick. Direction + button modifies normals (down = low, forward+Heavy = overhead). No motion inputs (quarter circles) — specials are card buttons with meter costs, which suits touch and makes the card loadout tangible. Double-tap for dashes.
 
-## D6 — Special cards: meter-cost, 3 equipped of 6, max 1 Signature, no power-by-rarity (2026-10-03)
+## D6 — Special cards: meter-cost, 3 equipped of 6, max 1 Signature, no power-by-rarity (2026-10-03) — slot layout superseded by D14
 Cards define tactical options, not stats. Rarity (future) is cosmetic only. Validation in `core/registry.ts`.
 
 ## D7 — Placeholder assets are procedural (2026-10-03)
 Characters are procedural toon rigs (primitives + outlines), arena is procedural, all audio is synthesized at runtime. Zero licensing risk. Rig exposes named joints and pose arrays so authored glTF models can replace it while keeping move clips/frame data.
 
-## D8 — Paid generative tools not used (2026-10-03)
+## D8 — Paid generative tools not used (2026-10-03) — still in force: the product owner offered to create assets in Higgsfield themselves (session 2)
 A Higgsfield MCP (generative image/video/3D, credit-based) is connected in this environment. Not used: it incurs costs and outputs need licensing review. Ask the product owner before using.
 
 ## D9 — Online v1: serverless P2P with copy/paste codes (2026-10-04)
@@ -44,3 +44,21 @@ To prove netplay without any hosted service or cost: WebRTC DataChannel (unorder
 
 ## D11 — Characters baked to one skinned mesh (2026-10-04)
 Procedural rig parts are baked into one vertex-coloured SkinnedMesh + one skinned outline pass (2 draw calls per fighter, was ~80). Poses still drive the same joint bones, so authored glTF characters can drop in later.
+
+## D12 — Real roster replaces the placeholder fighters (2026-10-04)
+The product owner chose the first two fighters: **Jazeek** (tempo/counter) and **Bonez MC** (reach/pressure), designed from their profiles to be equal in strength. VOLT/BRICK stay registered as `hidden` fighters (tests, dev URLs) but are not in the UI roster (`content/index.ts` `ROSTER`). Rights to names/likenesses are still to be cleared by the product owner before release; no third-party logos are used.
+
+## D13 — Clash-Royale-inspired presentation, original assets (2026-10-04)
+Look: chunky stylized characters with big heads and soft shading (MeshStandardMaterial, no outline), warm saturated arena, chunky 3D buttons, blue (you) vs red (opponent) sides, gold primary actions, cards with cost badges, crowns for rounds, bottom navigation. Inspired by the genre, nothing copied: own fonts (Lilita One + Nunito, OFL), own SVG icons, own layouts and colours. Portraits are rendered once at startup from the real rigs in a short-lived second WebGL context (`ui/portraits.ts`) so menus always match the in-game models.
+
+## D14 — Deck = 2 Specials + 1 Signature in a fixed slot (2026-10-04) — supersedes the "3 of 6" part of D6
+The Signature was hard to find with three generic slots. Slot 3 is now always the Signature (key O, golden card), specials sit in slots 1–2 (U, I). Rarity still never changes power.
+
+## D15 — Precision over input density (2026-10-04) — refines D5
+Forward+Heavy no longer maps to an overhead (accidental overheads while walking on a touch stick); overheads come from jump-ins. The touch stick is sector-based (wide horizontal sectors, deadzone and hysteresis) and buttons capture their pointer. Special moves stay on card buttons (no motion inputs).
+
+## D16 — HUD pop-ups driven by the game loop (2026-10-04)
+Announcer, card banners, signature card reveal and the "SIGNATURE BEREIT!" banner are tweened in `Hud.update` instead of CSS keyframes: deterministic, testable, and immune to the browser deferring animation starts under load (observed in headless Chromium).
+
+## D17 — Cinematic props and prop lights are created up front (2026-10-04)
+Signature props (hearts, palms, crocodile, spotlights) are built when cinematics are installed; their real lights stay in the scene at intensity 0, so the first signature in a match never triggers shader recompilation or allocation hitches.

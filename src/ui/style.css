@@ -74,6 +74,12 @@ body {
 #ui > * {
   pointer-events: auto;
 }
+/* full-screen overlays: only their interactive children take input */
+#ui > .hud,
+#ui > .touch,
+#ui > .vs {
+  pointer-events: none;
+}
 button {
   font: inherit;
   color: inherit;
