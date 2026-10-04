@@ -4,7 +4,7 @@ _Last updated: 2026-10-04 (session 4: fighters from the product owner's Meshy sc
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (single-file build, owner-only until shared, version 6 = session 4): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (single-file build, owner-only until shared, version 7 = session 4 + model-loading fix): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
@@ -19,6 +19,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Target combos L·L·L / H·H per fighter (Drehkick, Encore-Haken, Ellbogen-Crash, Abrissbirne), listed in STEUERUNG | VERIFIED (unit tests + help screenshot desktop/phone) | `tests/fighters.test.ts` |
 | Cards only for abilities + Signature; punches/kicks are buttons | VERIFIED (unchanged design, stated in help) | |
 | Cartoon VFX: impact stars, speed lines, smears, toon dust, cracks, rubble, impact frames (setting BLITZEFFEKTE) | VERIFIED (frame-accurate capture sheet) | `node scripts/vfx.mjs` |
+| **Bug: the Artifact never showed the GLB models** (CSP blocks fetch of data:/blob: URLs; loading failed silently -> placeholders). Fix: `.gltf.json` rebuilt as GLB bytes in memory, textures decoded via `<img>`, 60 s load wait with "LADE KÄMPFER …", visible note if models fail, menus re-render if models arrive late | VERIFIED under an Artifact-like CSP (fighter select + match show the new models); Artifact v7 published, live check by the PO pending | `node scripts/artifact-check.mjs` |
 | Arena in cartoon style (task from the cartoon direction) | NOT DONE: the realistic courtyard stays; with realistic fighters it fits again | |
 | Cost of the new fighters | VERIFIED in SwiftShader only: 2×50k skinned tris + 2048 textures, 62 draw calls; low-tier probe 433 ms/frame (was ~240 ms with the cartoon fighters, software GL). Phone FPS UNVERIFIED | E2E PERF line |
 
@@ -64,7 +65,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | AAA menus ("Block Beats Night"): lobby with live 3D hero, modes, versus fighter select, card loadout with 3 presets, profile (local XP/rank/history), settings (quality, touch, sound, vibration), restyled HUD/results | VERIFIED (screenshots + 22/22 E2E) | `node scratch/menus.mjs` style captures, `npm run e2e` |
 | Card art and key art rendered in-engine from the models (pose = first active frame of each card's move) | VERIFIED (screenshots) | `src/ui/portraits.ts` |
 | Shop / Battle Pass from the reference | NOT BUILT: needs monetisation decisions by the product owner | |
-| Artifact: models shipped as `.gltf.json` (host does not serve .glb) | VERIFIED (published v5, smoke-tested) | `scripts/glb-to-json.mjs` |
+| Artifact: models shipped as `.gltf.json` (host does not serve .glb) | WRONG until v7: the Artifact sandbox CSP blocks fetch() of the data: buffer, so v5/v6 silently showed the procedural placeholders (the PO saw "Klötze"). Fixed in session 4, see below | `scripts/glb-to-json.mjs` |
 
 ## Earlier (session 1) — still valid
 Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollback netcode core, WebRTC copy/paste friend match (one machine only), Android debug APK in CI, iOS BLOCKED (needs macOS/Xcode/Apple account), CI green on GitHub Actions.

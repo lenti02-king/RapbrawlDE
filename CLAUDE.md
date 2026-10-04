@@ -32,6 +32,7 @@ node scripts/vfx.mjs [low|medium|high]  # frame-accurate hit-VFX capture sheet -
 python3 tools/meshy/build.py jazeek|bonez   # fighter GLB from the PO's Meshy sculpt in .cache/meshy (bpy, pillow, scipy)
 python3 tools/meshy/preview.py jazeek|bonez # painted sculpt previews -> artifacts/meshy (iterate on tools/meshy/<id>.py)
 node scripts/glb-to-json.mjs in.glb out.gltf.json   # Artifact host does not serve .glb: publish models as assets/characters/<id>.gltf.json
+node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ and assert the models load under an Artifact-like CSP (run before every publish)
 tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek   # rebuild the fighter models (Blender bpy)
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.

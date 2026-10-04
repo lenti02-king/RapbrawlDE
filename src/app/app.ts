@@ -15,7 +15,7 @@ import { installCinematics } from '../render/cinematics';
 import { cardHtml, Hud } from '../ui/hud';
 import { CAT_COLOR, CAT_DE, UI_ICONS } from '../ui/icons';
 import { LINE } from '../ui/lines';
-import { portrait, renderPortraits } from '../ui/portraits';
+import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
@@ -1239,6 +1239,13 @@ export class App {
       this.leaveNet();
       this.showHome();
     });
+  }
+
+  /** Imported character models finished loading after the menus were drawn: re-render with them. */
+  modelsArrived(): void {
+    clearPortraits();
+    this._view?.resetRigs();
+    if (this.mode === 'menu' && !this.runner) this.showHome();
   }
 
   // ----------------------------------------------------- test / debug API

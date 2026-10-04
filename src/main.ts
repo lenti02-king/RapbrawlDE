@@ -24,8 +24,30 @@ for (const pair of (params.get('glb') ?? '').split(',')) {
   const [id, url] = pair.split(':');
   if (id && url) overrides[id] = url;
 }
-const timeout = new Promise((res) => setTimeout(res, 20000));
-void Promise.race([loadCharacterModels([...ROSTER, 'volt', 'brick'], 'assets/characters', overrides).catch(() => []), timeout]).then(() => {
+// Models are ~4 MB each: wait for them (up to 60 s) so menus and fights show them; if they arrive later the menus
+// are re-rendered, and if they fail a visible note says the placeholders are active (instead of failing silently).
+const boot = document.createElement('div');
+boot.className = 'boot-status';
+boot.textContent = 'LADE KÄMPFER …';
+ui.appendChild(boot);
+let app: App | null = null;
+let started = false;
+const models = loadCharacterModels([...ROSTER, 'volt', 'brick'], 'assets/characters', overrides).catch(() => [] as string[]);
+const timeout = new Promise((res) => setTimeout(res, 60000));
+void Promise.race([models, timeout]).then(() => {
+  started = true;
+  boot.remove();
   if (params.get('lab')) runLab(canvas);
-  else new App(canvas, ui);
+  else app = new App(canvas, ui);
+});
+void models.then((ok) => {
+  (window as unknown as { __models: string[] }).__models = ok; // read by scripts/artifact-check.mjs
+  const missing = ROSTER.filter((id) => !ok.includes(id));
+  if (missing.length) {
+    const note = document.createElement('div');
+    note.className = 'boot-note';
+    note.textContent = `3D-Modelle nicht geladen (${missing.join(', ')}) – Platzhalter aktiv`;
+    document.body.appendChild(note);
+    setTimeout(() => note.remove(), 10000);
+  } else if (started && app) app.modelsArrived();
 });

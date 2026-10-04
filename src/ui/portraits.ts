@@ -114,6 +114,11 @@ export function renderPortraits(ids: string[], kinds: PortraitKind[] = ['card', 
   return cache;
 }
 
+/** Drop cached renders (models arrived after the menus were drawn). */
+export function clearPortraits(): void {
+  cache.clear();
+}
+
 export function portrait(id: string, kind: PortraitKind): string {
   return cache.get(`${id}:${kind}`) ?? '';
 }

@@ -77,6 +77,57 @@ export function isHumanoid(scene: THREE.Object3D): boolean {
 
 const loaded = new Map<string, THREE.Object3D>();
 
+/**
+ * A self-contained `.gltf.json` (buffer as base64 data URI, scripts/glb-to-json.mjs) rebuilt as GLB bytes in memory.
+ * Hosts with a strict CSP (the claude.ai Artifact: connect-src without data:) refuse GLTFLoader's fetch() of the
+ * data URI, which silently dropped the models to the procedural fallback.
+ */
+function gltfJsonToGlb(text: string): ArrayBuffer | null {
+  const json = JSON.parse(text) as { buffers?: { uri?: string; byteLength: number }[] };
+  const uri = json.buffers?.[0]?.uri;
+  if (!uri?.startsWith('data:')) return null;
+  const raw = atob(uri.slice(uri.indexOf(',') + 1));
+  const bin = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  delete json.buffers![0].uri;
+  json.buffers![0].byteLength = bin.length;
+  const js = new TextEncoder().encode(JSON.stringify(json));
+  const jpad = (4 - (js.length % 4)) % 4;
+  const bpad = (4 - (bin.length % 4)) % 4;
+  const total = 12 + 8 + js.length + jpad + 8 + bin.length + bpad;
+  const out = new ArrayBuffer(total);
+  const dv = new DataView(out);
+  const u8 = new Uint8Array(out);
+  dv.setUint32(0, 0x46546c67, true); // 'glTF'
+  dv.setUint32(4, 2, true);
+  dv.setUint32(8, total, true);
+  dv.setUint32(12, js.length + jpad, true);
+  dv.setUint32(16, 0x4e4f534a, true); // JSON
+  u8.set(js, 20);
+  u8.fill(0x20, 20 + js.length, 20 + js.length + jpad);
+  const o = 20 + js.length + jpad;
+  dv.setUint32(o, bin.length + bpad, true);
+  dv.setUint32(o + 4, 0x004e4942, true); // BIN
+  u8.set(bin, o + 8);
+  return out;
+}
+
+/**
+ * GLTFLoader decodes embedded textures with ImageBitmapLoader, i.e. fetch(blob:), whenever createImageBitmap exists;
+ * strict CSPs block that while <img> with blob: URLs is allowed. The loader picks its texture loader synchronously
+ * inside parse(), so createImageBitmap is hidden only for that call.
+ */
+function parseWithImageElements(loader: GLTFLoader, buf: ArrayBuffer | string, path: string) {
+  const g = globalThis as { createImageBitmap?: unknown };
+  const saved = g.createImageBitmap;
+  g.createImageBitmap = undefined;
+  try {
+    return loader.parseAsync(buf, path);
+  } finally {
+    g.createImageBitmap = saved;
+  }
+}
+
 /** Try to load `<base>/<id>.glb` for each fighter (missing files are fine: procedural fallback). */
 export async function loadCharacterModels(ids: string[], base = 'assets/characters', overrides: Record<string, string> = {}): Promise<string[]> {
   const loader = new GLTFLoader();
@@ -97,8 +148,12 @@ export async function loadCharacterModels(ids: string[], base = 'assets/characte
           }
         }
         if (!res) return;
-        const buf = await res.arrayBuffer();
-        const gltf = await loader.parseAsync(buf, url.replace(/[^/]*$/, ''));
+        let buf: ArrayBuffer | string;
+        if (url.endsWith('.json')) {
+          const text = await res.text();
+          buf = gltfJsonToGlb(text) ?? text;
+        } else buf = await res.arrayBuffer();
+        const gltf = await parseWithImageElements(loader, buf, url.replace(/[^/]*$/, ''));
         if (!isHumanoid(gltf.scene)) {
           console.warn(`[models] ${url}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);
           return;
@@ -106,7 +161,7 @@ export async function loadCharacterModels(ids: string[], base = 'assets/characte
         loaded.set(id, gltf.scene);
         ok.push(id);
       } catch (e) {
-        void e;
+        console.warn(`[models] ${id}: failed to load — using placeholder`, e);
       }
     }),
   );

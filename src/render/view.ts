@@ -122,6 +122,11 @@ export class GameView {
     this.director.resize(w / Math.max(1, h));
   }
 
+  /** Rebuild the fighter rigs on the next match (e.g. imported models finished loading late). */
+  resetRigs(): void {
+    this.matchKey = '';
+  }
+
   setMatch(s: GameState): void {
     const key = s.fighters.map((f) => f.def).join('|');
     if (key === this.matchKey && this.rigs.length) {
