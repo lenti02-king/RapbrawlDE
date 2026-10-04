@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { ArenaLike } from './arenas/hinterhof';
 
 const LED_VERT = /* glsl */ `
   varying vec2 vUv;
@@ -70,7 +71,7 @@ const BEAM_FRAG = /* glsl */ `
   }
 `;
 
-export class Arena {
+export class Arena implements ArenaLike {
   readonly group = new THREE.Group();
   private led: THREE.ShaderMaterial;
   private beams: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial; phase: number; base: THREE.Euler }[] = [];

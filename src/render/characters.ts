@@ -3,10 +3,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { type HumanoidSpec, type Palette, Rig } from './rig';
+import { BONEZ_VISUAL, JAZEEK_VISUAL } from './stylized';
 import { addPart, taperedCapsule } from './toon';
 
 export interface CharacterVisual {
   id: string;
+  /** Soft stylized shading without outlines (new look). */
+  soft?: boolean;
   spec: HumanoidSpec;
   palettes: Palette[];
   /** UI accent colors per palette (css). */
@@ -245,14 +248,20 @@ const GUARD: CharacterVisual = {
   },
 };
 
-export const CHARACTER_VISUALS: Record<string, CharacterVisual> = { volt: VOLT, brick: BRICK, guard: GUARD };
+export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
+  volt: VOLT,
+  brick: BRICK,
+  guard: GUARD,
+  jazeek: JAZEEK_VISUAL,
+  bonez: BONEZ_VISUAL,
+};
 
 export function buildCharacter(id: string, paletteIndex: number): Rig {
   const v = CHARACTER_VISUALS[id];
   const pal = v.palettes[paletteIndex % v.palettes.length];
   const rig = new Rig(v.spec, pal);
   v.decorate(rig, pal);
-  rig.bake();
+  rig.bake(v.soft ? { soft: true, outline: false } : {});
   rig.root.traverse((o) => {
     o.frustumCulled = false;
   });

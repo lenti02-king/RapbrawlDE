@@ -10,12 +10,15 @@ import { BRICK_ANIMS } from './anims/brick';
 import { reactions, BRICK_STANCE } from './anims/stances';
 import { VOLT_ANIMS } from './anims/volt';
 import { buildCharacter } from './characters';
-import { Clip, compose, EASE, type EaseName, type PoseDef } from './pose';
-import { JOINTS, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, type Rig } from './rig';
+import { Clip, compose, EASE, sampleDef, type EaseName, type PoseDef } from './pose';
+import { ANIM_SETS } from './animator';
+import { POSE_LEN, R_X, R_Y, type Rig } from './rig';
+import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
+import { HERZBRECHER, PALMEN_BASSDROP } from './cines';
 
-type V3 = [number, number, number];
-interface CamKey {
+export type V3 = [number, number, number];
+export interface CamKey {
   f: number;
   pos: V3;
   target: V3;
@@ -24,7 +27,7 @@ interface CamKey {
   cut?: boolean;
   e?: EaseName;
 }
-interface FxCtx {
+export interface FxCtx {
   view: GameView;
   audio: AudioEngine;
   s: GameState;
@@ -33,7 +36,7 @@ interface FxCtx {
   def: THREE.Vector3;
   facing: number;
 }
-interface ExtraActor {
+export interface ExtraActor {
   visual: string;
   /** keyed root position relative to attacker (x forward, y, z) */
   path: { f: number; p: V3; e?: EaseName }[];
@@ -42,13 +45,43 @@ interface ExtraActor {
   clip: Clip;
   visible: [number, number];
 }
-interface CineDef {
+/** Per-frame context for cinematic props. Local coordinates: x forward from the attacker. */
+export interface PropCtx {
+  view: GameView;
+  audio: AudioEngine;
+  facing: number;
+  /** Attacker world x (m). */
+  ax: number;
+  /** Sampled local root positions of attacker and victim (m). */
+  atkLocal: [number, number];
+  defLocal: [number, number];
+  /** World position from local (x forward, y, z). */
+  world(x: number, y: number, z: number): THREE.Vector3;
+  dt: number;
+  time: number;
+}
+export interface CineProps {
+  /** Placed at the attacker, mirrored by facing (author in local space). */
+  group: THREE.Group;
+  /** Real lights: added to the scene once at install (intensity 0 when idle) so shaders never recompile mid-match. */
+  lights?: THREE.Light[];
+  update(f: number, c: PropCtx): void;
+}
+export interface CineDef {
   frames: number;
+  /** Victim start distance (m), must match the sim's CinematicDef.startDx. */
+  startDx?: number;
   camera: CamKey[];
   atk: Clip;
-  def: Clip;
+  /** Victim clip; a builder gets the victim's own anim set (stance + pivot). */
+  def: Clip | ((set: AnimSet) => Clip);
   fx: { f: number; run: (c: FxCtx) => void }[];
   extras?: ExtraActor[];
+  props?: () => CineProps;
+  /** Attacker's gold teeth prop visible during these frame ranges. */
+  teeth?: [number, number][];
+  /** Arena darkening per frame (default 0.35). */
+  dim?: (f: number) => number;
 }
 
 const U = UNITS_PER_METER;
@@ -342,21 +375,9 @@ const SECURITY: CineDef = {
 export const CINEMATICS: Record<string, CineDef> = {
   volt_headliner: HEADLINER,
   brick_security: SECURITY,
+  jaz_heart: HERZBRECHER,
+  bon_palm: PALMEN_BASSDROP,
 };
-
-function sampleDef(clip: Clip, frame: number): PoseDef {
-  // Convert a sampled clip frame back to a PoseDef usable as a key (absolute joints).
-  const arr = clip.sample(frame, new Float32Array(POSE_LEN));
-  return arrToDef(arr);
-}
-
-function arrToDef(a: Float32Array): PoseDef {
-  const j: PoseDef['j'] = {};
-  JOINTS.forEach((name, i) => {
-    j![name] = [a[i * 3], a[i * 3 + 1], a[i * 3 + 2]];
-  });
-  return { j, x: a[R_X], y: a[R_Y], rot: a[R_ROT], yaw: a[R_YAW] };
-}
 
 // ------------------------------------------------------------- runtime
 
@@ -391,6 +412,11 @@ class CinematicRuntime {
   private lastFrame = -1;
   private extras: Rig[] = [];
   private tmp = new Float32Array(POSE_LEN);
+  private tmpA = new Float32Array(POSE_LEN);
+  private tmpD = new Float32Array(POSE_LEN);
+  private defClips = new Map<string, Clip>();
+  private props = new Map<string, CineProps>();
+  private lastT = 0;
 
   constructor(
     private view: GameView,
@@ -427,8 +453,35 @@ class CinematicRuntime {
     // poses
     const atkAnim = v.anims[owner];
     const defAnim = v.anims[1 - owner];
+    const defClip = this.defClipFor(s.cine.id, def, defAnim?.set);
     if (atkAnim) atkAnim.override = (_s, _i, out) => (def.atk.sample(f, out), true);
-    if (defAnim) defAnim.override = (_s, _i, out) => (def.def.sample(f, out), true);
+    if (defAnim) defAnim.override = (_s, _i, out) => (defClip.sample(f, out), true);
+    v.fx.teethOverride[owner] = def.teeth?.some(([a, b]) => f >= a && f <= b) ?? false;
+    v.dimOverride = def.dim ? def.dim(f) : null;
+
+    // props
+    if (def.props) {
+      const pr = this.propsFor(s.cine.id, def);
+      pr.group.visible = true;
+      pr.group.position.set(ax, 0, 0);
+      pr.group.scale.set(facing, 1, 1);
+      def.atk.sample(f, this.tmpA);
+      defClip.sample(f, this.tmpD);
+      const now = v.time;
+      const dt = Math.min(0.1, Math.max(0, now - this.lastT));
+      this.lastT = now;
+      pr.update(f, {
+        view: v,
+        audio: this.audio,
+        facing,
+        ax,
+        atkLocal: [this.tmpA[R_X], this.tmpA[R_Y]],
+        defLocal: [(def.startDx ?? 0.9) - this.tmpD[R_X], this.tmpD[R_Y]],
+        world: (x, y, z) => new THREE.Vector3(ax + facing * x, y, z),
+        dt,
+        time: now,
+      });
+    }
 
     // camera (relative to attacker: x forward)
     const shot = sampleCam(def.camera, f);
@@ -467,6 +520,33 @@ class CinematicRuntime {
     return true;
   }
 
+  propsFor(id: string, def: CineDef): CineProps {
+    let pr = this.props.get(id);
+    if (!pr) {
+      pr = def.props!();
+      this.props.set(id, pr);
+      pr.group.visible = false;
+      this.view.scene.add(pr.group);
+      for (const l of pr.lights ?? []) {
+        l.intensity = 0;
+        this.view.scene.add(l);
+        if (l instanceof THREE.SpotLight || l instanceof THREE.DirectionalLight) this.view.scene.add(l.target);
+      }
+    }
+    return pr;
+  }
+
+  private defClipFor(id: string, def: CineDef, set: AnimSet | undefined): Clip {
+    if (!(typeof def.def === 'function')) return def.def;
+    const key = `${id}|${set?.id ?? '?'}`;
+    let c = this.defClips.get(key);
+    if (!c) {
+      c = def.def(set ?? ANIM_SETS.jazeek);
+      this.defClips.set(key, c);
+    }
+    return c;
+  }
+
   private makeExtra(visual: string): Rig {
     const rig = buildCharacter(visual, 0);
     this.view.scene.add(rig.root);
@@ -484,10 +564,18 @@ class CinematicRuntime {
     this.active = null;
     for (const a of this.view.anims) a.override = null;
     for (const r of this.extras) r.root.visible = false;
+    for (const p of this.props.values()) {
+      p.group.visible = false;
+      for (const l of p.lights ?? []) l.intensity = 0;
+    }
+    this.view.fx.teethOverride = [false, false];
+    this.view.dimOverride = null;
   }
 }
 
 export function installCinematics(view: GameView, audio: AudioEngine): void {
   const rt = new CinematicRuntime(view, audio);
+  // build props (and their lights) up front: no hitch or shader recompile on the first signature
+  for (const [id, def] of Object.entries(CINEMATICS)) if (def.props) rt.propsFor(id, def);
   view.hooks.cinematic = (_v, s, _dt, alpha) => rt.update(s, alpha);
 }

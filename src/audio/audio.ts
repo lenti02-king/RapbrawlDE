@@ -418,6 +418,86 @@ export class AudioEngine {
     this.crowdSwell(0.5);
   }
 
+  /** Sung phrase: sawtooth through two vowel formants with vibrato. notes = semitones over base. */
+  sing(notes: number[], step = 0.16, base = 330): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t0 = this.now();
+    notes.forEach((n, i) => {
+      const t = t0 + i * step;
+      const f = base * Math.pow(2, n / 12);
+      const dur = step * (i === notes.length - 1 ? 3.2 : 1.15);
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f * 0.97, t);
+      o.frequency.exponentialRampToValueAtTime(f, t + 0.05);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 5.6;
+      const vg = ctx.createGain();
+      vg.gain.setValueAtTime(0, t);
+      vg.gain.linearRampToValueAtTime(f * 0.014, t + dur * 0.6);
+      vib.connect(vg).connect(o.frequency);
+      const g = ctx.createGain();
+      const peak = 0.55 * this.sfxVol;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(peak, t + 0.035);
+      g.gain.setValueAtTime(peak, t + dur * 0.65);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      for (const [ff, q] of [
+        [760, 5],
+        [1180, 7],
+        [2600, 9],
+      ]) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = ff;
+        bp.Q.value = q;
+        o.connect(bp).connect(g);
+      }
+      g.connect(this.sfx);
+      const v = ctx.createGain();
+      v.gain.value = 0.7;
+      g.connect(v).connect(this.verbSend);
+      o.start(t);
+      vib.start(t);
+      o.stop(t + dur + 0.05);
+      vib.stop(t + dur + 0.05);
+    });
+  }
+
+  chime(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.tone(t, 'sine', 1568, 1560, 0.14, 0.7, 0.8);
+    this.tone(t + 0.06, 'sine', 2349, 2340, 0.08, 0.6, 0.8);
+    this.tone(t + 0.12, 'triangle', 3136, 3130, 0.04, 0.5, 0.9);
+  }
+
+  /** Sub-bass drop with a short grit layer. */
+  bassDrop(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.tone(t, 'sine', 72, 30, 1.15, 1.0, 0.3);
+    this.tone(t, 'square', 55, 38, 0.12, 0.35);
+    this.noiseHit(t, 'lowpass', 260, 0.7, 0.7, 0.5, 0.5);
+    this.crowdSwell(0.3);
+  }
+
+  snap(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.noiseHit(t, 'highpass', 2800, 0.6, 0.6, 0.045);
+    this.tone(t, 'square', 320, 70, 0.18, 0.07);
+    this.tone(t, 'sine', 130, 45, 0.7, 0.18);
+  }
+
+  smoke(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.noiseHit(t, 'lowpass', 900, 0.5, 0.45, 0.7, 0.4);
+    this.noiseHit(t, 'bandpass', 2400, 1.2, 0.12, 0.4);
+  }
+
   ui(kind: 'click' | 'back'): void {
     if (!this.ctx) return;
     this.tone(this.now(), 'triangle', kind === 'click' ? 1200 : 700, kind === 'click' ? 1500 : 500, 0.06, 0.05);
@@ -441,7 +521,14 @@ export class AudioEngine {
     for (const e of ev) {
       switch (e.t) {
         case 'active':
-          this.whoosh(e.strength);
+          if (e.move === 'bon_croc') this.snap();
+          else this.whoosh(e.strength);
+          break;
+        case 'moveStart':
+          if (e.move === 'jaz_wave') this.sing([0, 4, 7], 0.07, 392);
+          else if (e.move === 'jaz_spot') this.chime();
+          else if (e.move === 'bon_smoke') this.smoke();
+          else if (e.move === 'jaz_heart') this.sing([7], 0.2, 392);
           break;
         case 'hit':
           this.hit(e.strength, e.counter);

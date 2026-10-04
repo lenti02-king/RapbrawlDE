@@ -795,7 +795,7 @@ export class App {
   }
 
   /** Debug: put a fighter into a move at its first active frame (for hitbox/pose checks). */
-  freezeMove(idx: number, key: string): number {
+  freezeMove(idx: number, key: string, frame?: number): number {
     const s = this.runner!.state;
     const f = s.fighters[idx];
     const o = s.fighters[1 - idx];
@@ -808,7 +808,7 @@ export class App {
     s.camX = 0;
     f.state = 'move';
     f.move = key;
-    f.mf = mv.hits[0]?.start ?? mv.projectile?.frame ?? 1;
+    f.mf = frame ?? mv.hits[0]?.start ?? mv.projectile?.frame ?? 1;
     f.hitMask = 0;
     f.hitstop = 0;
     f.crouching = !!mv.crouching;

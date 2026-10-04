@@ -75,6 +75,12 @@ export interface HumanoidSpec {
   thighR: [number, number];
   shinR: [number, number];
   foot: [number, number, number];
+  /** Stylized (chunky) look: no generic jaw block; faces/hair come from decorate(). */
+  stylized?: boolean;
+  /** Head sphere scale (x forward, y up, z side). */
+  headScale?: [number, number, number];
+  /** Fraction of the upper arm covered by the top's sleeve (0 = tank top, 1 = long). Default 1. */
+  sleeve?: number;
 }
 
 export class Rig {
@@ -84,7 +90,7 @@ export class Rig {
   private readonly inner = new THREE.Group();
   readonly pivotY: number;
   readonly joints = {} as Record<JointName, THREE.Object3D>;
-  readonly materials: THREE.MeshToonMaterial[] = [];
+  readonly materials: (THREE.MeshToonMaterial | THREE.MeshStandardMaterial)[] = [];
   readonly props: Record<string, THREE.Object3D> = {};
   private flashColor = new THREE.Color(1, 1, 1);
 
@@ -133,7 +139,7 @@ export class Rig {
         [-0.12, s.pelvisR * 0.8],
         [-0.06, s.pelvisR],
         [0.04, s.pelvisR * 0.95],
-        [0.1, s.waistR * 0.9],
+        s.stylized ? [0.07, s.waistR * 0.8] : [0.1, s.waistR * 0.9],
       ]),
       pants,
       { scale: [s.depth, 1, 1] },
@@ -167,20 +173,30 @@ export class Rig {
     const neck = this.joint('neck', chest, [0, s.torsoHigh, 0]);
     addPart(neck, taperedCapsule(s.neckLen, s.headR * 0.42, s.headR * 0.45), skin, { pos: [0, s.neckLen, 0] });
     const head = this.joint('head', neck, [0.01, s.neckLen, 0]);
-    addPart(head, new THREE.SphereGeometry(s.headR, 20, 16), skin, {
+    addPart(head, new THREE.SphereGeometry(s.headR, 28, 20), skin, {
       pos: [0.01, s.headR * 0.95, 0],
-      scale: [1.0, 1.12, 0.9],
+      scale: s.headScale ?? [1.0, 1.12, 0.9],
     });
-    // simple nose/jaw volume for silhouette readability
-    addPart(head, new RoundedBoxGeometry(s.headR * 0.9, s.headR * 0.6, s.headR * 1.3, 2, s.headR * 0.25), skin, {
-      pos: [s.headR * 0.32, s.headR * 0.42, 0],
-    });
+    if (!s.stylized) {
+      // simple nose/jaw volume for silhouette readability
+      addPart(head, new RoundedBoxGeometry(s.headR * 0.9, s.headR * 0.6, s.headR * 1.3, 2, s.headR * 0.25), skin, {
+        pos: [s.headR * 0.32, s.headR * 0.42, 0],
+      });
+    }
 
     for (const side of ['L', 'R'] as const) {
       const z = side === 'L' ? -1 : 1;
       const sh = this.joint(`sh${side}`, chest, [0, s.torsoHigh - 0.05, z * s.shoulderHalf]);
-      addPart(sh, new THREE.SphereGeometry(s.armR[0] * 1.15, 14, 10), top);
-      addPart(sh, taperedCapsule(s.upperArm, s.armR[0], s.armR[1]), top);
+      const sleeve = s.sleeve ?? 1;
+      if (sleeve >= 1) {
+        addPart(sh, new THREE.SphereGeometry(s.armR[0] * 1.15, 14, 10), top);
+        addPart(sh, taperedCapsule(s.upperArm, s.armR[0], s.armR[1]), top);
+      } else {
+        addPart(sh, new THREE.SphereGeometry(s.armR[0] * 1.08, 16, 12), sleeve > 0 ? top : skin);
+        addPart(sh, taperedCapsule(s.upperArm, s.armR[0], s.armR[1], 16), skin);
+        if (sleeve > 0)
+          addPart(sh, taperedCapsule(s.upperArm * sleeve, s.armR[0] * 1.12, s.armR[0] * 1.08 - (s.armR[0] - s.armR[1]) * sleeve, 16), top);
+      }
       const el = this.joint(`el${side}`, sh, [0, -s.upperArm, 0]);
       addPart(el, taperedCapsule(s.foreArm, s.foreR[0], s.foreR[1]), skin);
       const ha = this.joint(`ha${side}`, el, [0, -s.foreArm, 0]);
@@ -207,7 +223,7 @@ export class Rig {
    * outline mesh, bound to the joint hierarchy. Cuts ~80 draw calls per fighter to 2.
    * Props (e.g. the mic) stay separate so they can be shown/hidden.
    */
-  bake(): void {
+  bake(opts: { soft?: boolean; outline?: boolean } = {}): void {
     this.root.updateMatrixWorld(true);
     const invInner = this.inner.matrixWorld.clone().invert();
     const boneIndex = new Map<THREE.Object3D, number>(JOINTS.map((n, i) => [this.joints[n], i]));
@@ -251,19 +267,20 @@ export class Rig {
     const merged = mergeGeometries(geos);
     for (const g of geos) g.dispose();
     for (const m of remove) m.parent?.remove(m);
-    const bodyMat = toonMat(0xffffff);
+    const bodyMat = opts.soft
+      ? new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.58, metalness: 0.04 })
+      : toonMat(0xffffff);
     bodyMat.vertexColors = true;
     this.materials.push(bodyMat);
     const skeleton = new THREE.Skeleton(JOINTS.map((n) => this.joints[n] as THREE.Bone));
-    const mesh = new THREE.SkinnedMesh(merged, bodyMat);
-    const outline = new THREE.SkinnedMesh(merged, skinnedOutlineMat());
-    for (const sm of [mesh, outline]) {
+    const meshes: THREE.SkinnedMesh<THREE.BufferGeometry, THREE.Material>[] = [new THREE.SkinnedMesh(merged, bodyMat)];
+    if (opts.outline !== false) meshes.push(new THREE.SkinnedMesh(merged, skinnedOutlineMat()));
+    for (const sm of meshes) {
       sm.frustumCulled = false;
       this.inner.add(sm);
     }
     this.root.updateMatrixWorld(true);
-    mesh.bind(skeleton);
-    outline.bind(skeleton);
+    for (const sm of meshes) sm.bind(skeleton);
   }
 
   /** Apply a flat pose array. */

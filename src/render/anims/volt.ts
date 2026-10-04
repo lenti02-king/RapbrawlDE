@@ -225,6 +225,7 @@ const walkB = compose(S, { j: { thL: [6, 20, 8], knL: [0, 0, -40], thR: [-8, 18,
 
 export const VOLT_ANIMS: AnimSet = {
   id: 'volt',
+  pivot: 0.92,
   stance: S,
   r,
   walkF: [walkA, walkB],

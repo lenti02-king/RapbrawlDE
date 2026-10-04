@@ -105,3 +105,13 @@ export function jointRot(p: Float32Array, j: JointName): JointRot {
 }
 
 export { JOINTS };
+
+/** Sample a clip frame back into an absolute PoseDef (usable as a key in another clip). */
+export function sampleDef(clip: Clip, frame: number): PoseDef {
+  const a = clip.sample(frame, new Float32Array(POSE_LEN));
+  const j: PoseDef['j'] = {};
+  JOINTS.forEach((name, i) => {
+    j![name] = [a[i * 3], a[i * 3 + 1], a[i * 3 + 2]];
+  });
+  return { j, x: a[R_X], y: a[R_Y], rot: a[R_ROT], yaw: a[R_YAW] };
+}

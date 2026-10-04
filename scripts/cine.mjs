@@ -1,5 +1,5 @@
 // Frame-accurate capture of a signature cinematic: pauses the sim and steps to chosen
-// cinematic frames. Usage: node scripts/cine.mjs volt|brick
+// cinematic frames. Usage: node scripts/cine.mjs jazeek|bonez|volt|brick
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -11,10 +11,10 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-const quick = who === 'brick' ? 'volt,brick' : 'volt,brick';
+const quick = who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez';
 await page.goto(`${base}/?quick=${quick}&mode=cpu`);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
-const idx = who === 'brick' ? 1 : 0;
+const idx = who === 'brick' || who === 'bonez' ? 1 : 0;
 await page.evaluate((idx) => {
   const r = window.__rb.runner;
   r.paused = true;
@@ -25,8 +25,9 @@ await page.evaluate((idx) => {
   s.fighters[1].x = 6000;
   s.fighters[idx].meter = 300;
   const src = r.sources[idx];
-  let once = true;
-  src.poll = () => (once ? ((once = false), window.__rb.IN.S3) : 0);
+  // tap the signature button (every other frame) until the super flash starts
+  let n = 0;
+  src.poll = () => (r.state.freeze > 0 || r.state.cine || n > 120 ? 0 : n++ % 2 === 0 ? window.__rb.IN.S3 : 0);
 }, idx);
 const stepUntil = async (pred, max = 400, arg = null) => {
   for (let i = 0; i < max; i++) {
@@ -38,7 +39,8 @@ const stepUntil = async (pred, max = 400, arg = null) => {
 };
 const files = [];
 const snap = async (name) => {
-  await page.waitForTimeout(450); // let the render loop blend poses/camera
+  // let the render loop blend poses/camera/dim: wait for a number of rendered frames (SwiftShader is slow)
+  await page.evaluate(() => new Promise((res) => { let n = 0; const f = () => (++n >= 10 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }));
   const f = `${out}/${name}.png`;
   await page.screenshot({ path: f });
   files.push(f);
@@ -47,7 +49,13 @@ await stepUntil(() => window.__rb.runner.state.freeze > 20);
 await snap('00_flash');
 const ok = await stepUntil(() => !!window.__rb.runner.state.cine);
 console.log('cinematic started:', ok);
-const frames = who === 'brick' ? [10, 30, 46, 56, 90, 118, 124, 134, 160] : [6, 18, 34, 48, 72, 96, 112, 118, 150];
+const FRAMES = {
+  brick: [10, 30, 46, 56, 90, 118, 124, 134, 160],
+  volt: [6, 18, 34, 48, 72, 96, 112, 118, 150],
+  jazeek: [8, 20, 34, 52, 60, 70, 86, 97, 110, 121, 128, 146],
+  bonez: [10, 24, 32, 52, 70, 76, 92, 108, 116, 119, 126, 150],
+};
+const frames = (process.argv[3] ? process.argv[3].split(',').map(Number) : null) ?? FRAMES[who];
 for (const f of frames) {
   await stepUntil((f) => (window.__rb.runner.state.cine?.frame ?? 999) >= f, 300, f);
   await snap(String(f).padStart(3, '0'));

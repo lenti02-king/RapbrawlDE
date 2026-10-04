@@ -7,10 +7,20 @@ import type { FighterState, GameState } from '../core/state';
 import { BRICK_ANIMS } from './anims/brick';
 import type { AnimSet } from './anims/types';
 import { VOLT_ANIMS } from './anims/volt';
+import { JAZEEK_ANIMS } from './anims/jazeek';
+import { BONEZ_ANIMS } from './anims/bonez';
 import { lerpPose, toArr } from './pose';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX } from './rig';
 
-export const ANIM_SETS: Record<string, AnimSet> = { volt: VOLT_ANIMS, brick: BRICK_ANIMS };
+export const ANIM_SETS: Record<string, AnimSet> = { volt: VOLT_ANIMS, brick: BRICK_ANIMS, jazeek: JAZEEK_ANIMS, bonez: BONEZ_ANIMS };
+
+const DEG = Math.PI / 180;
+/** Poses borrowed from another fighter's set (throws, cinematics) assume that fighter's hip
+ *  height; correct lying/flying poses for this rig's own pivot. */
+export function fixPivot(out: Float32Array, authoredPivot: number | undefined, ownPivot: number | undefined): void {
+  if (authoredPivot === undefined || ownPivot === undefined) return;
+  out[R_Y] += (authoredPivot - ownPivot) * Math.abs(Math.sin(out[R_ROT] * DEG));
+}
 
 type Cached = Record<string, Float32Array>;
 const cache = new Map<AnimSet, Cached>();
@@ -44,6 +54,8 @@ export class FighterAnimator {
   vx = 0;
   vy = 0;
   override: PoseOverride | null = null;
+  /** Music beat pulse 0..1, set by the view each frame. */
+  beat = 0;
 
   constructor(
     readonly set: AnimSet,
@@ -79,6 +91,12 @@ export class FighterAnimator {
           out[JOINT_INDEX.shL * 3 + 2] += br * 2;
           out[JOINT_INDEX.shR * 3 + 2] -= br * 1.5;
           out[R_Y] += br * 0.008;
+          if (this.set.idleBounce) {
+            out[R_Y] -= this.beat * this.set.idleBounce;
+            out[JOINT_INDEX.knL * 3 + 2] -= this.beat * 6;
+            out[JOINT_INDEX.knR * 3 + 2] -= this.beat * 6;
+            out[JOINT_INDEX.head * 3 + 2] += this.beat * 3;
+          }
           break;
         }
         case 'walkF':
@@ -179,8 +197,10 @@ export class FighterAnimator {
           const anim = throwAnim(o);
           const atkSet = ANIM_SETS[o.def];
           const clip = anim ? atkSet.throwDef[anim] : undefined;
-          if (clip) clip.sample(o.throwFrame + alpha, out);
-          else out.set(P.hitGut);
+          if (clip) {
+            clip.sample(o.throwFrame + alpha, out);
+            fixPivot(out, atkSet.pivot, this.set.pivot);
+          } else out.set(P.hitGut);
           rate = 0.6;
           break;
         }

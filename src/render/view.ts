@@ -7,9 +7,11 @@ import { activeHitboxes, hurtboxes, projectileBox } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ANIM_SETS, FighterAnimator } from './animator';
 import { Arena } from './arena';
+import { HinterhofArena, type ArenaLike } from './arenas/hinterhof';
 import { CameraDirector } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
 import type { Rig } from './rig';
+import { SpecialFX } from './specials';
 import { addPart } from './toon';
 import { VFX } from './vfx';
 
@@ -27,9 +29,10 @@ export interface ViewHooks {
 export class GameView {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly arena: Arena;
+  readonly arena: ArenaLike;
   readonly director = new CameraDirector();
   readonly vfx = new VFX();
+  readonly fx = new SpecialFX(this.vfx);
   rigs: Rig[] = [];
   anims: FighterAnimator[] = [];
   private shadows: THREE.Mesh[] = [];
@@ -46,16 +49,19 @@ export class GameView {
   /** Exposed for UI: screen-space flash request (0..1). */
   screenFlash = 0;
   private matchKey = '';
+  /** Cinematics may request a custom darkening level (0..1). */
+  dimOverride: number | null = null;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, arenaId = 'hinterhof') {
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.arena = new Arena(this.scene);
+    this.arena = arenaId === 'club' ? new Arena(this.scene) : new HinterhofArena(this.scene);
     this.scene.add(this.vfx.group);
+    this.scene.add(this.fx.group);
     this.vfx.setCamera(this.director.cam);
     this.scene.add(this.debugGroup);
     this.resize();
@@ -105,6 +111,7 @@ export class GameView {
   }
 
   handleEvents(s: GameState, events: readonly SimEvent[]): void {
+    this.fx.onEvents(s, events);
     for (const e of events) {
       switch (e.t) {
         case 'hit': {
@@ -265,6 +272,7 @@ export class GameView {
       const anim = this.anims[i];
       const rig = this.rigs[i];
       if (!anim || !rig) continue;
+      anim.beat = beat;
       const pose = anim.update(s, dt, this.time, alpha);
       rig.apply(pose, f.facing);
       let sx = 0;
@@ -280,10 +288,11 @@ export class GameView {
       if (rig.props.mic) rig.props.mic.visible = !s.projectiles.some((p) => p.owner === i && p.kind === 'mic');
     }
 
+    this.fx.update(s, dt * slow, this.time, this.anims, this.rigs);
     this.updateProjectiles(s, dt);
 
     // super flash darkening
-    const wantDim = s.freeze > 0 ? 0.9 : s.cine ? 0.35 : 0;
+    const wantDim = s.freeze > 0 ? 0.9 : s.cine ? (this.dimOverride ?? 0.35) : 0;
     this.dim += (wantDim - this.dim) * (1 - Math.exp(-dt * 10));
     this.arena.setDim(this.dim);
     this.arena.setHype(Math.max(s.fighters[0].meter, s.fighters[1].meter) / 300);
@@ -304,10 +313,11 @@ export class GameView {
       alive.add(p.id);
       let m = this.projMeshes.get(p.id);
       if (!m) {
-        m = makeProjectile(p.kind);
+        m = this.fx.makeProjectile(p.kind) ?? makeProjectile(p.kind);
         this.projMeshes.set(p.id, m);
         this.scene.add(m);
       }
+      if (this.fx.updateProjectile(m, p, s, this.time)) continue;
       m.position.set(p.x / U, p.y / U, 0.1);
       m.scale.x = p.dir;
       if (p.kind === 'mic') {

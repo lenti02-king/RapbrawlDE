@@ -199,6 +199,7 @@ const walkB = compose(S, { j: { thL: [10, 16, 6], knL: [0, 0, -36], thR: [-10, 1
 
 export const BRICK_ANIMS: AnimSet = {
   id: 'brick',
+  pivot: 0.98,
   stance: S,
   r,
   walkF: [walkA, walkB],

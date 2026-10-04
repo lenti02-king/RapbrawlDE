@@ -3,6 +3,10 @@ import type { Reactions } from './stances';
 
 export interface AnimSet {
   id: string;
+  /** Hip pivot height (m) of the rig these poses were authored for. */
+  pivot?: number;
+  /** Idle bounce amplitude synced to the music beat (m). */
+  idleBounce?: number;
   stance: PoseDef;
   r: Reactions;
   walkF: [PoseDef, PoseDef];
