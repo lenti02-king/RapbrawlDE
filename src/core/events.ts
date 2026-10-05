@@ -20,6 +20,8 @@ export type SimEvent =
       counter: boolean;
       launch: boolean;
       projectile: boolean;
+      /** Beat-Drop: landed on the music's beat (bonus damage + double hype). */
+      beat: boolean;
     }
   | { t: 'block'; a: number; d: number; x: number; y: number; strength: Strength; projectile: boolean }
   | { t: 'perfectBlock'; a: number; d: number; x: number; y: number }
@@ -48,4 +50,11 @@ export type SimEvent =
   | { t: 'ko'; loser: number }
   | { t: 'timeover' }
   | { t: 'roundOver'; winner: number }
-  | { t: 'matchOver'; winner: number };
+  | { t: 'matchOver'; winner: number }
+  | { t: 'wallSplat'; p: number; x: number; y: number; side: number; ko: boolean }
+  | { t: 'duelStart'; x: number }
+  | { t: 'duelTap'; p: number; taps: number }
+  | { t: 'duelEnd'; winner: number; x: number; damage: number }
+  | { t: 'finishHim'; winner: number }
+  | { t: 'fatality'; owner: number; fighter: string }
+  | { t: 'fatalityEnd'; owner: number };

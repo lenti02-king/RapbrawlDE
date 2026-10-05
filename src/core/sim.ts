@@ -58,7 +58,29 @@ export const RULES = {
   /** Frames after a perfect block in which the defender's hits count as counter hits. */
   PB_PUNISH: 26,
   TRAINING_REFILL_DELAY: 50,
+  /** Beat-Drop: the music runs at 90 BPM = one beat every 40 sim frames; hits within the window are "on the beat". */
+  BEAT_FRAMES: 40,
+  BEAT_WINDOW: 4,
+  BEAT_DAMAGE_PCT: 115,
+  /** Mic-Duell: a heavy trade turns into a tap duel of this many frames; the winner sends the loser flying. */
+  DUEL_FRAMES: 150,
+  DUEL_COOLDOWN: 900,
+  DUEL_DAMAGE: 90,
+  DUEL_METER: 40,
+  /** Wand-Splat: frames stuck on the wall, minimum speed into the wall, knockback of strong knockdown hits. */
+  SPLAT_STUN: 42,
+  SPLAT_SPEED: 100,
+  STRONG_KNOCKBACK: 260,
+  /** Finish phase (match point): window to start the fatality, fatality length. */
+  FINISH_WINDOW: 210,
+  FATALITY_FRAMES: 300,
 } as const;
+
+/** Frames to the nearest beat (Beat-Drop); beats are counted on the absolute sim frame. */
+export function beatDistance(frame: number): number {
+  const ph = frame % RULES.BEAT_FRAMES;
+  return Math.min(ph, RULES.BEAT_FRAMES - ph);
+}
 
 export const ROUND_SECONDS = 99;
 
@@ -98,6 +120,10 @@ export function createMatch(config: MatchConfig): GameState {
     rng: config.seed >>> 0 || 1,
     roundWinner: -1,
     matchWinner: -1,
+    duel: null,
+    duelCd: 0,
+    fatal: null,
+    fatality: false,
     config,
   };
   resetRound(s);
@@ -118,6 +144,9 @@ function resetRound(s: GameState): void {
   s.slowmo = 0;
   s.camX = 0;
   s.roundWinner = -1;
+  s.duel = null;
+  s.duelCd = 0;
+  s.fatal = null;
   for (const f of s.fighters) {
     const def = getFighter(f.def);
     const keep = { meter: f.meter, roundsWon: f.roundsWon, input: f.input, prevInput: f.prevInput };
@@ -146,6 +175,9 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
       break;
     case 'ko':
       stepKO(s, ev);
+      break;
+    case 'finish':
+      stepFinish(s, ev);
       break;
     case 'roundOver':
       stepRoundOver(s, ev);
@@ -188,12 +220,19 @@ function stepFight(s: GameState, ev: SimEvent[]): void {
     if (!s.cine) checkKO(s, ev);
     return;
   }
+  if (s.duel) {
+    stepDuel(s, ev);
+    if (!s.duel) checkKO(s, ev);
+    return;
+  }
+  if (s.duelCd > 0) s.duelCd--;
   const fs = s.fighters;
   const frozen = [fs[0].hitstop > 0, fs[1].hitstop > 0];
   for (let i = 0; i < 2; i++) if (!frozen[i]) timers(s, fs[i], fs[1 - i], ev);
   for (let i = 0; i < 2; i++) if (!frozen[i]) think(s, fs[i], fs[1 - i], ev);
   for (let i = 0; i < 2; i++) if (!frozen[i]) physics(s, fs[i], ev);
   resolvePush(s);
+  wallSplats(s, ev);
   updateProjectiles(s, ev);
   collide(s, ev, frozen);
   for (let i = 0; i < 2; i++) {
@@ -204,7 +243,7 @@ function stepFight(s: GameState, ev: SimEvent[]): void {
   updateCamera(s);
   if (s.config.training) trainingRefill(s);
   checkKO(s, ev);
-  if (s.phase === 'fight' && !s.config.training && !s.cine && s.freeze === 0) {
+  if (s.phase === 'fight' && !s.config.training && !s.cine && !s.duel && s.freeze === 0) {
     s.timer--;
     if (s.timer <= 0) timeOver(s, ev);
   }
@@ -233,13 +272,75 @@ function stepKO(s: GameState, ev: SimEvent[]): void {
       physics(s, f, ev);
     }
     resolvePush(s);
+    wallSplats(s, ev);
     updateCamera(s);
   }
   if (s.phaseFrame >= RULES.KO_PHASE) {
-    s.phase = 'roundOver';
-    s.phaseFrame = 0;
-    for (const f of s.fighters) if (f.state !== 'ko') setState(f, 'win');
-    ev.push({ t: 'roundOver', winner: s.roundWinner });
+    const w = s.roundWinner;
+    const loser = w === 0 || w === 1 ? s.fighters[1 - w] : null;
+    // match point: the beaten fighter staggers up and the winner may finish them (fatality)
+    if (loser && s.fighters[w].roundsWon >= s.config.roundsToWin && loser.health <= 0 && !s.config.training) {
+      s.phase = 'finish';
+      s.phaseFrame = 0;
+      setState(loser, 'dizzy');
+      Object.assign(loser, { y: 0, vx: 0, vy: 0, push: 0, hitstop: 0 });
+      setState(s.fighters[w], 'idle');
+      s.fighters[w].hitstop = 0;
+      for (const f of s.fighters) f.buf.fill(0);
+      ev.push({ t: 'finishHim', winner: w });
+      return;
+    }
+    endRound(s, ev);
+  }
+}
+
+function endRound(s: GameState, ev: SimEvent[]): void {
+  s.phase = 'roundOver';
+  s.phaseFrame = 0;
+  for (const f of s.fighters) if (f.state !== 'ko') setState(f, 'win');
+  ev.push({ t: 'roundOver', winner: s.roundWinner });
+}
+
+/** Finish phase: the winner presses SIGNATURE (or any card button) to start the fatality. */
+function stepFinish(s: GameState, ev: SimEvent[]): void {
+  s.phaseFrame++;
+  const w = s.fighters[s.roundWinner];
+  const l = s.fighters[1 - s.roundWinner];
+  w.sf++;
+  l.sf++;
+  if (s.fatal) {
+    s.fatal.frame++;
+    if (s.fatal.frame >= RULES.FATALITY_FRAMES) {
+      s.fatal = null;
+      s.fatality = true;
+      setState(l, 'ko');
+      l.y = 0;
+      ev.push({ t: 'fatalityEnd', owner: w.idx });
+      endRound(s, ev);
+    }
+    return;
+  }
+  const press = (w.buf[B_S1] | w.buf[B_S1 + 1] | w.buf[B_S1 + 2]) > 0;
+  for (const f of s.fighters) tickBuffers(f);
+  if (press && s.phaseFrame > 20) {
+    s.fatal = { owner: w.idx, frame: 0 };
+    setState(w, 'cineAtk');
+    setState(l, 'cineDef');
+    // stage the finisher in the middle of the screen, close range
+    const room = m(2.2);
+    w.x = clamp(w.x, -RULES.STAGE_HALF + room, RULES.STAGE_HALF - room);
+    w.facing = l.x >= w.x ? 1 : -1;
+    l.x = w.x + w.facing * m(1.1);
+    l.facing = -w.facing;
+    updateCamera(s);
+    ev.push({ t: 'fatality', owner: w.idx, fighter: w.def });
+    return;
+  }
+  if (s.phaseFrame >= RULES.FINISH_WINDOW) {
+    // no finisher: the beaten fighter collapses
+    setState(l, 'ko');
+    ev.push({ t: 'knockdown', p: l.idx, x: l.x });
+    endRound(s, ev);
   }
 }
 
@@ -360,7 +461,7 @@ const NEUTRAL_STATES: ReadonlySet<FighterStateName> = new Set([
 ]);
 export const isNeutral = (st: FighterStateName): boolean => NEUTRAL_STATES.has(st);
 
-const AIR_STATES: ReadonlySet<FighterStateName> = new Set(['air', 'juggle', 'airReset']);
+const AIR_STATES: ReadonlySet<FighterStateName> = new Set(['air', 'juggle', 'airReset', 'wallSplat']);
 
 function isAirborne(f: FighterState): boolean {
   return f.y > 0 || f.vy > 0 || AIR_STATES.has(f.state);
@@ -444,11 +545,22 @@ function timers(s: GameState, f: FighterState, o: FighterState, ev: SimEvent[]):
         f.combo = 0;
         f.comboDamage = 0;
         f.juggle = 0;
+        f.splatUsed = false;
         ev.push({ t: 'wakeup', p: f.idx });
       }
       return;
     case 'wakeup':
       if (--f.timer <= 0) toNeutral(f);
+      return;
+    case 'wallSplat':
+      // peel off the wall and drop (lands in a knockdown)
+      if (--f.timer <= 0) {
+        const side = f.x > 0 ? 1 : -1;
+        setState(f, 'juggle');
+        f.vx = -side * 90;
+        f.vy = 0;
+        f.y = Math.max(f.y, 1);
+      }
       return;
     case 'jumpSquat':
       if (--f.timer <= 0) {
@@ -726,7 +838,12 @@ function physics(s: GameState, f: FighterState, ev: SimEvent[]): void {
     case 'thrown':
     case 'cineAtk':
     case 'cineDef':
+    case 'clash':
+    case 'wallSplat':
       return;
+    case 'dizzy':
+      f.vx = 0;
+      break;
     default:
       break;
   }
@@ -784,7 +901,7 @@ function land(_s: GameState, f: FighterState, ev: SimEvent[]): void {
 }
 
 function solid(f: FighterState): boolean {
-  if (f.state === 'thrown' || f.state === 'cineDef' || f.state === 'cineAtk') return false;
+  if (f.state === 'thrown' || f.state === 'cineDef' || f.state === 'cineAtk' || f.state === 'clash') return false;
   if (f.state === 'move') {
     const pt = getMove(f.def, f.move!).passThrough;
     if (pt && f.mf >= pt[0] && f.mf <= pt[1]) return false;
@@ -935,6 +1052,8 @@ export function hurtboxes(f: FighterState): WBox[] {
     case 'ko':
     case 'intro':
     case 'win':
+    case 'clash':
+    case 'dizzy':
       return [];
     case 'air':
     case 'juggle':
@@ -1027,6 +1146,11 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
       return;
     }
     if (ta !== tb) hits = hits.filter((c) => !c.hit.throw); // strike beats throw
+    else if (canDuel(s, hits)) {
+      for (const c of hits) c.atk.hitMask |= 1 << c.k;
+      startDuel(s, ev);
+      return;
+    }
   }
   for (const c of hits) {
     c.atk.hitMask |= 1 << c.k;
@@ -1106,8 +1230,11 @@ function isInvulnerable(d: FighterState, h: HitDef): boolean {
     case 'airReset':
     case 'intro':
     case 'win':
+    case 'clash':
+    case 'dizzy':
       return true;
     case 'juggle':
+    case 'wallSplat':
       return d.juggle >= RULES.JUGGLE_LIMIT;
     case 'dashB':
       return !h.throw && d.sf <= getFighter(d.def).dashB.invuln;
@@ -1247,11 +1374,12 @@ function applyHit(
   }
 
   // Hit
-  const inCombo = def.state === 'hitstun' || def.state === 'juggle' || def.state === 'countered';
+  const inCombo = def.state === 'hitstun' || def.state === 'juggle' || def.state === 'countered' || def.state === 'wallSplat';
   if (!inCombo) {
     def.combo = 0;
     def.comboDamage = 0;
     def.juggle = 0;
+    def.splatUsed = false;
   }
   // punish after a perfect block counts as a counter hit too
   const punish = !proj && atk.pbPunish > 0;
@@ -1260,10 +1388,13 @@ function applyHit(
   def.combo++;
   let dmg = idiv(h.damage * comboScale(def.combo), 100);
   if (counterHit && (def.state === 'move' || punish)) dmg = idiv(dmg * RULES.COUNTER_HIT_DAMAGE_PCT, 100);
+  // Beat-Drop: strikes landing on the beat hit harder and build double hype
+  const onBeat = beatDistance(s.frame) <= RULES.BEAT_WINDOW;
+  if (onBeat) dmg = idiv(dmg * RULES.BEAT_DAMAGE_PCT, 100);
   dmg = Math.max(1, dmg);
   def.health = Math.max(s.config.training ? 1 : 0, def.health - dmg);
   def.comboDamage += dmg;
-  addMeter(s, atk, h.meterOnHit);
+  addMeter(s, atk, onBeat ? h.meterOnHit * 2 : h.meterOnHit);
   addMeter(s, def, idiv(dmg, 5));
   if (!proj) atk.connected = 'hit';
   const airborne = def.y > 0 || AIR_STATES.has(def.state);
@@ -1283,6 +1414,7 @@ function applyHit(
     counter: counterHit && (def.state === 'move' || punish),
     launch: !!h.launch,
     projectile: !!proj,
+    beat: onBeat,
   });
 
   if (h.cinematic && !proj) {
@@ -1308,7 +1440,8 @@ function applyHit(
   } else if (h.knockdown) {
     setState(def, 'juggle');
     def.juggle = RULES.JUGGLE_LIMIT;
-    def.vx = pushDir * 140;
+    // strong finishers blast the opponent away (into the wall when cornered: Wand-Splat)
+    def.vx = pushDir * (h.strength >= 3 ? RULES.STRONG_KNOCKBACK : 140);
     def.vy = 420;
     def.y = 1;
   } else {
@@ -1442,6 +1575,112 @@ function stepCinematic(s: GameState, ev: SimEvent[]): void {
     ev.push({ t: 'cineEnd', id: c.id });
     updateCamera(s);
     resolvePush(s);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Mic-Duell (tap duel after a heavy trade)
+// ---------------------------------------------------------------------------
+
+function canDuel(s: GameState, hits: HitCandidate[]): boolean {
+  if (s.duelCd > 0 || s.cine || hits.length !== 2) return false;
+  if (hits.some((c) => c.hit.cinematic || c.hit.throw || c.hit.grabLike || c.atk.y > 0 || c.def.y > 0)) return false;
+  // a trade involving at least one heavy-class hit (jab trades stay normal trades)
+  return hits.some((c) => c.hit.strength >= 2);
+}
+
+function startDuel(s: GameState, ev: SimEvent[]): void {
+  const [a, b] = s.fighters;
+  const mid = idiv(a.x + b.x, 2);
+  const side = a.x <= b.x ? 1 : -1;
+  const lim = RULES.STAGE_HALF - m(1.2);
+  const cx = clamp(mid, -lim, lim);
+  for (const f of s.fighters) {
+    setState(f, 'clash');
+    Object.assign(f, { vx: 0, vy: 0, y: 0, push: 0, hitstop: 0, pendingFollowup: null, combo: 0, comboDamage: 0, juggle: 0 });
+    f.buf.fill(0);
+  }
+  a.x = cx - side * m(0.65);
+  b.x = cx + side * m(0.65);
+  a.facing = side;
+  b.facing = -side;
+  s.projectiles = [];
+  s.duel = { frame: 0, taps: [0, 0], x: cx };
+  ev.push({ t: 'duelStart', x: cx });
+}
+
+const TAP_BITS = IN.LIGHT | IN.HEAVY | IN.GRAB | IN.BLOCK | IN.S1 | IN.S2 | IN.S3;
+
+function stepDuel(s: GameState, ev: SimEvent[]): void {
+  const d = s.duel!;
+  d.frame++;
+  for (const f of s.fighters) {
+    f.sf++;
+    if ((f.input & ~f.prevInput & TAP_BITS) !== 0) {
+      d.taps[f.idx]++;
+      ev.push({ t: 'duelTap', p: f.idx, taps: d.taps[f.idx] });
+    }
+  }
+  if (d.frame < RULES.DUEL_FRAMES) return;
+  const [ta, tb] = d.taps;
+  const winner = ta > tb ? 0 : tb > ta ? 1 : -1;
+  s.duel = null;
+  s.duelCd = RULES.DUEL_COOLDOWN;
+  for (const f of s.fighters) f.buf.fill(0);
+  if (winner < 0) {
+    // stalemate: both bounce apart
+    for (const f of s.fighters) {
+      setState(f, 'blockstun', 16);
+      f.push = -f.facing * 700;
+    }
+    ev.push({ t: 'duelEnd', winner: -1, x: d.x, damage: 0 });
+    return;
+  }
+  const w = s.fighters[winner as 0 | 1];
+  const l = s.fighters[(1 - winner) as 0 | 1];
+  const dmg = RULES.DUEL_DAMAGE;
+  l.health = Math.max(s.config.training ? 1 : 0, l.health - dmg);
+  l.combo = 1;
+  l.comboDamage = dmg;
+  setState(l, 'juggle');
+  l.juggle = RULES.JUGGLE_LIMIT;
+  l.vx = w.facing * 520;
+  l.vy = 900;
+  l.y = 1;
+  setState(w, 'land', 12);
+  addMeter(s, w, RULES.DUEL_METER);
+  ev.push({ t: 'duelEnd', winner, x: d.x, damage: dmg });
+}
+
+// ---------------------------------------------------------------------------
+// Wand-Splat
+// ---------------------------------------------------------------------------
+
+function wallSplats(s: GameState, ev: SimEvent[]): void {
+  for (const f of s.fighters) {
+    if (f.splatUsed || f.y <= 0) continue;
+    if (f.state !== 'juggle' && f.state !== 'ko') continue;
+    const half = getFighter(f.def).pushHalf;
+    const side = f.vx > 0 ? 1 : f.vx < 0 ? -1 : 0;
+    if (side === 0 || iabs(f.vx) < RULES.SPLAT_SPEED) continue;
+    const atWall = side > 0 ? f.x >= RULES.STAGE_HALF - half : f.x <= -RULES.STAGE_HALF + half;
+    if (!atWall) continue;
+    f.splatUsed = true;
+    if (f.state === 'ko') {
+      // KO into the wall: the finisher bounces off it
+      f.vx = -side * 80;
+      f.vy = Math.max(f.vy, 300);
+      ev.push({ t: 'wallSplat', p: f.idx, x: f.x, y: f.y, side, ko: true });
+      continue;
+    }
+    setState(f, 'wallSplat', RULES.SPLAT_STUN);
+    f.vx = 0;
+    f.vy = 0;
+    f.y = Math.max(f.y, m(0.35));
+    // the wall gives a little room to keep the combo going
+    f.juggle = Math.min(f.juggle, RULES.JUGGLE_LIMIT - 2);
+    f.facing = -side;
+    ev.push({ t: 'wallSplat', p: f.idx, x: f.x, y: f.y, side, ko: false });
   }
 }
 

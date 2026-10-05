@@ -30,7 +30,13 @@ export type FighterStateName =
   | 'cineAtk'
   | 'cineDef'
   | 'ko'
-  | 'win';
+  | 'win'
+  /** Mic-Duell: both locked in a tap duel after a heavy trade. */
+  | 'clash'
+  /** Wand-Splat: stuck to the stage wall for a moment (still hittable). */
+  | 'wallSplat'
+  /** Beaten at match point and wobbling, waiting for the winner's fatality. */
+  | 'dizzy';
 
 export interface FighterState {
   idx: number;
@@ -92,6 +98,8 @@ export interface FighterState {
   roundsWon: number;
   /** Jump direction chosen at jump squat end (-1, 0, 1 relative to facing). */
   jumpDir: number;
+  /** A wall splat already happened in the current combo (one per combo). */
+  splatUsed: boolean;
 }
 
 export interface ProjectileState {
@@ -107,7 +115,8 @@ export interface ProjectileState {
   alive: boolean;
 }
 
-export type Phase = 'intro' | 'fight' | 'ko' | 'roundOver' | 'matchOver';
+/** finish = match point KO: the winner may perform a fatality (FERTIGMACHEN!). */
+export type Phase = 'intro' | 'fight' | 'ko' | 'finish' | 'roundOver' | 'matchOver';
 
 export interface MatchConfig {
   fighters: [string, string];
@@ -139,6 +148,12 @@ export interface GameState {
   rng: number;
   roundWinner: number;
   matchWinner: number;
+  /** Mic-Duell in progress (tap counts per player) and the cooldown until the next one may start. */
+  duel: { frame: number; taps: [number, number]; x: number } | null;
+  duelCd: number;
+  /** Fatality in progress (owner = winner) during the finish phase; `fatality` = one was performed this match. */
+  fatal: { owner: number; frame: number } | null;
+  fatality: boolean;
   config: MatchConfig;
 }
 
@@ -190,6 +205,7 @@ export function createFighter(idx: number, def: string, loadout: string[]): Figh
     pbPunish: 0,
     roundsWon: 0,
     jumpDir: 0,
+    splatUsed: false,
   };
 }
 

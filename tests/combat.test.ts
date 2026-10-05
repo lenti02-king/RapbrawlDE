@@ -35,9 +35,13 @@ describe('round flow', () => {
     place(s, 0.8);
     b.health = 10;
     run(s, 1, L);
-    run(s, RULES.KO_PHASE + RULES.ROUND_OVER + 5);
+    // match point: the finish phase (fatality window) comes first; nobody presses -> the loser collapses
+    run(s, RULES.KO_PHASE + 25);
+    expect(s.phase).toBe('finish');
+    run(s, RULES.FINISH_WINDOW + RULES.ROUND_OVER + 5);
     expect(s.phase).toBe('matchOver');
     expect(s.matchWinner).toBe(0);
+    expect(s.fatality).toBe(false);
   });
 
   it('time over awards the round to the healthier fighter (by percentage)', () => {
