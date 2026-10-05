@@ -28,6 +28,19 @@ describe('Jazeek', () => {
     expect(s.fighters[1].x - x0).toBeGreaterThan(5000); // pushed > 0.5 m
   });
 
+  it('Diamanten-Regen: a zone 1.4-2.6 m ahead, hits from above (crouch-block fails, stand-block works), misses up close', () => {
+    const go = (dist: number, p2: number) => {
+      const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+      place(s, dist);
+      s.fighters[0].meter = 200;
+      return run(s, 1, IN.S1, p2).concat(run(s, 60, 0, p2));
+    };
+    expect(ofType(go(2.0, 0), 'hit')[0]?.move).toBe('jaz_rain');
+    expect(ofType(go(2.0, IN.BLOCK | IN.DOWN), 'hit')).toHaveLength(1);
+    expect(ofType(go(2.0, IN.BLOCK), 'block')).toHaveLength(1);
+    expect(ofType(go(0.8, 0), 'hit')).toHaveLength(0);
+  });
+
   it('Spotlight-Dash passes through the opponent and switches sides', () => {
     const s = newMatch({ ...JB, loadouts: [['jaz_spot', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
     place(s, 1.2);
@@ -115,6 +128,24 @@ describe('Bonez MC', () => {
     const stand = go(IN.BLOCK);
     expect(ofType(stand.evs, 'cineStart')).toHaveLength(1);
     expect(1000 - stand.s.fighters[0].health).toBe(40 + 40 + 40 + 180);
+  });
+
+  it('Tiefergelegt: the car comes from behind, reaches across the screen and knocks down (blockable)', () => {
+    const go = (p1: number) => {
+      const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
+      place(s, 4.5);
+      s.fighters[1].meter = 200;
+      const evs = run(s, 1, p1, IN.S1).concat(run(s, 130, p1, 0));
+      return { s, evs };
+    };
+    const open = go(0);
+    const hit = ofType(open.evs, 'hit')[0];
+    expect(hit?.projectile).toBe(true);
+    expect(hit?.move).toBe('bon_car');
+    expect(ofType(open.evs, 'knockdown').length).toBeGreaterThan(0);
+    const blocked = go(IN.BLOCK);
+    expect(ofType(blocked.evs, 'block')).toHaveLength(1);
+    expect(ofType(blocked.evs, 'hit')).toHaveLength(0);
   });
 
   it('Goldzahn-Grinsen builds meter', () => {
