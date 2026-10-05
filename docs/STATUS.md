@@ -4,7 +4,7 @@ _Last updated: 2026-10-04 (session 5: the product owner's textured Clash-Royale-
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (single-file build, owner-only until shared, version 7 = session 4 + model-loading fix): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, version 8 = session 5: textured CR models + podcast arena): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
@@ -16,7 +16,10 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Podcast arena "Block Beats Podcast" baked in Blender (neon sign, gold records, ON AIR, LED frame, desk with mics/mixer, armchairs, shelves, speakers, ring lights, rug with crown), animated emissives, arena-specific look (AgX, neon-only bloom) | VERIFIED (in-game screenshots at three fighter distances, high tier) | `node scripts/arena-shot.mjs`, `artifacts/arena/` |
 | Floor reflection on the high tier, blurred like polished wood | VERIFIED (screenshot) | |
 | Moves vs. hitboxes with the new proportions | PARTIAL: contact sheet looks plausible (fists reach the boxes on jab/heavy), not tuned per move | `node scripts/moves.mjs jazeek` |
-| Medium/low tier look of the new arena, phone FPS | UNVERIFIED (SwiftShader only) | |
+| Artifact v8 (models as .gltf.json + separate JPEGs, arena files) | VERIFIED locally under an Artifact-like CSP that, like the host, does not serve .glb; live check by the PO pending | `node scripts/artifact-check.mjs` |
+| E2E 22/22 with the new models and arena | VERIFIED locally (q=low); CI timeout raised to 40 min | `npm run e2e` |
+| Cost | SwiftShader low tier: 835 ms/frame median (was 433 ms), 394k triangles, 23 draw calls. Phone FPS UNVERIFIED; if phones struggle, the next step is a lighter phone copy of the models (e.g. 40k triangles, 2K textures) chosen by quality tier | E2E PERF line |
+| Medium/low tier look of the new arena | UNVERIFIED by screenshot (low tier seen in the Artifact check only) | `dist-single/artifact-check-arena.png` |
 | Bonez's generated tracksuit shows a green crocodile emblem | RISK: PO should check it against registered marks before release | `public/assets/characters/bonez.credits.json` |
 
 ## Session 4 — Meshy fighters, VFX, combos, plain menu (product owner: "Klötze/Stickmans", more combos, better VFX, menu outside the arena)
