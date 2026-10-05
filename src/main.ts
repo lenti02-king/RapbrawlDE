@@ -12,6 +12,7 @@ import './ui/style.css';
 import './ui/theme.css';
 import './ui/cr.css';
 import './ui/street.css';
+import './ui/hud.css';
 import { App } from './app/app';
 import { ROSTER } from './content';
 import { runLab } from './lab';

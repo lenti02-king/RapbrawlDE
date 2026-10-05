@@ -49,6 +49,9 @@ export class TouchControls implements InputSource {
   private dirLatched = 0;
   private buttons: Btn[] = [];
   private visible = false;
+  /** Mic-Duell: while on, a tap anywhere counts as a button press. */
+  private tapLayer: HTMLElement;
+  private tapLatched = false;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -80,7 +83,20 @@ export class TouchControls implements InputSource {
     };
     this.stickZone.addEventListener('pointerup', end);
     this.stickZone.addEventListener('pointercancel', end);
+    this.tapLayer = document.createElement('div');
+    this.tapLayer.className = 'tap-layer';
+    this.root.appendChild(this.tapLayer);
+    this.tapLayer.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.tapLatched = true;
+      navigator.vibrate?.(6);
+    });
     this.setVisible(false);
+  }
+
+  /** Mic-Duell: the whole screen becomes one big tap button. */
+  setTapMode(on: boolean): void {
+    this.tapLayer.style.display = on ? 'block' : 'none';
   }
 
   private bindButton(el: HTMLElement, bit: number): void {
@@ -187,6 +203,8 @@ export class TouchControls implements InputSource {
       if (b.pointers.size || b.latched) bits |= b.bit;
       b.latched = false;
     }
+    if (this.tapLatched) bits |= IN.LIGHT;
+    this.tapLatched = false;
     return socd(bits);
   }
 }

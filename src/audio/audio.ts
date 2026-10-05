@@ -5,7 +5,8 @@ import type { SimEvent } from '../core/events';
 import { getCard } from '../core/registry';
 import type { GameState } from '../core/state';
 
-const BPM = 88;
+/** 90 BPM = one beat every 40 sim frames (RULES.BEAT_FRAMES): Beat-Drop hits are judged on the sim's beat clock. */
+const BPM = 90;
 const BEAT = 60 / BPM;
 
 export class AudioEngine {
@@ -107,6 +108,24 @@ export class AudioEngine {
     }
     const t = this.ctx.currentTime - this.barStart;
     return Math.pow(1 - (((t / BEAT) % 1) + 1) % 1, 3);
+  }
+
+  /** Nudge the music so its next quarter note lands `toNext` seconds from now (the sim's next beat). */
+  syncBeat(toNext: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.musicOn || this.schedTimer === null) return;
+    const now = ctx.currentTime + (ctx.outputLatency || ctx.baseLatency || 0);
+    const k = Math.ceil((now - this.barStart) / BEAT - 1e-3);
+    const audioNext = this.barStart + k * BEAT;
+    let err = audioNext - (now + toNext);
+    // wrap into (-BEAT/2, BEAT/2]
+    err -= Math.round(err / BEAT) * BEAT;
+    if (Math.abs(err) < 0.012) return;
+    // big jumps (round start) snap at once, small drift is eased out
+    const shift = Math.abs(err) > 0.12 ? err : err * 0.25;
+    this.nextNoteTime -= shift;
+    this.barStart -= shift;
+    if (this.nextNoteTime < ctx.currentTime) this.nextNoteTime = ctx.currentTime + 0.01;
   }
 
   startMusic(): void {
@@ -618,6 +637,43 @@ export class AudioEngine {
           break;
         case 'hit':
           this.hit(e.strength, e.counter);
+          if (e.beat) {
+            // Beat-Drop: a bright scratch-stab on top of the impact
+            const t = this.now();
+            this.tone(t, 'sawtooth', 880, 1760, 0.1 * vol, 0.09, 0.3);
+            this.tone(t + 0.04, 'triangle', 1318, 1318, 0.12 * vol, 0.14, 0.4);
+          }
+          break;
+        case 'wallSplat':
+          this.slam();
+          this.boom();
+          this.crowdSwell(e.ko ? 0.8 : 0.5);
+          break;
+        case 'duelStart':
+          this.block(3);
+          this.riser();
+          this.crowdSwell(0.5);
+          break;
+        case 'duelTap': {
+          // rising pitch the more you mash
+          const t = this.now();
+          const f = 330 * Math.pow(2, Math.min(24, e.taps) / 24);
+          this.tone(t, 'square', f * (e.p ? 0.75 : 1), f * (e.p ? 0.75 : 1) * 1.02, 0.06 * vol, 0.05);
+          break;
+        }
+        case 'duelEnd':
+          if (e.winner >= 0) {
+            this.boom();
+            this.hit(3, true);
+          } else this.block(3);
+          this.crowdSwell(0.6);
+          break;
+        case 'finishHim':
+          this.riser();
+          this.crowdSwell(0.7);
+          break;
+        case 'fatality':
+          this.signatureMusic(s.fighters[e.owner].def);
           break;
         case 'block':
           this.block(e.strength);

@@ -116,6 +116,27 @@ export class GameView {
     this.resize();
   }
 
+  private micGroup: THREE.Group | null = null;
+  /** Big chrome stage mic shown between the fighters during a Mic-Duell. */
+  private duelMic(): THREE.Group {
+    if (this.micGroup) return this.micGroup;
+    const g = new THREE.Group();
+    const chrome = new THREE.MeshStandardMaterial({ color: 0xd9d4ea, metalness: 0.9, roughness: 0.25, emissive: 0x332a55, emissiveIntensity: 0.4 });
+    const grip = new THREE.MeshStandardMaterial({ color: 0x2b2140, roughness: 0.6 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xffc531, metalness: 0.8, roughness: 0.3, emissive: 0x8a5a00, emissiveIntensity: 0.4 });
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 24, 16), chrome);
+    head.position.y = 0.2;
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.04, 20), gold);
+    ring.position.y = 0.13;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.028, 0.22, 16), grip);
+    body.position.y = 0.0;
+    g.add(head, ring, body);
+    g.visible = false;
+    this.scene.add(g);
+    this.micGroup = g;
+    return g;
+  }
+
   resize(): void {
     const c = this.renderer.domElement;
     const w = c.clientWidth || window.innerWidth;
@@ -216,6 +237,13 @@ export class GameView {
           } else this.anims[e.d]?.noteReaction('gut');
           if (e.strength >= 2) this.arena.pulse(0.25);
           if (e.counter || e.strength === 3) this.screenFlash = Math.max(this.screenFlash, 0.35);
+          if (e.beat) {
+            // Beat-Drop: golden shock ring + notes on the beat
+            this.vfx.ring(x, y, 1.6 + e.strength * 0.3, C(0xffd21f), 0.36);
+            this.vfx.ring(x, y, 0.9 + e.strength * 0.2, C(0xff7ad9), 0.26);
+            this.fx.noteBurst(x, y + 0.2, 4 + e.strength * 2, dir, 1.8);
+            this.arena.pulse(0.6);
+          }
           break;
         }
         case 'block': {
@@ -365,6 +393,81 @@ export class GameView {
           this.director.shake(0.25);
           break;
         }
+        case 'wallSplat': {
+          const x = e.x / U + e.side * 0.35;
+          const y = Math.max(0.6, e.y / U + 0.9);
+          // the wall takes it: cracks, dust, a big impact and a heavy camera hit
+          this.toon.impactFrame(0.06);
+          this.vfx.flash(x, y, 1.4, C(0xffffff), 0.12);
+          this.vfx.sparks(x, y, 34, C(0xffd36b), 11, -e.side, 2);
+          this.vfx.dust(x, y, 22, 1.6);
+          this.toon.impact(x, y, 2.0, STAR_FILL[3], { spikes: 14, life: 0.36 });
+          this.toon.speedLines(x, y, C(0xffffff), 0.4, 0.45);
+          this.toon.rubble(x, y, 14, 4.5);
+          this.toon.puff(x, y - 0.4, 8, 1.4, new THREE.Color(0xe9dfd0), 0.26, 0.3);
+          this.toon.wallCrack(x, y, e.ko ? 2.8 : 2.2);
+          this.director.shake(e.ko ? 1.1 : 0.75);
+          this.director.punch(e.ko ? 5 : 3.2);
+          this.director.kick(e.side * 0.08, 0, -0.12);
+          this.arena.pulse(1);
+          this.screenFlash = Math.max(this.screenFlash, 0.5);
+          this.flash[e.p] = 1;
+          this.flashColor[e.p].set(0xffffff);
+          break;
+        }
+        case 'duelStart': {
+          const x = e.x / U;
+          this.toon.impactFrame(0.07);
+          this.vfx.flash(x, 1.4, 1.6, C(0xffffff), 0.2);
+          this.vfx.ring(x, 1.4, 2.6, C(0xffd21f), 0.5);
+          this.vfx.sparks(x, 1.4, 50, C(0xfff1a0), 12, 1, 2);
+          this.toon.impact(x, 1.4, 2.0, C(0xffd21f), { spikes: 16, life: 0.4, core: C(0xffffff) });
+          this.toon.speedLines(x, 1.4, C(0xffffff), 0.9, 0.35);
+          this.director.shake(0.6);
+          this.director.punch(3);
+          this.screenFlash = 0.7;
+          break;
+        }
+        case 'duelTap': {
+          // sparks fly from the mic grip on the tapping side
+          const d = s.duel;
+          if (!d) break;
+          const x = d.x / U + (e.p === 0 ? -0.12 : 0.12) * (s.fighters[0].x <= s.fighters[1].x ? 1 : -1);
+          this.vfx.sparks(x, 1.55, 6, e.p === 0 ? C(0xffd21f) : C(0x7cff5a), 6, 0, 2);
+          if (e.taps % 5 === 0) this.director.shake(0.12);
+          break;
+        }
+        case 'duelEnd': {
+          const x = e.x / U;
+          if (e.winner < 0) {
+            this.vfx.ring(x, 1.4, 1.8, C(0xffffff), 0.4);
+            this.director.shake(0.4);
+            break;
+          }
+          this.toon.impactFrame(0.08);
+          this.after(this.toon.impactFrames ? 0.08 : 0, () => {
+            this.vfx.flash(x, 1.4, 1.8, C(0xffffff), 0.2);
+            this.vfx.sparks(x, 1.4, 60, C(0xffd21f), 14, s.fighters[e.winner].facing, 2);
+            this.toon.impact(x, 1.4, 2.6, STAR_FILL[3], { spikes: 16, life: 0.45 });
+            this.toon.speedLines(x, 1.4, C(0xffffff), 0.6, 0.4);
+          });
+          this.director.shake(1);
+          this.director.punch(5);
+          this.arena.pulse(1);
+          this.screenFlash = 0.8;
+          break;
+        }
+        case 'finishHim': {
+          this.arena.pulse(1);
+          this.director.punch(2);
+          break;
+        }
+        case 'fatality': {
+          this.toon.impactFrame(0.06);
+          this.screenFlash = 0.6;
+          this.arena.pulse(1);
+          break;
+        }
         case 'meterGain': {
           const f = s.fighters[e.p];
           for (let i = 0; i < 26; i++)
@@ -412,7 +515,22 @@ export class GameView {
     const slow = s.slowmo > 0 ? 0.35 : 1;
     this.vfx.timeScale = slow;
     const cineActive = this.hooks.cinematic ? this.hooks.cinematic(this, s, dt, alpha) : false;
-    if (!cineActive) this.director.setOverride(this.menuShot);
+    if (!cineActive) {
+      if (s.duel) {
+        // Mic-Duell: push in on the two of them, slowly closer while they mash
+        const x = s.duel.x / U;
+        const k = Math.min(1, s.duel.frame / 150);
+        this.director.setOverride({ pos: new THREE.Vector3(x + Math.sin(this.time * 0.6) * 0.15, 1.6, 4.2 - k * 0.6), target: new THREE.Vector3(x, 1.42, 0), fov: 34 - k * 3 });
+      } else this.director.setOverride(this.menuShot);
+    }
+    // the mic both fighters fight over (Mic-Duell)
+    const mic = this.duelMic();
+    mic.visible = !!s.duel;
+    if (s.duel) {
+      const tug = Math.max(-1, Math.min(1, (s.duel.taps[0] - s.duel.taps[1]) / 8)) * (s.fighters[0].x <= s.fighters[1].x ? 1 : -1);
+      mic.position.set(s.duel.x / U + tug * 0.12 + Math.sin(this.time * 41) * 0.008, 1.5 + Math.sin(this.time * 33) * 0.008, 0.05);
+      mic.rotation.z = Math.PI / 2 + tug * 0.25 + Math.sin(this.time * 29) * 0.04;
+    }
     for (let i = 0; i < 2; i++) {
       const f = s.fighters[i];
       const anim = this.anims[i];
@@ -440,7 +558,8 @@ export class GameView {
     this.updateProjectiles(s, dt);
 
     // super flash darkening
-    const wantDim = s.freeze > 0 ? 0.9 : s.cine ? (this.dimOverride ?? 0.35) : 0;
+    const wantDim =
+      s.freeze > 0 ? 0.9 : s.cine || s.fatal ? (this.dimOverride ?? 0.35) : s.duel ? 0.7 : s.phase === 'finish' ? 0.55 : 0;
     this.dim += (wantDim - this.dim) * (1 - Math.exp(-dt * 10));
     this.arena.setDim(this.dim);
     this.arena.setHype(Math.max(s.fighters[0].meter, s.fighters[1].meter) / 300);

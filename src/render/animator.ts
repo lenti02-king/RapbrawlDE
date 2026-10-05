@@ -9,7 +9,7 @@ import type { AnimSet } from './anims/types';
 import { VOLT_ANIMS } from './anims/volt';
 import { JAZEEK_ANIMS } from './anims/jazeek';
 import { BONEZ_ANIMS } from './anims/bonez';
-import { lerpPose, stabilizeHead, toArr } from './pose';
+import { compose, lerpPose, stabilizeHead, toArr } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
 
@@ -31,6 +31,38 @@ function poses(set: AnimSet): Cached {
     c = { stance: toArr(set.stance) };
     for (const [k, v] of Object.entries(set.r)) c[k] = toArr(v);
     cache.set(set, c);
+  }
+  return c;
+}
+
+/** Poses for the session 8 mechanics (Mic-Duell strain, Wand-Splat, dizzy at match point), derived per set. */
+const extraCache = new Map<AnimSet, Cached>();
+function extras(set: AnimSet): Cached {
+  let c = extraCache.get(set);
+  if (!c) {
+    const st = set.stance;
+    // both lean in over the mic between them: lead arm forward-up gripping, rear fist cocked, legs braced
+    const clash = compose(st, {
+      x: 0.12,
+      y: -0.06,
+      aim: { shL: [1, 0.35, 0.1], elL: [1, 0.45, 0.05], face: 0.6 },
+      j: { hips: [0, -10, 0], spine: [0, -4, -18], chest: [0, -12, -12], shR: [-20, 0, 40], elR: [0, 0, 130], thL: [6, 20, 40], knL: [0, 0, -50], thR: [-8, 18, -34], knR: [0, 0, -10] },
+    });
+    // splattered on the wall (back to the wall): arms and legs spread, head lolling, squashed flat
+    const splat = compose(set.r.juggle, {
+      rot: 0,
+      s: { sq: 0.12 },
+      aim: { shL: [-0.2, 0.9, -0.5], elL: [-0.3, 1, -0.4], shR: [-0.2, 0.9, 0.5], elR: [-0.3, 1, 0.4], thL: [-0.1, -1, -0.45], knL: [0, -1, -0.5], thR: [-0.1, -1, 0.45], knR: [0, -1, 0.5] },
+      j: { spine: [0, 0, 8], chest: [0, 0, 6], neck: [0, 18, 10], head: [0, 20, 18] },
+    });
+    const dizzyA = compose(set.r.hitHigh, {
+      x: -0.03,
+      rot: 6,
+      j: { head: [0, 18, 18], neck: [0, 10, 8], shL: [40, 0, -12], elL: [0, 0, 24], shR: [-40, 0, -14], elR: [0, 0, 26], knL: [0, 0, -40], knR: [0, 0, -36] },
+    });
+    const dizzyB = compose(dizzyA, { rot: -6, j: { head: [0, -18, 20], neck: [0, -10, 8] } });
+    c = { clash: toArr(clash), splat: toArr(splat), dizzyA: toArr(dizzyA), dizzyB: toArr(dizzyB) };
+    extraCache.set(set, c);
   }
   return c;
 }
@@ -268,6 +300,34 @@ export class FighterAnimator {
           this.set.win.sample(f.sf, out);
           fade = 8;
           break;
+        case 'clash': {
+          // tug of war: whoever taps more pushes the duel toward the other
+          const X = extras(this.set);
+          out.set(X.clash);
+          const d = s.duel;
+          const tug = d ? Math.max(-1, Math.min(1, (d.taps[this.idx] - d.taps[1 - this.idx]) / 8)) : 0;
+          out[R_X] += tug * 0.12;
+          out[JOINT_INDEX.chest * 3 + 2] += Math.sin(time * 38 + this.idx) * 1.6;
+          out[R_Y] += Math.sin(time * 31 + this.idx * 2) * 0.006;
+          fade = 3;
+          break;
+        }
+        case 'wallSplat': {
+          // stuck for a beat, then sagging (the sim drops them when the timer runs out)
+          const X = extras(this.set);
+          out.set(X.splat);
+          out[R_Y] -= Math.min(1, f.sf / 40) * 0.08;
+          fade = 1;
+          break;
+        }
+        case 'dizzy': {
+          const X = extras(this.set);
+          const w = 0.5 + 0.5 * Math.sin(time * 3.2);
+          lerpPose(X.dizzyA, X.dizzyB, w, out);
+          out[R_X] += Math.sin(time * 1.7) * 0.04;
+          fade = 10;
+          break;
+        }
         default:
           out.set(P.stance);
       }
@@ -315,6 +375,7 @@ function headWeight(key: string): number {
   if (key.startsWith('move:')) return 0.85;
   if (key.startsWith('hit:') || key === 'countered') return 0.2;
   if (key.startsWith('block')) return 0.6;
+  if (key === 'clash') return 0.8;
   switch (key) {
     case 'idle':
     case 'crouch':

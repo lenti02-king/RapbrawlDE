@@ -5,7 +5,7 @@ import { BOT_LEVELS, Bot } from '../ai/bot';
 import type { SimEvent } from '../core/events';
 import { IN } from '../core/input';
 import { getCard, getFighter, getMove, SIGNATURE_SLOT, validateLoadout } from '../core/registry';
-import { createMatch, defaultConfig } from '../core/sim';
+import { createMatch, defaultConfig, RULES } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ROSTER } from '../content';
 import { GamepadSource, KeyboardSource, MergedSource, NullSource, P1_KEYS, P2_KEYS, keyboardState, type InputSource, type KeyMap } from '../input/sources';
@@ -166,6 +166,7 @@ export class App {
   localIdx = 0;
   private netTransport: Transport | null = null;
   private keyHandler = (e: KeyboardEvent) => this.onKey(e);
+  private tapMode = false;
 
   /** The 3D scene (arena + fighters) is only created when the first match starts; menus are plain 2D. */
   get view(): GameView {
@@ -194,6 +195,7 @@ export class App {
     this.canvas = canvas;
     canvas.classList.add('off');
     this.hud = new Hud(ui);
+    this.hud.screenOf = (i) => this._view?.screenOf(i) ?? null;
     this.touch = new TouchControls(ui);
     this.touch.bindCards(this.hud.handCards);
     this.hud.onSigReady = () => this.audio.chime();
@@ -265,6 +267,11 @@ export class App {
       const s = this.runner.state;
       if (this.mode !== 'menu' && !this.isDemo) {
         this.hud.update(s, elapsed / 1000, this.view.screenFlash);
+        // Mic-Duell: on phones the whole screen becomes the tap button
+        const tapMode = !!s.duel && this.touchEnabled;
+        if (tapMode !== this.tapMode) this.touch.setTapMode((this.tapMode = tapMode));
+        // Beat-Drop: keep the music's beat on the sim's beat clock (rollback-safe: the sim decides what is on beat)
+        if (s.phase === 'fight') this.audio.syncBeat(((RULES.BEAT_FRAMES - (s.frame % RULES.BEAT_FRAMES)) % RULES.BEAT_FRAMES) / 60);
         if (this.runner instanceof NetMatchRunner && this.runner.silence > 6 && !this.resultsShown) this.connectionLost();
         this.training?.update(s, this.runner.lastInputs);
         if (s.phase === 'matchOver' && s.phaseFrame > 90 && !this.resultsShown) this.showResults();
@@ -1491,6 +1498,7 @@ export class App {
     for (let i = 0; i < frames; i++) {
       if (step) r.frame();
       this.view.render(r.state, 1 / 60, 0, this.audio.beat());
+      if (this.mode !== 'menu' && !this.isDemo) this.hud.update(r.state, 1 / 60, this.view.screenFlash);
     }
   }
 

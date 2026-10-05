@@ -48,7 +48,8 @@ export const S_SQ = R_X + 8;
 
 /** Root scale for a squash value (volume roughly kept). */
 export function squashScale(sq: number): [number, number] {
-  const y = Math.max(0.5, 1 - sq);
+  // extreme squash only for cartoon finishers (pancake), normal motion stays above 0.7
+  const y = Math.max(0.14, 1 - sq);
   return [1 / Math.sqrt(y), y];
 }
 

@@ -438,8 +438,23 @@ export class ToonFX {
     c.life = life;
     c.mesh.position.set(x, 0.012, 0);
     c.mesh.userData.size = size;
+    c.mesh.userData.wall = false;
+    c.mesh.rotation.set(-Math.PI / 2, 0, 0);
     c.mesh.scale.set(size * 0.55, size * 0.94, 1);
     c.mesh.rotation.z = (Math.random() - 0.5) * 0.6;
+    c.mesh.visible = true;
+  }
+
+  /** Upright crack "in the air" behind a fighter slammed into the stage wall (Wand-Splat). */
+  wallCrack(x: number, y: number, size = 2.2, life = 1.6): void {
+    const c = this.cracks.find((q) => q.life <= 0) ?? this.cracks[0];
+    c.t = 0;
+    c.life = life;
+    c.mesh.position.set(x, y, -0.45);
+    c.mesh.userData.size = size;
+    c.mesh.userData.wall = true;
+    c.mesh.scale.set(size, size, 1);
+    c.mesh.rotation.set(0, 0, (Math.random() - 0.5) * 0.8);
     c.mesh.visible = true;
   }
 
@@ -643,7 +658,7 @@ export class ToonFX {
       (c.mesh.material as THREE.MeshBasicMaterial).opacity = u < 0.7 ? 1 : 1 - (u - 0.7) / 0.3;
       const grow = 0.55 + 0.45 * Math.min(1, c.t / 0.08);
       const size = c.mesh.userData.size as number;
-      c.mesh.scale.set(size * grow, size * 1.7 * grow, 1);
+      c.mesh.scale.set(size * grow, size * (c.mesh.userData.wall ? 1 : 1.7) * grow, 1);
     }
 
     const m = new THREE.Matrix4();

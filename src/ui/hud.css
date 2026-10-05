@@ -1,0 +1,509 @@
+/* RAPBRAWL — in-fight HUD (session 8 redesign): chunky slanted health bars with ink outlines and segment ticks,
+   framed portraits in the player colours of the fighter select (P1 yellow, P2 green), the round clock as a spinning
+   record with the Beat-Drop ring, and the overlays for Mic-Duell, finish phase and fatality. Loaded after all other
+   stylesheets. */
+.hud {
+  --p1: #ffd23a;
+  --p1-hi: #fff27a;
+  --p1-lo: #ff9f1c;
+  --p2: #7cff5a;
+  --p2-hi: #d2ffb8;
+  --p2-lo: #23b94a;
+  --ink: #1a0f2e;
+  --hud-font: 'Lilita One', 'Arial Rounded MT Bold', 'Trebuchet MS', sans-serif;
+  --hud-tag: 'Permanent Marker', 'Marker Felt', cursive;
+  --hud-stroke: 0 0.12rem 0 var(--ink), 0.1rem 0 0 var(--ink), -0.1rem 0 0 var(--ink), 0 -0.1rem 0 var(--ink), 0.08rem 0.08rem 0 var(--ink),
+    -0.08rem 0.08rem 0 var(--ink), 0.08rem -0.08rem 0 var(--ink), -0.08rem -0.08rem 0 var(--ink), 0 0.22rem 0 var(--ink);
+}
+.hud .hud-top {
+  top: calc(0.45rem + var(--sat));
+  left: calc(0.7rem + var(--sal));
+  right: calc(0.7rem + var(--sar));
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+}
+.hud .side {
+  --c: var(--p1);
+  --c-hi: var(--p1-hi);
+  --c-lo: var(--p1-lo);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.hud .side.p2 {
+  --c: var(--p2);
+  --c-hi: var(--p2-hi);
+  --c-lo: var(--p2-lo);
+  flex-direction: row-reverse;
+}
+.hud .side .avatar {
+  position: relative;
+  flex: none;
+  width: 3.9rem;
+  height: 3.9rem;
+  border-radius: 0.9rem;
+  border: 0.2rem solid var(--ink);
+  background: radial-gradient(circle at 50% 30%, var(--c-hi), var(--c) 50%, var(--c-lo));
+  box-shadow: inset 0 0 0 0.16rem rgba(255, 255, 255, 0.35), 0 0.28rem 0 var(--ink);
+  overflow: visible;
+  transform: rotate(-3deg);
+}
+.hud .side.p2 .avatar {
+  transform: rotate(3deg);
+}
+.hud .side .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.7rem;
+}
+.hud .side .avatar .ptag {
+  position: absolute;
+  left: -0.35rem;
+  bottom: -0.45rem;
+  padding: 0 0.3rem;
+  font: 0.85rem var(--hud-tag);
+  color: var(--ink);
+  background: var(--c);
+  border: 0.13rem solid var(--ink);
+  border-radius: 0.35rem;
+  line-height: 1.2;
+}
+.hud .side.p2 .avatar .ptag {
+  left: auto;
+  right: -0.35rem;
+}
+.hud .sidebody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+.hud .side.p2 .sidebody {
+  align-items: flex-end;
+}
+.hud .nameplate {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+}
+.hud .side.p2 .nameplate {
+  flex-direction: row-reverse;
+}
+.hud .nameplate .name {
+  font: 1.2rem var(--hud-font);
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: var(--hud-stroke);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud .hcrowns i {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: rgba(26, 15, 46, 0.7);
+  filter: drop-shadow(0 0.1rem 0 var(--ink));
+}
+.hud .hcrowns i.won {
+  color: #ffd23a;
+}
+.hud .bar {
+  width: 100%;
+  height: 1.55rem;
+  border-radius: 0.45rem;
+  background: #120a26;
+  border: 0.2rem solid var(--ink);
+  box-shadow: 0 0.26rem 0 var(--ink), inset 0 0 0 0.1rem rgba(255, 255, 255, 0.08);
+  transform: skewX(-14deg);
+  overflow: hidden;
+}
+.hud .side.p2 .bar {
+  transform: skewX(14deg);
+}
+.hud .bar .drain {
+  background: linear-gradient(180deg, #ffffff, #ff8fa8);
+}
+.hud .bar .fill,
+.hud .side.p2 .bar .fill {
+  background: linear-gradient(180deg, var(--c-hi) 0%, var(--c) 45%, var(--c-lo) 100%);
+  box-shadow: inset 0 0.22rem 0 rgba(255, 255, 255, 0.5), inset 0 -0.2rem 0 rgba(0, 0, 0, 0.18);
+  transition: transform 0.08s linear;
+}
+.hud .side.danger .bar .fill {
+  background: linear-gradient(180deg, #ffb3bd 0%, #ff4b62 50%, #c4123a 100%);
+  animation: hud-danger 0.5s steps(2) infinite;
+}
+@keyframes hud-danger {
+  50% {
+    filter: brightness(1.45);
+  }
+}
+.hud .bar .ticks {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 0.12rem), rgba(26, 15, 46, 0.55) calc(10% - 0.12rem) 10%);
+  pointer-events: none;
+}
+.hud .bar .hp {
+  font: 0.85rem var(--hud-font);
+  color: #fff;
+  text-shadow: 0 0.1rem 0 var(--ink), 0.08rem 0 0 var(--ink), -0.08rem 0 0 var(--ink);
+  transform: skewX(14deg);
+  z-index: 1;
+}
+.hud .side.p2 .bar .hp {
+  transform: skewX(-14deg);
+}
+.hud .mini-hype {
+  width: 55%;
+  gap: 0.25rem;
+  margin-top: 0.15rem;
+}
+.hud .mini-hype .hb {
+  height: 0.55rem;
+  border: 0.12rem solid var(--ink);
+  background: rgba(18, 10, 38, 0.85);
+  transform: skewX(-14deg);
+}
+.hud .side.p2 .mini-hype .hb {
+  transform: skewX(14deg);
+}
+.hud .mini-hype .hb b {
+  background: linear-gradient(90deg, #b06bff, #ff7ad9);
+}
+.hud .mini-hype .hb.full b {
+  background: linear-gradient(90deg, #fff27a, #ffd23a);
+}
+
+/* ---------------------------------------------------------------- the clock: a record with the beat ring */
+.hud .clock {
+  position: relative;
+  width: 5rem;
+  height: 5rem;
+  display: grid;
+  place-items: center;
+  margin-top: -0.15rem;
+}
+.hud .clock .vinyl {
+  position: absolute;
+  inset: 0.3rem;
+  border-radius: 50%;
+  border: 0.2rem solid var(--ink);
+  background:
+    radial-gradient(circle, #ff3d7f 0 29%, var(--ink) 30% 32%, transparent 33%),
+    repeating-radial-gradient(circle, #241a3e 0 0.12rem, #160f2a 0.12rem 0.28rem);
+  box-shadow: 0 0.28rem 0 var(--ink), inset 0 0 0 0.12rem rgba(255, 255, 255, 0.08);
+  animation: hud-spin 2.67s linear infinite;
+}
+.hud .clock .vinyl::after {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: conic-gradient(from 20deg, transparent 0 20%, rgba(255, 255, 255, 0.16) 25%, transparent 32% 70%, rgba(255, 255, 255, 0.1) 75%, transparent 80%);
+}
+@keyframes hud-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.hud .clock .beat-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 0.28rem solid #ffd23a;
+  box-shadow: 0 0 1rem rgba(255, 210, 58, 0.8), inset 0 0 0.6rem rgba(255, 210, 58, 0.5);
+}
+.hud .clock.onbeat .beat-ring {
+  border-color: #fff27a;
+}
+.hud .timer,
+.hud.training .timer {
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  font: 1.9rem var(--hud-font);
+  color: #fff;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  clip-path: none;
+  text-shadow: var(--hud-stroke);
+}
+.hud .timer.low {
+  color: #ff8fa8;
+}
+.hud .beat-pop {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) scale(0.6);
+  opacity: 0;
+  font: 1rem var(--hud-tag);
+  color: #ffd23a;
+  text-shadow: var(--hud-stroke);
+  white-space: nowrap;
+}
+.hud .beat-pop.go {
+  animation: hud-beatpop 0.55s ease-out;
+}
+@keyframes hud-beatpop {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-0.4rem) scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(0.6rem) scale(1);
+  }
+}
+
+/* ---------------------------------------------------------------- announcer + combo */
+.hud .announce {
+  font-family: var(--hud-tag);
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #fff;
+  filter: none;
+  text-shadow: var(--hud-stroke), 0 0 1.4rem rgba(255, 61, 127, 0.7);
+}
+.hud .announce.ko,
+.hud .announce.splat {
+  color: #ff3d7f;
+  text-shadow: var(--hud-stroke), 0 0 1.6rem rgba(255, 61, 127, 0.8);
+}
+.hud .announce.beat {
+  color: #ffd23a;
+  font-size: 3rem;
+  top: 30%;
+}
+.hud .announce.duel,
+.hud .announce.duelwin {
+  color: #ffd23a;
+}
+.hud .announce.duelwin {
+  font-size: 2.6rem;
+}
+.hud .combo-n {
+  font-family: var(--hud-tag);
+  color: #ffd23a;
+  text-shadow: var(--hud-stroke);
+}
+
+/* ---------------------------------------------------------------- Mic-Duell overlay */
+.hud .duel-ui {
+  position: absolute;
+  left: 50%;
+  bottom: calc(5.5rem + var(--sab));
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: min(36rem, 80vw);
+}
+.hud.duel .duel-ui {
+  display: flex;
+}
+.hud.duel .hand,
+.hud.duel .card-banner {
+  opacity: 0.25;
+}
+.hud .duel-title {
+  font: 2.6rem var(--hud-tag);
+  color: #ffd23a;
+  text-shadow: var(--hud-stroke), 0 0 1.4rem rgba(255, 210, 58, 0.7);
+  animation: hud-throb 0.32s ease-in-out infinite alternate;
+}
+.hud .duel-sub {
+  font: 1.2rem var(--hud-font);
+  color: #fff;
+  letter-spacing: 0.1em;
+  text-shadow: var(--hud-stroke);
+  animation: hud-throb 0.16s ease-in-out infinite alternate;
+}
+@keyframes hud-throb {
+  to {
+    transform: scale(1.06);
+  }
+}
+.hud .duel-bars {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+.hud .dbar {
+  position: relative;
+  flex: 1;
+  height: 1.6rem;
+  border: 0.2rem solid var(--ink);
+  border-radius: 99rem;
+  background: rgba(18, 10, 38, 0.85);
+  overflow: hidden;
+  box-shadow: 0 0.24rem 0 var(--ink);
+}
+.hud .dbar b {
+  position: absolute;
+  inset: 0;
+  transform-origin: right;
+  background: linear-gradient(180deg, var(--p1-hi), var(--p1) 50%, var(--p1-lo));
+  transition: transform 0.08s;
+}
+.hud .dbar.p2 b {
+  transform-origin: left;
+  background: linear-gradient(180deg, var(--p2-hi), var(--p2) 50%, var(--p2-lo));
+}
+.hud .dbar span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 1rem var(--hud-font);
+  color: #fff;
+  text-shadow: 0 0.1rem 0 var(--ink);
+}
+.hud .dbar.tap {
+  animation: hud-tap 0.12s ease-out;
+}
+@keyframes hud-tap {
+  from {
+    transform: scale(1.08);
+  }
+}
+.hud .duel-mic svg {
+  width: 2.4rem;
+  height: 3.8rem;
+  animation: hud-throb 0.2s ease-in-out infinite alternate;
+}
+
+/* ---------------------------------------------------------------- finish phase + fatality */
+.hud .finish-ui {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+}
+.hud.finish .finish-ui {
+  display: flex;
+}
+.hud .finish-title {
+  font: 4rem var(--hud-tag);
+  color: #ff3d7f;
+  text-shadow: var(--hud-stroke), 0 0 2rem rgba(255, 30, 80, 0.85);
+  animation: hud-throb 0.45s ease-in-out infinite alternate;
+}
+.hud .finish-sub {
+  font: 1.15rem var(--hud-font);
+  color: #fff;
+  text-shadow: var(--hud-stroke);
+}
+.hud .finish-sub b {
+  color: #ffd23a;
+}
+.hud.finish .hcard.sig {
+  animation: hud-sigglow 0.5s ease-in-out infinite alternate;
+}
+@keyframes hud-sigglow {
+  to {
+    filter: drop-shadow(0 0 1rem #ffd23a) brightness(1.25);
+    transform: translateY(-0.4rem) scale(1.08);
+  }
+}
+.hud.fatal .hud-top,
+.hud.fatal .hand,
+.hud.finish .combo {
+  opacity: 0;
+}
+.hud .fatal-title {
+  position: absolute;
+  left: 50%;
+  top: 14%;
+  transform: translateX(-50%) scale(0.4) rotate(-6deg);
+  opacity: 0;
+  font: 5rem var(--hud-tag);
+  letter-spacing: 0.04em;
+  color: #ff3d7f;
+  text-shadow: var(--hud-stroke), 0 0 2.4rem rgba(255, 30, 80, 0.9);
+  transition: opacity 0.2s, transform 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.hud .fatal-title.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1) rotate(-6deg);
+}
+.hud .taunt {
+  position: absolute;
+  left: 70%;
+  top: 26%;
+  transform: translateX(-50%) scale(0.5);
+  opacity: 0;
+  max-width: min(30rem, 80vw);
+  padding: 0.7rem 1.2rem;
+  font: 2.1rem var(--hud-tag);
+  color: var(--ink);
+  background: #fff;
+  border: 0.22rem solid var(--ink);
+  border-radius: 1.4rem;
+  box-shadow: 0 0.3rem 0 var(--ink);
+  text-align: center;
+  transition: opacity 0.15s, transform 0.3s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.hud .taunt::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  bottom: -1.05rem;
+  width: 1.4rem;
+  height: 1.2rem;
+  background: #fff;
+  border-right: 0.22rem solid var(--ink);
+  border-bottom: 0.22rem solid var(--ink);
+  transform: skewX(30deg) rotate(30deg);
+}
+.hud .taunt.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Mic-Duell: the whole screen is a tap button on phones */
+.touch .tap-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  touch-action: none;
+}
+
+@media (max-height: 460px) {
+  .hud .side .avatar {
+    width: 3.2rem;
+    height: 3.2rem;
+  }
+  .hud .bar {
+    height: 1.3rem;
+  }
+  .hud .clock {
+    width: 4.2rem;
+    height: 4.2rem;
+  }
+  .hud .timer {
+    font-size: 1.6rem;
+  }
+  .hud .finish-title {
+    font-size: 3rem;
+  }
+  .hud .fatal-title {
+    font-size: 3.6rem;
+  }
+}

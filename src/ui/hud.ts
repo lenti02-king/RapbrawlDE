@@ -4,6 +4,8 @@
 import type { SimEvent } from '../core/events';
 import { getCard, getFighter } from '../core/registry';
 import type { GameState } from '../core/state';
+import { beatDistance, RULES } from '../core/sim';
+import { TAUNT_AT, TAUNTS, TITLE_AT } from '../render/fatalities';
 import { CAT_COLOR, cardIcon, costBadge, UI_ICONS } from './icons';
 import { portrait } from './portraits';
 
@@ -87,19 +89,37 @@ export class Hud {
   readonly handCards: HTMLElement[] = [];
   onSigReady: (() => void) | null = null;
   private tweens: Tween[] = [];
+  private clock!: HTMLElement;
+  private ring!: HTMLElement;
+  private beatPop!: HTMLElement;
+  private duelUi!: HTMLElement;
+  private duelBars: HTMLElement[] = [];
+  private finishSub!: HTMLElement;
+  private fatalTitle!: HTMLElement;
+  private tauntEl!: HTMLElement;
+  private touch = false;
+  /** Screen position of a fighter's chest (set by the app from the view). */
+  screenOf: ((i: number) => { x: number; y: number } | null) | null = null;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.className = 'hud';
     const side = (cls: string) => `
       <div class="side ${cls}">
-        <div class="avatar"></div>
-        <div class="nameplate"><span class="name"></span><span class="hcrowns"></span></div>
-        <div class="bar"><div class="drain"></div><div class="fill"></div><div class="hp"></div></div>
-        <div class="mini-hype"><div class="hb"><b></b></div><div class="hb"><b></b></div><div class="hb"><b></b></div></div>
+        <div class="avatar"><span class="ptag">${cls.toUpperCase()}</span></div>
+        <div class="sidebody">
+          <div class="nameplate"><span class="name"></span><span class="hcrowns"></span></div>
+          <div class="bar"><div class="drain"></div><div class="fill"></div><div class="ticks"></div><div class="hp"></div></div>
+          <div class="mini-hype"><div class="hb"><b></b></div><div class="hb"><b></b></div><div class="hb"><b></b></div></div>
+        </div>
       </div>`;
     this.root.innerHTML = `
-      <div class="hud-top">${side('p1')}<div class="timer">99</div>${side('p2')}</div>
+      <div class="hud-top">${side('p1')}<div class="clock"><div class="beat-ring"></div><div class="vinyl"></div><div class="timer">99</div><div class="beat-pop">BEAT!</div></div>${side('p2')}</div>
+      <div class="duel-ui"><div class="duel-title">MIC-DUELL!</div><div class="duel-sub">TIPPEN! TIPPEN! TIPPEN!</div>
+        <div class="duel-bars"><div class="dbar p1"><b></b><span>0</span></div><div class="duel-mic"><svg viewBox="0 0 40 64" aria-hidden="true"><rect x="13" y="30" width="14" height="30" rx="6" fill="#2b2140" stroke="#1a0f2e" stroke-width="4"/><circle cx="20" cy="18" r="15" fill="#d9d4ea" stroke="#1a0f2e" stroke-width="4"/><path d="M9 15q11-8 22 0M8 22q12-7 24 0" stroke="#1a0f2e" stroke-width="2.5" fill="none" opacity="0.5"/><rect x="11" y="30" width="18" height="6" rx="2" fill="#ffc531" stroke="#1a0f2e" stroke-width="3"/></svg></div><div class="dbar p2"><b></b><span>0</span></div></div></div>
+      <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div></div>
+      <div class="fatal-title">FATALITY</div>
+      <div class="taunt"></div>
       <div class="combo p1"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
       <div class="combo p2"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
       <div class="card-banner p1"></div><div class="card-banner p2"></div>
@@ -156,13 +176,25 @@ export class Hud {
     this.tip = this.root.querySelector('.tip')!;
     this.handCards.push(...this.root.querySelectorAll<HTMLElement>('.hcard'));
     this.pauseBtn = this.root.querySelector('.pause-btn')!;
+    this.clock = this.root.querySelector('.clock')!;
+    this.ring = this.root.querySelector('.beat-ring')!;
+    this.beatPop = this.root.querySelector('.beat-pop')!;
+    this.duelUi = this.root.querySelector('.duel-ui')!;
+    this.duelBars = [...this.root.querySelectorAll<HTMLElement>('.dbar')];
+    this.finishSub = this.root.querySelector('.finish-sub')!;
+    this.fatalTitle = this.root.querySelector('.fatal-title')!;
+    this.tauntEl = this.root.querySelector('.taunt')!;
     this.trainingInfo = this.root.querySelector('.training-info')!;
   }
 
   /** @param local index of the fighter whose hand is shown; @param touch hand cards are tappable buttons */
   setup(s: GameState, local: number, touch: boolean): void {
     this.local = local;
+    this.touch = touch;
     this.lastLocalMeter = -1;
+    this.root.classList.remove('duel', 'finish', 'fatal');
+    this.tauntEl.classList.remove('show');
+    this.fatalTitle.classList.remove('show');
     s.fighters.forEach((f, i) => {
       const side = this.sides[i];
       side.name.textContent = getFighter(f.def).name;
@@ -231,6 +263,38 @@ export class Hud {
           break;
         case 'perfectBlock':
           this.say('PERFEKT-BLOCK!', 'pblock', 900);
+          break;
+        case 'hit':
+          if (e.beat) {
+            this.beatPop.classList.remove('go');
+            void this.beatPop.offsetWidth;
+            this.beatPop.classList.add('go');
+            if (e.strength >= 2) this.say('BEAT-DROP!', 'beat', 700);
+          }
+          break;
+        case 'wallSplat':
+          this.say(e.ko ? 'WAND-FINISHER!' : 'WAND-SPLAT!', 'splat', 1000);
+          break;
+        case 'duelStart':
+          this.duelBars.forEach((b) => ((b.querySelector('span') as HTMLElement).textContent = '0'));
+          break;
+        case 'duelEnd':
+          if (e.winner < 0) this.say('PATT!', 'duel', 900);
+          else this.say(`${getFighter(s.fighters[e.winner].def).name} GEWINNT DAS DUELL`, 'duelwin', 1300);
+          break;
+        case 'finishHim': {
+          const mine = e.winner === this.local;
+          this.finishSub.innerHTML = mine
+            ? `<b>★ SIGNATURE</b> für die FATALITY ${this.touch ? '– tippe die goldene Karte' : '– drück O'}`
+            : `${getFighter(s.fighters[e.winner].def).name} darf dich fertigmachen …`;
+          break;
+        }
+        case 'fatality':
+          this.letterbox.classList.add('on');
+          this.cineTitle.textContent = '';
+          break;
+        case 'fatalityEnd':
+          this.letterbox.classList.remove('on');
           break;
         case 'ko':
           this.say(e.loser < 0 ? 'DOPPEL-K.O.' : 'K.O.', 'ko', 2200);
@@ -356,6 +420,48 @@ export class Hud {
       this.lastTimer = secs;
     }
     this.flash.style.opacity = String(Math.min(0.85, screenFlash));
+    this.updateMechanics(s);
+  }
+
+  /** Beat ring on the clock, Mic-Duell tap bars, finish prompt, fatality title and the winner's taunt. */
+  private updateMechanics(s: GameState): void {
+    // beat ring: flashes on every beat of the sim's beat clock (the music follows it)
+    const ph = s.frame % RULES.BEAT_FRAMES;
+    const pulse = Math.pow(1 - ph / RULES.BEAT_FRAMES, 3);
+    this.ring.style.transform = `scale(${(1 + pulse * 0.22).toFixed(3)})`;
+    this.ring.style.opacity = (0.35 + pulse * 0.65).toFixed(2);
+    this.clock.classList.toggle('onbeat', beatDistance(s.frame) <= RULES.BEAT_WINDOW && s.phase === 'fight');
+    // Mic-Duell
+    const d = s.duel;
+    this.root.classList.toggle('duel', !!d);
+    if (d) {
+      const total = Math.max(1, d.taps[0] + d.taps[1]);
+      this.duelBars.forEach((b, i) => {
+        (b.querySelector('b') as HTMLElement).style.transform = `scaleX(${(d.taps[i] / total).toFixed(3)})`;
+        const n = b.querySelector('span') as HTMLElement;
+        if (n.textContent !== String(d.taps[i])) {
+          n.textContent = String(d.taps[i]);
+          b.classList.remove('tap');
+          void b.offsetWidth;
+          b.classList.add('tap');
+        }
+      });
+      const left = Math.max(0, Math.ceil((RULES.DUEL_FRAMES - d.frame) / 60));
+      (this.duelUi.querySelector('.duel-title') as HTMLElement).textContent = `MIC-DUELL! ${left}`;
+    }
+    // finish phase / fatality
+    this.root.classList.toggle('finish', s.phase === 'finish' && !s.fatal);
+    const fatal = s.fatal;
+    this.root.classList.toggle('fatal', !!fatal);
+    this.fatalTitle.classList.toggle('show', !!fatal && fatal.frame >= TITLE_AT && fatal.frame < TAUNT_AT + 70);
+    if (fatal && fatal.frame >= TAUNT_AT) {
+      if (!this.tauntEl.classList.contains('show')) {
+        const w = s.fighters[fatal.owner];
+        const lines = TAUNTS[w.def] ?? ['Nächster!'];
+        this.tauntEl.textContent = lines[(s.rng + s.round) % lines.length];
+        this.tauntEl.classList.add('show');
+      }
+    } else this.tauntEl.classList.remove('show');
   }
 
   private updateHand(s: GameState): void {

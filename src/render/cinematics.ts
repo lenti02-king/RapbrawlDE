@@ -17,6 +17,7 @@ import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
 import { HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { FATALITIES } from './fatalities';
 
 export type V3 = [number, number, number];
 export interface CamKey {
@@ -385,6 +386,7 @@ export const CINEMATICS: Record<string, CineDef> = {
   brick_security: SECURITY,
   jaz_heart: HERZBRECHER,
   bon_palm: PALMEN_BASSDROP,
+  ...FATALITIES,
 };
 
 // ------------------------------------------------------------- runtime
@@ -445,23 +447,25 @@ class CinematicRuntime {
       this.end();
       return true;
     }
-    if (!s.cine) {
+    // a fatality runs on the same machinery, keyed to the finish phase's own frame counter
+    const cine = s.cine ?? (s.fatal ? { id: `fatal_${s.fighters[s.fatal.owner].def}`, owner: s.fatal.owner, frame: s.fatal.frame } : null);
+    if (!cine) {
       this.end();
       return false;
     }
-    const def = CINEMATICS[s.cine.id];
+    const def = CINEMATICS[cine.id];
     if (!def) return false;
-    if (this.active !== s.cine.id) this.start(s.cine.id, def);
-    const owner = s.cine.owner;
+    if (this.active !== cine.id) this.start(cine.id, def);
+    const owner = cine.owner;
     const atkF = s.fighters[owner];
     const facing = atkF.facing;
     const ax = atkF.x / U;
-    const f = Math.min(def.frames, s.cine.frame + alpha);
+    const f = Math.min(def.frames, cine.frame + alpha);
 
     // poses
     const atkAnim = v.anims[owner];
     const defAnim = v.anims[1 - owner];
-    const defClip = this.defClipFor(s.cine.id, def, defAnim?.set);
+    const defClip = this.defClipFor(cine.id, def, defAnim?.set);
     if (atkAnim) atkAnim.override = (_s, _i, out) => (def.atk.sample(f, out), true);
     if (defAnim) defAnim.override = (_s, _i, out) => (defClip.sample(f, out), true);
     v.fx.teethOverride[owner] = def.teeth?.some(([a, b]) => f >= a && f <= b) ?? false;
@@ -469,7 +473,7 @@ class CinematicRuntime {
 
     // props
     if (def.props) {
-      const pr = this.propsFor(s.cine.id, def);
+      const pr = this.propsFor(cine.id, def);
       pr.group.visible = true;
       pr.group.position.set(ax, 0, 0);
       pr.group.scale.set(facing, 1, 1);

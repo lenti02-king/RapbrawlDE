@@ -47,6 +47,8 @@ export class Bot implements InputSource {
   private seed: number;
   /** Training dummy override. */
   dummy: 'cpu' | 'stand' | 'crouch' | 'block' | 'blockAll' | 'jump' = 'cpu';
+  private tapWait = 0;
+  private finishRoll = false;
 
   constructor(
     public level: BotLevel = BOT_LEVELS.normal,
@@ -69,9 +71,22 @@ export class Bot implements InputSource {
     const op = s.fighters[1 - idx];
     this.hist.push({ state: op.state, move: op.move, mf: op.mf, x: op.x, y: op.y, vy: op.vy });
     if (this.hist.length > 40) this.hist.shift();
+    // fatality at match point: the CPU finishes you off more often the harder it is
+    if (s.phase === 'finish' && s.roundWinner === idx && !s.fatal && this.dummy === 'cpu') {
+      if (s.phaseFrame === 40) this.finishRoll = this.chance(0.35 + this.level.punish * 0.6);
+      return this.finishRoll && s.phaseFrame >= 45 && s.phaseFrame <= 47 ? IN.S3 : 0;
+    }
     if (s.phase !== 'fight') {
       this.plan = [];
       return 0;
+    }
+    // Mic-Duell: mash at a human-ish rate that grows with the level (with some jitter)
+    if (s.duel && me.state === 'clash') {
+      this.plan = [];
+      const period = Math.round(14 - this.level.punish * 8);
+      if (this.tapWait <= 0) this.tapWait = period + Math.floor(this.rnd() * 3);
+      this.tapWait--;
+      return this.tapWait === 0 ? IN.LIGHT : 0;
     }
     const fwd = op.x >= me.x ? IN.RIGHT : IN.LEFT;
     const back = fwd === IN.RIGHT ? IN.LEFT : IN.RIGHT;
