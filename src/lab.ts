@@ -10,7 +10,7 @@ import { ANIM_SETS, motionOf } from './render/animator';
 import { getFighter } from './core/registry';
 import type { AnimSet } from './render/anims/types';
 import { buildCharacter } from './render/characters';
-import { Clip, sampleDef, toArr, type PoseDef } from './render/pose';
+import { Clip, sampleDef, stabilizeHead, toArr, type PoseDef } from './render/pose';
 
 export function runLab(canvas: HTMLCanvasElement): void {
   if (new URLSearchParams(location.search).get('lab') === 'bake-export') {
@@ -88,7 +88,13 @@ export function runLab(canvas: HTMLCanvasElement): void {
   }
   if (params.get('hide') === 'all') rigs.forEach((r) => (r.root.visible = false));
   /** Re-pose a fighter without reloading (scripts/posesheet.mjs): same syntax as &pose=. */
-  const setPose = (i: number, spec: string) => rigs[i].apply(toArr(labPose(ANIM_SETS[ids[i]], spec)), i ? -1 : 1);
+  const setPose = (i: number, spec: string) => {
+    const arr = toArr(labPose(ANIM_SETS[ids[i]], spec));
+    // same head stabiliser as the in-game animator (moves 0.85, movement 0.7)
+    const hw = params.get('head') !== null ? Number(params.get('head')) : spec.startsWith('move:') ? 0.85 : spec.startsWith('walk') ? 0.7 : 0;
+    stabilizeHead(arr, hw);
+    rigs[i].apply(arr, i ? -1 : 1);
+  };
   /** Reach check (scripts/reach.mjs): world positions of fists/feet for a pose, the fighter at the origin facing +x. */
   const reach = (i: number, spec: string) => {
     setPose(i, spec);

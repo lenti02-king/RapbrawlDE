@@ -9,7 +9,7 @@ import type { AnimSet } from './anims/types';
 import { VOLT_ANIMS } from './anims/volt';
 import { JAZEEK_ANIMS } from './anims/jazeek';
 import { BONEZ_ANIMS } from './anims/bonez';
-import { lerpPose, toArr } from './pose';
+import { lerpPose, stabilizeHead, toArr } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
 
@@ -62,9 +62,10 @@ const ease = (t: number) => 1 - (1 - t) * (1 - t);
  */
 export class FighterAnimator {
   readonly current = new Float32Array(POSE_LEN);
+  /** Final pose handed to the rig: `current` plus the head stabiliser (kept separate so fades start unmodified). */
+  readonly final = new Float32Array(POSE_LEN);
   private target = new Float32Array(POSE_LEN);
   private from = new Float32Array(POSE_LEN);
-  private tmp = new Float32Array(POSE_LEN);
   private key = '';
   private fadeT = 0;
   private fadeDur = 0;
@@ -302,8 +303,32 @@ export class FighterAnimator {
     this.vx += (x - this.vx) * pk;
     this.vy = y;
     this.lastX = x;
-    this.tmp.set(this.current);
-    return this.current;
+    this.final.set(this.current);
+    stabilizeHead(this.final, headWeight(this.key));
+    return this.final;
+  }
+}
+
+/** How strongly the head keeps looking at the opponent per animation (reactions keep their whip, throws/cines are authored). */
+function headWeight(key: string): number {
+  if (key.startsWith('move:')) return 0.85;
+  if (key.startsWith('hit:') || key === 'countered') return 0.2;
+  if (key.startsWith('block')) return 0.6;
+  switch (key) {
+    case 'idle':
+    case 'crouch':
+    case 'walkF':
+    case 'walkB':
+    case 'guard':
+    case 'guardC':
+    case 'dashF':
+    case 'dashB':
+    case 'jumpSquat':
+    case 'land':
+    case 'air':
+      return 0.7;
+    default:
+      return 0;
   }
 }
 

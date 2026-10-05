@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { JOINTS, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
+import { JOINTS, JOINT_INDEX, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
 
 /** Structural rig interface used by the view, cinematics and specials. */
 export interface CharacterRig {
@@ -21,6 +21,10 @@ export interface CharacterRig {
 /** Fraction of the full fist curl applied to finger bones (models from tools/meshy/skin.py). The two-bone finger
  *  rig cannot form a clean fist on the sculpted hands; a light curl keeps them readable without crumpling. */
 const FIST_CURL = 0.4;
+/** Extra curl when the arm is extended (punch contact): a straight arm closes the hand into a tight fist. */
+const FIST_STRIKE = 0.45;
+/** Thumb fold across the fingers at a full fist (deg, per model: the sculpted thumbs point different ways). */
+const THUMB_FOLD: Record<string, number> = { jazeek: -90, bonez: 0 };
 
 /** Humanoid bone names (Mixamo convention; prefixes like "mixamorig:" are ignored). */
 const BONE_FOR: Partial<Record<JointName, string>> = {
@@ -195,6 +199,8 @@ interface MapEntry {
 
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
+const _X = new THREE.Vector3(1, 0, 0);
+const _Z = new THREE.Vector3(0, 0, 1);
 const _v = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 
@@ -219,8 +225,10 @@ export class GlbRig implements CharacterRig {
   private zero = new Float32Array(POSE_LEN);
   private world = new Map<THREE.Object3D, THREE.Quaternion>();
   private headPitch = new THREE.Quaternion();
-  /** Finger/thumb bones curled into a fist (models rigged by tools/meshy/skin.py keep their sculpted open hands). */
-  private fistLocal = new Map<THREE.Object3D, THREE.Quaternion>();
+  /** Finger/thumb bones curled into a fist (models rigged by tools/meshy/skin.py keep their sculpted open hands):
+   *  rest rotation, curl angle (rad at full fist) and side (0 = left/far arm, 1 = right/near arm). */
+  private fistBones = new Map<THREE.Object3D, { rest: THREE.Quaternion; ang: number; side: 0 | 1; fold?: number }>();
+  private curlBase = FIST_CURL;
 
   constructor(
     id: string,
@@ -289,8 +297,7 @@ export class GlbRig implements CharacterRig {
     const fistQ = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('fist') : null;
     const curlScale = fistQ === null ? FIST_CURL : Number(fistQ);
     if (curlScale <= 0) fist = false;
-    this.model.traverse(() => {
-    });
+    this.curlBase = curlScale;
     const s = !fitHeight && refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
     this.fit.scale.setScalar(s);
     this.root.updateMatrixWorld(true);
@@ -346,17 +353,31 @@ export class GlbRig implements CharacterRig {
     const CURL: [RegExp, number][] = [
       [/HandFingers1$/, 80],
       [/HandFingers2$/, 95],
-      [/HandThumb$/, 55],
+      [/HandThumb$/, 0],
     ];
     this.hips.traverse((o) => {
       if ((o as THREE.Bone).isBone) {
         this.order.push(o as THREE.Bone);
         this.restLocal.set(o as THREE.Bone, o.quaternion.clone());
-        const c = fist ? CURL.find(([re]) => re.test(canon(o.name))) : undefined;
+        const cn = canon(o.name);
+        const c = fist ? CURL.find(([re]) => re.test(cn)) : undefined;
         // the bone's local X is the knuckle axis; +rotation curls toward the palm
-        if (c) this.fistLocal.set(o, o.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (c[1] * curlScale * Math.PI) / 180)));
+        if (c) this.fistBones.set(o, { rest: o.quaternion.clone(), ang: (c[1] * Math.PI) / 180, side: cn.startsWith('Left') ? 0 : 1 });
       }
     });
+    // thumbs also fold across the front of the curled fingers (around the palm normal, toward the fingertips)
+    const dbg = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+    const thumbFold = Number(dbg?.get('thz') ?? THUMB_FOLD[id] ?? 0);
+    for (const [b, fb] of this.fistBones) {
+      if (!/HandThumb$/.test(canon(b.name))) continue;
+      if (dbg?.get('thx')) fb.ang = (Number(dbg.get('thx')) * Math.PI) / 180;
+      const f1 = [...this.fistBones].find(([o]) => o.parent === b.parent && /HandFingers1$/.test(canon(o.name)));
+      if (!f1) continue;
+      const d = new THREE.Vector3(0, 1, 0).applyQuaternion(f1[1].rest);
+      const tx = new THREE.Vector3(1, 0, 0).applyQuaternion(fb.rest);
+      const ts = tx.dot(d) < 0 ? 1 : -1;
+      fb.fold = (ts * thumbFold * Math.PI) / 180;
+    }
     const hp = this.hips.parent!;
     hp.updateMatrixWorld(true);
     this.hipsParentWorldInv.copy(hp.matrixWorld).invert();
@@ -371,6 +392,10 @@ export class GlbRig implements CharacterRig {
   apply(p: Float32Array, facing: number): void {
     const ref = this.ref;
     ref.apply(p, 1, false);
+    // fist tightness per hand: relaxed curl in guard, a closed fist when the arm extends (strike contact)
+    const ext = (el: number) => Math.max(0, Math.min(1, 1 - Math.abs(p[JOINT_INDEX[el === 0 ? 'elL' : 'elR'] * 3 + 2]) / 70));
+    const curlL = this.curlBase > 0 ? Math.min(1, this.curlBase + FIST_STRIKE * ext(0)) : 0;
+    const curlR = this.curlBase > 0 ? Math.min(1, this.curlBase + FIST_STRIKE * ext(1)) : 0;
     ref.root.updateMatrixWorld(true);
     const world = this.world;
     for (const bone of this.order) {
@@ -389,7 +414,13 @@ export class GlbRig implements CharacterRig {
         wq.copy(_q).multiply(e.alignedRest);
         bone.quaternion.copy(_q2.copy(parentQ).invert().multiply(wq));
       } else {
-        bone.quaternion.copy(this.fistLocal.get(bone) ?? this.restLocal.get(bone)!);
+        const fb = this.fistBones.get(bone);
+        if (fb) {
+          const c = fb.side ? curlR : curlL;
+          bone.quaternion.copy(fb.rest);
+          if (fb.fold) bone.quaternion.multiply(_q.setFromAxisAngle(_Z, fb.fold * c));
+          bone.quaternion.multiply(_q.setFromAxisAngle(_X, fb.ang * c));
+        } else bone.quaternion.copy(this.restLocal.get(bone)!);
         wq.copy(parentQ).multiply(bone.quaternion);
       }
     }

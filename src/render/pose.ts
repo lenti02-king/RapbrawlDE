@@ -166,6 +166,48 @@ function solveAim(p: Float32Array, aim: Aim): void {
   }
 }
 
+// ---- head stabiliser: fighters keep their eyes on the opponent through strikes, spins and leans
+const _qn = new THREE.Quaternion();
+const _qt = new THREE.Quaternion();
+const _qi = new THREE.Quaternion();
+const _hf = new THREE.Vector3();
+const HEAD_MAX = 75 * RAD;
+/**
+ * Pulls the head toward an upright look at the opponent (+X in character space) with weight `w` (0..1).
+ * The authored nod survives within `pitch` limits (degrees: forward, back), the neck takes 40 % of the turn and
+ * the total turn relative to the chest is capped (no owl heads in spins). Applied after all blending.
+ */
+export function stabilizeHead(p: Float32Array, w: number, pitch: [number, number] = [-22, 14]): void {
+  if (w <= 0) return;
+  chainQ(p, ['hips', 'spine', 'chest'], _qa);
+  const ni = JOINT_INDEX.neck * 3;
+  const hi = JOINT_INDEX.head * 3;
+  // authored head orientation (world) and its pitch around the facing axis
+  _qn.copy(jointQ(p, 'neck', _qb)).multiply(jointQ(p, 'head', _qc));
+  _qt.copy(_qa).multiply(_qn);
+  _hf.set(1, 0, 0).applyQuaternion(_qt);
+  const nod = Math.atan2(_hf.y, Math.hypot(_hf.x, _hf.z)) / RAD;
+  const keep = Math.max(pitch[0], Math.min(pitch[1], nod)) * RAD;
+  // target: upright, facing the opponent, with the clamped nod; expressed relative to the chest
+  _qt.setFromEuler(_e.set(0, 0, keep, 'ZYX'));
+  _qi.copy(_qa).invert().multiply(_qt);
+  const ang = 2 * Math.acos(Math.min(1, Math.abs(_qi.w)));
+  if (ang > HEAD_MAX) _qi.slerp(_qb.identity(), 1 - HEAD_MAX / ang);
+  // blend from the authored neck*head
+  _qn.slerp(_qi, Math.min(1, w));
+  // split between neck and head
+  _qb.identity().slerp(_qn, 0.4);
+  _qc.copy(_qb).invert().multiply(_qn);
+  _e.setFromQuaternion(_qb, 'ZYX');
+  p[ni] = _e.x / RAD;
+  p[ni + 1] = _e.y / RAD;
+  p[ni + 2] = _e.z / RAD;
+  _e.setFromQuaternion(_qc, 'ZYX');
+  p[hi] = _e.x / RAD;
+  p[hi + 1] = _e.y / RAD;
+  p[hi + 2] = _e.z / RAD;
+}
+
 export function lerpPose(a: Float32Array, b: Float32Array, t: number, out: Float32Array): Float32Array {
   for (let i = 0; i < POSE_LEN; i++) out[i] = a[i] + (b[i] - a[i]) * t;
   return out;
