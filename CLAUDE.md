@@ -29,17 +29,20 @@ node scripts/netplay.mjs 60         # two pages play online (same-device transpo
 npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
 node scripts/single-file.mjs out.html  # one self-contained HTML page (used for the claude.ai Artifact)
 node scripts/vfx.mjs [low|medium|high]  # frame-accurate hit-VFX capture sheet -> artifacts/vfx
-python3 tools/meshy/build.py jazeek|bonez   # fighter GLB from the PO's Meshy sculpt in .cache/meshy (bpy, pillow, scipy)
-python3 tools/meshy/preview.py jazeek|bonez # painted sculpt previews -> artifacts/meshy (iterate on tools/meshy/<id>.py)
-node scripts/glb-to-json.mjs in.glb out.gltf.json   # Artifact host does not serve .glb: publish models as assets/characters/<id>.gltf.json
-node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ and assert the models load under an Artifact-like CSP (run before every publish)
+python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
+python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
+python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
+node scripts/arena-shot.mjs artifacts/arena/x high   # in-game arena shots at close/mid/wide fighter distance
+node scripts/glb-to-json.mjs in.glb out.gltf.json [--external-images]   # Artifact host does not serve .glb (images as separate files keep each file < 15 MB)
+node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ (page + assets/**) and assert models AND arena load under an Artifact-like CSP (run before every publish)
 tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek   # rebuild the fighter models (Blender bpy)
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
-Fighter models: `public/assets/characters/<id>.glb`, built by `tools/meshy` from the product owner's Meshy sculpts (sources not in git,
-see `public/assets/characters/README.md`; paint rules/palette in `tools/meshy/<id>.py`). Older pipelines: `tools/cartoon`, `tools/characters`.
+Fighter models: `public/assets/characters/<id>.glb` = the product owner's textured Meshy models used 1:1 (reduced copy + skin, D28;
+sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
+Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=courtyard|club|toon` for the old ones.
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
 UI: `src/ui/theme.css` (design system, loaded after style.css), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
@@ -58,7 +61,7 @@ Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1
   `stylized.ts` (Jazeek/Bonez faces, hair, outfits), `cinematics.ts` (runtime + VOLT/BRICK) and `cines.ts`
   (Herzbrecher, Palmen-Bassdrop) keyed to the sim cine frame, `props.ts` (hearts, croc, palms, spotlight, sprites),
   `specials.ts` (in-match special VFX, gold teeth, win flourishes), `camera.ts`, `vfx.ts`,
-  `arenas/courtyard.ts` (default, realistic, after the reference image), `arenas/hinterhof.ts` (old toon version),
+  `arenas/podcast.ts` (default, baked podcast studio), `arenas/courtyard.ts` (realistic courtyard), `arenas/hinterhof.ts` (old toon version),
   `arena.ts` (club stage), `post.ts` (post-processing + quality tiers), `textures.ts` (procedural PBR sets),
   `glbRig.ts` (GLB character import + pose retargeting).
 - `audio/audio.ts` — procedural Web Audio SFX + generative music (no external assets).

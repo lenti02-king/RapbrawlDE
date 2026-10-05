@@ -4,7 +4,7 @@
 // (world-space delta), after aligning the model's rest pose (T/A-pose) to the reference rest pose
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { JOINTS, type JointName, POSE_LEN, type Rig } from './rig';
 
@@ -128,34 +128,42 @@ function parseWithImageElements(loader: GLTFLoader, buf: ArrayBuffer | string, p
   }
 }
 
+/**
+ * Fetch and parse a glTF: `<base>.glb`, or a self-contained `<base>.gltf.json` for hosts that do not serve .glb
+ * (scripts/glb-to-json.mjs). Safe under the Artifact CSP (see gltfJsonToGlb / parseWithImageElements).
+ * Resolves null when neither file exists.
+ */
+export async function fetchGltf(base: string, exact?: string): Promise<GLTF | null> {
+  let url = '';
+  let res: Response | null = null;
+  for (const u of exact ? [exact] : [`${base}.glb`, `${base}.gltf.json`]) {
+    const r = await fetch(u).catch(() => null);
+    const type = r?.headers.get('content-type') ?? '';
+    if (r && r.ok && !type.includes('text/html')) {
+      url = u;
+      res = r;
+      break;
+    }
+  }
+  if (!res) return null;
+  let buf: ArrayBuffer | string;
+  if (url.endsWith('.json')) {
+    const text = await res.text();
+    buf = gltfJsonToGlb(text) ?? text;
+  } else buf = await res.arrayBuffer();
+  return parseWithImageElements(new GLTFLoader(), buf, url.replace(/[^/]*$/, ''));
+}
+
 /** Try to load `<base>/<id>.glb` for each fighter (missing files are fine: procedural fallback). */
 export async function loadCharacterModels(ids: string[], base = 'assets/characters', overrides: Record<string, string> = {}): Promise<string[]> {
-  const loader = new GLTFLoader();
   const ok: string[] = [];
   await Promise.all(
     ids.map(async (id) => {
       try {
-        // .glb, or a self-contained .gltf.json for hosts that do not serve .glb (scripts/glb-to-json.mjs)
-        let url = '';
-        let res: Response | null = null;
-        for (const u of overrides[id] ? [overrides[id]] : [`${base}/${id}.glb`, `${base}/${id}.gltf.json`]) {
-          const r = await fetch(u).catch(() => null);
-          const type = r?.headers.get('content-type') ?? '';
-          if (r && r.ok && !type.includes('text/html')) {
-            url = u;
-            res = r;
-            break;
-          }
-        }
-        if (!res) return;
-        let buf: ArrayBuffer | string;
-        if (url.endsWith('.json')) {
-          const text = await res.text();
-          buf = gltfJsonToGlb(text) ?? text;
-        } else buf = await res.arrayBuffer();
-        const gltf = await parseWithImageElements(loader, buf, url.replace(/[^/]*$/, ''));
+        const gltf = await fetchGltf(`${base}/${id}`, overrides[id]);
+        if (!gltf) return;
         if (!isHumanoid(gltf.scene)) {
-          console.warn(`[models] ${url}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);
+          console.warn(`[models] ${id}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);
           return;
         }
         loaded.set(id, gltf.scene);
@@ -207,6 +215,8 @@ export class GlbRig implements CharacterRig {
   private zero = new Float32Array(POSE_LEN);
   private world = new Map<THREE.Object3D, THREE.Quaternion>();
   private headPitch = new THREE.Quaternion();
+  /** Finger/thumb bones curled into a fist (models rigged by tools/meshy/skin.py keep their sculpted open hands). */
+  private fistLocal = new Map<THREE.Object3D, THREE.Quaternion>();
 
   constructor(
     id: string,
@@ -263,10 +273,12 @@ export class GlbRig implements CharacterRig {
     const modelHips = this.hips.getWorldPosition(new THREE.Vector3()).y - box.min.y;
     // realistic models (tools/meshy) ask to be fitted to the fighter's gameplay height instead (glTF extras rb_fit)
     let fitHeight = false;
+    let fist = false;
     this.model.traverse((o) => {
       if (o.userData?.rb_fit === 'height') fitHeight = true;
       // realistic heads read the cartoon chin-up attitude as "looking at the sky": per-model pitch offset (deg)
       if (typeof o.userData?.rb_head_pitch === 'number') this.headPitch.setFromAxisAngle(new THREE.Vector3(0, 0, 1), (o.userData.rb_head_pitch * Math.PI) / 180);
+      if (o.userData?.rb_fist) fist = true;
     });
     const s = !fitHeight && refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
     this.fit.scale.setScalar(s);
@@ -320,10 +332,18 @@ export class GlbRig implements CharacterRig {
       this.byBone.set(bone, entry);
     }
     // traversal order (parents first) + rest local rotations
+    const CURL: [RegExp, number][] = [
+      [/HandFingers1$/, 80],
+      [/HandFingers2$/, 95],
+      [/HandThumb$/, 55],
+    ];
     this.hips.traverse((o) => {
       if ((o as THREE.Bone).isBone) {
         this.order.push(o as THREE.Bone);
         this.restLocal.set(o as THREE.Bone, o.quaternion.clone());
+        const c = fist ? CURL.find(([re]) => re.test(canon(o.name))) : undefined;
+        // the bone's local X is the knuckle axis; +rotation curls toward the palm
+        if (c) this.fistLocal.set(o, o.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (c[1] * Math.PI) / 180)));
       }
     });
     const hp = this.hips.parent!;
@@ -356,7 +376,7 @@ export class GlbRig implements CharacterRig {
         wq.copy(_q).multiply(e.alignedRest);
         bone.quaternion.copy(_q2.copy(parentQ).invert().multiply(wq));
       } else {
-        bone.quaternion.copy(this.restLocal.get(bone)!);
+        bone.quaternion.copy(this.fistLocal.get(bone) ?? this.restLocal.get(bone)!);
         wq.copy(parentQ).multiply(bone.quaternion);
       }
     }

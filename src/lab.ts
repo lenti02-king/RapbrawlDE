@@ -3,8 +3,9 @@
 import * as THREE from 'three';
 import { Arena } from './render/arena';
 import { CourtyardArena } from './render/arenas/courtyard';
+import { PodcastArena } from './render/arenas/podcast';
 import { HinterhofArena } from './render/arenas/hinterhof';
-import { PostFX } from './render/post';
+import { type Look, PostFX } from './render/post';
 import { ANIM_SETS } from './render/animator';
 import { buildCharacter } from './render/characters';
 import { toArr, type PoseDef } from './render/pose';
@@ -27,7 +28,8 @@ export function runLab(canvas: HTMLCanvasElement): void {
   renderer.shadowMap.type = THREE.PCFShadowMap;
   const scene = new THREE.Scene();
   const arenaId = new URLSearchParams(location.search).get('arena');
-  const arena = arenaId === 'club' ? new Arena(scene) : arenaId === 'toon' ? new HinterhofArena(scene) : new CourtyardArena(scene, renderer);
+  const arena =
+    arenaId === 'club' ? new Arena(scene) : arenaId === 'toon' ? new HinterhofArena(scene) : arenaId === 'courtyard' ? new CourtyardArena(scene, renderer) : new PodcastArena(scene, renderer, 'high');
   const cam = new THREE.PerspectiveCamera(28, window.innerWidth / window.innerHeight, 0.1, 200);
   const params = new URLSearchParams(location.search);
   const which = params.get('pose') ?? 'stance';
@@ -51,7 +53,7 @@ export function runLab(canvas: HTMLCanvasElement): void {
     if (params.get('teeth') && rig.props.teeth) rig.props.teeth.visible = true;
     rigs.push(rig);
   });
-  // portrait framing: &frame=face|bust|body (&who=0|1, &yaw=deg around the fighter, 0 = 3/4 front)
+  // portrait framing: &frame=face|bust|body|full (&who=0|1, &yaw=deg around the fighter, 0 = 3/4 front)
   const frame = params.get('frame');
   if (frame) {
     const who = rigs[Number(params.get('who') ?? 0)];
@@ -63,7 +65,8 @@ export function runLab(canvas: HTMLCanvasElement): void {
     const dir = new THREE.Vector3(facing * Math.cos(0.75 + yaw), 0, Math.sin(0.75 + yaw));
     const hand = who.joints.haL.getWorldPosition(new THREE.Vector3());
     const fy = Number(params.get('fy') ?? 0.07);
-    const spec = { hand: [hand, 0.55, 22], face: [head.clone().add(new THREE.Vector3(0, fy, 0)), Number(params.get('fd') ?? 0.75), 18], bust: [head.clone().lerp(hips, 0.35), 1.6, 26], body: [hips.clone().setY(hips.y * 0.95), 4.2, 28] }[frame] as [THREE.Vector3, number, number];
+    const top = who.joints.head.getWorldPosition(new THREE.Vector3()).y + 0.45;
+    const spec = { full: [new THREE.Vector3(hips.x, top * 0.5, hips.z), top * 2.3, 28], hand: [hand, 0.55, 22], face: [head.clone().add(new THREE.Vector3(0, fy, 0)), Number(params.get('fd') ?? 0.75), 18], bust: [head.clone().lerp(hips, 0.35), 1.6, 26], body: [hips.clone().setY(hips.y * 0.95), 4.2, 28] }[frame] as [THREE.Vector3, number, number];
     const [target, dist, fov] = spec;
     cam.fov = fov;
     cam.position.copy(target).addScaledVector(dir, dist).add(new THREE.Vector3(0, 0.03 * dist, 0));
@@ -73,6 +76,7 @@ export function runLab(canvas: HTMLCanvasElement): void {
   }
   (window as unknown as { __lab: unknown }).__lab = { scene, cam, rigs };
   const post = new PostFX(renderer, scene, cam, params.get('q') === 'low' ? 'low' : 'high');
+  post.applyLook((arena as { look?: Look }).look);
   post.setSize(window.innerWidth, window.innerHeight);
   const t0 = performance.now();
   const loop = () => {

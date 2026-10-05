@@ -10,7 +10,7 @@ page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 await page.goto(base + path);
 await page.waitForTimeout(+wait);
-await page.screenshot({ path: out });
+await page.screenshot({ path: out, timeout: Number(process.env.SHOT_TIMEOUT ?? 30000) });
 for (const l of logs) console.log(l);
 await browser.close();
 console.log('saved', out);

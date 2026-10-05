@@ -8,8 +8,9 @@ import type { GameState } from '../core/state';
 import { ANIM_SETS, FighterAnimator } from './animator';
 import { Arena } from './arena';
 import { CourtyardArena } from './arenas/courtyard';
+import { PodcastArena } from './arenas/podcast';
 import { HinterhofArena, type ArenaLike } from './arenas/hinterhof';
-import { detectQuality, PostFX, type Quality } from './post';
+import { detectQuality, type Look, PostFX, type Quality } from './post';
 import { CameraDirector, type CamShot } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
 import type { CharacterRig } from './glbRig';
@@ -84,7 +85,7 @@ export class GameView {
   readonly quality: Quality;
   readonly post: PostFX;
 
-  constructor(canvas: HTMLCanvasElement, arenaId = 'courtyard') {
+  constructor(canvas: HTMLCanvasElement, arenaId = new URLSearchParams(location.search).get('arena') ?? 'podcast') {
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1));
@@ -96,12 +97,14 @@ export class GameView {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     if (arenaId === 'club') this.arena = new Arena(this.scene);
     else if (arenaId === 'toon') this.arena = new HinterhofArena(this.scene);
+    else if (arenaId === 'podcast') this.arena = new PodcastArena(this.scene, this.renderer, this.quality);
     else {
       const a = new CourtyardArena(this.scene, this.renderer, this.quality);
       a.setShadowQuality(this.quality === 'high' ? 2048 : 1024);
       this.arena = a;
     }
     this.post = new PostFX(this.renderer, this.scene, this.director.cam, this.quality);
+    this.post.applyLook((this.arena as ArenaLike & { look?: Look }).look);
     this.scene.add(this.vfx.group);
     this.scene.add(this.fx.group);
     this.vfx.setCamera(this.director.cam);

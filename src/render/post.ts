@@ -61,6 +61,17 @@ const GradeShader = {
     }`,
 };
 
+/** Per-arena post settings (an arena may expose `look`, e.g. the podcast set's AgX + neon-only bloom). */
+export interface Look {
+  toneMapping?: THREE.ToneMapping;
+  bloomThreshold: number;
+  bloomStrength: number;
+  bloomRadius: number;
+  exposure: number;
+  saturation?: number;
+  contrast?: number;
+}
+
 export class PostFX {
   readonly composer: EffectComposer | null = null;
   readonly bloom: UnrealBloomPass | null = null;
@@ -88,6 +99,19 @@ export class PostFX {
     this.composer.addPass(new OutputPass());
     this.grade = new ShaderPass(GradeShader);
     this.composer.addPass(this.grade);
+  }
+
+  applyLook(look: Look | undefined): void {
+    if (!look) return;
+    this.renderer.toneMappingExposure = look.exposure;
+    if (look.toneMapping !== undefined) this.renderer.toneMapping = look.toneMapping;
+    if (this.grade && look.saturation !== undefined) this.grade.uniforms.uSaturation.value = look.saturation;
+    if (this.grade && look.contrast !== undefined) this.grade.uniforms.uContrast.value = look.contrast;
+    if (this.bloom) {
+      this.bloom.threshold = look.bloomThreshold;
+      this.bloom.strength = look.bloomStrength;
+      this.bloom.radius = look.bloomRadius;
+    }
   }
 
   setCamera(cam: THREE.Camera): void {
