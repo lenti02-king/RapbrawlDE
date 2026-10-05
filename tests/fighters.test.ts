@@ -176,6 +176,44 @@ describe('target combos (buttons only)', () => {
     expect(m3).not.toContain('bon_LLL');
   });
 
+  // session 8 strike variations: L·L·H (flying knee / headbutt) and 2L then H (back-flip kick / clinch knee)
+  for (const [a, b, llh, l2h] of [
+    ['jazeek', 'bonez', 'jaz_LLH', 'jaz_2LH'],
+    ['bonez', 'jazeek', 'bon_LLH', 'bon_2LH'],
+  ] as const) {
+    it(`${a}: L·L·H and 2L·H are button strings that combo`, () => {
+      const run = (seq: number[]) => {
+        const s = newMatch({ fighters: [a, b] });
+        place(s, 0.95);
+        const f = s.fighters[0];
+        const moves: string[] = [];
+        const hits: number[] = [];
+        let k = 0;
+        let lastMf = 0;
+        for (let i = 0; i < 120; i++) {
+          let bits = 0;
+          // next button once the current move connected (a player reacting to the hit), held while it stays valid
+          if (k === 0) bits = seq[k++];
+          else if (k < seq.length && f.state === 'move' && f.connected === 'hit' && moves.length === k) bits = seq[k];
+          else if (k < seq.length && moves.length > k) k++;
+          for (const e of step(s, [bits, 0])) if (e.t === 'hit' && e.a === 0) hits.push(e.combo);
+          if (f.state === 'move' && f.mf === 1 && lastMf !== 1) moves.push(f.move!);
+          lastMf = f.state === 'move' ? f.mf : 0;
+        }
+        return { moves, hits };
+      };
+      const a1 = run([IN.LIGHT, IN.LIGHT, IN.HEAVY]);
+      expect(a1.moves.slice(0, 3)).toEqual([`${a.slice(0, 3)}_5L`, `${a.slice(0, 3)}_5L`, llh]);
+      expect(a1.hits).toEqual([1, 2, 3]);
+      const a2 = run([IN.LIGHT | IN.DOWN, IN.HEAVY]);
+      expect(a2.moves.slice(0, 2)).toEqual([`${a.slice(0, 3)}_2L`, l2h]);
+      expect(a2.hits).toEqual([1, 2]);
+      // L·H (first jab) still chains into the standing heavy
+      const a3 = run([IN.LIGHT, IN.HEAVY]);
+      expect(a3.moves.slice(0, 2)).toEqual([`${a.slice(0, 3)}_5L`, `${a.slice(0, 3)}_5H`]);
+    });
+  }
+
   // H·L launcher -> Up (jump after them) -> jL -> jH: driven by the state, like a player reacting
   for (const [a, b, launcher] of [
     ['jazeek', 'bonez', 'jaz_HL'],

@@ -19,6 +19,8 @@ const N = {
   LLL: 'bon_LLL',
   HH: 'bon_HH',
   HL: 'bon_HL',
+  LLH: 'bon_LLH',
+  L2H: 'bon_2LH',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -29,7 +31,12 @@ const moves: MoveDef[] = [
     active: 3,
     recovery: 10,
     hit: { pushHit: 300, pushBlock: 520, damage: 45, strength: 0, hitstun: 15, blockstun: 11, boxes: [box(0.25, 0.98, 1.22, 1.66)], reaction: 'high' },
-    extra: { chains: LIGHT_CHAINS, targets: { light: { move: N.LLL, minDepth: 1 } }, specialCancel: true, hurt: [{ start: 6, end: 13, boxes: [box(0.25, 0.8, 1.25, 1.62)] }] },
+    extra: {
+      chains: LIGHT_CHAINS,
+      targets: { light: { move: N.LLL, minDepth: 1 }, heavy: { move: N.LLH, minDepth: 1 } },
+      specialCancel: true,
+      hurt: [{ start: 6, end: 13, boxes: [box(0.25, 0.8, 1.25, 1.62)] }],
+    },
   }),
   simpleMove(N.L2, 'normal', {
     name: 'Stiefeltritt',
@@ -37,7 +44,7 @@ const moves: MoveDef[] = [
     active: 3,
     recovery: 11,
     hit: { damage: 42, strength: 0, hitstun: 15, blockstun: 11, level: 'low', boxes: [box(0.2, 0.98, 0.0, 0.32)], reaction: 'low' },
-    extra: { crouching: true, chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 7, end: 15, boxes: [box(0.2, 0.85, 0, 0.35)] }] },
+    extra: { crouching: true, chains: LIGHT_CHAINS, targets: { heavy: { move: N.L2H } }, specialCancel: true, hurt: [{ start: 7, end: 15, boxes: [box(0.2, 0.85, 0, 0.35)] }] },
   }),
   simpleMove(N.H5, 'normal', {
     name: 'Rechte Gerade',
@@ -83,6 +90,38 @@ const moves: MoveDef[] = [
         { frame: 14, vx: 0 },
       ],
       hurt: [{ start: 10, end: 32, boxes: [box(0.25, 1.15, 1.0, 1.8)] }],
+    },
+  }),
+  // L·L·H: grabs the collar and headbutts (short range, big stagger)
+  simpleMove(N.LLH, 'normal', {
+    name: 'Kopfnuss',
+    startup: 10,
+    active: 3,
+    recovery: 19,
+    hit: { damage: 84, strength: 3, hitstun: 26, blockstun: 16, boxes: [box(0.1, 1.0, 1.25, 1.95)], reaction: 'high' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 2, vx: mps(3.2) },
+        { frame: 10, vx: 0 },
+      ],
+      hurt: [{ start: 8, end: 20, boxes: [box(0.15, 0.75, 1.2, 1.95)] }],
+    },
+  }),
+  // 2L then H (stick released): clinch knee to the gut, folds the opponent and drops them
+  simpleMove(N.L2H, 'normal', {
+    name: 'Knie-Stoß',
+    startup: 9,
+    active: 3,
+    recovery: 21,
+    hit: { damage: 80, strength: 2, blockstun: 15, knockdown: true, boxes: [box(0.15, 1.0, 0.6, 1.3)], reaction: 'gut' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 2, vx: mps(3.2) },
+        { frame: 10, vx: 0 },
+      ],
+      hurt: [{ start: 7, end: 20, boxes: [box(0.15, 0.8, 0.5, 1.7)] }],
     },
   }),
   // H·L: launcher, Up on hit jumps after the opponent (air combo: jL -> jH)

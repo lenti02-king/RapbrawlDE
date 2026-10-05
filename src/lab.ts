@@ -91,7 +91,7 @@ export function runLab(canvas: HTMLCanvasElement): void {
   const setPose = (i: number, spec: string) => {
     const arr = toArr(labPose(ANIM_SETS[ids[i]], spec));
     // same head stabiliser as the in-game animator (moves 0.85, movement 0.7)
-    const hw = params.get('head') !== null ? Number(params.get('head')) : spec.startsWith('move:') ? 0.85 : spec.startsWith('walk') ? 0.7 : 0;
+    const hw = params.get('head') !== null ? Number(params.get('head')) : spec.startsWith('move:') ? (ANIM_SETS[ids[i]].headFree?.[spec.split(':')[1]] ?? 0.85) : spec.startsWith('walk') ? 0.7 : 0;
     stabilizeHead(arr, hw);
     rigs[i].apply(arr, i ? -1 : 1);
   };

@@ -262,6 +262,65 @@ const normals: Record<string, Clip> = {
     },
     S,
   ),
+  // L·L·H "Fliegendes Knie", startup 11 / active 4 / total 31: loads low, hops in and drives the near knee into the
+  // head, arms thrown back for momentum, lands in a deep squash
+  jaz_LLH: strike(
+    {
+      startup: 11,
+      active: 4,
+      total: 31,
+      pre: { f: 4, p: { y: -0.1, s: { sq: 0.14 }, j: { spine: [0, -8, -18], chest: [0, -16, -10], thL: [6, 20, 44], knL: [0, 0, -70], thR: [-8, 18, 10], knR: [0, 0, -60] }, aim: { shL: [-0.4, -1, 0.1], elL: [-0.2, -1, 0.1], shR: [-0.5, -1, 0.2], elR: [-0.3, -1, 0.2] } } },
+      windAt: 8,
+      wind: {
+        y: 0.18,
+        x: 0.1,
+        s: { sq: -0.12 },
+        aim: { thR: [0.5, 0.2, 0.1], knR: [-0.4, -1, 0.05], thL: [-0.2, -1, -0.1], knL: [-1, -0.6, -0.1], shL: [1, 0.6, -0.2], elL: [1, 0.6, -0.1], shR: [-0.6, -0.6, 0.3], elR: [-0.4, -1, 0.3] },
+        j: { spine: [0, 4, 6], chest: [0, 6, 4] },
+      },
+      hit: {
+        y: 0.32,
+        x: 0.26,
+        s: { lR: 0.08, sq: -0.14 },
+        aim: { thR: [1, 0.62, 0.1], knR: [-0.15, -1, 0.05], thL: [-0.5, -1, -0.1], knL: [-1, -0.3, -0.1], shL: [1, 0.85, -0.3], elL: [0.8, 1, -0.2], shR: [-0.9, -0.3, 0.4], elR: [-0.5, -1, 0.3] },
+        j: { hips: [0, 10, 0], spine: [0, 6, 12], chest: [0, 8, 8] },
+      },
+      hold: {
+        y: 0.3,
+        x: 0.28,
+        s: { lR: 0.08, sq: -0.12 },
+        aim: { thR: [1, 0.66, 0.1], knR: [-0.1, -1, 0.05], thL: [-0.5, -1, -0.1], knL: [-1, -0.3, -0.1], shL: [1, 0.85, -0.3], elL: [0.8, 1, -0.2], shR: [-0.9, -0.3, 0.4], elR: [-0.5, -1, 0.3] },
+        j: { hips: [0, 10, 0], spine: [0, 6, 14], chest: [0, 8, 10] },
+      },
+      follow: { y: 0.14, x: 0.24, s: { sq: -0.04 }, aim: { thR: [0.6, 0, 0.1], knR: [-0.2, -1, 0.05], thL: [-0.1, -1, 0], knL: [-0.6, -1, 0] }, j: { spine: [0, 4, 4] } },
+      followAt: 19,
+      settle: { y: -0.12, x: 0.12, s: { sq: 0.16 }, j: { thL: [6, 20, 50], knL: [0, 0, -80], thR: [-8, 18, 20], knR: [0, 0, -76], spine: [0, -6, -14] } },
+    },
+    S,
+  ),
+  // 2L then H "Salto-Kick", startup 7 / active 4 / total 34: explodes out of the crouch into a back-flip, the near leg
+  // whips straight up through the opponent, full rotation, lands crouched
+  jaz_2LH: new Clip(
+    [
+      { f: 1, p: r.crouch },
+      { f: 4, p: compose(r.crouch, { y: -0.34, s: { sq: 0.16 }, aim: { shL: [-0.3, -1, 0.1], elL: [-0.1, -1, 0.1], shR: [-0.3, -1, 0.2], elR: [-0.1, -1, 0.2] } }), e: 'out' },
+      {
+        f: 7,
+        p: { y: 0.28, x: 0.1, rot: 50, s: { lR: 0.12, sq: -0.16 }, aim: { thR: [0.55, 1, 0.1], knR: [0.5, 1, 0.1], thL: [-0.3, -1, -0.1], knL: [-1, -0.4, -0.1], shL: [-1, -0.2, -0.3], elL: [-1, -0.4, -0.2], shR: [-1, -0.2, 0.3], elR: [-1, -0.4, 0.2] }, j: { spine: [0, 0, 16], chest: [0, 0, 12] } },
+        e: 'snap',
+      },
+      {
+        f: 10,
+        p: { y: 0.5, x: 0.06, rot: 120, s: { lR: 0.1, sq: -0.1 }, aim: { thR: [0.2, 1, 0.1], knR: [-0.1, 1, 0.1], thL: [0.4, -0.2, -0.1], knL: [-0.6, -1, -0.1], shL: [-1, 0.2, -0.3], elL: [-0.6, 0.6, -0.2], shR: [-1, 0.2, 0.3], elR: [-0.6, 0.6, 0.2] }, j: { spine: [0, 0, 18], chest: [0, 0, 12] } },
+        e: 'out',
+      },
+      { f: 15, p: { y: 0.55, x: -0.04, rot: 230, s: { sq: 0.1 }, j: { spine: [0, 0, -30], chest: [0, 0, -20], thR: [-8, 18, 100], knR: [0, 0, -130], thL: [6, 20, 100], knL: [0, 0, -130], shL: [30, 0, 60], elL: [0, 0, 120], shR: [-30, 0, 60], elR: [0, 0, 120] } }, e: 'linear' },
+      { f: 20, p: { y: 0.26, x: -0.12, rot: 330, s: { sq: 0.06 }, j: { spine: [0, 0, -24], chest: [0, 0, -14], thR: [-8, 18, 70], knR: [0, 0, -110], thL: [6, 20, 70], knL: [0, 0, -110], shL: [30, 0, 50], elL: [0, 0, 100], shR: [-30, 0, 50], elR: [0, 0, 100] } }, e: 'linear' },
+      { f: 24, p: compose(r.crouch, { y: -0.36, x: -0.12, rot: 360, s: { sq: 0.2 } }), e: 'out' },
+      { f: 34, p: { rot: 360 }, e: 'inOut' },
+    ],
+    S,
+  ),
   // H·L launcher "Encore-Kick", startup 8 / active 3 / total 32: dips, then a rising kick that sends them up
   jaz_HL: strike(
     {
@@ -421,6 +480,7 @@ const walkB = compose(S, { j: { thL: [6, 20, 8], knL: [0, 0, -40], thR: [-8, 18,
 export const JAZEEK_ANIMS: AnimSet = {
   id: 'jazeek',
   pivot: 0.76,
+  headFree: { jaz_2LH: 0.1 },
   stance: S,
   r,
   walkF: [walkA, walkB],

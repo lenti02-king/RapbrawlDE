@@ -1140,7 +1140,7 @@ export class App {
           if (target.jumpCancel) rows.push(`<span class="seq">${seqHtml([...keys, '↑', 'L', 'H'])}</span><span>Luft-Kombo</span>`);
         }
       }
-      rows.push(`<span class="seq">${seqHtml(['L', 'L', 'H'])}</span><span>Kette, dann Special</span>`);
+      rows.push(`<span class="seq">${seqHtml(['L', 'H', 'KARTE'])}</span><span>Kette, dann Special</span>`);
       rows.push(`<span class="seq">${seqHtml(['←', 'G'])}</span><span>Rückwärts-Slam</span>`);
       return `<div class="combo-f"><b>${def.name}</b><div class="keys">${rows.join('')}</div></div>`;
     }).join('');

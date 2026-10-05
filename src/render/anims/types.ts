@@ -24,6 +24,8 @@ export interface AnimSet {
   throwDef: Record<string, Clip>;
   /** Walk cycle shape (default: derived from the fighter's walk speed). */
   walk?: WalkSpec;
+  /** Moves whose head motion is part of the strike (headbutt, flips): head stabiliser weight instead of 0.85. */
+  headFree?: Record<string, number>;
   /** Overrides for the generated movement/reaction clips (anims/motion.ts). */
   motion?: Partial<MotionClips>;
 }

@@ -19,6 +19,8 @@ const N = {
   LLL: 'jaz_LLL',
   HH: 'jaz_HH',
   HL: 'jaz_HL',
+  LLH: 'jaz_LLH',
+  L2H: 'jaz_2LH',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -29,7 +31,12 @@ const moves: MoveDef[] = [
     active: 2,
     recovery: 8,
     hit: { pushHit: 300, pushBlock: 520, damage: 38, strength: 0, hitstun: 14, blockstun: 11, boxes: [box(0.2, 0.8, 1.12, 1.5)], reaction: 'high' },
-    extra: { chains: LIGHT_CHAINS, targets: { light: { move: N.LLL, minDepth: 1 } }, specialCancel: true, hurt: [{ start: 4, end: 10, boxes: [box(0.2, 0.62, 1.2, 1.48)] }] },
+    extra: {
+      chains: LIGHT_CHAINS,
+      targets: { light: { move: N.LLL, minDepth: 1 }, heavy: { move: N.LLH, minDepth: 1 } },
+      specialCancel: true,
+      hurt: [{ start: 4, end: 10, boxes: [box(0.2, 0.62, 1.2, 1.48)] }],
+    },
   }),
   simpleMove(N.L2, 'normal', {
     name: 'Tiefer Kick',
@@ -37,7 +44,7 @@ const moves: MoveDef[] = [
     active: 2,
     recovery: 9,
     hit: { damage: 33, strength: 0, hitstun: 14, blockstun: 11, level: 'low', boxes: [box(0.15, 0.86, 0.0, 0.35)], reaction: 'low' },
-    extra: { crouching: true, chains: LIGHT_CHAINS, specialCancel: true, hurt: [{ start: 5, end: 12, boxes: [box(0.2, 0.72, 0.0, 0.3)] }] },
+    extra: { crouching: true, chains: LIGHT_CHAINS, targets: { heavy: { move: N.L2H } }, specialCancel: true, hurt: [{ start: 5, end: 12, boxes: [box(0.2, 0.72, 0.0, 0.3)] }] },
   }),
   simpleMove(N.H5, 'normal', {
     name: 'Rückhand',
@@ -94,6 +101,40 @@ const moves: MoveDef[] = [
         { frame: 2, vx: mps(2.6) },
         { frame: 10, vx: 0 },
       ], hurt: [{ start: 7, end: 20, boxes: [box(0.2, 0.8, 0.6, 1.5)] }] },
+  }),
+  // L·L·H: hop forward into a flying knee to the head (athletic finisher, sends the opponent flying)
+  simpleMove(N.LLH, 'normal', {
+    name: 'Fliegendes Knie',
+    startup: 11,
+    active: 4,
+    recovery: 17,
+    hit: { damage: 66, strength: 3, blockstun: 15, knockdown: true, boxes: [box(0.15, 0.85, 0.95, 1.65)], reaction: 'high' },
+    extra: {
+      specialCancel: true,
+      velocity: [
+        { frame: 3, vx: mps(3.4) },
+        { frame: 13, vx: 0 },
+      ],
+      hurt: [{ start: 8, end: 20, boxes: [box(0.15, 0.8, 0.7, 1.6)] }],
+    },
+  }),
+  // 2L then H (stick released): back-flip kick, launches (Up on hit = air combo)
+  simpleMove(N.L2H, 'normal', {
+    name: 'Salto-Kick',
+    startup: 7,
+    active: 4,
+    recovery: 24,
+    hit: { damage: 58, strength: 2, blockstun: 14, boxes: [box(0.1, 0.85, 0.5, 2.0)], launch: { vx: 40, vy: 1300 }, reaction: 'gut' },
+    extra: {
+      jumpCancel: true,
+      specialCancel: true,
+      velocity: [
+        { frame: 2, vx: mps(1.6) },
+        { frame: 8, vx: mps(-1.2) },
+        { frame: 16, vx: 0 },
+      ],
+      hurt: [{ start: 5, end: 22, boxes: [box(0.1, 0.75, 0.6, 1.8)] }],
+    },
   }),
   simpleMove(N.H2, 'normal', {
     name: 'Breakdance-Sweep',

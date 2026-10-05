@@ -304,7 +304,8 @@ export class FighterAnimator {
     this.vy = y;
     this.lastX = x;
     this.final.set(this.current);
-    stabilizeHead(this.final, headWeight(this.key));
+    const free = this.key.startsWith('move:') ? this.set.headFree?.[this.key.slice(5)] : undefined;
+    stabilizeHead(this.final, free ?? headWeight(this.key));
     return this.final;
   }
 }

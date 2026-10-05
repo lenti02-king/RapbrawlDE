@@ -214,6 +214,63 @@ const normals: Record<string, Clip> = {
     },
     S,
   ),
+  // L·L·H "Kopfnuss", startup 10 / active 3 / total 31: grabs the collar with both hands, rears back, then smashes the
+  // forehead through (the head is free here, see headFree)
+  bon_LLH: strike(
+    {
+      startup: 10,
+      active: 3,
+      total: 31,
+      pre: { f: 3, p: { x: 0.06, aim: { shL: [1, 0.35, -0.25], elL: [1, 0.3, -0.1], shR: [1, 0.3, 0.3], elR: [1, 0.3, 0.1] }, j: { spine: [0, -4, -8], chest: [0, -6, -4] } } },
+      windAt: 7,
+      wind: {
+        x: 0.04,
+        y: 0.04,
+        s: { sq: -0.06 },
+        aim: { shL: [1, 0.25, -0.25], elL: [0.6, 0.6, 0.2], shR: [1, 0.2, 0.3], elR: [0.6, 0.6, -0.2] },
+        j: { spine: [0, 0, 14], chest: [0, 0, 12], neck: [0, 0, 14], head: [0, 0, 18] },
+      },
+      windEase: 'inOut',
+      hit: {
+        x: 0.2,
+        y: -0.04,
+        s: { sq: 0.1 },
+        aim: { shL: [1, 0.05, -0.25], elL: [0.3, 0.8, 0.3], shR: [1, 0.0, 0.3], elR: [0.3, 0.8, -0.3] },
+        j: { hips: [0, -6, 0], spine: [0, 0, -26], chest: [0, 0, -22], neck: [0, 0, -18], head: [0, 0, -22], thL: [12, 14, 40], knL: [0, 0, -44], thR: [-12, 12, -30], knR: [0, 0, -10] },
+      },
+      follow: { x: 0.14, y: -0.02, s: { sq: 0.04 }, aim: { shL: [0.9, -0.2, -0.2], elL: [0.8, 0.2, 0.1], shR: [0.9, -0.3, 0.3], elR: [0.8, 0.2, -0.1] }, j: { spine: [0, 0, -12], chest: [0, 0, -10], head: [0, 0, -6] } },
+      settle: { y: -0.04, s: { sq: 0.05 } },
+    },
+    S,
+  ),
+  // 2L then H "Knie-Stoß", startup 9 / active 3 / total 32: double collar tie, yanks the head down and drives the near
+  // knee up into the gut
+  bon_2LH: strike(
+    {
+      startup: 9,
+      active: 3,
+      total: 32,
+      pre: { f: 3, p: { y: 0.02, x: 0.04, aim: { shL: [1, 0.22, -0.25], elL: [0.7, 0.3, 0.3], shR: [1, 0.18, 0.3], elR: [0.7, 0.3, -0.3] }, j: { spine: [0, -4, -4], chest: [0, -8, -2] } } },
+      windAt: 6,
+      wind: {
+        x: 0.06,
+        y: 0.04,
+        s: { sq: -0.04 },
+        aim: { shL: [1, 0.2, -0.25], elL: [0.7, 0.28, 0.3], shR: [1, 0.15, 0.3], elR: [0.7, 0.28, -0.3], thR: [-0.35, -1, 0.1], knR: [-0.8, -0.7, 0.1] },
+        j: { spine: [0, 0, 4], chest: [0, 0, 2], thL: [12, 14, 30], knL: [0, 0, -40] },
+      },
+      hit: {
+        x: 0.16,
+        y: 0.08,
+        s: { lR: 0.06, sq: -0.08 },
+        aim: { shL: [1, -0.15, -0.25], elL: [0.8, -0.4, 0.2], shR: [1, -0.2, 0.3], elR: [0.8, -0.4, -0.2], thR: [1, 0.5, 0.15], knR: [-0.15, -1, 0.1], face: 0.4 },
+        j: { spine: [0, 6, -18], chest: [0, 6, -14], thL: [12, 14, -4], knL: [0, 0, -10], ftL: [0, 0, 30] },
+      },
+      follow: { x: 0.14, y: 0.04, aim: { shL: [1, -0.4, -0.2], elL: [0.7, -0.7, 0.1], shR: [1, -0.45, 0.3], elR: [0.7, -0.7, -0.1], thR: [0.6, 0.1, 0.1], knR: [-0.3, -1, 0.1] }, j: { spine: [0, 4, -10], chest: [0, 4, -8] } },
+      settle: { y: -0.04, s: { sq: 0.06 } },
+    },
+    S,
+  ),
   // H·L launcher "Kran-Hebel", startup 10 / active 4 / total 37: scoops low, the rear forearm lifts them off the floor
   bon_HL: strike(
     {
@@ -345,6 +402,7 @@ const walkB = compose(S, { j: { thL: [12, 14, 8], knL: [0, 0, -40], thR: [-12, 1
 export const BONEZ_ANIMS: AnimSet = {
   id: 'bonez',
   pivot: 0.88,
+  headFree: { bon_LLH: 0.15 },
   stance: S,
   r,
   walkF: [walkA, walkB],
