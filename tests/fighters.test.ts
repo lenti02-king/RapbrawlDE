@@ -96,7 +96,20 @@ describe('Bonez MC', () => {
     expect(s.fighters[0].state === 'knockdown' || s.fighters[0].state === 'wakeup' || s.fighters[0].state === 'idle').toBe(true);
   });
 
-  it('Krokodil-Attacke is low: a crouch block stops it, a standing block does not', () => {
+  it('two crocs that land on the same frame trade (no cinematic, both take the hit)', () => {
+    // point blank: both crocs spawn inside the opponent (from range they would meet and cancel out)
+    const s = newMatch({ fighters: ['bonez', 'bonez'] });
+    place(s, 1.4);
+    s.fighters[0].meter = 100;
+    s.fighters[1].meter = 100;
+    const evs = run(s, 1, IN.S1, IN.S1).concat(run(s, 60));
+    expect(ofType(evs, 'cineStart')).toHaveLength(0);
+    const hits = ofType(evs, 'hit').filter((h) => h.projectile);
+    expect(hits).toHaveLength(2);
+    expect(s.fighters[0].health).toBe(s.fighters[1].health);
+  });
+
+    it('Krokodil-Attacke is low: a crouch block stops it, a standing block does not', () => {
     const go = (p1: number) => {
       const s = newMatch(JB);
       place(s, 3.0);

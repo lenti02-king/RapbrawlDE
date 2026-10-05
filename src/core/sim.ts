@@ -32,6 +32,8 @@ export const RULES = {
   LAND: 3,
   AIR_RESET_LAND: 8,
   INTRO: 140,
+  /** Round 1 only: each fighter's showcase (emote, face close-up, name) before the normal intro. Skippable. */
+  SHOWCASE_EACH: 96,
   KO_PHASE: 150,
   SLOWMO: 66,
   ROUND_OVER: 120,
@@ -203,11 +205,39 @@ export function step(s: GameState, inputs: readonly number[]): SimEvent[] {
   return ev;
 }
 
+/** Frames of fighter showcases before the normal intro: round 1 of a real match only (not training). */
+export function showcaseFrames(s: GameState): number {
+  return s.round === 1 && !s.config.training ? RULES.SHOWCASE_EACH * 2 : 0;
+}
+
+/** The fighter currently showcased and the frame inside its showcase, or null. */
+export function showcaseOf(s: GameState): { who: number; f: number } | null {
+  if (s.phase !== 'intro') return null;
+  const n = showcaseFrames(s);
+  if (s.phaseFrame >= n) return null;
+  const who = s.phaseFrame < RULES.SHOWCASE_EACH ? 0 : 1;
+  return { who, f: s.phaseFrame - who * RULES.SHOWCASE_EACH };
+}
+
+/** Total intro length of the current round. */
+export function introFrames(s: GameState): number {
+  return showcaseFrames(s) + RULES.INTRO;
+}
+
+const SKIP_BITS = IN.LIGHT | IN.HEAVY | IN.S1 | IN.S2 | IN.S3;
+
 function stepIntro(s: GameState, ev: SimEvent[]): void {
+  const show = showcaseFrames(s);
+  // either player can skip the showcases with a fresh button press
+  if (s.phaseFrame < show && s.fighters.some((f) => f.input & ~f.prevInput & SKIP_BITS)) s.phaseFrame = show;
   s.phaseFrame++;
-  if (s.phaseFrame === 1) ev.push({ t: 'roundStart', round: s.round });
+  if (s.phaseFrame === show + 1) {
+    ev.push({ t: 'roundStart', round: s.round });
+    // the normal intro animation starts here
+    for (const f of s.fighters) f.sf = 0;
+  }
   for (const f of s.fighters) f.sf++;
-  if (s.phaseFrame >= RULES.INTRO) {
+  if (s.phaseFrame >= show + RULES.INTRO) {
     s.phase = 'fight';
     s.phaseFrame = 0;
     for (const f of s.fighters) {
@@ -1236,20 +1266,23 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
   // Trade: a fighter that got hit this frame never keeps a follow-up it earned the same
   // frame (order-independent, keeps P1/P2 symmetric).
   for (const c of hits) if (hits.some((o) => o.def === c.atk)) c.atk.pendingFollowup = null;
-  // projectiles vs fighters (barriers never hit fighters)
+  // projectiles vs fighters (barriers never hit fighters). Collected first, applied after: when both fighters are hit
+  // by projectiles on the same frame (a trade), neither grab-cinematic starts, so P1/P2 stay symmetric. A cinematic
+  // already started by a strike this frame wins over projectiles.
+  const phits: ProjectileState[] = [];
   for (const p of s.projectiles) {
-    if (!p.alive || projDef(s, p).barrier) continue;
+    if (s.cine || !p.alive || projDef(s, p).barrier) continue;
     const target = s.fighters[1 - p.owner];
     const pb = projectileBox(s, p);
-    for (const hb of hurtboxes(target)) {
-      if (overlaps(pb, hb)) {
-        p.alive = false;
-        const pd = projDef(s, p);
-        applyHit(s, s.fighters[p.owner], target, pd.hit, p.x, p.y, p, ev);
-        ev.push({ t: 'projectileEnd', id: p.id, x: p.x, y: p.y });
-        break;
-      }
-    }
+    if (hurtboxes(target).some((hb) => overlaps(pb, hb))) phits.push(p);
+  }
+  const ptrade = phits.some((p) => phits.some((q) => q.owner !== p.owner));
+  for (const p of phits) {
+    p.alive = false;
+    const pd = projDef(s, p);
+    const h = ptrade && pd.hit.cinematic ? { ...pd.hit, cinematic: undefined } : pd.hit;
+    applyHit(s, s.fighters[p.owner], s.fighters[1 - p.owner], h, p.x, p.y, p, ev);
+    ev.push({ t: 'projectileEnd', id: p.id, x: p.x, y: p.y });
   }
   // projectile clash
   const alive = s.projectiles.filter((p) => p.alive);

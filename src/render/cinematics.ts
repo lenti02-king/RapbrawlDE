@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { AudioEngine } from '../audio/audio';
 import { UNITS_PER_METER } from '../core/math';
+import { showcaseOf } from '../core/sim';
 import type { GameState } from '../core/state';
 import { BRICK_ANIMS } from './anims/brick';
 import { reactions, BRICK_STANCE } from './anims/stances';
@@ -17,6 +18,7 @@ import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
 import { CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { emoteCamera, emoteFor, emoteFx, emoteTeeth } from './emotes';
 import { FATALITIES } from './fatalities';
 
 export type V3 = [number, number, number];
@@ -436,6 +438,9 @@ class CinematicRuntime {
 
   update(s: GameState, alpha: number): boolean {
     const v = this.view;
+    // round 1: fighter showcases (emote + face close-up; the HUD shows the name)
+    const sc = showcaseOf(s);
+    if (sc) return this.showcase(s, sc.who, sc.f + alpha);
     // super flash close-up (before the cinematic itself)
     if (!s.cine && s.freeze > 0 && s.freezeOwner >= 0) {
       const o = s.fighters[s.freezeOwner];
@@ -528,6 +533,52 @@ class CinematicRuntime {
         facing,
       };
       for (const cue of def.fx) if (cue.f > this.lastFrame && cue.f <= fi) cue.run(ctx);
+      this.lastFrame = fi;
+    }
+    return true;
+  }
+
+  private faceY = 1.6;
+
+  private showcase(s: GameState, who: number, f: number): boolean {
+    const v = this.view;
+    const fighter = s.fighters[who];
+    const anim = v.anims[who];
+    const rig = v.rigs[who];
+    if (!anim || !rig) return false;
+    const id = `show${who}`;
+    if (this.active !== id) {
+      this.end();
+      this.active = id;
+      this.lastFrame = -1;
+      this.faceY = rig.joints.head.getWorldPosition(new THREE.Vector3()).y + 0.12;
+      this.audio.whoosh(2);
+      this.audio.crowdSwell(0.35);
+    }
+    const x = fighter.x / U;
+    const facing = fighter.facing;
+    const clip = emoteFor(anim.set);
+    anim.override = (_s, _i, out) => (clip.sample(f, out), true);
+    v.fx.teethOverride[who] = emoteTeeth(fighter.def, f);
+    v.dimOverride = 0.45;
+    const shot = sampleCam(emoteCamera(this.faceY), f);
+    shot.pos.x = x + facing * shot.pos.x;
+    shot.target.x = x + facing * shot.target.x;
+    v.director.setOverride(shot);
+    const fi = Math.floor(f);
+    if (fi > this.lastFrame) {
+      const face = rig.joints.head.getWorldPosition(new THREE.Vector3());
+      face.y += 0.12;
+      for (let k = this.lastFrame + 1; k <= fi; k++) {
+        if (k === 20) this.audio.stab();
+        emoteFx(fighter.def, k, {
+          face,
+          facing,
+          hearts: (hx, hy, n) => v.fx.heartBurst(hx, hy, n),
+          notes: (nx, ny, n, dir) => v.fx.noteBurst(nx, ny, n, dir),
+          sparks: (px, py, n, color) => v.vfx.sparks(px, py, n, new THREE.Color(color), 3, facing, 2),
+        });
+      }
       this.lastFrame = fi;
     }
     return true;

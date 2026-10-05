@@ -5,7 +5,7 @@ import type { SimEvent } from '../core/events';
 import { IN } from '../core/input';
 import { getCard, getFighter } from '../core/registry';
 import type { GameState } from '../core/state';
-import { beatDistance, RULES } from '../core/sim';
+import { beatDistance, RULES, showcaseOf } from '../core/sim';
 import { TAUNT_AT, TAUNTS, TITLE_AT } from '../render/fatalities';
 import { CAT_COLOR, cardIcon, costBadge, UI_ICONS } from './icons';
 import { portrait } from './portraits';
@@ -207,6 +207,12 @@ export class Hud {
   private qteKeys!: HTMLElement;
   private qteBar!: HTMLElement;
   private fatalTitle!: HTMLElement;
+  private showUi!: HTMLElement;
+  /** Tap target that skips the fighter showcase (bound to a Light press by the touch source). */
+  get skipEl(): HTMLElement {
+    return this.showUi;
+  }
+  private showWho = -1;
   private tauntEl!: HTMLElement;
   private touch = false;
   /** Screen position of a fighter's chest (set by the app from the view). */
@@ -222,6 +228,7 @@ export class Hud {
       <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div>
         <div class="qte"><div class="qte-keys"></div><div class="qte-bar"><i></i></div></div></div>
       <div class="fatal-title">FATALITY</div>
+      <div class="show-ui"><div class="show-tag"></div><div class="show-name"></div><div class="show-sub"></div><div class="show-skip"></div></div>
       <div class="taunt"></div>
       <div class="combo p1"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
       <div class="combo p2"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
@@ -285,6 +292,7 @@ export class Hud {
     this.qteBar = this.root.querySelector('.qte-bar i')!;
     this.fatalTitle = this.root.querySelector('.fatal-title')!;
     this.tauntEl = this.root.querySelector('.taunt')!;
+    this.showUi = this.root.querySelector('.show-ui')!;
     this.trainingInfo = this.root.querySelector('.training-info')!;
     new ResizeObserver(() => this.layout()).observe(this.root);
   }
@@ -578,7 +586,35 @@ export class Hud {
       this.lastTimer = secs;
     }
     this.flash.style.opacity = String(Math.min(0.85, screenFlash));
+    this.updateShowcase(s);
     this.updateMechanics(s);
+  }
+
+  /** Round 1 fighter showcase: letterbox, the fighter's name slammed in on their side, skip hint. */
+  private updateShowcase(s: GameState): void {
+    const sc = showcaseOf(s);
+    const who = sc ? sc.who : -1;
+    if (who !== this.showWho) {
+      this.showWho = who;
+      this.root.classList.toggle('showcase', who >= 0);
+      this.letterbox.classList.toggle('on', who >= 0);
+      this.showUi.classList.remove('in', 'p1', 'p2', 'out');
+      if (who >= 0) {
+        const f = s.fighters[who];
+        const def = getFighter(f.def);
+        this.cineTitle.textContent = '';
+        this.showUi.classList.add(who === 0 ? 'p1' : 'p2');
+        (this.showUi.querySelector('.show-tag') as HTMLElement).textContent = who === 0 ? 'SPIELER 1' : 'SPIELER 2';
+        const name = this.showUi.querySelector('.show-name') as HTMLElement;
+        name.innerHTML = `<i data-t="${def.name}">${def.name}</i>`;
+        (this.showUi.querySelector('.show-sub') as HTMLElement).textContent = def.tagline;
+        (this.showUi.querySelector('.show-skip') as HTMLElement).textContent = this.touch ? 'TIPPEN ZUM ÜBERSPRINGEN' : 'TASTE ZUM ÜBERSPRINGEN';
+      }
+    }
+    if (sc) {
+      this.showUi.classList.toggle('in', sc.f >= 16);
+      this.showUi.classList.toggle('out', sc.f >= RULES.SHOWCASE_EACH - 8);
+    }
   }
 
   /** Beat ring on the clock, Mic-Duell tap bars, finish prompt, fatality title and the winner's taunt. */

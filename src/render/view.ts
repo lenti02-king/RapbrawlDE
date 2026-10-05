@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { SimEvent } from '../core/events';
 import { UNITS_PER_METER } from '../core/math';
 import { getFighter, getMove } from '../core/registry';
-import { activeHitboxes, hurtboxes, projectileBox } from '../core/sim';
+import { activeHitboxes, hurtboxes, projectileBox, showcaseOf } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ANIM_SETS, FighterAnimator } from './animator';
 import { Arena } from './arena';
@@ -599,7 +599,7 @@ export class GameView {
 
     // super flash darkening
     const wantDim =
-      s.freeze > 0 ? 0.9 : s.cine || s.fatal ? (this.dimOverride ?? 0.35) : s.duel ? 0.7 : s.phase === 'finish' ? 0.55 : 0;
+      s.freeze > 0 ? 0.9 : s.cine || s.fatal ? (this.dimOverride ?? 0.35) : showcaseOf(s) ? 0.45 : s.duel ? 0.7 : s.phase === 'finish' ? 0.55 : 0;
     this.dim += (wantDim - this.dim) * (1 - Math.exp(-dt * 10));
     this.arena.setDim(this.dim);
     this.arena.setHype(Math.max(s.fighters[0].meter, s.fighters[1].meter) / 300);

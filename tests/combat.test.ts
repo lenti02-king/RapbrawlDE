@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getFighter } from '../src/core/registry';
-import { RULES, step } from '../src/core/sim';
+import { introFrames, RULES, showcaseOf, step } from '../src/core/sim';
 import { hashState, cloneState } from '../src/core/state';
 import { IN, lcg, m, newMatch, ofType, place, run, script } from './helpers';
 
@@ -11,11 +11,29 @@ describe('round flow', () => {
   it('starts in intro and unlocks after the intro', () => {
     const s = newMatch({}, false);
     expect(s.phase).toBe('intro');
-    const evs = run(s, RULES.INTRO);
+    const evs = run(s, introFrames(s));
     expect(ofType(evs, 'roundStart')).toHaveLength(1);
     expect(ofType(evs, 'fight')).toHaveLength(1);
     expect(s.phase).toBe('fight');
     expect(s.fighters[0].state).toBe('idle');
+  });
+
+  it('round 1 opens with both fighter showcases (P1 then P2), a button press skips them', () => {
+    const s = newMatch({}, false);
+    expect(introFrames(s)).toBe(RULES.SHOWCASE_EACH * 2 + RULES.INTRO);
+    run(s, 10);
+    expect(showcaseOf(s)).toEqual({ who: 0, f: 10 });
+    run(s, RULES.SHOWCASE_EACH);
+    expect(showcaseOf(s)?.who).toBe(1);
+    // the round banner only comes after the showcases
+    const evs = run(s, 1, L);
+    expect(showcaseOf(s)).toBeNull();
+    expect(ofType(evs, 'roundStart')).toHaveLength(1);
+    evs.push(...run(s, RULES.INTRO));
+    expect(ofType(evs, 'roundStart')).toHaveLength(1);
+    expect(s.phase).toBe('fight');
+    // training has no showcase
+    expect(introFrames(newMatch({ training: true }, false))).toBe(RULES.INTRO);
   });
 
   it('KO ends the round, next round resets health, two round wins end the match', () => {

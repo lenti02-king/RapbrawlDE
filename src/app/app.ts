@@ -220,6 +220,7 @@ export class App {
     this.touch = new TouchControls(ui);
     this.touch.bindCards(this.hud.handCards);
     this.touch.bindCharge(this.hud.chargeEl);
+    this.touch.bindSkip(this.hud.skipEl);
     this.hud.onSigReady = () => this.audio.chime();
     const params = new URLSearchParams(location.search);
     const touchPref = store.get<'auto' | 'on' | 'off'>('touch', 'auto');

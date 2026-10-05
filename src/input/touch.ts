@@ -138,6 +138,13 @@ export class TouchControls implements InputSource {
     this.bindButton(el, IN.CHARGE);
   }
 
+  /** Tap anywhere on `el` = a Light press (skips the round-1 fighter showcase). */
+  bindSkip(el: HTMLElement): void {
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+    this.bindButton(el, IN.LIGHT);
+  }
+
   setVisible(v: boolean): void {
     this.visible = v;
     this.root.style.display = v ? '' : 'none';

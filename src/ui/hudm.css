@@ -407,3 +407,109 @@
 .hud.hm .hm-hypebar.full .hm-chargehint {
   opacity: 0;
 }
+
+/* round 1 fighter showcase (emote + face close-up): the name slams in on the fighter's side over the letterbox; the
+   whole HUD is a tap target that skips (Light press) */
+.hud.hm .show-ui {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: none;
+  pointer-events: none;
+  --side: #ff5a3c;
+  --side2: #ffcf3a;
+}
+.hud.hm.showcase .show-ui {
+  display: block;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.hud.hm .show-ui.p2 {
+  --side: #3aa8ff;
+  --side2: #9fe6ff;
+}
+.hud.hm .show-ui > div {
+  position: absolute;
+  left: calc(var(--u) * 120);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(calc(var(--u) * -160));
+  transition:
+    opacity 0.18s ease-out,
+    transform 0.28s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+.hud.hm .show-ui.p2 > div {
+  left: auto;
+  right: calc(var(--u) * 120);
+  text-align: right;
+  transform: translateX(calc(var(--u) * 160));
+}
+.hud.hm .show-ui.in > div {
+  opacity: 1;
+  transform: none;
+}
+.hud.hm .show-ui.in .show-sub {
+  transition-delay: 0.12s;
+}
+.hud.hm .show-ui.in.out > div {
+  opacity: 0;
+  transition-duration: 0.12s;
+}
+.hud.hm .show-tag {
+  bottom: calc(var(--u) * 420);
+  padding: calc(var(--u) * 6) calc(var(--u) * 22);
+  font: italic 800 calc(var(--u) * 34) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.12em;
+  color: #0a0e1d;
+  background: linear-gradient(180deg, var(--side2), var(--side));
+  clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
+}
+.hud.hm .show-name {
+  bottom: calc(var(--u) * 250);
+  font: 400 calc(var(--u) * 170) / 1 'Anton', 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.02em;
+}
+.hud.hm .show-name > i {
+  position: relative;
+  display: inline-block;
+  font-style: italic;
+  padding: 0.12em 0.1em 0.06em;
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 45%, var(--side2) 75%, var(--side) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hud.hm .show-name > i::before {
+  content: attr(data-t);
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  z-index: -1;
+  color: #0a0e1d;
+  -webkit-text-stroke: 0.09em #0a0e1d;
+  text-shadow:
+    0.04em 0.08em 0 #04060d,
+    0 0 0.4em rgba(0, 0, 0, 0.55);
+}
+.hud.hm .show-sub {
+  bottom: calc(var(--u) * 196);
+  font: italic 700 calc(var(--u) * 40) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow:
+    0 calc(var(--u) * 3) 0 #04060d,
+    0 0 calc(var(--u) * 12) rgba(0, 0, 0, 0.8);
+}
+.hud.hm .show-skip {
+  bottom: calc(var(--u) * 60) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  font: italic 700 calc(var(--u) * 28) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 calc(var(--u) * 2) 0 #04060d;
+}
+.hud.hm .show-ui.in .show-skip {
+  opacity: 1;
+}
