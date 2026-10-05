@@ -1,6 +1,7 @@
 // BONEZ MC animation set — relaxed, low centre of gravity, big readable wind-ups.
 // Frames match src/content/bonez.ts.
 import { Clip, compose, type PoseDef } from '../pose';
+import { strike } from './motion';
 import { reactions } from './stances';
 import type { AnimSet } from './types';
 
@@ -32,18 +33,19 @@ const pivot = 0.88;
 const r = reactions(S, pivot);
 
 const longJab: PoseDef = {
-  x: 0.1,
-  j: { spine: [0, -12, -10], chest: [0, -38, -8], shL: [4, -4, 92], elL: [0, 0, 4], haL: [0, 0, -6], shR: [-24, 0, 26], elR: [0, 0, 100] },
+  x: 0.08,
+  s: { aL: 0.1 },
+  aim: { shL: [1, 0.33, 0.27], elL: [1, 0.3, 0.27], face: 0.6 },
+  j: { hips: [0, -24, 0], spine: [0, -8, -10], chest: [0, -22, -8], haL: [0, 0, -6], shR: [-24, 0, 26], elR: [0, 0, 100] },
 };
 const straight: PoseDef = {
-  x: 0.22,
+  x: 0.18,
+  s: { aR: 0.3 },
+  aim: { shR: [1, 0.24, -0.08], elR: [1, 0.22, -0.08], face: 0.8 },
   j: {
-    hips: [0, 14, 0],
-    spine: [0, 20, -14],
-    chest: [0, 34, -10],
-    head: [0, -10, 8],
-    shR: [-6, 8, 92],
-    elR: [0, 0, 4],
+    hips: [0, 0, 0],
+    spine: [0, 6, -14],
+    chest: [0, 12, -10],
     shL: [30, 0, 30],
     elL: [0, 0, 96],
     thL: [12, 14, 34],
@@ -67,97 +69,197 @@ const grin: PoseDef = {
   j: { chest: [0, -10, 8], head: [0, -14, 12], neck: [0, -6, 6], shL: [40, 0, 24], elL: [0, 0, 50], shR: [-40, 0, 24], elR: [0, 0, 50] },
 };
 
+// ---- normals: heavy, readable wind-ups, the whole body behind every hit (anims/motion.ts strike())
+const normals: Record<string, Clip> = {
+  // long jab, startup 7 / active 3 / total 19
+  bon_5L: strike(
+    {
+      startup: 7,
+      active: 3,
+      total: 19,
+      windAt: 4,
+      wind: { x: -0.03, s: { sq: 0.05 }, j: { chest: [0, -6, -2], shL: [24, 0, 40], elL: [0, 0, 104], haL: [0, 0, 10] } },
+      hit: {
+        x: 0.06,
+        s: { aL: 0.1 },
+        aim: { shL: [1, 0.33, 0.27], elL: [1, 0.3, 0.27], face: 0.6 },
+        j: { hips: [0, -24, 0], spine: [0, -8, -10], chest: [0, -22, -8], haL: [0, 0, -6], shR: [-24, 0, 26], elR: [0, 0, 104], thL: [12, 14, 34], knL: [0, 0, -42] },
+      },
+      hold: {
+        x: 0.07,
+        s: { aL: 0.12 },
+        aim: { shL: [1, 0.3, 0.22], elL: [1, 0.28, 0.22], face: 0.6 },
+        j: { hips: [0, -25, 0], spine: [0, -8, -10], chest: [0, -24, -8], haL: [0, 0, -6], shR: [-24, 0, 26], elR: [0, 0, 104], thL: [12, 14, 34], knL: [0, 0, -42] },
+      },
+      follow: { x: 0.03, s: { aL: 0.03 }, aim: { shL: [0.8, -0.1, 0.35], elL: [0.3, 0.9, 0.3], face: 0.4 }, j: { chest: [0, -20, -6] } },
+      settle: { y: -0.05, s: { sq: 0.04 } },
+    },
+    S,
+  ),
+  // straight right, startup 13 / active 4 / total 35: loads the rear hand far back, steps through
+  bon_5H: strike(
+    {
+      startup: 13,
+      active: 4,
+      total: 35,
+      windAt: 9,
+      wind: { x: -0.08, y: -0.04, s: { sq: 0.1 }, j: { hips: [0, -30, 0], chest: [0, -50, 2], spine: [0, -20, 0], head: [0, 20, 6], shR: [-40, 0, -10], elR: [0, 0, 110], shL: [30, 0, 60], elL: [0, 0, 80] } },
+      hit: {
+        x: 0.16,
+        s: { aR: 0.3, sq: -0.05 },
+        aim: { shR: [1, 0.24, -0.08], elR: [1, 0.22, -0.08], face: 0.8 },
+        j: { hips: [0, 0, 0], spine: [0, 6, -14], chest: [0, 12, -10], shL: [30, 0, 30], elL: [0, 0, 96], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8], ftR: [0, 0, 30] },
+      },
+      hold: {
+        x: 0.17,
+        s: { aR: 0.33 },
+        aim: { shR: [1, 0.22, -0.1], elR: [1, 0.2, -0.1], face: 0.8 },
+        j: { hips: [0, 2, 0], spine: [0, 8, -14], chest: [0, 14, -10], shL: [30, 0, 30], elL: [0, 0, 96], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8], ftR: [0, 0, 30] },
+      },
+      follow: { x: 0.1, s: { aR: 0.06 }, aim: { shR: [0.8, 0, -0.5], elR: [0.3, 0.6, -0.6], face: 0.5 }, j: { hips: [0, 4, 0], spine: [0, 8, -12], chest: [0, 18, -8] } },
+      settle: { y: -0.06, s: { sq: 0.05 } },
+    },
+    S,
+  ),
+  // L·L·L finisher: stepping elbow, startup 10 / active 3 / total 32
+  bon_LLL: strike(
+    {
+      startup: 10,
+      active: 3,
+      total: 32,
+      windAt: 6,
+      wind: { x: -0.04, s: { sq: 0.08 }, j: { chest: [0, -34, 0], spine: [0, -14, 0], shR: [-30, 0, 60], elR: [0, 0, 140] } },
+      hit: {
+        x: 0.32,
+        s: { aR: 0.3, sq: -0.04 },
+        aim: { shR: [1, 0.2, -0.1], elR: [-0.6, 0.2, -0.5], face: 0.7 },
+        j: { hips: [0, 2, 0], spine: [0, 6, -12], chest: [0, 14, -10], shL: [30, 0, 30], elL: [0, 0, 96], thL: [12, 14, 34], knL: [0, 0, -36] },
+      },
+      follow: { x: 0.14, s: { aR: 0.05 }, aim: { shR: [0.7, 0.1, -0.5], elR: [-0.5, 0.2, -0.6], face: 0.5 }, j: { hips: [0, 4, 0], spine: [0, 8, -10], chest: [0, 18, -8] } },
+      settle: { y: -0.06, s: { sq: 0.06 } },
+    },
+    S,
+  ),
+  // H·H finisher: haymaker, startup 12 / active 4 / total 39
+  bon_HH: strike(
+    {
+      startup: 12,
+      active: 4,
+      total: 39,
+      windAt: 8,
+      wind: { x: -0.1, y: -0.04, s: { sq: 0.12 }, j: { hips: [0, -34, 0], chest: [0, -64, 4], spine: [0, -28, 0], head: [0, 26, 6], shR: [-60, 0, 24], elR: [0, 0, 64], shL: [20, 0, 50], elL: [0, 0, 110] } },
+      hit: {
+        x: 0.2,
+        s: { aR: 0.4, sq: -0.06 },
+        aim: { shR: [1, 0.22, 0.0], elR: [1, 0.2, 0.0], face: 0.8 },
+        j: { hips: [0, 4, 0], spine: [0, 8, -12], chest: [0, 14, -8], shL: [30, 0, 30], elL: [0, 0, 100], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8] },
+      },
+      hold: {
+        x: 0.21,
+        s: { aR: 0.42 },
+        aim: { shR: [1, 0.2, -0.05], elR: [1, 0.18, -0.08], face: 0.8 },
+        j: { hips: [0, 6, 0], spine: [0, 10, -12], chest: [0, 18, -8], shL: [30, 0, 30], elL: [0, 0, 100], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8] },
+      },
+      follow: { x: 0.16, s: { aR: 0.08 }, aim: { shR: [0.5, 0, -0.85], elR: [0, 0.3, -1], face: 0.4 }, j: { hips: [0, 8, 0], spine: [0, 12, -10], chest: [0, 22, -6] } },
+      settle: { y: -0.08, s: { sq: 0.07 } },
+    },
+    S,
+  ),
+  // low kick, startup 8 / active 3 / total 21
+  bon_2L: strike(
+    {
+      startup: 8,
+      active: 3,
+      total: 21,
+      base: r.crouch,
+      windAt: 5,
+      wind: { y: -0.18, s: { sq: 0.04 }, j: { thL: [10, 16, 96], knL: [0, 0, -100] } },
+      hit: { y: -0.3, x: 0.04, s: { lL: 0.3 }, aim: { thL: [1, -0.4, 0.05], knL: [1, -0.36, 0.05] }, j: { ftL: [0, 0, -4] } },
+      hold: { y: -0.3, x: 0.05, s: { lL: 0.32 }, aim: { thL: [1, -0.4, 0.05], knL: [1, -0.36, 0.05] }, j: { ftL: [0, 0, -4] } },
+      follow: { y: -0.32, s: { lL: 0.04 }, j: { thL: [10, 14, 80], knL: [0, 0, -70] } },
+      settle: { y: -0.38, s: { sq: 0.03 } },
+    },
+    S,
+  ),
+  // rising uppercut (launcher), startup 11 / active 5 / total 38
+  bon_2H: strike(
+    {
+      startup: 11,
+      active: 5,
+      total: 38,
+      base: r.crouch,
+      windAt: 7,
+      wind: { y: -0.4, s: { sq: 0.12 }, j: { chest: [0, -30, -10], shR: [-14, 0, -24], elR: [0, 0, 70] } },
+      hit: {
+        y: 0.06,
+        x: 0.1,
+        s: { aR: 0.18, sq: -0.16 },
+        aim: { shR: [1, 0.42, 0.0], elR: [1, 0.95, 0.0], face: 0.4 },
+        j: { spine: [0, 6, 12], chest: [0, 8, 10], head: [0, -10, 12], shL: [24, 0, 30], elL: [0, 0, 100], thR: [-10, 14, -20], knR: [0, 0, -2], thL: [12, 14, 26], knL: [0, 0, -36] },
+      },
+      hold: {
+        y: 0.08,
+        x: 0.1,
+        s: { aR: 0.2, sq: -0.18 },
+        aim: { shR: [1, 0.5, 0.0], elR: [0.9, 1, 0.0], face: 0.4 },
+        j: { spine: [0, 6, 14], chest: [0, 10, 12], head: [0, -12, 14], shL: [24, 0, 30], elL: [0, 0, 100], thR: [-10, 14, -20], knR: [0, 0, -2], thL: [12, 14, 26], knL: [0, 0, -36] },
+      },
+      follow: { y: 0.04, x: 0.08, s: { aR: 0.05, sq: -0.05 }, aim: { shR: [0.3, 1, 0.1], elR: [-0.2, 1, 0.1] }, j: { spine: [0, 6, 16], chest: [0, 10, 14] } },
+      settle: { y: -0.08, s: { sq: 0.06 } },
+    },
+    S,
+  ),
+  // jumping hammer fist, startup 6 / active 6 / total 19
+  bon_jL: strike(
+    {
+      startup: 6,
+      active: 6,
+      total: 19,
+      base: r.airRise,
+      windAt: 4,
+      wind: { s: { sq: 0.06 }, j: { chest: [0, -20, 6], shL: [20, 0, 150], elL: [0, 0, 60] } },
+      hit: { s: { aL: 0.15, sq: -0.04 }, aim: { shL: [0.6, -1, 0.1], elL: [0.6, -1, 0.1], face: 0.5 }, j: { spine: [0, -6, -16], chest: [0, -30, -10] } },
+      follow: { aim: { shL: [0.4, -1, 0.1], elL: [0.2, -1, 0.1] }, j: { spine: [0, -6, -12], chest: [0, -24, -8] } },
+    },
+    S,
+  ),
+  // jumping double axe handle, startup 10 / active 6 / total 25
+  bon_jH: strike(
+    {
+      startup: 10,
+      active: 6,
+      total: 25,
+      base: r.airRise,
+      windAt: 7,
+      wind: { s: { sq: -0.08 }, j: { spine: [0, 0, 14], chest: [0, 0, 8], shL: [20, 0, 168], elL: [0, 0, 30], shR: [-20, 0, 160], elR: [0, 0, 40] } },
+      hit: {
+        rot: -14,
+        s: { aL: 0.2, aR: 0.2, sq: 0.06 },
+        aim: { shL: [0.5, -1, -0.05], elL: [0.5, -1, -0.05], shR: [0.5, -1, 0.1], elR: [0.5, -1, 0.1], face: 0.5 },
+        j: { spine: [0, 0, -34], chest: [0, 0, -14], thL: [6, 10, 70], knL: [0, 0, -100] },
+      },
+      follow: { rot: -10, s: { aL: 0.05, aR: 0.05 }, aim: { shL: [0.3, -1, -0.05], elL: [0.2, -1, -0.05], shR: [0.3, -1, 0.1], elR: [0.2, -1, 0.1] }, j: { spine: [0, 0, -30], chest: [0, 0, -12] } },
+    },
+    S,
+  ),
+  // grab (whiff animation), startup 6 / active 2 / total 29
+  bon_throw: strike(
+    {
+      startup: 6,
+      active: 2,
+      total: 29,
+      windAt: 4,
+      wind: { x: -0.03, s: { sq: 0.06 }, j: { chest: [0, -6, -6], shL: [40, 0, 50], elL: [0, 0, 80], shR: [-40, 0, 50], elR: [0, 0, 80] } },
+      hit: { x: 0.04, aim: { shL: [1, -0.45, -0.3], elL: [1, -0.25, -0.2], shR: [1, -0.45, 0.3], elR: [1, -0.25, 0.2], face: 0.5 }, j: { spine: [0, 0, -16], chest: [0, 0, -8] } },
+      follow: { x: 0.04, aim: { shL: [1, -0.5, -0.1], elL: [0.4, 0.3, 0.2], shR: [1, -0.5, 0.1], elR: [0.4, 0.3, -0.2] }, j: { spine: [0, 0, -18] } },
+      settle: { y: -0.05, s: { sq: 0.04 } },
+    },
+    S,
+  ),
+};
+
 const moves: Record<string, Clip> = {
-  bon_5L: new Clip(
-    [
-      { f: 1, p: {} },
-      { f: 4, p: { j: { chest: [0, -8, -4], shL: [20, 0, 50], elL: [0, 0, 90] } } },
-      { f: 7, p: longJab, e: 'snap' },
-      { f: 10, p: longJab },
-      { f: 19, p: {} },
-    ],
-    S,
-  ),
-  bon_2L: new Clip(
-    [
-      { f: 1, p: r.crouch },
-      { f: 5, p: compose(r.crouch, { y: -0.18, j: { thL: [10, 16, 96], knL: [0, 0, -100] } }) },
-      { f: 8, p: compose(r.crouch, { y: -0.3, j: { thL: [8, 10, 66], knL: [0, 0, -8], ftL: [0, 0, -4] } }), e: 'snap' },
-      { f: 11, p: compose(r.crouch, { y: -0.3, j: { thL: [8, 10, 66], knL: [0, 0, -8], ftL: [0, 0, -4] } }) },
-      { f: 21, p: r.crouch },
-    ],
-    S,
-  ),
-  // L·L·L finisher: stepping elbow (startup 10)
-  bon_LLL: new Clip(
-    [
-      { f: 1, p: {} },
-      { f: 6, p: { x: -0.03, j: { chest: [0, -34, 0], spine: [0, -14, 0], shR: [-30, 0, 60], elR: [0, 0, 140] } } },
-      { f: 10, p: { x: 0.16, j: { hips: [0, 22, 0], spine: [0, 18, -12], chest: [0, 38, -10], shR: [-10, 10, 96], elR: [0, 0, 150], shL: [30, 0, 30], elL: [0, 0, 96], thL: [12, 14, 34], knL: [0, 0, -36] } }, e: 'snap' },
-      { f: 13, p: { x: 0.16, j: { hips: [0, 22, 0], spine: [0, 18, -12], chest: [0, 38, -10], shR: [-10, 10, 96], elR: [0, 0, 150], shL: [30, 0, 30], elL: [0, 0, 96] } } },
-      { f: 32, p: {} },
-    ],
-    S,
-  ),
-  // H·H finisher: huge haymaker (startup 12)
-  bon_HH: new Clip(
-    [
-      { f: 1, p: straight },
-      { f: 8, p: { x: -0.1, j: { chest: [0, -64, 4], spine: [0, -28, 0], shR: [-60, 0, 24], elR: [0, 0, 64], shL: [20, 0, 50], elL: [0, 0, 110] } } },
-      { f: 12, p: { x: 0.26, j: { hips: [0, 32, 0], spine: [0, 30, -12], chest: [0, 52, -8], head: [0, -10, 8], shR: [-72, 0, 86], elR: [0, 0, 28], shL: [30, 0, 30], elL: [0, 0, 100], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -32], knR: [0, 0, -8] } }, e: 'snap' },
-      { f: 16, p: { x: 0.26, j: { hips: [0, 32, 0], spine: [0, 30, -12], chest: [0, 52, -8], shR: [-72, 0, 86], elR: [0, 0, 28], shL: [30, 0, 30], elL: [0, 0, 100] } } },
-      { f: 39, p: {} },
-    ],
-    S,
-  ),
-  bon_5H: new Clip(
-    [
-      { f: 1, p: {} },
-      { f: 9, p: { x: -0.06, j: { chest: [0, -50, 2], spine: [0, -20, 0], shR: [-40, 0, -10], elR: [0, 0, 110] } } },
-      { f: 13, p: straight, e: 'snap' },
-      { f: 17, p: straight },
-      { f: 35, p: {} },
-    ],
-    S,
-  ),
-  bon_2H: new Clip(
-    [
-      { f: 1, p: r.crouch },
-      { f: 7, p: compose(r.crouch, { y: -0.4, j: { chest: [0, -30, -10], shR: [-14, 0, -24], elR: [0, 0, 70] } }) },
-      { f: 11, p: { y: 0.06, x: 0.1, j: { spine: [0, 16, 12], chest: [0, 24, 10], head: [0, -10, 12], shR: [-14, 0, 170], elR: [0, 0, 24], shL: [24, 0, 30], elL: [0, 0, 100], thR: [-10, 14, -20], knR: [0, 0, -2] } }, e: 'snap' },
-      { f: 17, p: { y: 0.06, x: 0.1, j: { spine: [0, 16, 12], chest: [0, 24, 10], head: [0, -10, 12], shR: [-14, 0, 170], elR: [0, 0, 24], shL: [24, 0, 30], elL: [0, 0, 100], thR: [-10, 14, -20], knR: [0, 0, -2] } } },
-      { f: 38, p: {} },
-    ],
-    S,
-  ),
-  bon_jL: new Clip(
-    [
-      { f: 1, p: r.airRise },
-      { f: 6, p: compose(r.airRise, { j: { chest: [0, -40, -10], shL: [20, 0, 92], elL: [0, 0, 150] } }), e: 'snap' },
-      { f: 12, p: compose(r.airRise, { j: { chest: [0, -40, -10], shL: [20, 0, 92], elL: [0, 0, 150] } }) },
-      { f: 19, p: r.airFall },
-    ],
-    S,
-  ),
-  bon_jH: new Clip(
-    [
-      { f: 1, p: r.airRise },
-      { f: 7, p: compose(r.airRise, { j: { spine: [0, 0, 14], shL: [20, 0, 168], elL: [0, 0, 30], shR: [-20, 0, 160], elR: [0, 0, 40] } }) },
-      { f: 10, p: compose(r.airFall, { j: { spine: [0, 0, -34], chest: [0, 0, -14], shL: [20, 0, 40], elL: [0, 0, 10], shR: [-20, 0, 30], elR: [0, 0, 10], thL: [6, 10, 70], knL: [0, 0, -100] } }), e: 'snap' },
-      { f: 16, p: compose(r.airFall, { j: { spine: [0, 0, -34], chest: [0, 0, -14], shL: [20, 0, 40], elL: [0, 0, 10], shR: [-20, 0, 30], elR: [0, 0, 10], thL: [6, 10, 70], knL: [0, 0, -100] } }) },
-      { f: 25, p: r.airFall },
-    ],
-    S,
-  ),
-  bon_throw: new Clip(
-    [
-      { f: 1, p: {} },
-      { f: 6, p: { x: 0.1, j: { spine: [0, 0, -16], chest: [0, 0, -8], shL: [40, 0, 82], elL: [0, 0, 50], shR: [-40, 0, 82], elR: [0, 0, 50] } }, e: 'snap' },
-      { f: 10, p: { x: 0.1, j: { spine: [0, 0, -16], chest: [0, 0, -8], shL: [40, 0, 82], elL: [0, 0, 50], shR: [-40, 0, 82], elR: [0, 0, 50] } } },
-      { f: 29, p: {} },
-    ],
-    S,
-  ),
+  ...normals,
   bon_croc: new Clip(
     [
       { f: 1, p: {} },
@@ -184,8 +286,8 @@ const moves: Record<string, Clip> = {
     [
       { f: 1, p: {} },
       { f: 14, p: { x: -0.1, y: -0.06, j: { chest: [0, -64, 4], spine: [0, -24, 4], head: [0, 30, 4], shR: [-50, 0, -30], elR: [0, 0, 110], shL: [30, 0, 70], elL: [0, 0, 70] } } },
-      { f: 18, p: compose(straight, { x: 0.3, j: { spine: [0, 24, -20] } }), e: 'snap' },
-      { f: 23, p: compose(straight, { x: 0.3, j: { spine: [0, 24, -20] } }) },
+      { f: 18, p: compose(straight, { x: 0.1, j: { spine: [0, 10, -20] } }), e: 'snap' },
+      { f: 23, p: compose(straight, { x: 0.1, j: { spine: [0, 10, -20] } }) },
       { f: 44, p: {} },
     ],
     S,
@@ -223,6 +325,8 @@ export const BONEZ_ANIMS: AnimSet = {
   r,
   walkF: [walkA, walkB],
   walkB: [walkB, walkA],
+  // heavy, rolling steps
+  walk: { step: 0.44, bob: 0.022, lift: 18, twist: 6, lean: -2 },
   idleBounce: 0.008,
   intro: new Clip(
     [

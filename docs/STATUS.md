@@ -1,12 +1,23 @@
 # Project status
 
-_Last updated: 2026-10-04 (session 5: the product owner's textured Clash-Royale-style Meshy models 1:1, podcast arena)._
+_Last updated: 2026-10-05 (session 6: movement and strike animations reworked; session 5: textured CR models 1:1, podcast arena)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, version 8 = session 5: textured CR models + podcast arena): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 6 — movement + strike animations (PO: "unbedingt die bewegungs und schlag animationen verbessern und verfeinern")
+| Area | Status | Evidence |
+|---|---|---|
+| Root cause found: strikes pointed toward the camera (local angles on a twisted torso), animator lag filter softened every snap | FIXED (D30) | `node scripts/reach.mjs` before/after |
+| Aim solver (`PoseDef.aim`), cross-fade animator, stretch/squash channels (GLB + procedural rig) | VERIFIED (film strips, pose sheets) | `scripts/filmstrip.mjs`, `scripts/posesheet.mjs` |
+| All normals of Jazeek + Bonez rebuilt (anticipation, contact with reach, follow-through, settle); fists/feet within ~0.15 m of the hitbox edge (uppercuts sit inside their tall boxes) | VERIFIED (reach check + pose sheets) | `artifacts/poses/`, `node scripts/reach.mjs` |
+| Shared key poses (jab, cross, hooks, high kick, straight) aimed, so specials and Signature cinematics improve too | VERIFIED by reach check for the specials with hitboxes; cinematics UNVERIFIED by capture | |
+| Walk cycles (4-key shuffle, distance-driven), dash burst/plant, jump squash & stretch, landing, impact-snap hit/block reactions | VERIFIED (in-game film strips) | `artifacts/film/` |
+| Before/after GIFs of a combo per fighter | see `artifacts/film/*_alt_combo.gif` vs `*_neu_combo.gif` | |
+| Feel on a real phone (60 fps) | UNVERIFIED (SwiftShader only) | |
 
 ## Session 5 — textured Meshy models 1:1 + podcast arena (PO: "1:1, keine Verschlechterung", whole game in this Clash-Royale style, arena = the podcast concept image; show it before changing more)
 | Area | Status | Evidence |

@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { JOINTS, type JointName, POSE_LEN, type Rig } from './rig';
+import { JOINTS, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
 
 /** Structural rig interface used by the view, cinematics and specials. */
 export interface CharacterRig {
@@ -355,9 +355,11 @@ export class GlbRig implements CharacterRig {
     this.hipScale = this.hipsRestPos.y / Math.max(0.01, this.refHipsRest.y);
   }
 
+  private restPos = new Map<THREE.Object3D, THREE.Vector3>();
+
   apply(p: Float32Array, facing: number): void {
     const ref = this.ref;
-    ref.apply(p, 1);
+    ref.apply(p, 1, false);
     ref.root.updateMatrixWorld(true);
     const world = this.world;
     for (const bone of this.order) {
@@ -384,7 +386,16 @@ export class GlbRig implements CharacterRig {
     ref.joints.hips.getWorldPosition(_v);
     _v.sub(this.refHipsRest).multiplyScalar(this.hipScale).add(this.hipsRestPos);
     this.hips.position.copy(_v.applyMatrix4(_m.copy(this.hipsParentWorldInv)));
-    this.root.scale.x = facing;
+    // cartoon stretch: elbow/wrist (knee/ankle) move away from their parent along the bone, the skin follows
+    for (const [jn, ch] of LIMB_STRETCH) {
+      const b = this.joints[jn];
+      if (!b) continue;
+      let rest = this.restPos.get(b);
+      if (!rest) this.restPos.set(b, (rest = b.position.clone()));
+      b.position.copy(rest).multiplyScalar(1 + p[ch]);
+    }
+    const [w, h] = squashScale(p[S_SQ]);
+    this.root.scale.set(facing * w, h, w);
   }
 
   setFlash(intensity: number, color?: THREE.ColorRepresentation): void {

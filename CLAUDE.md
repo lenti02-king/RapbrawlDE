@@ -33,6 +33,9 @@ python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured mod
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
 node scripts/arena-shot.mjs artifacts/arena/x high   # in-game arena shots at close/mid/wide fighter distance
+node scripts/filmstrip.mjs jazeek walkF,jaz_5L,hit,"seq:F*12.l*2._*20" [every] [q]   # in-game frame strips (GIF=1 CROP=full for an animated GIF)
+node scripts/posesheet.mjs bonez "move:bon_5H:1-35:2"   # authored clip frames straight from the lab (no sim/blending)
+node scripts/reach.mjs jazeek|bonez   # fist/foot position at the first active frame vs. the sim hitbox (run after editing strikes)
 node scripts/glb-to-json.mjs in.glb out.gltf.json [--external-images]   # Artifact host does not serve .glb (images as separate files keep each file < 15 MB)
 node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ (page + assets/**) and assert models AND arena load under an Artifact-like CSP (run before every publish)
 tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek   # rebuild the fighter models (Blender bpy)
@@ -74,6 +77,9 @@ Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1
 ## Conventions
 - New fighter = `src/content/<id>.ts` (sim data) + `src/render/anims/<id>.ts` + visual in `render/characters.ts`/`stylized.ts`; register in `content/index.ts` (+ `ROSTER`) and `render/animator.ts` ANIM_SETS; card icons in `ui/icons.ts`; signature presentation in `render/cines.ts`.
 - Move frame data: `startup` = first active frame (1-based); `total = startup - 1 + active + recovery`.
+- Animation (D30): author strikes with `strike()` (anims/motion.ts) and aim striking limbs with `PoseDef.aim` (directions in
+  character space: x toward the opponent, y up, z toward the camera) instead of raw shoulder/hip angles; use `s` for
+  stretch/squash. Keep fists/feet on the hitbox (`node scripts/reach.mjs`).
 - Sim changes MUST keep `npm test` green (determinism + rollback tests). Add a test for new mechanics.
 - Presentation may lag/blend; gameplay truth is the sim. Hitboxes are authored in sim content, poses must visually match (check with hitbox overlay: F1 / training H).
 - Card rarity must never change power (competitive integrity). Deck = 2 specials + 1 Signature in slot 3 (`registry.ts`).

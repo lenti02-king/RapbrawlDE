@@ -99,3 +99,17 @@ Shipping the originals is not viable (download size, the Artifact's 15 MB per-fi
 
 ## D29 — Podcast arena baked in Blender, presented with an arena-specific look (2026-10-04)
 The product owner's concept ("BLOCK BEATS PODCAST" studio) replaces the courtyard as the default arena. `tools/arena/podcast.py` builds the set from primitives and procedural materials in Blender (neon lettering from OFL fonts, Kaushan Script and Anton) and bakes it with Cycles: one 4K colour atlas multiplied by a 2K diffuse-light pass for the static set, a tileable plank texture with a baked lightmap for the floor, the rug baked separately. Bounce light and soft shadows are therefore free at runtime; only emissive parts (neon, LEDs, ON AIR, ring lights, mixer buttons) are dynamic and animate with beat, hype and hits. Fighters get real-time lights matching the bake (warm key, purple and gold rims), a shadow catcher, a soft studio environment for metals and, on the high tier, a blurred planar floor reflection. An arena can carry a `look` (AgX tone mapping, neon-only bloom threshold, exposure, saturation, contrast) applied by `PostFX.applyLook`, so the white clothes stay unbloomed. Old arenas stay available with `?arena=courtyard|club|toon`.
+
+## D30 — Animation: aimed limbs, cross-fades instead of a lag filter, cartoon deformation (2026-10-05)
+The product owner asked to improve and refine movement and strike animations. Film strips showed three causes of weak
+motion: (1) poses were authored as local Euler angles on a torso that is already twisted ~40-80° toward the camera, so
+"arm forward" pointed AT the camera and most strikes were foreshortened to nothing in the side view (it also misled the
+earlier hitbox checks, which looked at projected overlap); (2) the animator blended every frame toward the target with an
+exponential filter, which softened every snap and delayed contact poses; (3) the CR-proportioned models have short limbs.
+Changes: poses can aim a limb segment at a direction in character space (`PoseDef.aim`, solved after composition in
+`toArr`), so strikes travel along the screen plane whatever the torso twist; the animator samples each clip on the sim's
+frame clock and only cross-fades between animations (1-8 frames by kind), restarting on a new hit/block of the same kind;
+five deformation channels (arm/leg stretch along the bone, body squash) give anticipation, impact and landing weight
+without touching the sim; normals are built by `strike()` (anticipation, contact, follow-through, settle) and movement by
+`motionClips()` (4-key shuffle walk driven by distance, dash burst and plant, jump squash/stretch, impact-snap reactions).
+Every normal's fist/foot is checked against its sim hitbox (`scripts/reach.mjs`), so what players see matches what hits.

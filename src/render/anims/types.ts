@@ -1,4 +1,5 @@
 import type { Clip, PoseDef } from '../pose';
+import type { MotionClips, WalkSpec } from './motion';
 import type { Reactions } from './stances';
 
 export interface AnimSet {
@@ -21,4 +22,8 @@ export interface AnimSet {
   /** Throw clips (by throw anim key) for the thrower and the victim, sampled by throw frame. */
   throwAtk: Record<string, Clip>;
   throwDef: Record<string, Clip>;
+  /** Walk cycle shape (default: derived from the fighter's walk speed). */
+  walk?: WalkSpec;
+  /** Overrides for the generated movement/reaction clips (anims/motion.ts). */
+  motion?: Partial<MotionClips>;
 }

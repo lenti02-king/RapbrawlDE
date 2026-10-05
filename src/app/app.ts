@@ -1285,6 +1285,11 @@ export class App {
     return Object.keys(getFighter(s.fighters[idx].def).moves);
   }
 
+  /** Debug: total frames of a move. */
+  moveTotal(idx: number, key: string): number {
+    return getFighter(this.runner!.state.fighters[idx].def).moves[key].total;
+  }
+
   /** Debug: put a fighter into a move at its first active frame (for hitbox/pose checks). */
   freezeMove(idx: number, key: string, frame?: number): number {
     const s = this.runner!.state;

@@ -6,9 +6,11 @@ import { CourtyardArena } from './render/arenas/courtyard';
 import { PodcastArena } from './render/arenas/podcast';
 import { HinterhofArena } from './render/arenas/hinterhof';
 import { type Look, PostFX } from './render/post';
-import { ANIM_SETS } from './render/animator';
+import { ANIM_SETS, motionOf } from './render/animator';
+import { getFighter } from './core/registry';
+import type { AnimSet } from './render/anims/types';
 import { buildCharacter } from './render/characters';
-import { toArr, type PoseDef } from './render/pose';
+import { Clip, sampleDef, toArr, type PoseDef } from './render/pose';
 
 export function runLab(canvas: HTMLCanvasElement): void {
   if (new URLSearchParams(location.search).get('lab') === 'bake-export') {
@@ -38,10 +40,20 @@ export function runLab(canvas: HTMLCanvasElement): void {
   cam.position.set(cx, Number(params.get('cy') ?? 1.35), 9 / zoom);
   cam.lookAt(cx, Number(params.get('ty') ?? 1.0), 0);
   const ids = [params.get('a') ?? 'jazeek', params.get('b') ?? 'bonez'];
+  // pose=move:<key>:<frame> samples a move clip (e.g. move:jaz_5L:5), walkF|walkB:<phase 0..4> the walk cycle,
+  // motion:<clip>:<frame> a generated movement/reaction clip (hitHigh, land, dashF, ...), else a stance/reaction name
+  const labPose = (set: AnimSet, spec: string): PoseDef => {
+    const [kind, key, fr] = spec.split(':');
+    const M = motionOf(set) as unknown as Record<string, Clip>;
+    if (kind === 'move' && set.moves[key]) return sampleDef(set.moves[key], Number(fr ?? 1));
+    if (kind === 'walkF' || kind === 'walkB') return sampleDef(M[kind], Number(key ?? 0));
+    if (kind === 'motion' && M[key]) return sampleDef(M[key], Number(fr ?? 0));
+    return spec === 'stance' ? set.stance : ((set.r as Record<string, PoseDef>)[spec] ?? set.stance);
+  };
   const rigs: ReturnType<typeof buildCharacter>[] = [];
   ids.forEach((id, i) => {
     const set = ANIM_SETS[id];
-    const pose: PoseDef = which === 'stance' ? set.stance : ((set.r as Record<string, PoseDef>)[which] ?? set.stance);
+    const pose = labPose(set, which);
     const rig = buildCharacter(id, Number(params.get(i ? 'pb' : 'pa') ?? 0));
     rig.root.traverse((o) => {
       o.castShadow = true;
@@ -74,7 +86,26 @@ export function runLab(canvas: HTMLCanvasElement): void {
     cam.updateProjectionMatrix();
     if (params.get('hide') === 'other') rigs.forEach((r, i) => (r.root.visible = i === Number(params.get('who') ?? 0)));
   }
-  (window as unknown as { __lab: unknown }).__lab = { scene, cam, rigs };
+  /** Re-pose a fighter without reloading (scripts/posesheet.mjs): same syntax as &pose=. */
+  const setPose = (i: number, spec: string) => rigs[i].apply(toArr(labPose(ANIM_SETS[ids[i]], spec)), i ? -1 : 1);
+  /** Reach check (scripts/reach.mjs): world positions of fists/feet for a pose, the fighter at the origin facing +x. */
+  const reach = (i: number, spec: string) => {
+    setPose(i, spec);
+    const r = rigs[i];
+    const keep = r.root.position.clone();
+    r.root.position.set(0, 0, 0);
+    r.root.scale.x = Math.abs(r.root.scale.x);
+    r.root.updateMatrixWorld(true);
+    const out: Record<string, number[]> = {};
+    for (const j of ['haL', 'haR', 'ftL', 'ftR', 'knL', 'knR', 'elL', 'elR', 'head'] as const) {
+      const v = r.joints[j].getWorldPosition(new THREE.Vector3());
+      out[j] = [v.x, v.y, v.z];
+    }
+    r.root.position.copy(keep);
+    return out;
+  };
+  const moveData = (id: string) => getFighter(id).moves;
+  (window as unknown as { __lab: unknown }).__lab = { scene, cam, rigs, setPose, reach, moveData };
   const post = new PostFX(renderer, scene, cam, params.get('q') === 'low' ? 'low' : 'high');
   post.applyLook((arena as { look?: Look }).look);
   post.setSize(window.innerWidth, window.innerHeight);

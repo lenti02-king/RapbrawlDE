@@ -13,7 +13,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 const quick = who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez';
 await page.goto(`${base}/?quick=${quick}&mode=cpu`);
-await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 30000 });
+await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
 const idx = who === 'brick' || who === 'bonez' ? 1 : 0;
 await page.evaluate((idx) => {
   const r = window.__rb.runner;

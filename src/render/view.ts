@@ -125,6 +125,15 @@ export class GameView {
     this.director.resize(w / Math.max(1, h));
   }
 
+  /** Debug: screen position (CSS px) of a fighter's chest, for cropped captures (scripts/filmstrip.mjs). */
+  screenOf(i: number): { x: number; y: number } | null {
+    const rig = this.rigs[i];
+    if (!rig) return null;
+    const p = rig.joints.chest.getWorldPosition(new THREE.Vector3()).project(this.director.cam);
+    const c = this.renderer.domElement;
+    return { x: ((p.x + 1) / 2) * c.clientWidth, y: ((1 - p.y) / 2) * c.clientHeight };
+  }
+
   /** Rebuild the fighter rigs on the next match (e.g. imported models finished loading late). */
   resetRigs(): void {
     this.matchKey = '';

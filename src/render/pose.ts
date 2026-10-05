@@ -5,16 +5,43 @@
 //  - spine/chest/neck/head point up; -Z leans FORWARD
 //  - +Y twists the near (R) shoulder forward, -Y twists the far (L) shoulder forward
 //  - shoulder X: + moves the limb toward -Z (far side). For the L arm that is "outward".
-import { JOINTS, JOINT_INDEX, type JointName, POSE_LEN, R_ROT, R_X, R_Y, R_YAW } from './rig';
+import * as THREE from 'three';
+import { JOINTS, JOINT_INDEX, type JointName, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, S_AL, S_AR, S_LL, S_LR, S_SQ } from './rig';
 
 export type JointRot = [number, number, number];
+/** Cartoon deformation: limb stretch (fraction of the limb length) and body squash (+ squash, - stretch tall). */
+export interface Deform {
+  aL?: number;
+  aR?: number;
+  lL?: number;
+  lR?: number;
+  sq?: number;
+}
+/** Direction in character space: x = toward the opponent, y = up, z = toward the camera (normalised on use). */
+export type Dir = [number, number, number];
+/**
+ * Limb aims, solved after composition (toArr): the joint's angles are set so its segment points along the given
+ * direction whatever the torso twist is. Without this, a "forward" shoulder angle on a chest that is twisted toward
+ * the camera points the arm AT the camera, and strikes vanish in the side view.
+ * `face`: 0..1 counter-rotates neck + head so the face keeps looking at the opponent.
+ */
+export type Aim = Partial<Record<'shL' | 'elL' | 'shR' | 'elR' | 'thL' | 'knL' | 'thR' | 'knR', Dir>> & { face?: number };
 export interface PoseDef {
   j?: Partial<Record<JointName, JointRot>>;
   x?: number;
   y?: number;
   rot?: number;
   yaw?: number;
+  s?: Deform;
+  aim?: Aim;
 }
+const DEFORM_CH: [keyof Deform, number][] = [
+  ['aL', S_AL],
+  ['aR', S_AR],
+  ['lL', S_LL],
+  ['lR', S_LR],
+  ['sq', S_SQ],
+];
 
 export function compose(...defs: PoseDef[]): PoseDef {
   const out: PoseDef = { j: {} };
@@ -24,6 +51,10 @@ export function compose(...defs: PoseDef[]): PoseDef {
     if (d.y !== undefined) out.y = d.y;
     if (d.rot !== undefined) out.rot = d.rot;
     if (d.yaw !== undefined) out.yaw = d.yaw;
+    if (d.s) out.s = { ...(out.s ?? {}), ...d.s };
+    // joints set explicitly in a later layer win over an inherited aim
+    if (out.aim) for (const k of Object.keys(d.j ?? {})) delete (out.aim as Record<string, unknown>)[k];
+    if (d.aim) out.aim = { ...(out.aim ?? {}), ...d.aim };
   }
   return out;
 }
@@ -40,7 +71,57 @@ export function toArr(def: PoseDef, out = new Float32Array(POSE_LEN)): Float32Ar
   out[R_Y] = def.y ?? 0;
   out[R_ROT] = def.rot ?? 0;
   out[R_YAW] = def.yaw ?? 0;
+  for (const [k, ch] of DEFORM_CH) out[ch] = def.s?.[k] ?? 0;
+  if (def.aim) solveAim(out, def.aim);
   return out;
+}
+
+// ---- aim solver (procedural rig conventions: rest limbs hang along -Y, joint Euler order ZYX, root = yaw then roll)
+const _e = new THREE.Euler();
+const _qa = new THREE.Quaternion();
+const _qb = new THREE.Quaternion();
+const _qc = new THREE.Quaternion();
+const _d = new THREE.Vector3();
+const RAD = Math.PI / 180;
+const PARENT: Record<string, JointName[]> = {
+  shL: ['hips', 'spine', 'chest'],
+  shR: ['hips', 'spine', 'chest'],
+  elL: ['hips', 'spine', 'chest', 'shL'],
+  elR: ['hips', 'spine', 'chest', 'shR'],
+  thL: ['hips'],
+  thR: ['hips'],
+  knL: ['hips', 'thL'],
+  knR: ['hips', 'thR'],
+};
+function jointQ(p: Float32Array, j: JointName, out: THREE.Quaternion): THREE.Quaternion {
+  const i = JOINT_INDEX[j] * 3;
+  return out.setFromEuler(_e.set(p[i] * RAD, p[i + 1] * RAD, p[i + 2] * RAD, 'ZYX'));
+}
+function chainQ(p: Float32Array, chain: JointName[], out: THREE.Quaternion): THREE.Quaternion {
+  out.setFromEuler(_e.set(0, p[R_YAW] * RAD, p[R_ROT] * RAD, 'XYZ'));
+  for (const j of chain) out.multiply(jointQ(p, j, _qb));
+  return out;
+}
+function solveAim(p: Float32Array, aim: Aim): void {
+  // order matters: parents before children
+  for (const j of ['shL', 'shR', 'thL', 'thR', 'elL', 'elR', 'knL', 'knR'] as const) {
+    const dir = aim[j];
+    if (!dir) continue;
+    chainQ(p, PARENT[j], _qa);
+    _d.set(dir[0], dir[1], dir[2]).normalize().applyQuaternion(_qc.copy(_qa).invert());
+    // R = Rz(c) Ry(0) Rx(a) applied to (0,-1,0) gives (cos a sin c, -cos a cos c, -sin a)
+    const a = Math.asin(Math.max(-1, Math.min(1, -_d.z)));
+    const c = Math.atan2(_d.x, -_d.y);
+    const i = JOINT_INDEX[j] * 3;
+    p[i] = a / RAD;
+    p[i + 1] = 0;
+    p[i + 2] = c / RAD;
+  }
+  if (aim.face) {
+    const twist = p[R_YAW] + p[JOINT_INDEX.hips * 3 + 1] + p[JOINT_INDEX.spine * 3 + 1] + p[JOINT_INDEX.chest * 3 + 1];
+    p[JOINT_INDEX.neck * 3 + 1] = -twist * aim.face * 0.45;
+    p[JOINT_INDEX.head * 3 + 1] = -twist * aim.face * 0.55;
+  }
 }
 
 export function lerpPose(a: Float32Array, b: Float32Array, t: number, out: Float32Array): Float32Array {
@@ -113,5 +194,7 @@ export function sampleDef(clip: Clip, frame: number): PoseDef {
   JOINTS.forEach((name, i) => {
     j![name] = [a[i * 3], a[i * 3 + 1], a[i * 3 + 2]];
   });
-  return { j, x: a[R_X], y: a[R_Y], rot: a[R_ROT], yaw: a[R_YAW] };
+  const s: Deform = {};
+  for (const [k, ch] of DEFORM_CH) if (a[ch]) s[k] = a[ch];
+  return { j, x: a[R_X], y: a[R_Y], rot: a[R_ROT], yaw: a[R_YAW], s };
 }

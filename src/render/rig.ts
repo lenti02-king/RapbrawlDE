@@ -32,12 +32,25 @@ export const JOINT_INDEX: Record<JointName, number> = Object.fromEntries(JOINTS.
   number
 >;
 
-/** Flat pose: 3 Euler angles (degrees) per joint, then rootX, rootY (m), rootRotZ, rootRotY (deg). */
-export const POSE_LEN = JOINTS.length * 3 + 4;
+/** Flat pose: 3 Euler angles (degrees) per joint, then rootX, rootY (m), rootRotZ, rootRotY (deg), then the cartoon
+ *  deformation channels: arm L/R and leg L/R stretch (fraction of the limb length, 0 = rest) and body squash
+ *  (+ = squashed: shorter and wider, - = stretched tall). */
+export const POSE_LEN = JOINTS.length * 3 + 9;
 export const R_X = JOINTS.length * 3;
 export const R_Y = R_X + 1;
 export const R_ROT = R_X + 2;
 export const R_YAW = R_X + 3;
+export const S_AL = R_X + 4;
+export const S_AR = R_X + 5;
+export const S_LL = R_X + 6;
+export const S_LR = R_X + 7;
+export const S_SQ = R_X + 8;
+
+/** Root scale for a squash value (volume roughly kept). */
+export function squashScale(sq: number): [number, number] {
+  const y = Math.max(0.5, 1 - sq);
+  return [1 / Math.sqrt(y), y];
+}
 
 export interface Palette {
   skin: number;
@@ -284,14 +297,25 @@ export class Rig {
   }
 
   /** Apply a flat pose array. */
-  apply(p: Float32Array, facing: number): void {
+  private restPos = new Map<THREE.Object3D, THREE.Vector3>();
+
+  /** `deform` = apply the stretch/squash channels (off when this rig only serves as a retargeting reference). */
+  apply(p: Float32Array, facing: number, deform = true): void {
     for (let i = 0; i < JOINTS.length; i++) {
       const j = this.joints[JOINTS[i]];
       j.rotation.set(p[i * 3] * DEG, p[i * 3 + 1] * DEG, p[i * 3 + 2] * DEG);
     }
     this.body.position.set(p[R_X], p[R_Y] + this.pivotY, 0);
     this.body.rotation.set(0, p[R_YAW] * DEG, p[R_ROT] * DEG);
-    this.root.scale.x = facing;
+    const [w, h] = deform ? squashScale(p[S_SQ]) : [1, 1];
+    this.root.scale.set(facing * w, h, w);
+    if (!deform) return;
+    for (const [jn, ch] of LIMB_STRETCH) {
+      const j = this.joints[jn];
+      let rest = this.restPos.get(j);
+      if (!rest) this.restPos.set(j, (rest = j.position.clone()));
+      j.position.copy(rest).multiplyScalar(1 + p[ch]);
+    }
   }
 
   setFlash(intensity: number, color?: THREE.ColorRepresentation): void {
@@ -304,3 +328,15 @@ export class Rig {
 }
 
 export const DEG = Math.PI / 180;
+
+/** Joints whose offset from the parent grows with a stretch channel (elbow + wrist for arms, knee + ankle for legs). */
+export const LIMB_STRETCH: [JointName, number][] = [
+  ['elL', S_AL],
+  ['haL', S_AL],
+  ['elR', S_AR],
+  ['haR', S_AR],
+  ['knL', S_LL],
+  ['ftL', S_LL],
+  ['knR', S_LR],
+  ['ftR', S_LR],
+];
