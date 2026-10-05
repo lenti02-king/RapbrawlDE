@@ -4,7 +4,7 @@ _Last updated: 2026-10-05 (session 7: clean hands/arms, slams, perfect block, ai
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, version 9 = session 6: reworked animations): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, version 10 = session 7: cartoon menu, slams, perfect block, air combos): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
@@ -16,7 +16,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Idle "glitch hop": beat pulse dropped the body in one frame each beat → smooth cosine bob (max 2 mm/frame) | VERIFIED (measured root height over 90 frames) | |
 | Bonez guard: elbows in, fists in front of chest/chin (was flared) | VERIFIED (screenshot) | |
 | Slams: Jazeek Spinebuster / back+Grab German suplex, Bonez Powerbomb / back+Grab "Hafenkran"; slam VFX at the victim | VERIFIED (in-game strips + GIFs) | `artifacts/film/*throw*` |
-| Perfect block (Block press or back tap ≤6 frames before the hit; anti-mash; counter-hit punish window) + gold VFX, sound, "PERFEKT-BLOCK!" | VERIFIED (unit tests); presentation BUILT, not captured | `tests/combat.test.ts` |
+| Perfect block (Block tap or back tap ≤6 frames before the hit, works as a quick tap; anti-mash; counter-hit punish window) + gold VFX, sound, "PERFEKT-BLOCK!" | VERIFIED (unit tests + in-game strip/GIF; the text callout is hidden in captures) | `tests/combat.test.ts`, `artifacts/film/jazeek_pblock.gif` |
 | H·L launchers + Up jump-cancel + jL→jH air chain (4-hit air combo, both fighters) | VERIFIED (unit tests); animations VERIFIED by reach check only | `tests/fighters.test.ts` |
 | Help screen lists the real combos (fixed: L·L was shown for H·L), air combo, back slam, perfect block | VERIFIED (screenshot) | `artifacts/ui/desk_4_help.png` |
 | Cartoon main menu + title (sky, 3D candy buttons, rank road, arena card, deck, KAMPF!, 5-tab bar); other menus restyled | VERIFIED (desktop + phone landscape screenshots) | `node scripts/ui.mjs`, `artifacts/ui/` |
