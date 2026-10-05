@@ -13,3 +13,9 @@ public/test-models/
 scratch/
 .cache/
 __pycache__/
+
+# drop-in music (unlicensed tracks must never reach the public repo; see public/assets/music/README.md)
+public/assets/music/*.mp3
+public/assets/music/*.ogg
+public/assets/music/*.m4a
+public/assets/music/*.wav

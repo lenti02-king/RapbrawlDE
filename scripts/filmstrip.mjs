@@ -55,7 +55,7 @@ for (const action of actions.split(',')) {
         r.sources[0].poll = () => [b, 0, b][k++] ?? 0;
       } else if (action.startsWith('seq:')) {
         // input script: F/B/U/D directions, l light, h heavy, g grab, _ neutral; "*n" repeats, "+" combines (F+l), "." separates
-        const map = { F: rb.IN.RIGHT, B: rb.IN.LEFT, U: rb.IN.UP, D: rb.IN.DOWN, l: rb.IN.LIGHT, h: rb.IN.HEAVY, g: rb.IN.GRAB, _: 0 };
+        const map = { F: rb.IN.RIGHT, B: rb.IN.LEFT, U: rb.IN.UP, D: rb.IN.DOWN, l: rb.IN.LIGHT, h: rb.IN.HEAVY, g: rb.IN.GRAB, 1: rb.IN.S1, 2: rb.IN.S2, 3: rb.IN.S3, _: 0 };
         const frames = [];
         for (const tok of action.slice(4).split('.')) {
           const [code, n] = tok.split('*');

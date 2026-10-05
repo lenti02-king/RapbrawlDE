@@ -15,6 +15,7 @@ import { CameraDirector, type CamShot } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
 import type { CharacterRig } from './glbRig';
 import { SpecialFX } from './specials';
+import { SpecialAura } from './aura';
 import { addPart } from './toon';
 import { ToonFX } from './toonfx';
 import { VFX } from './vfx';
@@ -52,6 +53,7 @@ export class GameView {
   readonly director = new CameraDirector();
   readonly vfx = new VFX();
   readonly fx = new SpecialFX(this.vfx);
+  readonly aura: SpecialAura;
   readonly toon = new ToonFX();
   /** Strength of the last hit each fighter took (for knockdown dust / cracks). */
   private lastHit = [0, 0];
@@ -107,6 +109,8 @@ export class GameView {
     this.post.applyLook((this.arena as ArenaLike & { look?: Look }).look);
     this.scene.add(this.vfx.group);
     this.scene.add(this.fx.group);
+    this.aura = new SpecialAura(this.vfx, this.toon, this.director, this.quality !== 'low');
+    this.scene.add(this.aura.group);
     this.vfx.setCamera(this.director.cam);
     this.scene.add(this.toon.group);
     this.toon.setCamera(this.director.cam);
@@ -201,6 +205,7 @@ export class GameView {
 
   handleEvents(s: GameState, events: readonly SimEvent[]): void {
     this.fx.onEvents(s, events);
+    this.aura.onEvents(s, events);
     for (const e of events) {
       switch (e.t) {
         case 'hit': {
@@ -555,6 +560,7 @@ export class GameView {
     }
 
     this.fx.update(s, dt * slow, this.time, this.anims, this.rigs);
+    this.aura.update(s, dt * slow, this.time, this.anims, this.rigs);
     this.updateProjectiles(s, dt);
 
     // super flash darkening
