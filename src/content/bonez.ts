@@ -221,7 +221,7 @@ const moves: MoveDef[] = [
         y: m(0.55),
         speed: mps(15),
         half: { w: m(1.0), h: m(0.55) },
-        life: 46,
+        life: 64,
         hit: hit(1, 1, {
           damage: 100,
           chip: 16,

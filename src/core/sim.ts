@@ -1089,7 +1089,8 @@ function updateProjectiles(s: GameState, ev: SimEvent[]): void {
       }
     }
     p.x += dir * pd.speed;
-    if (p.age > pd.life || iabs(p.x) > RULES.STAGE_HALF + m(1)) {
+    // off stage only counts in the direction of travel: the car starts BEHIND its owner (possibly past the wall)
+    if (p.age > pd.life || (iabs(p.x) > RULES.STAGE_HALF + m(1) && Math.sign(p.x) === dir)) {
       p.alive = false;
       ev.push({ t: 'projectileEnd', id: p.id, x: p.x, y: p.y });
     }

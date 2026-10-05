@@ -148,6 +148,19 @@ describe('Bonez MC', () => {
     expect(ofType(blocked.evs, 'hit')).toHaveLength(0);
   });
 
+  it('Tiefergelegt also works with Bonez backed into the corner (the car starts behind the wall)', () => {
+    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
+    place(s, 3);
+    // Bonez (P2) at the right wall, facing left: the car spawns 3.2 m behind him, off stage
+    const shift = 74000 - s.fighters[1].x;
+    s.fighters[0].x += shift;
+    s.fighters[1].x += shift;
+    s.camX += shift;
+    s.fighters[1].meter = 200;
+    const evs = run(s, 1, 0, IN.S1).concat(run(s, 130));
+    expect(ofType(evs, 'hit').some((h) => h.move === 'bon_car')).toBe(true);
+  });
+
   it('Goldzahn-Grinsen builds meter', () => {
     const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_grin', 'bon_croc', 'bon_palm']] });
     place(s, 4);
