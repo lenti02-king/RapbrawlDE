@@ -341,6 +341,22 @@ const normals: Record<string, Clip> = {
 
 const moves: Record<string, Clip> = {
   ...normals,
+  // Tiefergelegt (total 50, car spawns behind him on 20 and passes him around 33): two-finger whistle, points the way,
+  // then hops over his own car and lands with a squash
+  bon_car: new Clip(
+    [
+      { f: 1, p: {} },
+      { f: 8, p: { aim: { shR: [0.5, 0.2, 0.4], elR: [-0.2, 1, 0.1] }, j: { head: [0, 6, 6], chest: [0, 8, 4] } }, e: 'out' },
+      { f: 16, p: { aim: { shR: [0.5, 0.25, 0.4], elR: [-0.25, 1, 0.1] }, j: { head: [0, 6, 4], chest: [0, 10, 4] } } },
+      { f: 21, p: { x: 0.02, aim: { shL: [1, 0.15, -0.2], elL: [1, 0.15, -0.2], shR: [-0.4, -1, 0.2], elR: [0.2, -1, 0.2] }, j: { chest: [0, -16, -2], head: [0, -6, 4] } }, e: 'snap' },
+      { f: 26, p: { y: -0.16, s: { sq: 0.16 }, aim: { shL: [-0.4, -1, -0.2], elL: [0, -1, -0.2], shR: [-0.4, -1, 0.2], elR: [0, -1, 0.2] }, j: { spine: [0, 0, -14], thL: [12, 14, 60], knL: [0, 0, -90], thR: [-12, 12, 30], knR: [0, 0, -80] } }, e: 'inOut' },
+      { f: 32, p: { y: 0.95, s: { sq: -0.12 }, aim: { shL: [0.4, 0.9, -0.3], elL: [0.6, 1, -0.2], shR: [0.4, 0.9, 0.3], elR: [0.6, 1, 0.2] }, j: { spine: [0, 0, 6], thL: [12, 14, 90], knL: [0, 0, -120], thR: [-12, 12, 80], knR: [0, 0, -120], head: [0, 0, -14] } }, e: 'out' },
+      { f: 38, p: { y: 1.05, aim: { shL: [0.6, 0.6, -0.4], elL: [0.8, 0.8, -0.2], shR: [0.6, 0.6, 0.4], elR: [0.8, 0.8, 0.2] }, j: { thL: [12, 14, 80], knL: [0, 0, -110], thR: [-12, 12, 70], knR: [0, 0, -110], head: [0, 0, -18] } }, e: 'inOut' },
+      { f: 44, p: { y: -0.14, s: { sq: 0.2 }, j: { spine: [0, 0, -10], thL: [12, 14, 50], knL: [0, 0, -80], thR: [-12, 12, 20], knR: [0, 0, -70] } }, e: 'in' },
+      { f: 50, p: {}, e: 'out' },
+    ],
+    S,
+  ),
   bon_croc: new Clip(
     [
       { f: 1, p: {} },

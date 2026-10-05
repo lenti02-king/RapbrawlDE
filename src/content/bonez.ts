@@ -206,6 +206,38 @@ const moves: MoveDef[] = [
     ],
     hurt: [{ start: 14, end: 30, boxes: [box(0.2, 0.9, 0.6, 1.5)] }],
   },
+  // Tiefergelegt: a lowered tuner car drifts in from behind him and runs the opponent over (no brand, no logos)
+  {
+    key: 'bon_car',
+    name: 'Tiefergelegt',
+    kind: 'special',
+    total: 50,
+    hits: [],
+    projectile: {
+      frame: 20,
+      def: {
+        kind: 'car',
+        x: m(-3.2),
+        y: m(0.55),
+        speed: mps(15),
+        half: { w: m(1.0), h: m(0.55) },
+        life: 46,
+        hit: hit(1, 1, {
+          damage: 100,
+          chip: 16,
+          strength: 3,
+          blockstun: 20,
+          hitstop: 12,
+          knockdown: true,
+          launch: { vx: 420, vy: 950 },
+          pushBlock: 1600,
+          boxes: [],
+          meterOnHit: 0,
+          meterOnBlock: 0,
+        }),
+      },
+    },
+  },
   {
     key: 'bon_smoke',
     name: 'Rauchwand',
@@ -303,6 +335,17 @@ export const BONEZ: FighterDef = {
   normals: { '5L': N.L5, '2L': N.L2, '5H': N.H5, '2H': N.H2, jL: N.jL, jH: N.jH, throw: N.throw },
   moves: Object.fromEntries(moves.map((mv) => [mv.key, mv])),
   cards: [
+    {
+      id: 'bon_car',
+      name: 'Tiefergelegt',
+      category: 'offense',
+      cost: 200,
+      move: 'bon_car',
+      role: 'Auto quer durchs Bild, Knockdown',
+      description: 'Ein Pfiff, und der tiefergelegte Wagen driftet von hinten quer durch die Arena. Weite Reichweite, schleudert den Gegner weg – blockbar.',
+      ai: 'range',
+      aiRange: [1.5, 5.5],
+    },
     {
       id: 'bon_croc',
       name: 'Krokodil-Schnapper',

@@ -570,6 +570,49 @@ export class AudioEngine {
     });
   }
 
+  /** Diamanten-Regen: glassy cascade. */
+  sparkle(): void {
+    if (!this.ctx) return;
+    const t = this.now() + 0.18;
+    [2637, 3136, 2349, 3520, 2793, 3951, 2637].forEach((f, i) => this.tone(t + i * 0.045, 'triangle', f, f * 0.98, 0.07 * this.sfxVol, 0.22, 0.5));
+    this.tone(t, 'sine', 1318, 1318, 0.08 * this.sfxVol, 0.6, 0.6);
+  }
+
+  /** Tiefergelegt: two-finger whistle, then the engine screams past with tyre squeal. */
+  carIn(): void {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const t = this.now();
+    this.tone(t, 'sine', 1900, 2500, 0.14 * this.sfxVol, 0.18);
+    this.tone(t + 0.2, 'sine', 2500, 1700, 0.14 * this.sfxVol, 0.22);
+    const at = t + 0.3;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, at);
+    o.frequency.exponentialRampToValueAtTime(240, at + 0.45);
+    o.frequency.exponentialRampToValueAtTime(120, at + 0.9);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 900;
+    const g = ctx.createGain();
+    this.env(g, at, 0.05, 0.35 * this.sfxVol, 0.85);
+    o.connect(lp).connect(g).connect(this.sfx);
+    o.start(at);
+    o.stop(at + 1.0);
+    // tyre squeal
+    const n = ctx.createBufferSource();
+    n.buffer = this.noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2600;
+    bp.Q.value = 6;
+    const g2 = ctx.createGain();
+    this.env(g2, at + 0.15, 0.04, 0.12 * this.sfxVol, 0.5);
+    n.connect(bp).connect(g2).connect(this.sfx);
+    n.start(at + 0.15, Math.random() * 0.4);
+    n.stop(at + 0.75);
+  }
+
   chime(): void {
     if (!this.ctx) return;
     const t = this.now();
@@ -634,6 +677,8 @@ export class AudioEngine {
           else if (e.move === 'jaz_spot') this.chime();
           else if (e.move === 'bon_smoke') this.smoke();
           else if (e.move === 'jaz_heart') this.sing([7], 0.2, 392);
+          else if (e.move === 'jaz_rain') this.sparkle();
+          else if (e.move === 'bon_car') this.carIn();
           break;
         case 'hit':
           this.hit(e.strength, e.counter);

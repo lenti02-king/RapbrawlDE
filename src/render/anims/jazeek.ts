@@ -394,6 +394,19 @@ const normals: Record<string, Clip> = {
 
 const moves: Record<string, Clip> = {
   ...normals,
+  // Diamanten-Regen (total 44, rain spawns on 14): hand into the pocket, then "make it rain" up high, eyes on the shower
+  jaz_rain: new Clip(
+    [
+      { f: 1, p: {} },
+      { f: 8, p: { y: -0.06, s: { sq: 0.06 }, aim: { shR: [0.1, -1, 0.35], elR: [0.4, -0.6, 0.6] }, j: { chest: [0, -6, -6], spine: [0, 0, -6], head: [0, 0, -6] } }, e: 'out' },
+      { f: 13, p: { y: 0.04, s: { sq: -0.08, aR: 0.08 }, aim: { shR: [0.55, 1, 0.25], elR: [0.6, 1, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 16, 10], spine: [0, 6, 8], head: [0, -10, 22], thR: [-8, 18, -6], knR: [0, 0, -8] } }, e: 'snap' },
+      { f: 18, p: { y: 0.03, s: { sq: -0.06 }, aim: { shR: [0.65, 1, 0.2], elR: [0.9, 0.8, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 14, 10], spine: [0, 6, 8], haR: [0, 0, -40], head: [0, -10, 20] } } },
+      { f: 24, p: { y: 0.02, aim: { shR: [0.6, 1, 0.25], elR: [0.8, 0.9, 0.2], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 14, 10], spine: [0, 6, 8], haR: [0, 0, 20], head: [0, -6, 18] } } },
+      { f: 32, p: { aim: { shR: [0.6, 1, 0.25], elR: [0.9, 0.7, 0.2] }, j: { chest: [0, 8, 6], haR: [0, 0, -30], head: [0, -6, 12] } } },
+      { f: 44, p: {}, e: 'inOut' },
+    ],
+    S,
+  ),
   jaz_wave: new Clip(
     [
       { f: 1, p: {} },
@@ -480,7 +493,7 @@ const walkB = compose(S, { j: { thL: [6, 20, 8], knL: [0, 0, -40], thR: [-8, 18,
 export const JAZEEK_ANIMS: AnimSet = {
   id: 'jazeek',
   pivot: 0.76,
-  headFree: { jaz_2LH: 0.1 },
+  headFree: { jaz_2LH: 0.1, jaz_rain: 0.3 },
   stance: S,
   r,
   walkF: [walkA, walkB],

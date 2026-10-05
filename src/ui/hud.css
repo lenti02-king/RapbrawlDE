@@ -132,7 +132,6 @@
 .hud .side.p2 .bar .fill {
   background: linear-gradient(180deg, var(--c-hi) 0%, var(--c) 45%, var(--c-lo) 100%);
   box-shadow: inset 0 0.22rem 0 rgba(255, 255, 255, 0.5), inset 0 -0.2rem 0 rgba(0, 0, 0, 0.18);
-  transition: transform 0.08s linear;
 }
 .hud .side.danger .bar .fill {
   background: linear-gradient(180deg, #ffb3bd 0%, #ff4b62 50%, #c4123a 100%);

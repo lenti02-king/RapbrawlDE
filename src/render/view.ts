@@ -584,9 +584,11 @@ export class GameView {
       let m = this.projMeshes.get(p.id);
       if (!m) {
         m = this.fx.makeProjectile(p.kind) ?? makeProjectile(p.kind);
+        m.userData.kind = p.kind;
         this.projMeshes.set(p.id, m);
         this.scene.add(m);
       }
+      m.userData.dir = p.dir;
       if (this.fx.updateProjectile(m, p, s, this.time)) continue;
       m.position.set(p.x / U, p.y / U, 0.1);
       m.scale.x = p.dir;
@@ -601,6 +603,12 @@ export class GameView {
     }
     for (const [id, m] of this.projMeshes) {
       if (!alive.has(id)) {
+        // the car does not vanish on impact: it keeps drifting off screen for a moment
+        if (m.userData.kind === 'car' && (m.userData.coast ?? 0) < 1.0) {
+          m.userData.coast = (m.userData.coast ?? 0) + dt;
+          m.position.x += (m.userData.dir ?? 1) * 15 * dt;
+          continue;
+        }
         this.scene.remove(m);
         this.projMeshes.delete(id);
       }

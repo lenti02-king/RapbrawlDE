@@ -2,6 +2,7 @@
 // Jazeek's voice wave / spotlight dash / counter notes, Bonez's crocodile jaws / smoke wall /
 // gold teeth, and win flourishes. Reads sim state only; all timing keyed to sim frames.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { SimEvent } from '../core/events';
 import { UNITS_PER_METER } from '../core/math';
 import { getMove } from '../core/registry';
@@ -226,6 +227,8 @@ export class SpecialFX {
       }
       return g;
     }
+    if (kind === 'diamonds') return makeDiamondRain();
+    if (kind === 'car') return makeTunerCar();
     return null;
   }
 
@@ -240,6 +243,42 @@ export class SpecialFX {
         c.scale.set(k, k, 1);
       });
       if (Math.random() < 0.25) this.noteBurst(p.x / U - p.dir * 0.2, p.y / U, 1, -p.dir, 0.6);
+      return true;
+    }
+    if (p.kind === 'diamonds') {
+      // a shower of diamonds over the zone; they land, bounce off and sparkle
+      const life = 36;
+      const a = Math.min(ease(p.age / 5), 1 - ease((p.age - (life - 8)) / 8));
+      m.position.set(p.x / U, p.y / U, 0.1);
+      m.children.forEach((c) => {
+        const d = c.userData as { lane: number; z: number; off: number; spin: number; size: number; glint?: boolean };
+        if (d.glint) {
+          (c as THREE.Sprite).material.opacity = a * (0.5 + 0.5 * Math.sin(time * 20 + d.off * 9));
+          return;
+        }
+        const t = ((p.age + d.off * 30) / 14) % 1;
+        const y = 1.9 - t * 2.9;
+        c.position.set(d.lane, Math.max(-0.98, y), d.z);
+        c.rotation.set(time * d.spin, time * d.spin * 1.3, 0.3);
+        const sc = d.size * a * (y < -0.95 ? 0.7 : 1);
+        c.scale.set(sc, sc * 1.4, sc);
+      });
+      if (p.age % 3 === 0) this.vfx.sparks(p.x / U + (Math.random() - 0.5) * 1.2, 0.05, 3, new THREE.Color(0xbff6ff), 3, 0, 2);
+      if (p.age % 2 === 0) this.vfx.emit(p.x / U + (Math.random() - 0.5) * 1.3, 2.4, 0.1, 0, -4, 0, new THREE.Color(0xe8fdff), 0.5, 0.06, 0, 0.5, 0, 0);
+      return true;
+    }
+    if (p.kind === 'car') {
+      // the car drifts in with a slight yaw, wheels spinning, tyre smoke and neon underglow
+      m.position.set(p.x / U, 0, 0.05);
+      m.scale.x = p.dir;
+      const body = m.getObjectByName('body');
+      if (body) {
+        body.rotation.y = 0.18 * Math.sin(Math.min(1, p.age / 10) * Math.PI) * -p.dir;
+        body.position.y = Math.abs(Math.sin(time * 30)) * 0.015;
+      }
+      for (const w of m.userData.wheels as THREE.Object3D[]) w.rotation.z = -time * 40;
+      this.vfx.dust(p.x / U - p.dir * 1.0, 0.1, 2, 0.4, new THREE.Color(0xdcd6ea));
+      if (p.age % 2 === 0) this.vfx.emit(p.x / U - p.dir * 1.15, 0.35, 0.2, -p.dir * 2, 0.5, 0, new THREE.Color(0xff8a3d), 0.35, 0.12, 0, 0.2, 0, 0);
       return true;
     }
     if (p.kind === 'smoke') {
@@ -296,4 +335,95 @@ function glintTexture(): THREE.CanvasTexture {
   glintTex = new THREE.CanvasTexture(c);
   glintTex.colorSpace = THREE.SRGBColorSpace;
   return glintTex;
+}
+
+/** Diamond shower: falling, spinning diamonds over a 1.3 m wide zone, plus glints. Local origin = projectile center. */
+export function makeDiamondRain(): THREE.Object3D {
+  const g = new THREE.Group();
+  const geo = new THREE.OctahedronGeometry(0.19, 0);
+  const mats = [0xe8fdff, 0x9ff4ff, 0x7fe8ff, 0xffffff].map(
+    (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x4fd8ff, emissiveIntensity: 0.55, transparent: true, opacity: 0.95 }),
+  );
+  for (let i = 0; i < 26; i++) {
+    const d = new THREE.Mesh(geo, mats[i % mats.length]);
+    d.userData = { lane: ((i * 37) % 13) / 12 * 1.3 - 0.65, z: (((i * 53) % 9) / 8 - 0.5) * 0.7, off: ((i * 29) % 17) / 17, spin: 4 + (i % 5), size: 0.8 + ((i * 7) % 5) * 0.12 };
+    d.castShadow = false;
+    g.add(d);
+  }
+  for (let i = 0; i < 6; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTexture(), color: 0xe8fdff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    sp.position.set((i / 5 - 0.5) * 1.2, -0.2 + ((i * 3) % 5) * 0.35, 0.3);
+    sp.scale.set(0.6, 0.6, 1);
+    sp.userData = { glint: true, off: i * 0.37 };
+    g.add(sp);
+  }
+  return g;
+}
+
+/** Lowered tuner compact (generic: no brand, no badges): purple body, tinted glass, gold rims, neon underglow. Faces +x. */
+export function makeTunerCar(): THREE.Object3D {
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  body.name = 'body';
+  root.add(body);
+  const paint = new THREE.MeshStandardMaterial({ color: 0x8a4dff, metalness: 0.55, roughness: 0.28, emissive: 0x2a1060, emissiveIntensity: 0.4 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a1430, metalness: 0.2, roughness: 0.6 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, metalness: 0.4, roughness: 0.08, emissive: 0x1f4a66, emissiveIntensity: 0.5 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffc531, metalness: 0.85, roughness: 0.25 });
+  const lamp = new THREE.MeshBasicMaterial({ color: 0xfff6d0 });
+  const tail = new THREE.MeshBasicMaterial({ color: 0xff2a55 });
+  const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z = 0) => {
+    const r = Math.min(w, h, d) * 0.35;
+    const mesh = new THREE.Mesh(r > 0.02 ? new RoundedBoxGeometry(w, h, d, 3, r) : new THREE.BoxGeometry(w, h, d), m);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    body.add(mesh);
+    return mesh;
+  };
+  box(2.3, 0.4, 1.05, paint, 0, 0.38); // lower body
+  box(1.0, 0.2, 1.08, paint, 0.7, 0.5); // front wing bulge
+  box(2.36, 0.08, 1.08, dark, 0, 0.2); // side skirt line
+  const cabin = box(1.15, 0.36, 0.95, glass, -0.18, 0.7); // greenhouse
+  cabin.scale.set(1, 1, 1);
+  box(1.0, 0.06, 0.98, paint, -0.2, 0.9); // roof
+  box(0.5, 0.05, 1.0, paint, 0.55, 0.56); // bonnet slope
+  box(0.08, 0.2, 1.0, dark, -1.18, 0.62); // spoiler post
+  box(0.32, 0.05, 1.1, paint, -1.22, 0.74); // spoiler wing
+  box(0.06, 0.08, 0.28, lamp, 1.16, 0.44, 0.33);
+  box(0.06, 0.08, 0.28, lamp, 1.16, 0.44, -0.33);
+  box(0.06, 0.08, 0.3, tail, -1.16, 0.44, 0.32);
+  box(0.06, 0.08, 0.3, tail, -1.16, 0.44, -0.32);
+  // headlight beams (additive)
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff1c8, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.4, 16, 1, true), beamMat);
+  beam.rotation.z = Math.PI / 2;
+  beam.position.set(2.35, 0.44, 0);
+  body.add(beam);
+  // neon underglow
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.8, 1.5),
+    new THREE.MeshBasicMaterial({ color: 0x7cff5a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+  );
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.02;
+  body.add(glow);
+  const wheels: THREE.Object3D[] = [];
+  for (const [x, z] of [
+    [0.72, 0.5],
+    [-0.72, 0.5],
+    [0.72, -0.5],
+    [-0.72, -0.5],
+  ]) {
+    const w = new THREE.Group();
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.2, 18), dark);
+    tyre.rotation.x = Math.PI / 2;
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.21, 6), gold);
+    rim.rotation.x = Math.PI / 2;
+    w.add(tyre, rim);
+    w.position.set(x, 0.24, z);
+    body.add(w);
+    wheels.push(w);
+  }
+  root.userData.wheels = wheels;
+  return root;
 }

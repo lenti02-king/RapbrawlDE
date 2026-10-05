@@ -49,7 +49,20 @@ const CARD_ICONS: Record<string, string> = {
      <path d="M32 17l-4 9 6 6-5 8 3 9" fill="none" stroke="#14183a" stroke-width="3" stroke-linejoin="round"/>
      <ellipse cx="20" cy="22" rx="4" ry="2.6" fill="#ffd6e6" transform="rotate(-30 20 22)"/>`,
   ),
+  jaz_rain: svg(
+    `<path d="M22 8l8 0 4 6-8 10-8-10z" fill="#9ff4ff" ${S}/><path d="M40 20l7 0 3 5-6.5 8-6.5-8z" fill="#c6f9ff" ${S}/>
+     <path d="M16 34l7 0 3 5-6.5 8-6.5-8z" fill="#7fe8ff" ${S}/><path d="M34 40l8 0 4 6-8 10-8-10z" fill="#e8fdff" ${S}/>
+     <path d="M52 8l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill="#fff6b0"/><path d="M10 18l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill="#fff6b0"/>`,
+  ),
   // Bonez
+  bon_car: svg(
+    `<path d="M6 40l4-10 10-2 8-8h16l8 8 6 2 0 10z" fill="#9a5cff" ${S}/>
+     <path d="M30 22h12l6 6H24z" fill="#bff6ff" ${S}/>
+     <circle cx="18" cy="42" r="6" fill="#2b2140" ${S}/><circle cx="46" cy="42" r="6" fill="#2b2140" ${S}/>
+     <circle cx="18" cy="42" r="2" fill="#ffd23a"/><circle cx="46" cy="42" r="2" fill="#ffd23a"/>
+     <path d="M6 50h52" stroke="#7cff5a" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+     <path d="M2 26h8M0 32h6" stroke="#14183a" stroke-width="3" stroke-linecap="round"/>`,
+  ),
   bon_croc: svg(
     `<path d="M6 30l30-14c8-3 16 0 20 6l-26 8z" fill="#5cbf4e" ${S}/>
      <path d="M6 34l24 0 26 6c-4 8-14 10-22 8z" fill="#47a64a" ${S}/>
