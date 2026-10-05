@@ -18,12 +18,15 @@ import { LINE } from '../ui/lines';
 import { ARENAS, arenaInfo } from '../ui/arenas';
 import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { mainMenuHtml, mainMenuToast, mountMainMenu, type MainMenuModel } from '../ui/menu/mainMenu';
+import { MenuFigures } from '../ui/menu/figures';
 import { loadingHtml, mountLoading, setLoading, setLoadingLabel } from '../ui/menu/loading';
 import { charSelectHtml, mountCharSelect, type CsSide, type CsTile } from '../ui/menu/charSelect';
 import { mountShowcase, setShowcaseChip, showcaseHtml, showcaseRoulette, showcaseSelect, type ShowcaseItem } from '../ui/menu/arenaSelect';
 import { MODE_IMG } from '../ui/menu/modeArt';
 import { mountShop, shopHtml } from '../ui/menu/shop';
+import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
+import '../ui/menu/skin';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
@@ -467,7 +470,9 @@ export class App {
   private open(html: string, cls = ''): HTMLElement {
     this.closeScreen();
     const el = document.createElement('div');
-    el.className = `screen ${cls}`;
+    // screens without their own master layout wear the app-wide master skin (backdrop, panel frames, buttons)
+    const master = /\b(mm|splash|st-select|st-arena|st-modes|st-loading|shop|board)\b/.test(cls);
+    el.className = `screen ${cls}${master ? '' : ' kp'}`;
     el.innerHTML = html;
     this.ui.appendChild(el);
     this.screen = el;
@@ -590,7 +595,7 @@ export class App {
           soon('BATTLE PASS');
           break;
         case 'leader':
-          soon('BESTENLISTE');
+          this.showBoard();
           break;
       }
     }, this.favorite);
@@ -621,6 +626,43 @@ export class App {
         if (k !== 'skins') toast(el, 'KATEGORIE KOMMT BALD');
       } else if (t.closest('[data-buy]')) toast(el, 'SHOP KOMMT BALD – KEIN ECHTGELD');
     });
+  }
+
+  /** BESTENLISTE (PO master): your rank points against a fixed CPU league (offline until there is a server). */
+  showBoard(): void {
+    const p = this.profileData;
+    const rp = store.get('rp', 0);
+    const rivals: [string, string, number, number][] = [
+      ['KÖNIGSVERS', 'DER CHAMP DES VOLKES', 247, 1320],
+      ['LYRIKWUT', 'BARS LÜGEN NICHT', 198, 1090],
+      ['FLOWTITAN', 'KEINE GESCHENKE', 176, 920],
+      ['MIKRO-MAURER', 'DRUCK MACHT DIAMANTEN', 162, 760],
+      ['BEATKILLER', 'RHYTHMUS GEWINNT', 148, 610],
+      ['KLARTEXT', 'KOPF VOR MUND', 131, 380],
+      ['VERSVIPER', 'STILLE IST NIEDERLAGE', 121, 180],
+      ['FRISCHLING', 'GERADE ANGEKOMMEN', 12, 40],
+    ];
+    const me: BoardRow = { name: this.playerName.toUpperCase(), motto: 'DAS BIST DU', wins: p.wins, rating: rp, you: true, avatar: portrait(this.favorite, 'bust') };
+    const all: BoardRow[] = [...rivals.map(([name, motto, wins, rating]): BoardRow => ({ name, motto, wins, rating })), me].sort((a, b) => b.rating - a.rating || (a.you ? -1 : 1));
+    const rank = all.indexOf(me) + 1;
+    const rows = all.slice(0, 8);
+    if (!rows.includes(me)) rows[7] = me;
+    let streak = 0;
+    for (let i = p.history.length - 1; i >= 0 && p.history[i].r === 'W'; i--) streak++;
+    const el = this.open(
+      boardHtml({
+        rows,
+        you: { name: this.playerName, motto: `LIGA ${tierOf(rp).name} · OFFLINE`, streak, wins: p.wins, rank, avatar: portrait(this.favorite, 'bust'), tier: tierOf(rp).name },
+        tiers: ['LEGENDE', 'DIAMANT', 'GOLD', 'SILBER', 'BRONZE'],
+      }),
+      'board',
+    );
+    const stop = mountBoard(el);
+    el.querySelector('[data-back]')!.addEventListener('click', () => {
+      stop();
+      this.showHome();
+    });
+    el.querySelector('[data-season]')!.addEventListener('click', () => toast(el, 'SAISON-BELOHNUNGEN KOMMEN BALD'));
   }
 
   /** Favourite fighter (stands in the main menu, preselected for P1) and favourite arena (preselected at match start). */
@@ -1026,65 +1068,79 @@ export class App {
     el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
   }
 
-  showFighters(player: number): void {
-    const all = ROSTER.map((id) => fighterStats(id));
-    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((st) => st[k]));
-    const id = this.sel.fighters[player];
+  /** KÄMPFER: improve and customise your fighters (abilities, outfits, accessories) and choose the favourite that
+   *  stands in the main menu. The fighter for a match is picked at match start (char select), not here. */
+  showFighters(_player = 0, tab: 'skills' | 'outfit' | 'acc' | 'stats' = 'skills', view?: string): void {
+    const id = view && ROSTER.includes(view) ? view : this.favorite;
     const d = getFighter(id);
+    const all = ROSTER.map((x) => fighterStats(x));
+    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((st) => st[k]));
     const st = all[ROSTER.indexOf(id)] ?? fighterStats(id);
+    const fav = this.favorite === id;
+    const deck = this.presetDeck(id);
     const bar = (label: string, v: number) => `<span>${label}</span><i><b style="width:${(Math.max(0.08, v) * 100).toFixed(0)}%"></b></i>`;
     const tiles =
       ROSTER.map((fid) => {
-        const img = portrait(fid, 'card');
-        const tags = [0, 1].filter((i) => this.sel.fighters[i] === fid).map((i) => `<span class="ptag">${i ? 'P2' : 'P1'}</span>`);
-        return `<button class="fcard rtile ${fid === id ? 'sel' : ''} ${player ? 'p2' : ''}" data-f="${fid}">${img ? `<img alt="" src="${img}">` : ''}${tags.join('')}<span class="rname">${getFighter(fid).name}</span></button>`;
-      }).join('') + Array.from({ length: Math.max(0, 8 - ROSTER.length) }, () => `<div class="rtile locked">?<small>BALD</small></div>`).join('');
-    const tabs = `<div class="tabs">${[0, 1].map((i) => `<button class="tab ${player === i ? `on ${i ? 'red' : ''}` : ''}" data-p="${i}">${this.sideLabel(i)}</button>`).join('')}</div>`;
-    const hero = portrait(id, 'hero');
+        const img = portrait(fid, 'bust');
+        return `<button class="kf-tile ${fid === id ? 'on' : ''}" data-f="${fid}">${img ? `<img alt="" src="${img}">` : ''}${this.favorite === fid ? '<span class="kf-fav">★</span>' : ''}<span>${getFighter(fid).name}</span></button>`;
+      }).join('') + Array.from({ length: 4 }, () => `<div class="kf-tile locked"><span>BALD</span></div>`).join('');
+    const soonSlots = (names: string[]) =>
+      `<div class="kf-slots">${names.map((n) => `<div class="kf-slot"><b>${n}</b><small>KOMMT BALD</small></div>`).join('')}</div>
+       <div class="kf-designer">Unser Designer entwirft gerade die erste Kollektion – Outfits und Accessoires kommen mit dem nächsten Update.</div>`;
+    const body =
+      tab === 'skills'
+        ? `<div class="kf-deck">${deck.map((c, i) => `<div class="kf-card">${cardHtml(id, c, 'big')}<small>${i === SIGNATURE_SLOT ? '★ SIGNATURE' : `SPECIAL ${i + 1}`}</small></div>`).join('')}</div>
+           <div class="row kf-actions"><button class="btn gold" data-deck>FÄHIGKEITEN ANPASSEN</button></div>`
+        : tab === 'outfit'
+          ? soonSlots(['STANDARD ✓', 'TRAINING', 'BÜHNE', 'STRASSE'])
+          : tab === 'acc'
+            ? soonSlots(['KAPPE', 'BRILLE', 'KETTE', 'RINGE'])
+            : `<div class="statbox kf-stats">${bar('ANGRIFF', st.dmg / max('dmg'))}${bar('LEBEN', st.health / max('health'))}${bar('REICHWEITE', st.reach / max('reach'))}${bar('TEMPO', st.speed / max('speed'))}</div>
+               <div class="hint" style="margin-top:0.5rem">${d.tagline}</div>`;
+    const tabBtn = (k: typeof tab, label: string) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${label}</button>`;
     const el = this.open(
-      `${this.header('KÄMPFER', tabs)}
-       <div class="stage">
-         <div class="crown">${LINE.crown}</div>
-         ${hero ? `<img class="hero" alt="" src="${hero}">` : ''}
-         <div class="who"><div class="hero-arch">${d.archetype.toUpperCase()}</div><div class="hero-name">${d.name}</div></div>
-       </div>
-       <div style="display:flex;flex-direction:column;gap:0.7rem;min-height:0">
-         <div class="hero-tag">${d.tagline}</div>
-         <div class="panel statbox">
-           ${bar('ANGRIFF', st.dmg / max('dmg'))}
-           ${bar('LEBEN', st.health / max('health'))}
-           ${bar('REICHWEITE', st.reach / max('reach'))}
-           ${bar('TEMPO', st.speed / max('speed'))}
+      `${this.header('KÄMPFER')}
+       <div class="kf">
+         <div class="kf-hero"><span class="fig-anchor kf-fig"></span>
+           <div class="kf-who"><small>${d.archetype.toUpperCase()}</small><b>${d.name}</b></div>
+           <button class="btn ${fav ? '' : 'gold'} kf-favbtn" data-fav ${fav ? 'disabled' : ''}>${fav ? '★ DEIN FAVORIT' : 'ALS FAVORIT'}</button>
          </div>
-         <div class="roster">${tiles}</div>
-       </div>
-       <div class="actions">
-         <button class="btn" data-todeck>KARTEN ${player ? `(${this.sideLabel(1)})` : ''}</button>
-         <button class="btn gold" data-ok data-default>FERTIG</button>
+         <div class="kf-right">
+           <div class="kf-roster">${tiles}</div>
+           <div class="panel kf-panel">
+             <div class="tabs">${tabBtn('skills', 'FÄHIGKEITEN')}${tabBtn('outfit', 'OUTFITS')}${tabBtn('acc', 'ACCESSOIRES')}${tabBtn('stats', 'WERTE')}</div>
+             <div class="kf-body">${body}</div>
+           </div>
+         </div>
        </div>`,
-      'select',
+      'kfighters',
     );
-    el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const fid = b.dataset.f!;
-        this.sel.fighters[player] = fid;
-        if (validateLoadout(fid, this.sel.loadouts[player])) this.sel.loadouts[player] = this.presetDeck(fid);
-        // vs CPU: the opponent defaults to the other fighter (a mirror match stays possible via the CPU tab)
-        if (player === 0 && this.sel.mode !== 'local' && this.sel.fighters[1] === fid) {
-          const other = ROSTER.find((x) => x !== fid);
-          if (other) {
-            this.sel.fighters[1] = other;
-            this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
-          }
-        }
-        store.set('selection', this.sel);
-        this.showFighters(player);
+    const figs = new MenuFigures(el, el.querySelector('.kf'));
+    figs.set([{ id, anchor: el.querySelector<HTMLElement>('.kf-fig')!, facing: 1, rim: 0xffc040, turn: 0.8 }]);
+    const go = (fn: () => void) => {
+      figs.dispose();
+      fn();
+    };
+    el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) => b.addEventListener('click', () => go(() => this.showFighters(0, tab, b.dataset.f))));
+    el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => go(() => this.showFighters(0, b.dataset.tab as typeof tab, id))));
+    el.querySelector('[data-fav]')?.addEventListener('click', () => {
+      store.set('favFighter', id);
+      go(() => this.showFighters(0, tab, id));
+    });
+    el.querySelector('[data-deck]')?.addEventListener('click', () =>
+      go(() => {
+        const keep = this.sel.fighters[0];
+        this.sel.fighters[0] = id;
+        this.sel.loadouts[0] = deck;
+        this.showDeck(0, () => {
+          this.sel.fighters[0] = keep;
+          this.sel.loadouts[0] = this.presetDeck(keep);
+          store.set('selection', this.sel);
+          this.showFighters(0, 'skills', id);
+        });
       }),
     );
-    el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) => b.addEventListener('click', () => this.showFighters(Number(b.dataset.p))));
-    el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
-    el.querySelector('[data-ok]')!.addEventListener('click', () => this.showHome());
-    el.querySelector('[data-todeck]')!.addEventListener('click', () => this.showDeck(player, () => this.showFighters(player)));
+    el.querySelector('[data-back]')!.addEventListener('click', () => go(() => this.showHome()));
   }
 
   /** Deck presets: three saved decks per fighter; returns the active one (or the default deck). */
@@ -1234,40 +1290,44 @@ export class App {
     });
   }
 
-  showHelp(back: () => void): void {
+  /** STEUERUNG: touch first (this is a phone game); keyboard/gamepad as a second tab. */
+  showHelp(back: () => void, tab: 'touch' | 'keys' | 'combos' = this.touchEnabled ? 'touch' : 'keys'): void {
+    const tabBtn = (k: typeof tab, label: string) => `<button class="tab ${tab === k ? 'on' : ''}" data-tab="${k}">${label}</button>`;
+    const touch = `<div class="hp-touch">
+        <div class="hp-pad">
+          <div class="hp-stick"><i></i></div>
+          <div class="hp-cards"><span></span><span></span><span class="sig"></span></div>
+          <div class="hp-btns"><b class="blk">BLOCK</b><b class="h">H</b><b class="g">GRIFF</b><b class="l">L</b></div>
+        </div>
+        <div class="hp-list">
+          <p><b>Stick (links):</b> erscheint, wo du den Daumen ablegst. Seitlich laufen, 2× schnell = Dash, hoch = springen, runter = ducken.</p>
+          <p><b>L / H:</b> leichter / schwerer Angriff. Mit Stick runter = tiefe Angriffe. Ketten: L · L · H und mehr (Tab KOMBOS).</p>
+          <p><b>BLOCK:</b> halten zum Blocken. Kurz vor dem Treffer tippen = <b>Perfekt-Block</b> (kein Schaden, Konter zählt doppelt).</p>
+          <p><b>GRIFF:</b> Wurf – schlägt Block. Stick zurück + GRIFF schleudert den Gegner hinter dich.</p>
+          <p><b>Karten (Mitte unten):</b> deine Specials. Die <b style="color:#ffd23a">goldene Karte</b> ist die Signature – braucht 3 Hype.</p>
+          <p><b>Hype:</b> lädt durch Treffen, Blocken und Einstecken. Im Takt treffen (Beat-Drop) lädt doppelt.</p>
+        </div>
+      </div>`;
+    const keys = `<div class="keys hp-keys">
+        <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span><span>Laufen · 2× tippen = Dash</span>
+        <span><kbd>W</kbd> / <kbd>↑</kbd></span><span>Springen</span>
+        <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Ducken (tiefe Angriffe)</span>
+        <span><kbd>J</kbd> <kbd>K</kbd></span><span>Leicht · Schwer (mit ↓ = tief)</span>
+        <span><kbd>L</kbd></span><span>Griff – schlägt Block</span>
+        <span><kbd>Leertaste</kbd></span><span>Blocken (oder zurück halten)</span>
+        <span><kbd>U</kbd> <kbd>I</kbd></span><span>Special-Karten 1 und 2</span>
+        <span><kbd>O</kbd></span><span><b style="color:#ffd23a">★ SIGNATURE</b> – braucht volle Hype-Leiste (3)</span>
+        <span><kbd>Esc</kbd></span><span>Pause</span>
+      </div>
+      <div class="hint" style="margin-top:0.6rem">Gamepads werden erkannt. 2 Spieler an einem Gerät: Spieler 2 nutzt Pfeile, <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd> Angriffe, <kbd>⇧</kbd> rechts Block, <kbd>M</kbd><kbd>N</kbd><kbd>B</kbd> Karten.</div>`;
+    const combos = `<div class="hint">Schläge und Tritte brauchen keine Karten – nur Knöpfe. Karten sind nur für Fähigkeiten und die Signature.</div><div class="combos">${this.comboList()}</div>`;
     const el = this.open(
-      `${this.header('STEUERUNG')}
-       <div class="help-grid">
-         <div class="panel">
-           <h3>TASTATUR</h3>
-           <div class="keys">
-             <span><kbd>A</kbd><kbd>D</kbd> / <kbd>←</kbd><kbd>→</kbd></span><span>Laufen · 2× tippen = Dash</span>
-             <span><kbd>W</kbd> / <kbd>↑</kbd></span><span>Springen</span>
-             <span><kbd>S</kbd> / <kbd>↓</kbd></span><span>Ducken (tiefe Angriffe)</span>
-             <span><kbd>J</kbd> <kbd>K</kbd></span><span>Leicht · Schwer (mit ↓ = tief)</span>
-             <span><kbd>L</kbd></span><span>Griff – schlägt Block</span>
-             <span><kbd>Leertaste</kbd></span><span>Blocken (oder zurück halten)</span>
-             <span><kbd>U</kbd> <kbd>I</kbd></span><span>Special-Karten 1 und 2</span>
-             <span><kbd>O</kbd></span><span><b style="color:#ffd23a">★ SIGNATURE</b> – braucht volle Hype-Leiste (3)</span>
-             <span><kbd>Esc</kbd></span><span>Pause</span>
-           </div>
-           <div class="hint" style="margin-top:0.6rem">2 Spieler: Spieler 2 nutzt Pfeile, <kbd>,</kbd><kbd>.</kbd><kbd>/</kbd> Angriffe, <kbd>⇧</kbd> rechts Block, <kbd>M</kbd><kbd>N</kbd><kbd>B</kbd> Karten. Gamepads werden erkannt.</div>
-         </div>
-         <div class="panel">
-           <h3>TOUCH</h3>
-           <div class="hint" style="color:#e6edff">Linke Bildschirmhälfte: Stick erscheint dort, wo du hintippst. Die gelben Punkte zeigen die erkannte Richtung. Schräg runter-zurück = tief blocken.</div>
-           <div class="hint" style="color:#e6edff;margin-top:0.4rem">Rechts: <b>L</b> leicht · <b>H</b> schwer · <b>GRIFF</b> · <b>BLOCK</b>. Die Karten unten in der Mitte sind deine Specials – die <b style="color:#ffd23a">goldene Karte</b> ist die Signature.</div>
-           <h3 style="margin-top:0.8rem">SO KÄMPFST DU</h3>
-           <div class="hint" style="color:#e6edff">Hype lädt sich durch Treffen, Blocken und Einstecken auf. Specials kosten 1–2 Hype, die Signature 3. Treffer lassen sich in Specials abbrechen. Trifft die Signature, startet die Kino-Sequenz – geblockt oder verfehlt ist sie gefährlich.</div>
-           <h3 style="margin-top:0.8rem">PERFEKT-BLOCK &amp; SLAMS</h3>
-           <div class="hint" style="color:#e6edff">Tippe <b>BLOCK</b> (oder den Stick kurz zurück) genau vor dem Treffer: kein Schaden, Hype gibt's obendrauf und dein nächster Treffer zählt als Konter. Dauerdrücken klappt nicht. <b>GRIFF</b> wirft mit einem Slam nach vorn, <b>zurück + GRIFF</b> schleudert den Gegner hinter dich.</div>
-           <h3 style="margin-top:0.8rem">KOMBOS</h3>
-           <div class="hint" style="color:#e6edff">Schläge und Tritte brauchen keine Karten – nur Knöpfe. Karten sind nur für Fähigkeiten und die Signature (Handy: Karte antippen).</div>
-           <div class="combos">${this.comboList()}</div>
-         </div>
-       </div>
-       <div class="row" style="justify-content:center;margin-top:0.7rem"><button class="btn gold" data-ok data-default>VERSTANDEN</button></div>`,
+      `${this.header('STEUERUNG', `<div class="tabs">${tabBtn('touch', 'TOUCH')}${tabBtn('keys', 'TASTATUR & PAD')}${tabBtn('combos', 'KOMBOS')}</div>`)}
+       <div class="panel hp-body">${tab === 'touch' ? touch : tab === 'keys' ? keys : combos}</div>
+       <div class="row" style="justify-content:center;margin-top:0.5rem"><button class="btn gold" data-ok data-default>VERSTANDEN</button></div>`,
+      'help',
     );
+    el.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => this.showHelp(back, b.dataset.tab as typeof tab)));
     el.querySelector('[data-back]')!.addEventListener('click', back);
     el.querySelector('[data-ok]')!.addEventListener('click', back);
   }
@@ -1327,7 +1387,7 @@ export class App {
          <button class="btn" data-a="help">STEUERUNG</button>
          <button class="btn red" data-a="quit" data-back>HAUPTMENÜ</button>
        </div>`,
-      'dim',
+      'dim overlay',
     );
     el.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
       b.addEventListener('click', () => {

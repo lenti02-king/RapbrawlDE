@@ -42,15 +42,17 @@ const sim = (page) =>
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/d02_home.png` });
   check(await page.evaluate(() => window.__rb.mode === 'menu' && !window.__rb.runner), 'home screen is a plain menu (3D scene not running yet)');
-  // fighter select: pick Bonez MC
+  // KÄMPFER: view Bonez MC, make him the favourite (P1 at match start), adjust his abilities
   await page.click('[data-act="fighters"]');
-  await page.waitForSelector('.fcard[data-f="bonez"]');
-  await page.click('.fcard[data-f="bonez"]');
+  await page.waitForSelector('.kf-tile[data-f="bonez"]');
+  await page.click('.kf-tile[data-f="bonez"]');
+  await page.waitForSelector('.kf-tile.on[data-f="bonez"]');
+  await page.click('[data-fav]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/d03_fighters.png` });
-  check((await page.evaluate(() => window.__rb.sel.fighters[0])) === 'bonez', 'fighter select picks Bonez MC');
-  // deck (from the fighter screen): swap special 2 (Abriss) for Rauchwand
-  await page.click('[data-todeck]');
+  check((await page.evaluate(() => JSON.parse(localStorage.getItem('rapbrawl.favFighter')))) === 'bonez', 'KÄMPFER sets Bonez MC as favourite');
+  // abilities: swap special 2 (Abriss) for Rauchwand
+  await page.click('[data-deck]');
   await page.waitForSelector('.collection [data-card="bon_smoke"]');
   await page.click('.collection [data-card="bon_smoke"]');
   await page.click('[data-use]');
@@ -59,8 +61,8 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/d04_deck.png` });
   check(!(await page.isDisabled('[data-ok]')), 'legal 2+1 deck enables FERTIG');
   await page.click('[data-ok]');
-  await page.waitForSelector('.fcard');
-  await page.click('[data-ok]');
+  await page.waitForSelector('.kf-tile');
+  await page.click('[data-back]');
   await page.waitForSelector('.main-menu');
   await page.evaluate(() => {
     window.__vsSeen = false;

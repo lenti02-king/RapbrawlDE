@@ -117,6 +117,28 @@ def erode(m, r):
     return cv2.erode(m, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
 
 
+def fill_scanlines(img: np.ndarray, mask: np.ndarray, smooth=1.2) -> np.ndarray:
+    """Fill masked pixels by linear interpolation along their row between the nearest unmasked pixels left and right.
+    Ideal for text on horizontally banded UI (table rows, glossy bars): the vertical gloss profile is kept exactly."""
+    out = img.astype(np.float32).copy()
+    m = mask > 0
+    W = img.shape[1]
+    xs = np.arange(W)
+    for y in np.nonzero(m.any(axis=1))[0]:
+        row = m[y]
+        good = np.nonzero(~row)[0]
+        if len(good) < 2:
+            continue
+        for c in range(3):
+            out[y, row, c] = np.interp(xs[row], good, out[y, good, c])
+    res = out.astype(np.uint8)
+    if smooth:
+        bl = cv2.GaussianBlur(res, (0, 0), smooth)
+        a = cv2.GaussianBlur(mask, (0, 0), 1.0).astype(np.float32)[..., None] / 255.0
+        res = (res * (1 - a * 0.5) + bl * (a * 0.5)).astype(np.uint8)
+    return res
+
+
 def rebuild_bar(img: np.ndarray, outer, strip, cap=8) -> np.ndarray:
     """Empty progress-bar track: every column becomes the mean column of a clean `strip` (x0, x1) of the track; the
     left end cap (usually hidden under the fill) is the mirrored right end cap."""

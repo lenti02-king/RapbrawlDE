@@ -1,0 +1,456 @@
+/* App-wide master skin (D38): .screen.kp = any classic screen; frames are the master's sprites as 9-slices. */
+.screen.kp {
+  background:
+    linear-gradient(180deg, rgba(4, 8, 22, 0.35), rgba(4, 8, 22, 0.55)),
+    var(--kit-backdrop) center / cover no-repeat,
+    #070a18 !important;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+}
+.screen.kp.dim,
+.screen.kp:has(> .modal) {
+  background:
+    radial-gradient(80% 70% at 50% 50%, rgba(4, 8, 22, 0.35), rgba(4, 8, 22, 0.8)),
+    var(--kit-backdrop) center / cover no-repeat,
+    #070a18 !important;
+}
+/* in-match overlays (pause): the fight stays visible behind */
+.screen.kp.overlay {
+  background: rgba(4, 8, 22, 0.66) !important;
+  backdrop-filter: blur(4px);
+}
+
+/* titles: gold brush lettering like the masters */
+.screen.kp .header .title,
+.screen.kp .modal .mtitle,
+.screen.kp .result-banner {
+  font-family: 'Permanent Marker', 'Barlow Condensed', sans-serif !important;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  color: transparent !important;
+  background: linear-gradient(180deg, #fff7c2 0%, #ffd84d 40%, #f2a41c 75%, #c8740c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0.12rem 0.18rem 0 #1a0d03) drop-shadow(0 0 0.3rem rgba(0, 0, 0, 0.6));
+  text-shadow: none !important;
+}
+.screen.kp .header .title::after {
+  display: none;
+}
+
+/* panels and dialogs: the master's glass panel frame */
+.screen.kp .panel,
+.screen.kp .modal {
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-style: solid !important;
+  border-width: 1.6rem !important;
+  border-image: var(--kit-panel) 44 fill / 1.6rem / 0 stretch !important;
+  border-radius: 0 !important;
+  padding: 0.2rem 0.4rem !important;
+  color: #e9eef8;
+}
+.screen.kp .modal {
+  border-width: 2rem !important;
+  border-image-width: 2rem !important;
+  min-width: min(26rem, 92vw);
+}
+
+/* buttons: blue master button, gold master button for the main action */
+.screen.kp .btn {
+  background: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  border-style: solid !important;
+  border-width: 0.5rem 1.6rem !important;
+  border-image: var(--kit-btn) 30 46 fill / 0.5rem 1.6rem / 0 stretch !important;
+  padding: 0.35rem 0.3rem 0.45rem !important;
+  min-height: 3rem;
+  font-family: 'Anton', 'Barlow Condensed', sans-serif !important;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: #fff !important;
+  text-shadow:
+    0 0.12rem 0 #061a3c,
+    0.06rem 0 0 #061a3c,
+    -0.06rem 0 0 #061a3c,
+    0 -0.06rem 0 #061a3c !important;
+  filter: drop-shadow(0 0.25rem 0.4rem rgba(0, 0, 0, 0.5));
+}
+.screen.kp .btn::before {
+  display: none !important;
+}
+.screen.kp .btn.gold,
+.screen.kp .btn[data-default]:not(.gray):not(.icon) {
+  border-image: var(--kit-btn-gold) 38 54 fill / 0.6rem 1.8rem / 0 stretch !important;
+  border-width: 0.6rem 1.8rem !important;
+  color: #2a1204 !important;
+  text-shadow: 0 0.08rem 0 rgba(255, 240, 180, 0.6) !important;
+}
+.screen.kp .btn:active {
+  transform: scale(0.96);
+}
+.screen.kp .btn.icon {
+  border-width: 0.45rem 0.9rem !important;
+  border-image-width: 0.45rem 0.9rem !important;
+  min-width: 3.4rem;
+}
+.screen.kp .btn.icon svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+.screen.kp .btn.gray {
+  filter: saturate(0.4) brightness(0.85) drop-shadow(0 0.25rem 0.4rem rgba(0, 0, 0, 0.5));
+}
+.screen.kp .btn:disabled {
+  filter: grayscale(0.9) brightness(0.6);
+}
+
+/* tabs and small pills in the same palette */
+.screen.kp .tabs {
+  background: rgba(6, 12, 30, 0.75);
+  border: 0.12rem solid #c99a2e;
+  border-radius: 0.7rem;
+}
+.screen.kp .tab {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  color: #c9d6ee;
+}
+.screen.kp .tab.on {
+  color: #2a1204;
+  background: linear-gradient(180deg, #ffe27a, #f2a01c);
+  text-shadow: none;
+}
+.screen.kp h3 {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  color: #ffd45a;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0.1rem 0 #1a0d03;
+}
+.screen.kp .hint {
+  color: #c9d6ee;
+}
+.screen.kp .pill {
+  background: rgba(6, 12, 30, 0.8);
+  border: 0.1rem solid #c99a2e;
+  color: #ffd45a;
+}
+.screen.kp kbd {
+  background: linear-gradient(180deg, #f4f6fb, #c8d2e2);
+  color: #0b1226;
+  border-radius: 0.3rem;
+  box-shadow: 0 0.12rem 0 #0b1226;
+}
+
+/* ---------------------------------------------------------------------------------------- KÄMPFER */
+.screen.kp.kfighters .kf {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+  gap: 1rem;
+}
+.kf-hero {
+  position: relative;
+  min-height: 0;
+}
+.kf-fig {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 2%;
+  bottom: 22%;
+}
+.kf-hero::after {
+  /* light pool under the figure */
+  content: '';
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 19%;
+  height: 10%;
+  background: radial-gradient(closest-side, rgba(255, 200, 80, 0.35), transparent);
+  pointer-events: none;
+}
+.kf-who {
+  position: absolute;
+  left: 0;
+  bottom: 0.2rem;
+  display: flex;
+  flex-direction: column;
+}
+.kf-who small {
+  font: 700 0.8rem 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.14em;
+  color: #ffd45a;
+}
+.kf-who b {
+  font: 400 2.4rem/1 'Anton', 'Barlow Condensed', sans-serif;
+  color: #fff;
+  text-shadow: 0 0.15rem 0 #061a3c;
+}
+.kf-favbtn {
+  position: absolute !important;
+  right: 0;
+  bottom: 0.2rem;
+  font-size: 1rem !important;
+}
+.kf-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+}
+.kf-roster {
+  display: flex;
+  gap: 0.45rem;
+}
+.kf-tile {
+  position: relative;
+  flex: 1;
+  aspect-ratio: 1;
+  max-height: 4.6rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 0.14rem solid #2f5bc4;
+  background: linear-gradient(180deg, #1c2c5a, #0b1430);
+}
+.kf-tile img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kf-tile span:last-child {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font: 400 0.7rem 'Anton', sans-serif;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  text-align: center;
+}
+.kf-tile.on {
+  border-color: #ffd04a;
+  box-shadow: 0 0 0.6rem rgba(255, 200, 60, 0.7);
+}
+.kf-tile.locked {
+  opacity: 0.45;
+}
+.kf-fav {
+  position: absolute;
+  top: 0.1rem;
+  right: 0.25rem;
+  color: #ffd04a;
+  font-size: 0.9rem;
+  text-shadow: 0 0 0.3rem #000;
+}
+.kf-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.kf-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.kf-deck {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+.kf-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+.kf-card .card.big {
+  width: 5.2rem;
+}
+.kf-card small {
+  font: 700 0.7rem 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.1em;
+  color: #ffd45a;
+}
+.kf-actions {
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+.kf-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.kf-slot {
+  aspect-ratio: 0.85;
+  border-radius: 0.5rem;
+  border: 0.14rem dashed rgba(201, 154, 46, 0.7);
+  background: repeating-linear-gradient(-45deg, rgba(255, 210, 58, 0.08) 0 0.5rem, transparent 0.5rem 1rem), rgba(6, 12, 30, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  text-align: center;
+}
+.kf-slot b {
+  font: 400 0.95rem 'Anton', sans-serif;
+  color: #e9eef8;
+}
+.kf-slot small {
+  font: 800 0.65rem 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.08em;
+  color: #2a1204;
+  background: #ffd23a;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.2rem;
+  rotate: -6deg;
+}
+.kf-designer {
+  margin-top: 0.6rem;
+  font: 600 0.85rem 'Barlow', sans-serif;
+  color: #c9d6ee;
+}
+.kf-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem 0.8rem;
+  align-items: center;
+}
+.kf-stats span {
+  font: 700 0.8rem 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.12em;
+  color: #c9d6ee;
+}
+.kf-stats i {
+  height: 0.55rem;
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.kf-stats b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f2a01c, #ffe27a);
+}
+
+/* ---------------------------------------------------------------------------------------- STEUERUNG */
+.screen.kp.help .hp-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.hp-touch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.hp-pad {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.6rem;
+  border: 0.12rem solid #c99a2e;
+  background: linear-gradient(180deg, #23305e, #10183a);
+  overflow: hidden;
+}
+.hp-stick {
+  position: absolute;
+  left: 9%;
+  bottom: 12%;
+  width: 26%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 0.15rem solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+.hp-stick i {
+  position: absolute;
+  inset: 28%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff, #b9c6dd);
+}
+.hp-cards {
+  position: absolute;
+  left: 38%;
+  bottom: 8%;
+  width: 24%;
+  display: flex;
+  gap: 4%;
+}
+.hp-cards span {
+  flex: 1;
+  aspect-ratio: 0.8;
+  border-radius: 0.2rem;
+  background: linear-gradient(180deg, #6a3cff, #2a1a70);
+  border: 0.1rem solid #b9a3ff;
+}
+.hp-cards span.sig {
+  background: linear-gradient(180deg, #ffe27a, #e9a01c);
+  border-color: #fff3b8;
+}
+.hp-btns {
+  position: absolute;
+  right: 5%;
+  bottom: 8%;
+  width: 28%;
+  aspect-ratio: 1.1;
+}
+.hp-btns b {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font: 400 0.75rem 'Anton', sans-serif;
+  color: #fff;
+  text-shadow: 0 0.08rem 0 #000;
+}
+.hp-btns .l {
+  width: 40%;
+  aspect-ratio: 1;
+  right: 30%;
+  bottom: 0;
+  background: #2f7bff;
+}
+.hp-btns .h {
+  width: 40%;
+  aspect-ratio: 1;
+  right: 0;
+  bottom: 40%;
+  background: #e8342c;
+}
+.hp-btns .g {
+  width: 30%;
+  aspect-ratio: 1;
+  right: 72%;
+  bottom: 4%;
+  background: #2fb35a;
+  font-size: 0.55rem;
+}
+.hp-btns .blk {
+  width: 30%;
+  aspect-ratio: 1;
+  right: 40%;
+  bottom: 58%;
+  background: #6d7fa6;
+  font-size: 0.55rem;
+}
+.hp-list p {
+  margin: 0 0 0.45rem;
+  font: 500 0.9rem/1.35 'Barlow', sans-serif;
+  color: #dfe6f2;
+}
+.hp-list b {
+  color: #ffd45a;
+}
+.hp-keys {
+  font-size: 0.95rem;
+}

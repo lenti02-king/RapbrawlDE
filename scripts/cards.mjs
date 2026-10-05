@@ -14,7 +14,7 @@ for (const f of ['jazeek', 'bonez']) {
   await page.click('.splash button[data-default]');
   await page.waitForSelector('.main-menu');
   await page.click('[data-act="fighters"]');
-  await page.click('[data-todeck]');
+  await page.click('[data-deck]');
   await page.waitForSelector('.collection');
   await page.waitForTimeout(800);
   await page.screenshot({ path: `artifacts/ui/cards_${f}.png` });

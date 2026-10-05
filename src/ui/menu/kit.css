@@ -936,3 +936,87 @@
 .sh-wip > * {
   pointer-events: auto;
 }
+
+/* ---------------------------------------------------------------------------------------- leaderboard */
+.lb-head {
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  --fill: linear-gradient(180deg, #ffe9a6, #e6b23c);
+  --sw: 0.08em;
+  --ol: #1a0d03;
+  --sh: none;
+}
+.lb-rank {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  --fill: linear-gradient(180deg, #fff, #dfe7f3);
+  --sw: 0.08em;
+}
+.lb-rank.top {
+  --fill: linear-gradient(180deg, #fff7c2, #ffd84d 50%, #e9a01c);
+  --ol: #2a1204;
+}
+.lb-you {
+  font-weight: 900;
+  font-style: normal;
+  --fill: linear-gradient(#fff, #fff);
+  --sw: 0.08em;
+  --ol: #031a46;
+}
+.lb-name {
+  font-family: 'Barlow', 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-style: normal;
+  --fill: linear-gradient(180deg, #fff, #e6ecf5);
+  --sw: 0.08em;
+  --sh: none;
+}
+.lb-motto {
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  --fill: linear-gradient(180deg, #e8d7a8, #c8a65a);
+  --sw: 0.06em;
+  --sh: none;
+}
+.lb-motto.blue {
+  --fill: linear-gradient(180deg, #8fe6ff, #2fb6ff);
+}
+.lb-num {
+  font-family: 'Barlow', 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  font-style: normal;
+  --fill: linear-gradient(180deg, #fff, #e6ecf5);
+  --sw: 0.08em;
+  --sh: none;
+}
+.lb-tier,
+.lb-slab {
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  --fill: linear-gradient(180deg, #e6ecf5, #b9c6dd);
+  --sw: 0.08em;
+  --sh: none;
+}
+.lb-sval {
+  font-weight: 800;
+  font-style: normal;
+  --fill: linear-gradient(180deg, #fff, #e6ecf5);
+  --sw: 0.08em;
+  --sh: none;
+}
+.lb-av {
+  z-index: 1;
+  overflow: hidden;
+  border-radius: calc(var(--u) * 8);
+  border: calc(var(--u) * 3) solid #3d8dff;
+  background: #0b1430;
+}
+.lb-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
