@@ -506,3 +506,79 @@
     font-size: 3.6rem;
   }
 }
+/* fatality: range hint, then the 3-button minigame */
+.hud .qte {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+.hud.qte .qte {
+  display: flex;
+}
+.hud .qte-keys {
+  display: flex;
+  gap: 0.6rem;
+}
+.hud .qte-keys .k {
+  min-width: 3.4rem;
+  height: 3.4rem;
+  padding: 0 0.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font: 1.5rem 'Anton', sans-serif;
+  color: #fff;
+  border: 0.2rem solid rgba(255, 255, 255, 0.6);
+  opacity: 0.55;
+  transition:
+    transform 0.1s,
+    opacity 0.1s;
+}
+.hud .qte-keys .k.l {
+  background: #2f7bff;
+}
+.hud .qte-keys .k.h {
+  background: #e8342c;
+}
+.hud .qte-keys .k.g {
+  background: #2fb35a;
+  border-radius: 1rem;
+}
+.hud .qte-keys .k.cur {
+  opacity: 1;
+  transform: scale(1.25);
+  box-shadow: 0 0 1.2rem #ffd23a;
+  border-color: #ffd23a;
+}
+.hud .qte-keys .k.ok {
+  opacity: 0.9;
+  transform: scale(0.9);
+  filter: grayscale(0.4);
+}
+.hud .qte-keys .k.ok::after {
+  content: '✓';
+  position: absolute;
+}
+.hud .qte-keys .k.bad {
+  opacity: 1;
+  background: #333;
+  border-color: #ff3d3d;
+}
+.hud .qte-bar {
+  width: 12rem;
+  height: 0.5rem;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.hud .qte-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #ff3d7f, #ffd23a);
+  transform-origin: 0 50%;
+}
+.hud.finish:not(.inrange):not(.qte) .finish-sub::after {
+  content: ' · zu weit weg!';
+  color: #ff8a8a;
+}

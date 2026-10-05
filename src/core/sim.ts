@@ -8,7 +8,7 @@
 import type { Box, CardDef, HitDef, MoveDef } from './defs';
 import type { SimEvent } from './events';
 import { B_GRAB, B_HEAVY, B_LIGHT, B_S1, BUFFERED, IN } from './input';
-import { clamp, iabs, idiv, m } from './math';
+import { clamp, iabs, idiv, m, rngNext } from './math';
 import { getCard, getFighter, getMove } from './registry';
 import {
   createFighter,
@@ -79,6 +79,10 @@ export const RULES = {
   /** Finish phase (match point): window to start the fatality, fatality length. */
   FINISH_WINDOW: 210,
   FATALITY_FRAMES: 300,
+  /** Fatality: the winner must stand this close (units) to play the card. */
+  FATAL_RANGE: 18000,
+  /** Fatality minigame: frames per button. */
+  FATAL_QTE_FRAMES: 55,
 } as const;
 
 /** Frames to the nearest beat (Beat-Drop); beats are counted on the absolute sim frame. */
@@ -129,6 +133,7 @@ export function createMatch(config: MatchConfig): GameState {
     duelCd: 0,
     fatal: null,
     fatality: false,
+    fatalQte: null,
     config,
   };
   resetRound(s);
@@ -307,6 +312,26 @@ function endRound(s: GameState, ev: SimEvent[]): void {
 }
 
 /** Finish phase: the winner presses SIGNATURE (or any card button) to start the fatality. */
+const QTE_BUTTONS: [number, number][] = [
+  [IN.LIGHT, B_LIGHT],
+  [IN.HEAVY, B_HEAVY],
+  [IN.GRAB, B_GRAB],
+];
+
+function startFatality(s: GameState, w: FighterState, l: FighterState, ev: SimEvent[]): void {
+  s.fatal = { owner: w.idx, frame: 0 };
+  setState(w, 'cineAtk');
+  setState(l, 'cineDef');
+  // stage the finisher in the middle of the screen, close range
+  const room = m(2.2);
+  w.x = clamp(w.x, -RULES.STAGE_HALF + room, RULES.STAGE_HALF - room);
+  w.facing = l.x >= w.x ? 1 : -1;
+  l.x = w.x + w.facing * m(1.1);
+  l.facing = -w.facing;
+  updateCamera(s);
+  ev.push({ t: 'fatality', owner: w.idx, fighter: w.def });
+}
+
 function stepFinish(s: GameState, ev: SimEvent[]): void {
   s.phaseFrame++;
   const w = s.fighters[s.roundWinner];
@@ -326,19 +351,52 @@ function stepFinish(s: GameState, ev: SimEvent[]): void {
     return;
   }
   const press = (w.buf[B_S1] | w.buf[B_S1 + 1] | w.buf[B_S1 + 2]) > 0;
+  const qte = s.fatalQte;
+  if (qte) {
+    // minigame: press the shown button before the step runs out; any other attack button is a miss
+    const want = qte.seq[qte.i];
+    const pressed = QTE_BUTTONS.filter(([bit, slot]) => bit && w.buf[slot] > 0).map(([bit]) => bit);
+    for (const f of s.fighters) tickBuffers(f);
+    for (const [, slot] of QTE_BUTTONS) w.buf[slot] = 0;
+    qte.t--;
+    if (pressed.length) {
+      const ok = pressed.length === 1 && pressed[0] === want;
+      ev.push({ t: 'fatalStep', owner: w.idx, i: qte.i, ok });
+      if (ok) {
+        qte.i++;
+        qte.t = RULES.FATAL_QTE_FRAMES;
+      } else qte.t = 0;
+    }
+    if (qte.i >= qte.seq.length) {
+      s.fatalQte = null;
+      startFatality(s, w, l, ev);
+    } else if (qte.t <= 0) {
+      // missed: the beaten fighter collapses, no finisher
+      s.fatalQte = null;
+      setState(l, 'ko');
+      ev.push({ t: 'knockdown', p: l.idx, x: l.x });
+      endRound(s, ev);
+    }
+    return;
+  }
   for (const f of s.fighters) tickBuffers(f);
-  if (press && s.phaseFrame > 20) {
-    s.fatal = { owner: w.idx, frame: 0 };
-    setState(w, 'cineAtk');
-    setState(l, 'cineDef');
-    // stage the finisher in the middle of the screen, close range
-    const room = m(2.2);
-    w.x = clamp(w.x, -RULES.STAGE_HALF + room, RULES.STAGE_HALF - room);
-    w.facing = l.x >= w.x ? 1 : -1;
-    l.x = w.x + w.facing * m(1.1);
-    l.facing = -w.facing;
-    updateCamera(s);
-    ev.push({ t: 'fatality', owner: w.idx, fighter: w.def });
+  // the winner walks up to the beaten fighter (no attacks): the finisher needs close range
+  const def = getFighter(w.def);
+  w.facing = l.x >= w.x ? 1 : -1;
+  const gap = iabs(l.x - w.x);
+  if (held(w, fwdBit(w)) && gap > m(0.9)) w.x += def.walkF * w.facing;
+  else if (held(w, backBit(w))) w.x -= def.walkB * w.facing;
+  w.x = clamp(w.x, -RULES.STAGE_HALF + def.pushHalf, RULES.STAGE_HALF - def.pushHalf);
+  if (press && s.phaseFrame > 20 && iabs(l.x - w.x) <= RULES.FATAL_RANGE) {
+    // card played in range: the minigame starts (three buttons from the sim's RNG)
+    const seq: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      s.rng = rngNext(s.rng);
+      seq.push(QTE_BUTTONS[s.rng % 3][0]);
+    }
+    s.fatalQte = { seq, i: 0, t: RULES.FATAL_QTE_FRAMES + 20 };
+    for (const [, slot] of QTE_BUTTONS) w.buf[slot] = 0;
+    ev.push({ t: 'fatalQte', owner: w.idx, seq });
     return;
   }
   if (s.phaseFrame >= RULES.FINISH_WINDOW) {

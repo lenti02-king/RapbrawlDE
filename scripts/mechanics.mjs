@@ -61,6 +61,9 @@ const total = await page.evaluate((scenario) => {
       k++;
       if (k === 1) return IN.LIGHT;
       if (s.phase === 'finish' && s.phaseFrame === 30) return IN.S3;
+      // fatality minigame: answer each shown button after a few frames
+      const q = s.fatalQte;
+      if (q && q.t % 8 === 0 && q.t < 40) return q.seq[q.i];
       return 0;
     };
     return 0;

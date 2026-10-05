@@ -2,6 +2,7 @@
 // the local player's card hand + Hype bar (with a prominent Signature card), card banners,
 // cinematic letterbox and screen flash.
 import type { SimEvent } from '../core/events';
+import { IN } from '../core/input';
 import { getCard, getFighter } from '../core/registry';
 import type { GameState } from '../core/state';
 import { beatDistance, RULES } from '../core/sim';
@@ -202,6 +203,9 @@ export class Hud {
   private duelUi!: HTMLElement;
   private duelBars: HTMLElement[] = [];
   private finishSub!: HTMLElement;
+  private finishMine = false;
+  private qteKeys!: HTMLElement;
+  private qteBar!: HTMLElement;
   private fatalTitle!: HTMLElement;
   private tauntEl!: HTMLElement;
   private touch = false;
@@ -215,7 +219,8 @@ export class Hud {
       ${sideHtml('p1')}${midHtml()}${sideHtml('p2')}
       <div class="duel-ui"><div class="duel-title">MIC-DUELL!</div><div class="duel-sub">TIPPEN! TIPPEN! TIPPEN!</div>
         <div class="duel-bars"><div class="dbar p1"><b></b><span>0</span></div><div class="duel-mic"><svg viewBox="0 0 40 64" aria-hidden="true"><rect x="13" y="30" width="14" height="30" rx="6" fill="#2b2140" stroke="#1a0f2e" stroke-width="4"/><circle cx="20" cy="18" r="15" fill="#d9d4ea" stroke="#1a0f2e" stroke-width="4"/><path d="M9 15q11-8 22 0M8 22q12-7 24 0" stroke="#1a0f2e" stroke-width="2.5" fill="none" opacity="0.5"/><rect x="11" y="30" width="18" height="6" rx="2" fill="#ffc531" stroke="#1a0f2e" stroke-width="3"/></svg></div><div class="dbar p2"><b></b><span>0</span></div></div></div>
-      <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div></div>
+      <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div>
+        <div class="qte"><div class="qte-keys"></div><div class="qte-bar"><i></i></div></div></div>
       <div class="fatal-title">FATALITY</div>
       <div class="taunt"></div>
       <div class="combo p1"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
@@ -276,6 +281,8 @@ export class Hud {
     this.duelUi = this.root.querySelector('.duel-ui')!;
     this.duelBars = [...this.root.querySelectorAll<HTMLElement>('.dbar')];
     this.finishSub = this.root.querySelector('.finish-sub')!;
+    this.qteKeys = this.root.querySelector('.qte-keys')!;
+    this.qteBar = this.root.querySelector('.qte-bar i')!;
     this.fatalTitle = this.root.querySelector('.fatal-title')!;
     this.tauntEl = this.root.querySelector('.taunt')!;
     this.trainingInfo = this.root.querySelector('.training-info')!;
@@ -419,9 +426,23 @@ export class Hud {
           break;
         case 'finishHim': {
           const mine = e.winner === this.local;
+          this.finishMine = mine;
           this.finishSub.innerHTML = mine
-            ? `<b>★ SIGNATURE</b> für die FATALITY ${this.touch ? '– tippe die goldene Karte' : '– drück O'}`
+            ? `Geh ran und spiel die <b>★ FATALITY-KARTE</b> ${this.touch ? '(goldene Karte)' : '(O)'}`
             : `${getFighter(s.fighters[e.winner].def).name} darf dich fertigmachen …`;
+          break;
+        }
+        case 'fatalQte': {
+          const label = (b: number) => (b === IN.LIGHT ? 'L' : b === IN.HEAVY ? 'H' : this.touch ? 'GRIFF' : 'G');
+          const keyOf = (b: number) => (this.touch ? label(b) : b === IN.LIGHT ? 'J' : b === IN.HEAVY ? 'K' : 'L');
+          this.qteKeys.innerHTML = e.seq.map((b) => `<span class="k ${b === IN.LIGHT ? 'l' : b === IN.HEAVY ? 'h' : 'g'}">${keyOf(b)}</span>`).join('');
+          this.finishSub.innerHTML = this.finishMine ? 'Drück die Tasten der Reihe nach!' : 'Fatality-Minispiel …';
+          break;
+        }
+        case 'fatalStep': {
+          const k = this.qteKeys.children[e.i] as HTMLElement | undefined;
+          k?.classList.add(e.ok ? 'ok' : 'bad');
+          if (!e.ok) this.finishSub.innerHTML = 'Daneben – kein Finisher!';
           break;
         }
         case 'fatality':
@@ -584,8 +605,20 @@ export class Hud {
       const left = Math.max(0, Math.ceil((RULES.DUEL_FRAMES - d.frame) / 60));
       (this.duelUi.querySelector('.duel-title') as HTMLElement).textContent = `MIC-DUELL! ${left}`;
     }
-    // finish phase / fatality
+    // finish phase / fatality: range hint, then the minigame
     this.root.classList.toggle('finish', s.phase === 'finish' && !s.fatal);
+    const q = s.fatalQte;
+    this.root.classList.toggle('qte', !!q);
+    if (q) {
+      const total = q.i === 0 ? RULES.FATAL_QTE_FRAMES + 20 : RULES.FATAL_QTE_FRAMES;
+      this.qteBar.style.transform = `scaleX(${Math.max(0, q.t / total).toFixed(3)})`;
+      [...this.qteKeys.children].forEach((k, i) => k.classList.toggle('cur', i === q.i));
+    } else if (s.phase === 'finish' && !s.fatal) {
+      this.qteKeys.innerHTML = '';
+      const w = s.fighters[s.roundWinner];
+      const l = s.fighters[1 - s.roundWinner];
+      this.root.classList.toggle('inrange', Math.abs(w.x - l.x) <= RULES.FATAL_RANGE);
+    }
     const fatal = s.fatal;
     this.root.classList.toggle('fatal', !!fatal);
     this.fatalTitle.classList.toggle('show', !!fatal && fatal.frame >= TITLE_AT && fatal.frame < TAUNT_AT + 70);

@@ -125,7 +125,13 @@ describe('Fatality', () => {
     expect(s.phase).toBe('finish');
     expect(s.fighters[1].state).toBe('dizzy');
     run(s, 10);
-    const f = run(s, 1, IN.S3).concat(run(s, 3));
+    const q = run(s, 1, IN.S3).concat(run(s, 3));
+    expect(ofType(q, 'fatalQte')).toHaveLength(1);
+    const seq = s.fatalQte!.seq;
+    expect(seq).toHaveLength(3);
+    let f: ReturnType<typeof run> = [];
+    for (const bit of seq) f = f.concat(run(s, 1, bit), run(s, 3));
+    expect(ofType(f, 'fatalStep').every((e) => e.ok)).toBe(true);
     expect(ofType(f, 'fatality')).toHaveLength(1);
     expect(s.fatal?.owner).toBe(0);
     const end = run(s, RULES.FATALITY_FRAMES + RULES.ROUND_OVER + 5);
@@ -142,6 +148,34 @@ describe('Fatality', () => {
     run(s, RULES.FINISH_WINDOW + RULES.ROUND_OVER + 5);
     expect(s.phase).toBe('matchOver');
     expect(s.fatality).toBe(false);
+  });
+
+  it('a wrong button in the minigame lets the beaten fighter collapse (no fatality)', () => {
+    const { s } = matchPoint();
+    run(s, 10);
+    run(s, 1, IN.S3);
+    run(s, 3);
+    const want = s.fatalQte!.seq[0];
+    const wrong = [IN.LIGHT, IN.HEAVY, IN.GRAB].find((b) => b !== want)!;
+    run(s, 1, wrong);
+    run(s, RULES.ROUND_OVER + 10);
+    expect(s.fatal).toBeNull();
+    expect(s.phase).toBe('matchOver');
+    expect(s.fatality).toBe(false);
+  });
+
+  it('the card only works in range: the winner has to walk up first', () => {
+    const { s } = matchPoint();
+    s.fighters[0].x = s.fighters[1].x - RULES.FATAL_RANGE - 20000;
+    run(s, 10);
+    run(s, 1, IN.S3);
+    run(s, 3);
+    expect(s.fatalQte).toBeNull();
+    const fwd = s.fighters[0].facing > 0 ? IN.RIGHT : IN.LEFT;
+    run(s, 40, fwd);
+    run(s, 1, IN.S3);
+    run(s, 3);
+    expect(s.fatalQte).not.toBeNull();
   });
 
   it('no finish phase before match point', () => {

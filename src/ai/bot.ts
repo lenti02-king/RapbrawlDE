@@ -1,6 +1,7 @@
 // CPU opponent. An InputSource that reads the game state (with a human-like
 // reaction delay) and outputs inputs. Not part of the deterministic sim, but it
 // uses its own seeded RNG so bot-vs-bot tests are reproducible.
+import { RULES } from '../core/sim';
 import { IN } from '../core/input';
 import { getCard, getFighter, getMove } from '../core/registry';
 import type { FighterState, GameState } from '../core/state';
@@ -73,8 +74,19 @@ export class Bot implements InputSource {
     if (this.hist.length > 40) this.hist.shift();
     // fatality at match point: the CPU finishes you off more often the harder it is
     if (s.phase === 'finish' && s.roundWinner === idx && !s.fatal && this.dummy === 'cpu') {
-      if (s.phaseFrame === 40) this.finishRoll = this.chance(0.35 + this.level.punish * 0.6);
-      return this.finishRoll && s.phaseFrame >= 45 && s.phaseFrame <= 47 ? IN.S3 : 0;
+      if (s.phaseFrame === 30) this.finishRoll = this.chance(0.35 + this.level.punish * 0.6);
+      if (!this.finishRoll) return 0;
+      // minigame: press the shown button after a human-ish reaction time (harder bots react faster)
+      const q = s.fatalQte;
+      if (q) {
+        const react = Math.round(26 - this.level.punish * 14);
+        const elapsed = (q.i === 0 ? RULES.FATAL_QTE_FRAMES + 20 : RULES.FATAL_QTE_FRAMES) - q.t;
+        return elapsed === react ? q.seq[q.i] : 0;
+      }
+      // walk up, then play the card
+      const gap = Math.abs(op.x - me.x);
+      if (gap > RULES.FATAL_RANGE - 3000) return op.x >= me.x ? IN.RIGHT : IN.LEFT;
+      return s.phaseFrame > 30 && s.phaseFrame % 6 === 0 ? IN.S3 : 0;
     }
     if (s.phase !== 'fight') {
       this.plan = [];

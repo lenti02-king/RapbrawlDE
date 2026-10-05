@@ -156,6 +156,9 @@ export interface GameState {
   /** Fatality in progress (owner = winner) during the finish phase; `fatality` = one was performed this match. */
   fatal: { owner: number; frame: number } | null;
   fatality: boolean;
+  /** Fatality minigame (PO: card + minigame in range): the button sequence (input bits), the current step, frames
+   *  left for it. Success starts `fatal`, a miss lets the beaten fighter collapse. */
+  fatalQte: { seq: number[]; i: number; t: number } | null;
   config: MatchConfig;
 }
 
