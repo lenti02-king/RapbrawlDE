@@ -16,7 +16,7 @@ import type { CharacterRig } from './glbRig';
 import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
-import { HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
 import { FATALITIES } from './fatalities';
 
 export type V3 = [number, number, number];
@@ -386,6 +386,7 @@ export const CINEMATICS: Record<string, CineDef> = {
   brick_security: SECURITY,
   jaz_heart: HERZBRECHER,
   bon_palm: PALMEN_BASSDROP,
+  bon_croc: CROC_ATTACK,
   ...FATALITIES,
 };
 

@@ -856,6 +856,14 @@ export class AudioEngine {
     this.crowdSwell(0.3);
   }
 
+  /** Two-finger whistle (Krokodil-Attacke): a rising then falling sine glide. */
+  whistle(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.tone(t, 'sine', 1900, 2900, 0.16, 0.32, 0.9);
+    this.tone(t + 0.17, 'sine', 2900, 2100, 0.22, 0.3, 0.9);
+  }
+
   snap(): void {
     if (!this.ctx) return;
     const t = this.now();
@@ -894,8 +902,7 @@ export class AudioEngine {
     for (const e of ev) {
       switch (e.t) {
         case 'active':
-          if (e.move === 'bon_croc') this.snap();
-          else this.whoosh(e.strength);
+          this.whoosh(e.strength);
           break;
         case 'moveStart':
           if (e.move === 'jaz_wave') this.sing([0, 4, 7], 0.07, 392);
@@ -904,6 +911,7 @@ export class AudioEngine {
           else if (e.move === 'jaz_heart') this.sing([7], 0.2, 392);
           else if (e.move === 'jaz_rain') this.sparkle();
           else if (e.move === 'bon_car') this.carIn();
+          else if (e.move === 'bon_croc') this.whistle();
           break;
         case 'hit':
           this.hit(e.strength, e.counter);
@@ -997,7 +1005,8 @@ export class AudioEngine {
           else this.hit(e.strength, false);
           break;
         case 'projectile':
-          this.whoosh(1);
+          if (e.kind === 'crocrun') this.snap();
+          else this.whoosh(1);
           break;
         case 'clash':
           this.block(3);

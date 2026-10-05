@@ -496,7 +496,9 @@ export class Hud {
         }
         case 'cineStart': {
           const owner = s.fighters[e.owner];
-          const card = owner.loadout.map((id) => getCard(owner.def, id)).find((c) => c.category === 'signature');
+          // the card whose move starts this cinematic (Krokodil-Attacke is a special), else the Signature
+          const cards = owner.loadout.map((id) => getCard(owner.def, id));
+          const card = cards.find((c) => c.move === e.id) ?? cards.find((c) => c.category === 'signature');
           this.letterbox.classList.add('on');
           this.cineTitle.textContent = card?.name ?? '';
           break;

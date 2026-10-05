@@ -186,25 +186,39 @@ const moves: MoveDef[] = [
   }),
 
   // ---- Specials ----
+  // Krokodil-Attacke (PO): a small crocodile is let loose, runs along the ground and, if it catches the opponent,
+  // drags them back to Bonez, death-rolls them and tosses them away (cinematic 'bon_croc'). Low: crouch-block it.
   {
     key: 'bon_croc',
-    name: 'Krokodil-Schnapper',
+    name: 'Krokodil-Attacke',
     kind: 'special',
-    total: 52,
-    hits: [
-      hit(20, 23, {
-        damage: 110,
-        chip: 12,
-        strength: 2,
-        blockstun: 16,
-        knockdown: true,
-        pushBlock: 1500,
-        boxes: [box(0.9, 2.6, 0.0, 1.3)],
-        meterOnHit: 0,
-        meterOnBlock: 0,
-      }),
-    ],
-    hurt: [{ start: 14, end: 30, boxes: [box(0.2, 0.9, 0.6, 1.5)] }],
+    total: 46,
+    hits: [],
+    projectile: {
+      frame: 16,
+      def: {
+        kind: 'crocrun',
+        x: m(0.7),
+        y: m(0.18),
+        speed: mps(7.5),
+        half: { w: m(0.55), h: m(0.22) },
+        life: 70,
+        hit: hit(1, 1, {
+          damage: 20,
+          chip: 10,
+          strength: 2,
+          level: 'low',
+          blockstun: 16,
+          hitstop: 6,
+          knockdown: true,
+          pushBlock: 1400,
+          cinematic: 'bon_croc',
+          boxes: [],
+          meterOnHit: 0,
+          meterOnBlock: 0,
+        }),
+      },
+    },
   },
   // Tiefergelegt: a lowered tuner car drifts in from behind him and runs the opponent over (no brand, no logos)
   {
@@ -348,14 +362,14 @@ export const BONEZ: FighterDef = {
     },
     {
       id: 'bon_croc',
-      name: 'Krokodil-Schnapper',
+      name: 'Krokodil-Attacke',
       category: 'offense',
       cost: 100,
       move: 'bon_croc',
-      role: 'Riesige Reichweite, lesbar',
-      description: 'Ein Krokodil schnappt vor ihm zu. Enorme Reichweite und Knockdown – das Maul öffnet sich sichtbar vorher. Kontern erlaubt.',
+      role: 'Krokodil rennt los – packt zu',
+      description: 'Ein Pfiff, und sein kleines Krokodil rennt über den Boden los. Erwischt es den Gegner, schleift es ihn zu Bonez, macht eine Todesrolle und schleudert ihn weg. Tief – ducken und blocken.',
       ai: 'range',
-      aiRange: [1.4, 2.7],
+      aiRange: [1.6, 5.0],
     },
     {
       id: 'bon_smoke',
@@ -399,6 +413,17 @@ export const BONEZ: FighterDef = {
     },
   ],
   cinematics: {
+    bon_croc: {
+      id: 'bon_croc',
+      frames: 110,
+      startDx: m(2.2),
+      hits: [
+        { frame: 10, damage: 25, strength: 1 },
+        { frame: 62, damage: 30, strength: 2 },
+        { frame: 92, damage: 45, strength: 3 },
+      ],
+      endDx: m(3.0),
+    },
     bon_palm: {
       id: 'bon_palm',
       frames: 160,

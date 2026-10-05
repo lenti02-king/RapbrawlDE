@@ -6,6 +6,8 @@
 //  - toon puffs: cel-shaded dust clouds with an outline that shrink away instead of fading
 //  - ground cracks: decals under slams and hard knockdowns
 //  - debris: small toon chunks with gravity and bounce
+//  - blood (PO: allowed, rating must stay at USK 16): a few dark droplets that fall and leave small floor splats
+//    which fade within ~2 s; no gore, no dismemberment (setting "Blut" can switch it off)
 import * as THREE from 'three';
 
 const HASH = /* glsl */ `float hash(float n) { return fract(sin(n * 12.9898) * 43758.5453); }`;
@@ -133,6 +135,8 @@ const PUFF_FRAG = /* glsl */ `
 
 const PUFFS = 120;
 const DEBRIS = 48;
+const DROPS = 96;
+const SPLATS = 40;
 
 interface Star {
   mesh: THREE.Mesh;
@@ -213,6 +217,14 @@ export class ToonFX {
   private debris: THREE.InstancedMesh;
   private dState = new Float32Array(DEBRIS * 8); // x y z vx vy vz life spin
   private dNext = 0;
+  /** Blood droplets / floor splats (switchable, USK 16). */
+  bloodOn = true;
+  private drops: THREE.InstancedMesh;
+  private bState = new Float32Array(DROPS * 7); // x y z vx vy vz life
+  private bNext = 0;
+  private splats: THREE.InstancedMesh;
+  private sState = new Float32Array(SPLATS * 5); // x z size life max
+  private sNext = 0;
   private smears: Smear[] = [];
   /** Per fighter, per limb: ring buffer of recent tip positions. */
   private history: THREE.Vector3[][][] = [0, 1].map(() => SMEAR_LIMBS.map(() => [] as THREE.Vector3[]));
@@ -339,6 +351,22 @@ export class ToonFX {
       this.debris.setColorAt(i, new THREE.Color(0x6f655d));
     }
     this.group.add(this.debris);
+
+    // blood: glossy dark-red droplets + flat splats on the floor
+    const bloodMat = new THREE.MeshStandardMaterial({ color: 0x7a0a12, roughness: 0.22, metalness: 0.05 });
+    this.drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022, 7, 5), bloodMat, DROPS);
+    this.drops.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.drops.frustumCulled = false;
+    const splatGeo = new THREE.CircleGeometry(1, 14);
+    splatGeo.rotateX(-Math.PI / 2);
+    const splatMat = new THREE.MeshStandardMaterial({ color: 0x5e070e, roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    this.splats = new THREE.InstancedMesh(splatGeo, splatMat, SPLATS);
+    this.splats.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.splats.frustumCulled = false;
+    this.splats.renderOrder = 1;
+    for (let i = 0; i < DROPS; i++) this.drops.setMatrixAt(i, zero);
+    for (let i = 0; i < SPLATS; i++) this.splats.setMatrixAt(i, zero);
+    this.group.add(this.drops, this.splats);
 
     // smears (one per fighter is enough; a second slot lets a new strike start while the old one fades)
     for (let i = 0; i < 4; i++) {
@@ -468,6 +496,28 @@ export class ToonFX {
       this.debris.setColorAt(k, color.clone().multiplyScalar(0.8 + Math.random() * 0.4));
     }
     if (this.debris.instanceColor) this.debris.instanceColor.needsUpdate = true;
+  }
+
+  /** A short spray of droplets from (x, y), biased along `dir` (-1/1, 0 = all around). */
+  blood(x: number, y: number, count: number, dir: number, speed = 2.6): void {
+    if (!this.bloodOn) return;
+    for (let i = 0; i < count; i++) {
+      const k = this.bNext;
+      this.bNext = (this.bNext + 1) % DROPS;
+      const a = Math.PI * (0.1 + Math.random() * 0.5);
+      const sp = speed * (0.35 + Math.random() * 0.8);
+      const sx = dir === 0 ? (Math.random() < 0.5 ? -1 : 1) : dir;
+      this.bState.set(
+        [x + (Math.random() - 0.5) * 0.08, y + (Math.random() - 0.5) * 0.08, 0.15 + (Math.random() - 0.5) * 0.3, sx * Math.cos(a) * sp, Math.sin(a) * sp, (Math.random() - 0.5) * 1.2, 1.4],
+        k * 7,
+      );
+    }
+  }
+
+  private splat(x: number, z: number, size: number): void {
+    const k = this.sNext;
+    this.sNext = (this.sNext + 1) % SPLATS;
+    this.sState.set([x, z, size, 2.2, 2.2], k * 5);
   }
 
   // ---------------------------------------------------------------- smears
@@ -692,6 +742,55 @@ export class ToonFX {
       this.debris.setMatrixAt(i, m);
     }
     if (dirty) this.debris.instanceMatrix.needsUpdate = true;
+
+    // blood droplets: stretched along their velocity, a splat where they land
+    dirty = false;
+    const up = new THREE.Vector3(0, 1, 0);
+    const v = new THREE.Vector3();
+    for (let i = 0; i < DROPS; i++) {
+      const o = i * 7;
+      if (this.bState[o + 6] <= 0) continue;
+      dirty = true;
+      this.bState[o + 6] -= dt;
+      this.bState[o + 4] -= 11 * dt;
+      this.bState[o] += this.bState[o + 3] * dt;
+      this.bState[o + 1] += this.bState[o + 4] * dt;
+      this.bState[o + 2] += this.bState[o + 5] * dt;
+      if (this.bState[o + 1] <= 0.01) {
+        if (i % 2 === 0) this.splat(this.bState[o], this.bState[o + 2], 0.035 + Math.random() * 0.05);
+        this.bState[o + 6] = 0;
+      }
+      if (this.bState[o + 6] <= 0) {
+        m.makeScale(0, 0, 0);
+        this.drops.setMatrixAt(i, m);
+        continue;
+      }
+      v.set(this.bState[o + 3], this.bState[o + 4], this.bState[o + 5]);
+      const sp = v.length();
+      q.setFromUnitVectors(up, v.normalize());
+      p.set(this.bState[o], this.bState[o + 1], this.bState[o + 2]);
+      one.set(1, 1 + Math.min(2.5, sp * 0.35), 1);
+      m.compose(p, q, one);
+      this.drops.setMatrixAt(i, m);
+    }
+    if (dirty) this.drops.instanceMatrix.needsUpdate = true;
+    dirty = false;
+    q.identity();
+    for (let i = 0; i < SPLATS; i++) {
+      const o = i * 5;
+      if (this.sState[o + 3] <= 0) continue;
+      dirty = true;
+      this.sState[o + 3] -= dt;
+      const t = this.sState[o + 3] / this.sState[o + 4];
+      // spreads out quickly, then shrinks away over the last third
+      const grow = Math.min(1, (1 - t) * 10) * Math.min(1, t * 3);
+      const sz = this.sState[o + 2] * grow;
+      p.set(this.sState[o], 0.006, this.sState[o + 1]);
+      one.set(sz * 1.4, 1, sz);
+      m.compose(p, q, t <= 0 ? one.setScalar(0) : one);
+      this.splats.setMatrixAt(i, m);
+    }
+    if (dirty) this.splats.instanceMatrix.needsUpdate = true;
 
     for (const s of this.smears) {
       if (s.fighter < 0 || (s.live <= 0 && s.fade <= 0)) {

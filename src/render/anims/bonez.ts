@@ -357,15 +357,17 @@ const moves: Record<string, Clip> = {
     ],
     S,
   ),
+  // Krokodil-Attacke: two fingers to the mouth (whistle), then a low point that sends the croc off (projectile at
+  // f16), and a grin while it runs
   bon_croc: new Clip(
     [
       { f: 1, p: {} },
-      { f: 8, p: jawsOpen },
-      { f: 19, p: compose(jawsOpen, { j: { shL: [10, 0, 140], shR: [-10, 0, 44] } }) },
-      { f: 20, p: jawsShut, e: 'snap' },
-      { f: 26, p: jawsShut },
-      { f: 40, p: compose(jawsShut, { x: 0.05 }) },
-      { f: 52, p: {} },
+      { f: 7, p: { aim: { shR: [0.45, 0.25, 0.45], elR: [-0.3, 1, 0.15] }, j: { head: [0, 4, 10], chest: [0, 8, 6], spine: [0, 0, 4] } }, e: 'out' },
+      { f: 12, p: { y: 0.02, aim: { shR: [0.45, 0.28, 0.45], elR: [-0.32, 1, 0.12] }, j: { head: [0, 4, 14], chest: [0, 10, 8], spine: [0, 0, 6] } } },
+      { f: 16, p: { x: 0.08, y: -0.08, s: { sq: 0.06 }, aim: { shR: [1, -0.35, 0.15], elR: [1, -0.4, 0.1], shL: [-0.3, -1, -0.3], elL: [0.4, -0.6, -0.3] }, j: { chest: [0, -14, -6], spine: [0, 0, -10], head: [0, -6, -4], thR: [-12, 12, 30], knR: [0, 0, -40] } }, e: 'snap' },
+      { f: 24, p: { x: 0.08, y: -0.06, aim: { shR: [1, -0.3, 0.15], elR: [1, -0.35, 0.1], shL: [-0.3, -1, -0.3], elL: [0.4, -0.6, -0.3] }, j: { chest: [0, -14, -6], spine: [0, 0, -8], head: [0, -6, -2], thR: [-12, 12, 30], knR: [0, 0, -40] } } },
+      { f: 32, p: compose(grin, { j: { chest: [0, -6, 6], head: [0, 0, 10] } }), e: 'inOut' },
+      { f: 46, p: {} },
     ],
     S,
   ),

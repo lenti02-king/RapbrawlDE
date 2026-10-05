@@ -1008,6 +1008,7 @@ export class App {
          <div class="panel setrow"><div><div class="sname">TON</div><div class="sdesc">Effekte und Musik.</div></div>${sw('sound', !this.audio.muted)}</div>
          <div class="panel setrow"><div><div class="sname">VIBRATION</div><div class="sdesc">Kurzes Rütteln bei Treffern (Handy).</div></div>${sw('vibrate', store.get('vibrate', true))}</div>
          <div class="panel setrow"><div><div class="sname">BLITZEFFEKTE</div><div class="sdesc">Kurze Farbumkehr bei Kontern, Signature und K.O. Aus = augenschonender.</div></div>${sw('flashes', store.get('flashes', true))}</div>
+         <div class="panel setrow"><div><div class="sname">BLUT</div><div class="sdesc">Kleine Bluttropfen bei harten Treffern, Spezialangriffen und Fatalitys (USK 16). Aus = ohne Blut.</div></div>${sw('blood', store.get('blood', true))}</div>
          <div class="panel setrow"><div><div class="sname">STEUERUNG & TASTEN</div><div class="sdesc">Alle Eingaben für Tastatur, Controller und Touch.</div></div><button class="btn small" data-help>ANSEHEN</button></div>
        </div>`,
     );
@@ -1031,6 +1032,7 @@ export class App {
           store.set('muted', this.audio.muted);
         } else store.set(key, !store.get(key, true));
         if (key === 'flashes' && this._view) this._view.toon.impactFrames = store.get('flashes', true);
+        if (key === 'blood' && this._view) this._view.toon.bloodOn = store.get('blood', true);
         this.showSettings();
       }),
     );

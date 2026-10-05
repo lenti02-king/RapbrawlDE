@@ -82,18 +82,33 @@ describe('Jazeek', () => {
 });
 
 describe('Bonez MC', () => {
-  it('Krokodil-Schnapper reaches 2.2 m', () => {
+  it('Krokodil-Attacke: the croc runs at the opponent, grabs them and starts the croc cinematic (100 damage)', () => {
     const s = newMatch(JB);
-    place(s, 2.2);
+    place(s, 4.0);
     s.fighters[1].meter = 100;
     const evs = run(s, 1, 0, IN.S1);
-    evs.push(...run(s, 40));
-    const hits = ofType(evs, 'hit').filter((h) => h.a === 1);
-    expect(hits).toHaveLength(1);
-    expect(s.fighters[0].state === 'knockdown' || s.fighters[0].state === 'juggle').toBe(true);
+    evs.push(...run(s, 60));
+    expect(ofType(evs, 'projectile').some((p) => p.kind === 'crocrun')).toBe(true);
+    expect(ofType(evs, 'cineStart').map((c) => c.id)).toContain('bon_croc');
+    evs.push(...run(s, 130));
+    expect(ofType(evs, 'cineEnd')).toHaveLength(1);
+    expect(1000 - s.fighters[0].health).toBe(20 + 25 + 30 + 45);
+    expect(s.fighters[0].state === 'knockdown' || s.fighters[0].state === 'wakeup' || s.fighters[0].state === 'idle').toBe(true);
   });
 
-  it('Krokodil-Schnapper has a readable wind-up (no hit before frame 20)', () => {
+  it('Krokodil-Attacke is low: a crouch block stops it, a standing block does not', () => {
+    const go = (p1: number) => {
+      const s = newMatch(JB);
+      place(s, 3.0);
+      s.fighters[1].meter = 100;
+      const evs = run(s, 1, p1, IN.S1).concat(run(s, 60, p1, 0));
+      return evs;
+    };
+    expect(ofType(go(IN.BLOCK | IN.DOWN), 'block')).toHaveLength(1);
+    expect(ofType(go(IN.BLOCK), 'cineStart')).toHaveLength(1);
+  });
+
+  it('Krokodil-Attacke has a readable wind-up (no hit before frame 17)', () => {
     const s = newMatch(JB);
     place(s, 2.0);
     s.fighters[1].meter = 100;

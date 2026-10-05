@@ -8,7 +8,7 @@ import { ANIM_SETS } from '../render/animator';
 import { buildCharacter } from '../render/characters';
 import { toArr, type PoseDef } from '../render/pose';
 import { JOINTS } from '../render/rig';
-import { heartGeometry, heartMaterial, makeCroc, makePalm, makeSpotlight, makeSunset, noteTexture, smokeTexture } from '../render/props';
+import { heartGeometry, heartMaterial, makeCrocRunner, makePalm, makeSpotlight, makeSunset, noteTexture, smokeTexture } from '../render/props';
 import { makeDiamondRain, makeTunerCar } from '../render/specials';
 
 /**
@@ -72,12 +72,14 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       return { group: g, wide: 1.4, shiftX: 0.5 };
     }
     case 'bon_croc': {
-      const croc = makeCroc();
+      // the little croc scurrying toward the opponent, jaws open
+      const croc = makeCrocRunner();
       croc.setOpacity(1);
-      croc.setOpen(48);
-      croc.group.scale.setScalar(1.25);
-      croc.group.rotation.set(0, 0, 0.25);
-      add(croc.group, 0.6, 0.15, 0.1);
+      croc.setOpen(40);
+      croc.waddle(0.9, 1);
+      croc.group.scale.setScalar(1.15);
+      croc.group.rotation.set(0, -0.35, 0);
+      add(croc.group, 0.75, 0, 0.35);
       return { group: g, wide: 1.3, shiftX: 0.55 };
     }
     case 'bon_smoke': {

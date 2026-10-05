@@ -31,10 +31,10 @@ const STAR_SIZE = [0.55, 0.75, 1.05, 1.4];
 const SMEAR_W = [0.06, 0.085, 0.12, 0.15];
 const DUST = C(0xd9cdb8);
 
-/** Setting "Blitzeffekte" (impact frames). Stored like the app store: localStorage 'rapbrawl.flashes' as JSON. */
-function flashesEnabled(): boolean {
+/** Settings "Blitzeffekte" (impact frames) and "Blut". Stored like the app store: localStorage 'rapbrawl.<key>' as JSON. */
+function settingOn(key: string): boolean {
   try {
-    const v = localStorage.getItem('rapbrawl.flashes');
+    const v = localStorage.getItem(`rapbrawl.${key}`);
     return v === null ? true : JSON.parse(v) !== false;
   } catch {
     return true;
@@ -116,7 +116,8 @@ export class GameView {
     this.vfx.setCamera(this.director.cam);
     this.scene.add(this.toon.group);
     this.toon.setCamera(this.director.cam);
-    this.toon.impactFrames = flashesEnabled();
+    this.toon.impactFrames = settingOn('flashes');
+    this.toon.bloodOn = settingOn('blood');
     this.toon.postImpact = !!this.post.grade;
     this.scene.add(this.debugGroup);
     this.resize();

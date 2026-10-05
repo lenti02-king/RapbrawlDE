@@ -1495,7 +1495,8 @@ function applyHit(
     beat: onBeat,
   });
 
-  if (h.cinematic && !proj) {
+  // cinematic hits: card strikes, and a few projectiles that grab (Bonez's crocodile)
+  if (h.cinematic && (!proj || !def.y)) {
     startCinematic(s, atk, def, h.cinematic, ev);
     return;
   }

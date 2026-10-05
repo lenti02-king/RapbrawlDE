@@ -8,7 +8,7 @@ import { reactions } from './anims/stances';
 import type { AnimSet } from './anims/types';
 import type { CineDef, CineProps, FxCtx, PropCtx } from './cinematics';
 import { Clip, compose, sampleDef, type PoseDef } from './pose';
-import { heartGeometry, heartMaterial, makeCroc, makePalm, makeSplitHeart, makeSpotlight, makeSunset } from './props';
+import { heartGeometry, heartMaterial, makeCroc, makeCrocRunner, makePalm, makeSplitHeart, makeSpotlight, makeSunset } from './props';
 
 const C = (h: number) => new THREE.Color(h);
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) * (1 - t));
@@ -506,5 +506,260 @@ export const PALMEN_BASSDROP: CineDef = {
       },
     },
     { f: 144, run: (c) => c.view.vfx.sparks(c.atk.x + c.facing * 0.12, 1.75, 16, C(0xffd65a), 4, c.facing, 2) },
+  ],
+};
+
+// =================================================================== BONEZ — KROKODIL-ATTACKE
+// The little croc (projectile 'crocrun') caught the opponent: it bites the ankle, the victim goes down and is dragged
+// toward Bonez in three tugs, two death rolls (hit 62), a head flick throws them up and they slam down (hit 92). Bonez
+// watches with crossed arms, laughs, pumps his fist. Victim-local x is toward Bonez; startDx 2.2, endDx 3.0.
+const crossed: PoseDef = { j: { chest: [0, -6, 6], shL: [10, 0, 66], elL: [0, 0, 112], shR: [-10, 0, 66], elR: [0, 0, 112], head: [0, -14, 10] } };
+const pointCroc = sampleDef(BONEZ_ANIMS.moves.bon_croc, 24);
+const fistUp: PoseDef = compose(B.grin, { y: 0.04, j: { shR: [-10, 0, 172], elR: [0, 0, 34], shL: [30, 0, 40], elL: [0, 0, 60], chest: [0, -10, 0] } });
+const laugh = (k: number): PoseDef =>
+  compose(crossed, { y: k ? -0.015 : 0.01, j: { chest: [0, -8, k ? -6 : 2], head: [0, -10, k ? 18 : 6], spine: [0, 0, k ? -4 : 2] } });
+
+const CROC_ATK = new Clip(
+  [
+    { f: 0, p: pointCroc },
+    { f: 8, p: compose(pointCroc, { j: { head: [0, -4, -8] } }) },
+    { f: 12, p: fistUp, e: 'snap' },
+    { f: 20, p: compose(fistUp, { y: 0.02 }) },
+    { f: 28, p: crossed, e: 'inOut' },
+    { f: 34, p: laugh(1) },
+    { f: 38, p: laugh(0) },
+    { f: 42, p: laugh(1) },
+    { f: 46, p: crossed },
+    // the death roll: leans in and eggs it on
+    { f: 52, p: { x: 0.08, y: -0.05, j: { spine: [0, 0, -10], chest: [0, -14, -4], shL: [40, 0, 40], elL: [0, 0, 70], shR: [-40, 0, 40], elR: [0, 0, 70], head: [0, -6, -4] } }, e: 'inOut' },
+    { f: 64, p: { x: 0.1, y: -0.06, j: { spine: [0, 0, -12], chest: [0, -18, -6], shL: [50, 0, 60], elL: [0, 0, 50], shR: [-50, 0, 60], elR: [0, 0, 50], head: [0, -6, -6] } } },
+    { f: 76, p: compose(B.grin, { x: 0.06 }), e: 'inOut' },
+    { f: 80, p: laugh(1) },
+    { f: 84, p: laugh(0) },
+    { f: 88, p: compose(B.grin, { x: 0.04 }) },
+    { f: 93, p: compose(fistUp, { x: 0.04, y: -0.02 }), e: 'snap' },
+    { f: 102, p: compose(fistUp, { x: 0.02 }) },
+    { f: 110, p: B.grin },
+  ],
+  bStance,
+);
+
+/** Victim-local distance from the hips back to the feet along x (toward Bonez) and foot height, per cinematic frame. */
+function crocFoot(f: number): [number, number] {
+  if (f < 10) return [0.3, 0.22];
+  if (f < 16) return [lerp(0.3, 0.86, ramp(f, 10, 16)), lerp(0.22, 0.1, ramp(f, 10, 16))];
+  return [0.86, 0.1];
+}
+const ROLL_A = 50;
+const DRAG_END = 0.36;
+const ROLL_B = 78;
+
+function crocDef(set: AnimSet): Clip {
+  const r = victimReactions(set);
+  const endX = -(3.0 - 2.2) + 0.05;
+  const drag = (x: number, k: number): PoseDef =>
+    compose(r.lying, {
+      x,
+      j: {
+        // clawing at the floor overhead
+        shL: [70, 0, k ? 160 : 120],
+        elL: [0, 0, k ? 20 : 60],
+        shR: [-70, 0, k ? 120 : 165],
+        elR: [0, 0, k ? 60 : 16],
+        head: [0, 0, k ? -4 : -20],
+        thL: [8, 0, 4],
+        knL: [0, 0, -6],
+        thR: [-8, 0, 8],
+        knR: [0, 0, -10],
+      },
+    });
+  const roll = (deg: number, k: number): PoseDef =>
+    compose(drag(DRAG_END, k), { y: (r.lying.y ?? 0) + 0.05, j: { hips: [0, deg, 0] } });
+  return new Clip(
+    [
+      { f: 0, p: compose(r.hitLow, { x: 0.02 }) },
+      { f: 5, p: compose(r.hitLow, { x: 0.04, y: -0.06, j: { spine: [0, -6, -16], head: [0, 10, -10] } }) },
+      // bitten (hit 10): legs swept toward Bonez, falls backward
+      { f: 10, p: compose(r.juggle, { x: 0.08, y: 0.18, rot: 40 }), e: 'snap' },
+      { f: 16, p: compose(r.lying, { x: 0.05 }), e: 'in' },
+      { f: 20, p: drag(0.05, 0) },
+      // three tugs toward Bonez
+      { f: 26, p: drag(0.17, 1), e: 'snap' },
+      { f: 30, p: drag(0.17, 0) },
+      { f: 35, p: drag(0.28, 1), e: 'snap' },
+      { f: 39, p: drag(0.28, 0) },
+      { f: 44, p: drag(DRAG_END, 1), e: 'snap' },
+      { f: ROLL_A, p: roll(0, 0) },
+      // two death rolls round the long axis (hit 62 halfway)
+      { f: 64, p: roll(360, 1), e: 'linear' },
+      { f: ROLL_B, p: roll(720, 0), e: 'linear' },
+      { f: ROLL_B + 1, p: roll(0, 0), e: 'hold' },
+      // the head flick: up and over
+      { f: 84, p: compose(r.juggle, { x: 0.3, y: 0.6, rot: 150 }), e: 'out' },
+      { f: 89, p: compose(r.juggle, { x: 0.2, y: 1.15, rot: 290 }), e: 'out' },
+      // slam (hit 92) and a bounce away
+      { f: 92, p: compose(r.lying, { x: 0.05, rot: 450 }), e: 'in' },
+      { f: 97, p: compose(r.juggle, { x: -0.35, y: 0.4, rot: 600 }), e: 'out' },
+      { f: 103, p: compose(r.lying, { x: endX, rot: 810 }), e: 'in' },
+      { f: 110, p: compose(r.lying, { x: endX, rot: 810 }) },
+    ],
+    set.stance,
+  );
+}
+
+function crocProps(): CineProps {
+  const group = new THREE.Group();
+  const croc = makeCrocRunner({ top: 0x3a8f41, side: 0x55b84a, belly: 0xf0e2a8 });
+  group.add(croc.group);
+  const SC = 1.15;
+  const SNOUT = 0.8 * SC; // origin -> snout tip
+  croc.group.scale.setScalar(SC);
+  let last = -1;
+  let held: [number, number, number] = [0, 0, 0]; // snout target where the victim was released
+  return {
+    group,
+    update(f: number, c: PropCtx) {
+      const fi = Math.floor(f);
+      const fresh = fi !== last;
+      if (fi < last) last = -1;
+      const [dx] = c.defLocal;
+      const [back, fy] = crocFoot(f);
+      // the snout follows the victim's feet until the release at 84
+      const target: [number, number, number] = f < 84 ? [dx - back + 0.06, fy, 0] : held;
+      if (f < 84) held = target;
+      const vis = 1 - ramp(f, 100, 108);
+      croc.setOpacity(vis);
+      // yaw: straight in for the bite, body swings back into the scene while dragging, turns round to leave
+      const yaw = lerp(0, 0.9, ramp(f, 14, 30));
+      const turn = Math.PI * ramp(f, 93, 101);
+      const phi = -yaw + turn;
+      croc.group.rotation.set(0, phi, 0);
+      let ox = target[0] - Math.cos(-yaw) * SNOUT;
+      let oz = -Math.sin(yaw) * SNOUT;
+      if (f < 9) ox -= 0.35 * (1 - ramp(f, 0, 8)); // lunge
+      if (f >= 98) {
+        const d = (f - 98) * 0.045; // trots off past Bonez, behind him
+        ox += Math.cos(phi) * d;
+        oz -= Math.sin(phi) * d;
+      }
+      croc.group.position.set(ox, 0, oz);
+      // jaws: open for the lunge, clamp shut on the ankle, open at the release, snap at the slam
+      const open = f < 7 ? 55 * ramp(f, 0, 3) : f < 9 ? 55 * (1 - (f - 7) / 2) : f < 82 ? 4 : f < 86 ? 60 * ramp(f, 82, 85) : f < 92 ? 60 * (1 - ramp(f, 89, 92)) : 4;
+      croc.setOpen(open);
+      // head: pitched up to the lifted foot, shaking while dragging, flick at 78-84
+      const pitch = f < 12 ? 0.35 * (1 - ramp(f, 9, 14)) : f >= 78 && f < 90 ? 0.75 * ramp(f, 78, 83) * (1 - ramp(f, 85, 90)) : 0;
+      const shake = f >= 16 && f < 48 ? Math.sin(f * 1.4) * 0.22 : 0;
+      croc.head.group.rotation.set(0, shake, pitch);
+      // body: waddles backward while dragging, rolls with the victim, trots off at the end
+      const dragging = f >= 18 && f < 46;
+      const leaving = f >= 96;
+      croc.waddle(dragging ? -f * 0.55 : leaving ? f * 0.7 : 0, dragging ? 0.75 : leaving ? 1 : 0);
+      const rollT = f < ROLL_A ? 0 : f < ROLL_B ? (f - ROLL_A) / (ROLL_B - ROLL_A) : 0;
+      croc.body.rotation.x = -rollT * Math.PI * 4;
+      croc.body.position.y = 0.17 + (rollT > 0 ? 0.05 : 0) + (f >= 78 && f < 86 ? 0.06 * ramp(f, 78, 82) : 0);
+      // dust trail while dragging + rolling
+      if (fresh) {
+        for (let k = last + 1; k <= fi; k++) {
+          if (k >= 20 && k < 46 && k % 3 === 0) {
+            const p = c.world(dx - 0.2, 0.05, 0.1);
+            c.view.vfx.dust(p.x, 0.02, 2, 0.5, C(0xd9cfb8));
+          }
+          if (k >= ROLL_A && k < ROLL_B && k % 4 === 0) {
+            const p = c.world(dx - 0.5, 0.05, 0.1);
+            c.view.toon.puff(p.x, 0, 2, 0.6, C(0xe8dccb), 0.2, 0.5);
+            c.view.vfx.sparks(p.x, 0.2, 3, C(0xffffff), 3, 0, 2);
+          }
+          if ((k === 26 || k === 35 || k === 44) && f < 46) {
+            const p = c.world(dx - 0.86, 0.12, 0.05);
+            c.view.toon.blood(p.x, p.y, 4, 0);
+            c.audio.snap();
+          }
+        }
+        last = fi;
+      }
+    },
+  };
+}
+
+export const CROC_ATTACK: CineDef = {
+  frames: 110,
+  startDx: 2.2,
+  teeth: [
+    [12, 46],
+    [76, 110],
+  ],
+  camera: [
+    // low close-up on the bite
+    { f: 0, pos: [1.0, 0.55, 2.7], target: [1.75, 0.45, 0], fov: 40, cut: true },
+    { f: 12, pos: [0.9, 0.6, 3.0], target: [1.7, 0.4, 0], fov: 40 },
+    // wide profile: Bonez, croc and the dragged victim
+    { f: 16, pos: [1.05, 0.95, 4.7], target: [1.1, 0.65, 0], fov: 40, cut: true },
+    { f: 46, pos: [0.95, 0.9, 4.3], target: [1.0, 0.6, 0], fov: 40 },
+    // death roll at floor level
+    { f: 48, pos: [0.85, 0.7, 3.0], target: [1.5, 0.3, 0], fov: 40, cut: true },
+    { f: 76, pos: [0.95, 0.62, 2.6], target: [1.5, 0.3, 0], fov: 38 },
+    // Bonez laughs
+    { f: 78, pos: [0.8, 1.7, 1.4], target: [0.0, 1.74, 0], fov: 28, cut: true },
+    { f: 84, pos: [0.75, 1.72, 1.3], target: [0.02, 1.76, 0], fov: 27 },
+    // the toss and slam, wide
+    { f: 85, pos: [1.2, 1.15, 5.2], target: [1.4, 0.9, 0], fov: 44, cut: true },
+    { f: 96, pos: [1.25, 1.15, 5.4], target: [1.5, 0.8, 0], fov: 42 },
+    { f: 110, pos: [1.1, 1.2, 5.6], target: [1.3, 0.8, 0], fov: 40 },
+  ],
+  atk: CROC_ATK,
+  def: crocDef,
+  props: crocProps,
+  dim: (f) => (f < 100 ? 0.5 : 0.35),
+  fx: [
+    {
+      f: 1,
+      run: (c) => {
+        c.audio.crowdSwell(0.3);
+        c.view.vfx.dust(c.def.x - c.facing * 0.4, 0.02, 8, 0.7, C(0xd9cfb8));
+      },
+    },
+    {
+      f: 9,
+      run: (c) => {
+        const x = c.def.x - c.facing * 0.3;
+        c.audio.snap();
+        c.view.toon.blood(x, 0.22, 10, 0);
+        c.view.vfx.sparks(x, 0.25, 10, C(0xffffff), 5, 0, 2);
+        c.view.toon.impact(x, 0.25, 0.9, C(0xffd36b), { spikes: 10, life: 0.2 });
+        c.view.director.shake(0.25);
+      },
+    },
+    { f: 16, run: (c) => c.view.toon.puff(c.def.x, 0, 8, 0.9, C(0xe8dccb), 0.24, 0.6) },
+    {
+      f: 62,
+      run: (c) => {
+        const x = c.def.x - c.facing * 0.5;
+        hitFx(c, 2, 0x7cff5a);
+        c.view.toon.blood(x, 0.2, 12, 0, 3);
+        c.view.director.shake(0.35);
+        c.audio.crowdSwell(0.4);
+      },
+    },
+    { f: 84, run: (c) => c.audio.whoosh(3) },
+    {
+      f: 92,
+      run: (c) => {
+        const x = c.def.x;
+        c.audio.snap();
+        c.view.vfx.ring(x, 0.03, 2.6, C(0x7cff5a), 0.4, true);
+        c.view.vfx.dust(x, 0, 16, 1.4);
+        c.view.toon.puff(x, 0, 12, 1.2, C(0xe9dfd0), 0.28, 0.8);
+        c.view.toon.crack(x, 2.0);
+        c.view.toon.rubble(x, 0, 10, 4);
+        c.view.toon.blood(x, 0.25, 10, -c.facing, 3);
+        c.view.toon.impactFrame(0.06);
+        c.view.after(0.06, () => c.view.toon.impact(x, 0.4, 2.0, C(0x7cff5a), { spikes: 13, life: 0.4 }));
+        c.view.director.shake(0.9);
+        c.view.director.punch(4);
+        c.view.screenFlash = 0.6;
+        c.audio.crowdSwell(0.6);
+      },
+    },
+    { f: 104, run: (c) => c.view.toon.puff(c.atk.x - c.facing * 0.2, 0, 8, 0.8, C(0xe8dccb), 0.22, 0.6) },
   ],
 };

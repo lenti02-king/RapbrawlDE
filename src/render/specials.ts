@@ -8,7 +8,7 @@ import { UNITS_PER_METER } from '../core/math';
 import { getMove } from '../core/registry';
 import type { GameState, ProjectileState } from '../core/state';
 import type { FighterAnimator } from './animator';
-import { HeartPool, makeCroc, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
+import { HeartPool, makeCroc, makeCrocRunner, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
 import type { CharacterRig } from './glbRig';
 import type { VFX } from './vfx';
 
@@ -21,7 +21,6 @@ export class SpecialFX {
   readonly group = new THREE.Group();
   readonly notes = new SpritePool(noteTexture(), 40, THREE.AdditiveBlending);
   readonly hearts = new HeartPool(24);
-  private crocs: Croc[] = [];
   private winCroc: Croc;
   private spots = [makeSpotlight(0xfff0c8), makeSpotlight(0xfff0c8)];
   private glint: THREE.Sprite;
@@ -31,12 +30,6 @@ export class SpecialFX {
 
   constructor(private vfx: VFX) {
     this.group.add(this.notes.group, this.hearts.group);
-    for (let i = 0; i < 2; i++) {
-      const c = makeCroc();
-      c.setOpacity(0);
-      this.crocs.push(c);
-      this.group.add(c.group);
-    }
     this.winCroc = makeCroc({ top: 0x1f5a2c, side: 0x2c7a38, belly: 0xb9b07a });
     this.winCroc.setOpacity(0);
     this.group.add(this.winCroc.group);
@@ -115,25 +108,9 @@ export class SpecialFX {
       const x = anim.vx;
       const inMove = (k: string) => f.state === 'move' && f.move === k;
 
-      // --- Bonez: crocodile jaws (bon_croc). Hit frames 20-23.
-      const croc = this.crocs[i];
-      if (inMove('bon_croc') && f.mf < 40) {
-        const mf = f.mf;
-        const appear = ramp(mf, 2, 9);
-        const open = mf < 20 ? 8 + 50 * ramp(mf, 6, 18) : mf < 22 ? 0 : 2 + 4 * Math.max(0, 1 - (mf - 22) / 6);
-        const fade = 1 - ramp(mf, 28, 38);
-        croc.setOpacity(appear * fade);
-        croc.setOpen(open);
-        const sc = 1.6 * (0.6 + 0.4 * appear);
-        croc.group.scale.set(f.facing * sc, sc, sc);
-        const shake = mf >= 20 && mf < 26 ? (mf % 2 ? 0.03 : -0.03) : 0;
-        croc.group.position.set(x + f.facing * 0.85, 0.55 + shake, 0.25);
-        if (mf === 20 && f.hitstop === 0 && emitTick) this.vfx.sparks(x + f.facing * 1.9, 0.6, 3, new THREE.Color(0xffffff), 4, f.facing, 2);
-      } else croc.setOpacity(0);
-
       // --- Bonez: gold teeth while grinning
       if (rig.props.teeth) {
-        const grinMove = inMove('bon_grin') && f.mf >= 8 && f.mf <= 58;
+        const grinMove = (inMove('bon_grin') && f.mf >= 8 && f.mf <= 58) || (inMove('bon_croc') && f.mf >= 26 && f.mf <= 44);
         const intro = f.state === 'intro' && f.sf >= 55 && f.sf <= 100;
         const flash = s.freeze > 0 && s.freezeOwner === i;
         const win = f.state === 'win' && s.roundWinner === i;
@@ -229,6 +206,11 @@ export class SpecialFX {
     }
     if (kind === 'diamonds') return makeDiamondRain();
     if (kind === 'car') return makeTunerCar();
+    if (kind === 'crocrun') {
+      const c = makeCrocRunner();
+      c.group.userData.croc = c;
+      return c.group;
+    }
     return null;
   }
 
@@ -279,6 +261,19 @@ export class SpecialFX {
       for (const w of m.userData.wheels as THREE.Object3D[]) w.rotation.z = -time * 40;
       this.vfx.dust(p.x / U - p.dir * 1.0, 0.1, 2, 0.4, new THREE.Color(0xdcd6ea));
       if (p.age % 2 === 0) this.vfx.emit(p.x / U - p.dir * 1.15, 0.35, 0.2, -p.dir * 2, 0.5, 0, new THREE.Color(0xff8a3d), 0.35, 0.12, 0, 0.2, 0, 0);
+      return true;
+    }
+    if (p.kind === 'crocrun') {
+      // Bonez' little crocodile: pops out of the ground dust, then scurries low along the floor snapping its jaws
+      const c = m.userData.croc as ReturnType<typeof makeCrocRunner>;
+      const pop = 1.3 * (0.7 + 0.3 * ease(p.age / 5)); // a bit larger than in the cinematic: it runs past the card hand
+      m.position.set(p.x / U, 0, 0.12);
+      m.scale.set(p.dir * pop, pop, pop);
+      c.setOpacity(Math.min(1, p.age / 3 + 0.2));
+      c.waddle(time * 24, 1);
+      c.setOpen(8 + 26 * Math.max(0, Math.sin(time * 11)));
+      if (p.age === 0) this.vfx.dust(p.x / U, 0.05, 10, 0.8, new THREE.Color(0xd9cfb8));
+      if (p.age % 3 === 0) this.vfx.dust(p.x / U - p.dir * 0.6, 0.05, 2, 0.35, new THREE.Color(0xd9cfb8));
       return true;
     }
     if (p.kind === 'smoke') {

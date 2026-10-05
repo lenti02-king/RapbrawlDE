@@ -207,6 +207,145 @@ export function makeCroc(palette: { top: number; side: number; belly: number } =
   };
 }
 
+export interface CrocRunner {
+  /** Origin on the ground under the belly, snout toward +x. About 1.5 m long. */
+  group: THREE.Group;
+  /** Roll pivot (x axis through the body centre) and yaw for the waddle. */
+  body: THREE.Group;
+  head: Croc;
+  tail: THREE.Group;
+  legs: THREE.Group[];
+  setOpen(deg: number): void;
+  setOpacity(a: number): void;
+  /** Running cycle: `phase` in radians, `amp` 0..1 (0 = standing). */
+  waddle(phase: number, amp: number): void;
+}
+
+/** The small crocodile of Bonez' Krokodil-Attacke: the stylized head of makeCroc on a low body with four splayed legs
+ *  and a long tail, built from primitives (placeholder until the PO's model; prompt in docs/ASSET_PROMPTS.md). */
+export function makeCrocRunner(palette = { top: 0x3f9a45, side: 0x5cbf4e, belly: 0xf0e2a8 }): CrocRunner {
+  const mats: THREE.Material[] = [];
+  const std = (color: number) => {
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, transparent: true });
+    mats.push(m);
+    return m;
+  };
+  const top = std(palette.top);
+  const side = std(palette.side);
+  const belly = std(palette.belly);
+  const claw = std(0xf3ead2);
+  const group = new THREE.Group();
+  const body = new THREE.Group();
+  body.position.y = 0.17;
+  group.add(body);
+  // torso: a flat, wide capsule along x
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 6, 14), side);
+  torso.rotation.z = Math.PI / 2;
+  torso.scale.set(0.85, 1, 1.25); // (capsule y = world x) -> flatter, wider
+  body.add(torso);
+  const under = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.44, 6, 12), belly);
+  under.rotation.z = Math.PI / 2;
+  under.scale.set(0.7, 1, 1.2);
+  under.position.y = -0.04;
+  body.add(under);
+  // back armour: two rows of scutes
+  const scGeo = new RoundedBoxGeometry(0.07, 0.05, 0.06, 1, 0.02);
+  for (let i = 0; i < 7; i++)
+    for (const z of [-0.06, 0.06]) {
+      const sc = new THREE.Mesh(scGeo, top);
+      sc.position.set(0.3 - i * 0.1, 0.105 - Math.abs(0.3 - i * 0.1) * 0.08, z);
+      body.add(sc);
+    }
+  // head (hinge at the neck)
+  const head = makeCroc(palette);
+  head.group.scale.setScalar(0.42);
+  head.group.position.set(0.36, 0.02, 0);
+  body.add(head.group);
+  // tail: three segments that follow each other for a whip
+  const tail = new THREE.Group();
+  tail.position.set(-0.36, 0.0, 0);
+  body.add(tail);
+  let parent: THREE.Object3D = tail;
+  const segs: THREE.Group[] = [];
+  const radii = [0.12, 0.085, 0.05];
+  for (let i = 0; i < 3; i++) {
+    const seg = new THREE.Group();
+    if (i) seg.position.x = -0.26;
+    const r0 = radii[i];
+    const r1 = i < 2 ? radii[i + 1] : 0.012;
+    const g = new THREE.CylinderGeometry(r1, r0, 0.28, 12, 1);
+    g.rotateZ(Math.PI / 2); // axis along x, r0 at +x
+    g.translate(-0.13, 0, 0);
+    const m = new THREE.Mesh(g, side);
+    m.scale.set(1, 0.75, 1.1);
+    seg.add(m);
+    const ridge = new THREE.Mesh(scGeo, top);
+    ridge.scale.set(1.2, 1, 0.8 - i * 0.2);
+    ridge.position.set(-0.12, r0 * 0.75, 0);
+    seg.add(ridge);
+    parent.add(seg);
+    segs.push(seg);
+    parent = seg;
+  }
+  // legs: shoulder/hip pivots, splayed sideways, feet flat on the ground
+  const legs: THREE.Group[] = [];
+  const legGeo = new THREE.CapsuleGeometry(0.04, 0.1, 4, 8);
+  const footGeo = new RoundedBoxGeometry(0.11, 0.035, 0.08, 2, 0.015);
+  for (const [lx, lz] of [
+    [0.22, 1],
+    [0.22, -1],
+    [-0.22, 1],
+    [-0.22, -1],
+  ]) {
+    const leg = new THREE.Group();
+    leg.position.set(lx, -0.03, lz * 0.13);
+    const upper = new THREE.Mesh(legGeo, side);
+    upper.rotation.x = lz * 0.9; // splay out sideways
+    upper.position.set(0, -0.05, lz * 0.06);
+    leg.add(upper);
+    const foot = new THREE.Mesh(footGeo, side);
+    foot.position.set(0.03, -0.125, lz * 0.11);
+    leg.add(foot);
+    for (const cz of [-0.025, 0, 0.025]) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.04, 5), claw);
+      c.rotation.z = -Math.PI / 2;
+      c.position.set(0.1, -0.13, lz * 0.11 + cz);
+      leg.add(c);
+    }
+    body.add(leg);
+    legs.push(leg);
+  }
+  const all = [...mats];
+  return {
+    group,
+    body,
+    head,
+    tail,
+    legs,
+    setOpen(deg) {
+      head.setOpen(deg);
+    },
+    setOpacity(a) {
+      for (const m of all) m.opacity = a;
+      head.setOpacity(a);
+      group.visible = a > 0.01;
+    },
+    waddle(phase, amp) {
+      const s = Math.sin(phase);
+      // diagonal pairs move together (front-left with back-right)
+      legs[0].rotation.z = s * 0.7 * amp;
+      legs[3].rotation.z = s * 0.7 * amp;
+      legs[1].rotation.z = -s * 0.7 * amp;
+      legs[2].rotation.z = -s * 0.7 * amp;
+      for (let i = 0; i < 4; i++) legs[i].position.y = -0.03 + Math.max(0, (i === 0 || i === 3 ? s : -s)) * 0.04 * amp;
+      body.rotation.y = s * 0.16 * amp;
+      body.position.y = 0.17 + Math.abs(Math.cos(phase)) * 0.02 * amp;
+      head.group.rotation.y = -s * 0.12 * amp;
+      segs.forEach((g, i) => (g.rotation.y = Math.sin(phase - 0.9 * (i + 1)) * (0.25 + 0.15 * i) * amp));
+    },
+  };
+}
+
 // ------------------------------------------------------------------ palms + sunset
 
 function leafGeometry(): THREE.BufferGeometry {
