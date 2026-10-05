@@ -1,8 +1,7 @@
 """Shop: cut the PO master (ref/shop.webp, 2000x1125) into game assets.
 
 Output: src/ui/img/shop/*.webp + src/ui/menu/shopArt.ts. Run: python3 tools/ui-extract/shop.py
-- plate: the store (shelves, merch, logo, the gold SHOP banner — German as is) with all UI removed, outpainted 220 px
-  per side; the Nike swooshes on the shelf sneakers are retouched out (third-party marks)
+- plate: the store (shelves, merch, logo, the gold SHOP banner — German as is) with all UI removed, outpainted (uix.extend_plate); the Nike swooshes on the shelf sneakers are retouched out (third-party marks)
 - top bar: back button, coin/diamond pills (numbers out), menu button
 - tabs: the master's five tabs (SKINS selected, as drawn), labels removed; categories open with the real shop
 - item cards (5) and the bundle: original art, names/prices/titles removed (native German text); the swooshes on the
@@ -23,7 +22,7 @@ REF = 'tools/ui-extract/ref/shop.webp'
 OUT = os.path.join(uix.ROOT, 'src/ui/img/shop')
 TS = os.path.join(uix.ROOT, 'src/ui/menu/shopArt.ts')
 DBG = os.path.join(uix.ROOT, '.cache/ui')
-SIDE = 220
+SIDE, PTOP = uix.PLATE_SIDE, uix.PLATE_TOP  # outpainted plate margins
 
 SWOOSHES = [  # (x0, y0, x1, y1) boxes, retouched with LaMa
     (172, 152, 206, 180), (195, 260, 228, 290), (16, 318, 50, 344), (8, 560, 40, 590),  # shelves
@@ -92,16 +91,17 @@ def main():
     for m in masks.values():
         hole |= uix.dilate(m, 12)
     cv2.imwrite(os.path.join(DBG, 'sh_hole.png'), hole)
-    bg_path = os.path.join(DBG, 'sh_wide.png')
+    bg_path = os.path.join(DBG, 'sh_bg.png')
     if os.path.exists(bg_path) and os.environ.get('REUSE_BG'):
-        wide = cv2.imread(bg_path)
+        bg = cv2.imread(bg_path)
+    elif os.path.exists(os.path.join(DBG, 'sh_wide.png')) and os.environ.get('REUSE_BG'):
+        bg = uix.center_crop_w(cv2.imread(os.path.join(DBG, 'sh_wide.png')), W)
     else:
-        bg0 = uix.inpaint(img, hole, max_side=1024, ctx=0.5)
-        wide = uix.outpaint_sides(bg0, SIDE)
-        cv2.imwrite(bg_path, wide)
-    bg = wide[:, SIDE:SIDE + W]
-    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/shop', box=(0, 0, wide.shape[1], H), quality=86)]
-    sprites[0].x = -SIDE
+        bg = uix.inpaint(img, hole, max_side=1024, ctx=0.5)
+    cv2.imwrite(bg_path, bg)
+    wide = uix.extend_plate(bg, os.path.join(DBG, 'sh_plate.png'))
+    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/shop', box=(0, 0, wide.shape[1], wide.shape[0]), quality=86)]
+    sprites[0].x, sprites[0].y = -SIDE, -PTOP
 
     def cut(sid, src, m, ring=10):
         rgb, a = uix.matte(src, bg, m, ring=ring)

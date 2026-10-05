@@ -73,17 +73,18 @@ const sim = (page) =>
   await page.waitForSelector('.st-select');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/d05a_select.png` });
-  check((await page.textContent('.cs-name.p1')).includes('BONEZ') && (await page.isVisible('.cs-ped.p1 img')), 'fighter select shows the chosen P1 fighter big on the left');
+  check((await page.textContent('.cs-name.p1')).includes('BONEZ') && (await page.isVisible('.mm-figures')), 'fighter select shows the chosen P1 fighter big on the left');
   await page.click('[data-ready]');
   await page.waitForSelector('.st-arena');
-  await page.click('[data-arena="club"]');
-  await page.waitForSelector('.as-tile.on[data-arena="club"]');
+  await page.click('[data-item="club"]');
+  await page.waitForSelector('.as-tile.on[data-item="club"]');
   await page.screenshot({ path: `${out}/d05b_arena.png` });
-  await page.click('[data-arena-ok]');
+  await page.click('[data-ok]');
   await page.waitForSelector('.st-loading');
   await page.screenshot({ path: `${out}/d05c_loading.png` });
   await page.waitForFunction(() => window.__rb.mode === 'cpu', null, { timeout: 60000 });
-  check(await page.evaluate(() => window.__rb.sel.arena === 'club'), 'chosen arena is used for the match');
+  // vs CPU: the player's pick and the CPU's pick are drawn; the drawn arena must be the one that is built
+  check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena && ['podcast', 'toon', 'club', 'courtyard'].includes(window.__rb.sel.arena)), 'drawn arena is used for the match');
   let s = await sim(page);
   check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['bon_croc', 'bon_smoke', 'bon_palm']), `chosen deck reaches the match (${s.f[0].loadout})`);
   check(await page.evaluate(() => window.__vsSeen), 'VS intro is shown at match start');
@@ -203,7 +204,7 @@ const sim = (page) =>
   await page.waitForSelector('.st-arena');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/m02b_arena.png` });
-  await page.tap('[data-arena-ok]');
+  await page.tap('[data-ok]');
   await page.waitForFunction(() => window.__rb.mode === 'cpu', null, { timeout: 60000 });
   await page.evaluate(() => {
     window.__rb.runner.sources[1].poll = () => 0; // freeze CPU for deterministic checks

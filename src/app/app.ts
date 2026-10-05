@@ -20,7 +20,8 @@ import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { mainMenuHtml, mainMenuToast, mountMainMenu, type MainMenuModel } from '../ui/menu/mainMenu';
 import { loadingHtml, mountLoading, setLoading, setLoadingLabel } from '../ui/menu/loading';
 import { charSelectHtml, mountCharSelect, type CsSide, type CsTile } from '../ui/menu/charSelect';
-import { arenaSelectHtml, mountArenaSelect } from '../ui/menu/arenaSelect';
+import { mountShowcase, setShowcaseChip, showcaseHtml, showcaseRoulette, showcaseSelect, type ShowcaseItem } from '../ui/menu/arenaSelect';
+import { MODE_IMG } from '../ui/menu/modeArt';
 import { mountShop, shopHtml } from '../ui/menu/shop';
 import { toast } from '../ui/menu/kit';
 import { AudioEngine } from '../audio/audio';
@@ -142,7 +143,12 @@ function rankOf(p: Profile): { name: string; next: string } {
 /** Hometowns on the character-select ribbon (from the PO's master design). */
 const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg' };
 
-type MenuMode = 'quick' | 'online' | 'friend' | 'ranked' | 'training';
+type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
+/** Stored menu mode (older saves used 'online' for the friend room code). */
+function menuModeOf(v: string): MenuMode {
+  if (v === 'online') return 'friend';
+  return (['quick', 'ranked', 'friend', 'local', 'training'] as string[]).includes(v) ? (v as MenuMode) : 'quick';
+}
 const NEWS_VERSION = 1;
 
 /** Local placeholder economy (PO decision: visible, no real money, nothing to buy yet): coins and diamonds grow
@@ -514,13 +520,14 @@ export class App {
     const rp = store.get('rp', 0);
     const tier = tierOf(rp);
     const eco = economyOf(p);
-    const last = store.get<MenuMode>('menuMode', 'quick');
+    const last = menuModeOf(store.get<string>('menuMode', 'quick'));
     const modeInfo: Record<MenuMode, MainMenuModel['mode']> = {
       quick: { title: 'SCHNELLKAMPF', status: 'CPU-GEGNER BEREIT …', detail: `SCHWIERIGKEIT: ${LEVEL_DE[this.sel.level]}` },
-      online: { title: 'ONLINE', status: 'RAUM PER CODE …', detail: 'ERSTELLEN ODER BEITRETEN' },
-      friend: { title: 'GEGEN FREUNDE', status: '2 SPIELER · 1 GERÄT', detail: 'TASTATUR ODER GAMEPAD' },
-      ranked: { title: 'RANGLISTE', status: `LIGA: ${tier.name} …`, detail: `${rp} RP · ${tier.next.toUpperCase()}` },
+      friend: { title: 'FREUNDE', status: 'ONLINE PER RAUM-CODE …', detail: 'ERSTELLEN ODER BEITRETEN' },
+      local: { title: '2 SPIELER', status: 'EIN GERÄT …', detail: 'TOUCH, TASTATUR ODER GAMEPAD' },
+      ranked: { title: 'RANKED', status: `LIGA: ${tier.name} …`, detail: `${rp} RP · ${tier.next.toUpperCase()}` },
       training: { title: 'TRAINING', status: 'FREIES TRAINING …', detail: 'KOMBOS & FRAME-DATEN' },
+      koop: { title: 'KOOP', status: 'KOMMT BALD', detail: '' },
     };
     const model: MainMenuModel = {
       name: this.playerName,
@@ -535,28 +542,27 @@ export class App {
     };
     const el = this.open(mainMenuHtml(model), 'mm main-menu');
     const start = (m: MenuMode) => {
+      if (m === 'koop') return soon('KOOP');
       store.set('menuMode', m);
-      if (m === 'quick') this.beginFlow('cpu', false);
-      else if (m === 'online') this.beginFlow('online', false);
-      else if (m === 'friend') this.beginFlow('local', false);
-      else if (m === 'ranked') this.beginFlow('cpu', true);
-      else this.beginFlow('training', false);
+      this.startMode(m);
     };
-    const soon = (what: string) => mainMenuToast(el, `${what} – BALD VERFÜGBAR`);
+    const soon = (what: string) => mainMenuToast(el, `${what} – KOMMT BALD`);
     const stop = mountMainMenu(el, (a) => {
       switch (a) {
         case 'quick':
-        case 'online':
         case 'friend':
         case 'ranked':
           start(a);
+          break;
+        case 'online':
+          mainMenuToast(el, 'ZUFALLSGEGNER KOMMEN BALD – SPIEL SO LANGE GEGEN FREUNDE');
           break;
         case 'play':
           start(last);
           break;
         case 'mode':
         case 'modes':
-          this.showModes(el);
+          this.showModes();
           break;
         case 'profile':
           this.showProfile();
@@ -568,10 +574,10 @@ export class App {
           this.showFighters(0);
           break;
         case 'arenas':
-          this.showArenaSelect(() => this.showHome(), true);
+          this.showArenas();
           break;
         case 'event':
-          this.showHelp(() => this.showHome());
+          soon('SONDER-EVENT');
           break;
         case 'news':
           store.set('newsSeen', NEWS_VERSION);
@@ -587,7 +593,7 @@ export class App {
           soon('BESTENLISTE');
           break;
       }
-    });
+    }, this.favorite);
     const obs = new MutationObserver(() => {
       if (!el.isConnected) {
         stop();
@@ -617,34 +623,106 @@ export class App {
     });
   }
 
-  /** Mode list + CPU difficulty (opened from the selected-mode panel and the MODI tab). */
-  private showModes(root: HTMLElement): void {
-    const last = store.get<MenuMode>('menuMode', 'quick');
-    const row = (m: MenuMode, t: string, s: string) =>
-      `<button class="mm-pick${m === last ? ' on' : ''}" data-m="${m}"><b>${t}</b><span>${s}</span></button>`;
-    const lv = LEVELS.map((l) => `<button class="mm-chip${this.sel.level === l ? ' on' : ''}" data-l="${l}">${LEVEL_DE[l]}</button>`).join('');
-    const ov = document.createElement('div');
-    ov.className = 'mm-overlay';
-    ov.innerHTML = `<div class="mm-sheet"><div class="mm-sheet-h">SPIELMODUS</div>
-      ${row('quick', 'SCHNELLKAMPF', 'Gegen die CPU')}${row('ranked', 'RANGLISTE', 'Liga-Kämpfe gegen die CPU')}${row('online', 'ONLINE', 'Raum per Code')}
-      ${row('friend', 'GEGEN FREUNDE', '2 Spieler an einem Gerät')}${row('training', 'TRAINING', 'Kombos & Frame-Daten')}
-      <div class="mm-sheet-h small">CPU-STÄRKE</div><div class="mm-chips">${lv}</div>
-      <button class="mm-close" aria-label="Schließen">OK</button></div>`;
-    root.appendChild(ov);
-    ov.addEventListener('click', (e) => {
-      const t = e.target as HTMLElement;
-      const m = t.closest<HTMLElement>('[data-m]')?.dataset.m as MenuMode | undefined;
-      const l = t.closest<HTMLElement>('[data-l]')?.dataset.l as Level | undefined;
-      if (m) store.set('menuMode', m);
-      if (l) {
-        this.sel.level = l;
-        store.set('selection', this.sel);
-      }
-      if (m || l || t.closest('.mm-close') || t === ov) {
+  /** Favourite fighter (stands in the main menu, preselected for P1) and favourite arena (preselected at match start). */
+  private get favorite(): string {
+    const f = store.get('favFighter', this.sel.fighters[0]);
+    return ROSTER.includes(f) ? f : ROSTER[0];
+  }
+  private get favArena(): string {
+    return arenaInfo(store.get('favArena', this.sel.arena)).id;
+  }
+
+  private startMode(m: MenuMode): void {
+    if (m === 'quick') this.beginFlow('cpu', false);
+    else if (m === 'ranked') this.beginFlow('cpu', true);
+    else if (m === 'friend') this.beginFlow('online', false);
+    else if (m === 'local') this.beginFlow('local', false);
+    else if (m === 'training') this.beginFlow('training', false);
+  }
+
+  /** Game modes in the arena-select design: picture tiles, info panel, CPU strength on the chip. */
+  showModes(): void {
+    const rp = store.get('rp', 0);
+    const tier = tierOf(rp);
+    const items: ShowcaseItem[] = [
+      { id: 'quick', name: 'SCHNELLKAMPF', district: 'GEGEN DIE CPU', desc: 'Kämpfer und Arena wählen, rein in den Ring. Perfekt zum Aufwärmen und für eine schnelle Runde.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.quick },
+      { id: 'ranked', name: 'RANKED', district: `LIGA ${tier.name}`, desc: `Gewertete Kämpfe gegen immer stärkere CPU-Gegner. Siege bringen RP, Niederlagen kosten welche. ${tier.next}.`, rows: [['LIGA', tier.name], ['PUNKTE', `${rp} RP`], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.ranked },
+      { id: 'friend', name: 'FREUNDE', district: 'ONLINE PER RAUM-CODE', desc: 'Raum erstellen oder beitreten, Code teilen – dann seid ihr verbunden und kämpft online gegeneinander.', rows: [['TEMPO', 'LIVE'], ['HYPE', 'MAXIMAL'], ['SPIELER', '1 GEGEN 1 ONLINE']], img: MODE_IMG.friend },
+      { id: 'local', name: '2 SPIELER', district: 'EIN GERÄT', desc: 'Zu zweit an einem Gerät: Touch geteilt, Tastatur oder zwei Gamepads.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN 1 LOKAL']], img: MODE_IMG.local },
+      { id: 'training', name: 'TRAINING', district: 'FREIES TRAINING', desc: 'Kombos üben, Frame-Daten ansehen, Hitboxen einblenden. Der Dummy steht still oder blockt.', rows: [['TEMPO', 'DEIN TEMPO'], ['HYPE', 'UNENDLICH'], ['SPIELER', 'DU + DUMMY']], img: MODE_IMG.training },
+      { id: 'koop', name: 'STRASSEN-KOOP', district: 'KOMMT BALD', desc: 'Zu zweit durch die Straßen, Welle für Welle gegen ganze Gangs – Seite an Seite mit deinem Partner.', rows: [['TEMPO', 'BALD'], ['HYPE', 'BALD'], ['SPIELER', '2 IM TEAM']], img: MODE_IMG.koop, locked: true },
+    ];
+    let cur = items.find((x) => x.id === menuModeOf(store.get<string>('menuMode', 'quick'))) ?? items[0];
+    const lvl = () => `CPU-STÄRKE: ${LEVEL_DE[this.sel.level]}`;
+    const el = this.open(showcaseHtml(items, cur, { title: 'SPIELMODUS', okLabel: 'AUSWÄHLEN', chip: lvl() }), 'st-modes');
+    const stop = mountShowcase(el);
+    const done = (fn: () => void) => {
+      stop();
+      fn();
+    };
+    el.querySelectorAll<HTMLElement>('[data-item]').forEach((b) =>
+      b.addEventListener('click', () => {
+        cur = items.find((x) => x.id === b.dataset.item) ?? cur;
         this.audio.ui('click');
-        this.showHome();
-        if (l) this.showModes(this.screen!);
-      }
+        showcaseSelect(el, cur);
+      }),
+    );
+    el.querySelector('[data-chip]')!.addEventListener('click', () => {
+      this.sel.level = LEVELS[(LEVELS.indexOf(this.sel.level) + 1) % LEVELS.length];
+      store.set('selection', this.sel);
+      setShowcaseChip(el, lvl(), false);
+    });
+    el.querySelector('[data-back]')!.addEventListener('click', () => done(() => this.showHome()));
+    el.querySelector('[data-ok]')!.addEventListener('click', () => {
+      if (cur.locked) return toast(el, 'STRASSEN-KOOP KOMMT BALD');
+      store.set('menuMode', cur.id);
+      done(() => this.showHome());
+    });
+  }
+
+  private arenaItems(): ShowcaseItem[] {
+    const fav = this.favArena;
+    return ARENAS.map((a) => ({
+      id: a.id,
+      name: a.name,
+      district: a.district,
+      desc: a.desc,
+      rows: [
+        ['ZEIT', a.time],
+        ['STIMMUNG', a.mood],
+        ['PUBLIKUM', a.crowd],
+      ],
+      img: a.locked ? '' : a.img,
+      locked: a.locked,
+      tag: a.id === fav ? 'FAVORIT' : undefined,
+    }));
+  }
+
+  /** ARENEN tab: browse the arenas and set the favourite (preselected whenever a fight starts). */
+  showArenas(): void {
+    const items = this.arenaItems();
+    let cur = items.find((x) => x.id === this.favArena) ?? items[0];
+    const el = this.open(showcaseHtml(items, cur, { title: 'ARENEN', okLabel: 'ALS FAVORIT' }), 'st-arena');
+    const stop = mountShowcase(el);
+    el.querySelectorAll<HTMLElement>('[data-item]').forEach((b) =>
+      b.addEventListener('click', () => {
+        cur = items.find((x) => x.id === b.dataset.item) ?? cur;
+        this.audio.ui('click');
+        showcaseSelect(el, cur);
+      }),
+    );
+    el.querySelector('[data-back]')!.addEventListener('click', () => {
+      stop();
+      this.showHome();
+    });
+    el.querySelector('[data-ok]')!.addEventListener('click', () => {
+      if (cur.locked) return toast(el, 'DIESE ARENA KOMMT BALD');
+      store.set('favArena', cur.id);
+      this.sel.arena = cur.id;
+      store.set('selection', this.sel);
+      stop();
+      this.showArenas();
+      toast(this.screen!, `${cur.name} IST JETZT DEINE FAVORITEN-ARENA`);
     });
   }
 
@@ -668,6 +746,20 @@ export class App {
   private beginFlow(mode: PlayMode | 'online', ranked: boolean): void {
     this.flow = { mode, ranked };
     if (mode !== 'online') this.sel.mode = mode;
+    // favourites: P1 starts on the favourite fighter, the arena pick on the favourite arena
+    const fav = this.favorite;
+    if (this.sel.fighters[0] !== fav) {
+      this.sel.fighters[0] = fav;
+      this.sel.loadouts[0] = this.presetDeck(fav);
+      if (mode !== 'local' && this.sel.fighters[1] === fav) {
+        const other = ROSTER.find((x) => x !== fav);
+        if (other) {
+          this.sel.fighters[1] = other;
+          this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
+        }
+      }
+    }
+    this.sel.arena = this.favArena;
     store.set('selection', this.sel);
     this.showCharSelect(0);
   }
@@ -683,7 +775,6 @@ export class App {
         name: getFighter(id).name.toUpperCase(),
         city: HOMETOWN[id] ?? '',
         label: this.sideLabel(i),
-        hero: portrait(id, 'hero'),
         hidden: m === 'online' && i === 1,
       };
     }) as [CsSide, CsSide];
@@ -694,7 +785,7 @@ export class App {
       tags: [0, 1].filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1)),
     }));
     const el = this.open(charSelectHtml(sides, tiles, picking), 'st-select');
-    const stop = mountCharSelect(el);
+    const stop = mountCharSelect(el, sides);
     const go = (fn: () => void) => () => {
       stop();
       fn();
@@ -737,30 +828,54 @@ export class App {
     );
   }
 
-  /** Arena select: big preview with info, thumbnails below. `browse` = opened from the menu (no fight after). */
-  showArenaSelect(back: () => void, browse = false): void {
-    const cur = arenaInfo(this.sel.arena);
-    const el = this.open(arenaSelectHtml(ARENAS, cur, browse ? 'ÜBERNEHMEN' : 'ARENA WÄHLEN'), 'st-arena');
-    const stop = mountArenaSelect(el);
-    el.querySelectorAll<HTMLButtonElement>('[data-arena]').forEach((b) =>
+  /** Arena select at match start: every player picks one (favourite preselected; the CPU picks at random), then a
+   *  short draw decides between the picks. `picks` holds the earlier players' choices. */
+  showArenaSelect(back: () => void, picks: string[] = []): void {
+    const m = this.flow.mode;
+    const items = this.arenaItems();
+    const player = picks.length;
+    const curId = player === 0 ? this.favArena : this.sel.arena;
+    let cur = items.find((x) => x.id === curId && !x.locked) ?? items[0];
+    const title = m === 'local' ? `ARENA · SPIELER ${player + 1}` : 'ARENA-WAHL';
+    const el = this.open(showcaseHtml(items, cur, { title, okLabel: 'ARENA WÄHLEN' }), 'st-arena');
+    const stop = mountShowcase(el);
+    el.querySelectorAll<HTMLElement>('[data-item]').forEach((b) =>
       b.addEventListener('click', () => {
-        const a = ARENAS.find((x) => x.id === b.dataset.arena);
-        if (!a || a.locked) return;
-        this.sel.arena = a.id;
-        store.set('selection', this.sel);
+        const it = items.find((x) => x.id === b.dataset.item);
+        if (!it) return;
+        cur = it;
         this.audio.ui('click');
-        stop();
-        this.showArenaSelect(back, browse);
+        showcaseSelect(el, cur);
       }),
     );
     el.querySelector('[data-back]')!.addEventListener('click', () => {
       stop();
-      back();
+      if (player > 0) this.showArenaSelect(back, picks.slice(0, -1));
+      else back();
     });
-    el.querySelector('[data-arena-ok]')!.addEventListener('click', () => {
-      stop();
-      if (browse) this.showHome();
-      else this.launch();
+    el.querySelector<HTMLButtonElement>('[data-ok]')!.addEventListener('click', (e) => {
+      if (cur.locked) return toast(el, 'DIESE ARENA KOMMT BALD');
+      const all = [...picks, cur.id];
+      if (m === 'local' && all.length < 2) {
+        stop();
+        return this.showArenaSelect(back, all);
+      }
+      if (m === 'cpu') {
+        const open = items.filter((x) => !x.locked).map((x) => x.id);
+        all.push(open[Math.floor(Math.random() * open.length)]);
+      }
+      const cands = [...new Set(all)];
+      const winner = cands[Math.floor(Math.random() * cands.length)];
+      this.sel.arena = winner;
+      store.set('selection', this.sel);
+      (e.currentTarget as HTMLButtonElement).disabled = true;
+      const go = () => {
+        stop();
+        this.launch();
+      };
+      if (cands.length < 2) return go();
+      showcaseRoulette(el, cands.map((id) => items.find((x) => x.id === id)!), winner, go);
+      toast(el, m === 'cpu' ? 'DU GEGEN CPU-WAHL – DER ZUFALL ENTSCHEIDET' : 'DER ZUFALL ENTSCHEIDET');
     });
   }
 

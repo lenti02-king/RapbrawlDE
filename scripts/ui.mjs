@@ -68,7 +68,7 @@ for (const [tag, vp, touch] of [
   await page.waitForTimeout(500);
   await frames(page, 4);
   await page.screenshot({ path: `${out}/${tag}_5b_arena.png` });
-  await page.click('[data-arena-ok]');
+  await page.click('[data-ok]');
   await page.waitForSelector('.st-loading');
   await frames(page, 4);
   await page.screenshot({ path: `${out}/${tag}_5c_loading.png` });

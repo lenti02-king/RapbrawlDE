@@ -13,7 +13,7 @@ export interface RefSprite {
 }
 
 export const CS_ART = {
-  "bg": { src: I_bg, x: -220, y: 0, w: 2440, h: 1125 },
+  "bg": { src: I_bg, x: -420, y: -90, w: 2840, h: 1305 },
   "back": { src: I_back, x: 348, y: 981, w: 305, h: 94 },
   "ready": { src: I_ready, x: 1331, y: 970, w: 340, h: 112 },
 } satisfies Record<string, RefSprite>;
@@ -31,5 +31,6 @@ export const CS_BOXES = {
   "ped_p2": [1435, 300, 1835, 860],
   "back_text": [472, 1004, 576, 1052],
   "ready_text": [1366, 994, 1630, 1068],
-  "side": 220,
+  "side": 420,
+  "top": 90,
 } as const;

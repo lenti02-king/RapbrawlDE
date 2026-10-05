@@ -1,16 +1,25 @@
 // Character select from the PO master (D38): outpainted background plate (banners, tile grid, ribbon with the gold VS,
-// pedestals, logo), the chosen fighters rendered onto the pedestals, bust portraits in the two roster tiles, native
-// German names/labels, extracted ZURÜCK/BEREIT buttons. Everything lives in the master's 2000x1125 space (contain),
-// so the overlays sit exactly on the baked tiles and ribbon; 19.5:9 phones see the outpainted plate at the sides.
+// pedestals, logo), the chosen fighters as live 3D figures standing on the pedestals (MenuFigures), bust portraits in
+// the two roster tiles, native German names/labels, extracted ZURÜCK/BEREIT buttons. Everything lives in the master's
+// 2000x1125 space, scaled to the safe rect and slid over the outpainted plate (layoutStage), so the overlays sit
+// exactly on the baked tiles and ribbon and any phone is filled edge to edge.
 import { CS_ART, CS_BOXES } from './charSelectArt';
+import { MenuFigures } from './figures';
 import { esc, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
+
+/** Feet (centre of the pedestal top) and figure height in reference px. */
+const FEET: [number, number][] = [
+  [330, 812],
+  [1666, 810],
+];
+const FIG_H = 360;
+const SAFE: Box = [150, 10, 1850, 1086];
 
 export interface CsSide {
   id: string;
   name: string;
   city: string;
   label: string; // SPIELER 1 / DU / CPU ...
-  hero: string; // full-body render (data URL)
   hidden?: boolean; // online opponent not known yet
 }
 export interface CsTile {
@@ -34,8 +43,9 @@ export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking
   const fighter = (i: number) => {
     const s = sides[i];
     const [x0, y0, x1, y1] = i ? B.ped_p2 : B.ped_p1;
-    return `<button class="cs-ped p${i + 1} ${picking === i ? 'picking' : ''} ${s.hidden ? 'hidden' : ''}" data-side="${i}" aria-label="${esc(s.label)}" style="${pos(x0, y0, x1 - x0, y1 - y0)}">
-      ${s.hero ? `<img alt="" draggable="false" src="${s.hero}">` : ''}</button>`;
+    const [fx, fy] = FEET[i];
+    return `<button class="cs-ped p${i + 1} ${picking === i ? 'picking' : ''} ${s.hidden ? 'hidden' : ''}" data-side="${i}" aria-label="${esc(s.label)}" style="${pos(x0, y0, x1 - x0, y1 - y0)}"></button>
+      <span class="fig-anchor" data-fig="${i}" style="${pos(fx - FIG_H / 4, fy - FIG_H, FIG_H / 2, FIG_H)}"></span>`;
   };
   const plate = (i: number) => {
     const s = sides[i];
@@ -77,8 +87,24 @@ export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking
     </div>`;
 }
 
-export function mountCharSelect(root: HTMLElement): () => void {
+export function mountCharSelect(root: HTMLElement, sides: [CsSide, CsSide]): () => void {
   root.classList.add('mm', 'cs');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
-  return keepLaidOut(root, () => layoutStage(root, stage));
+  const bg = CS_ART.bg;
+  const stop = keepLaidOut(root, () => layoutStage(root, stage, SAFE, bg));
+  const figs = new MenuFigures(root, null);
+  figs.set(
+    [0, 1]
+      .filter((i) => !sides[i].hidden)
+      .map((i) => ({
+        id: sides[i].id,
+        anchor: root.querySelector<HTMLElement>(`[data-fig="${i}"]`)!,
+        facing: (i ? -1 : 1) as 1 | -1,
+        rim: i ? 0x3d8dff : 0xff5a2a,
+      })),
+  );
+  return () => {
+    stop();
+    figs.dispose();
+  };
 }

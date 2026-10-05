@@ -24,7 +24,7 @@ REF = 'tools/ui-extract/ref/arena_select.webp'
 OUT = os.path.join(uix.ROOT, 'src/ui/img/arenasel')
 TS = os.path.join(uix.ROOT, 'src/ui/menu/arenaSelectArt.ts')
 DBG = os.path.join(uix.ROOT, '.cache/ui')
-SIDE = 220  # outpainted margin per side (19.5:9 phones)
+SIDE, TOP = uix.PLATE_SIDE, uix.PLATE_TOP  # outpainted plate margins
 
 PREVIEW = (358, 368, 1222, 784)  # frame overlay crop (mic + glove + post included; stops above the tile row)
 PREVIEW_SEED = (600, 450)
@@ -116,14 +116,9 @@ def main():
         bg = cv2.inpaint(np.where(info[..., None] > 0, 0, img).astype(np.uint8), info, 9, cv2.INPAINT_TELEA)
         bg = np.where(info[..., None] > 0, bg, uix.inpaint(img, hole & ~info, max_side=1024, ctx=0.5)).astype(np.uint8)
         cv2.imwrite(bg_path, bg)
-    wpath = os.path.join(DBG, 'as_wide.png')
-    if os.path.exists(wpath) and os.environ.get('REUSE_BG'):
-        wide = cv2.imread(wpath)
-    else:
-        wide = uix.outpaint_sides(bg, SIDE)
-        cv2.imwrite(wpath, wide)
-    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/arenasel', box=(0, 0, wide.shape[1], H), quality=86)]
-    sprites[0].x = -SIDE
+    wide = uix.extend_plate(bg, os.path.join(DBG, 'as_plate.png'))
+    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/arenasel', box=(0, 0, wide.shape[1], wide.shape[0]), quality=86)]
+    sprites[0].x, sprites[0].y = -SIDE, -TOP
 
     # preview frame overlay: master pixels, window transparent (soft edge)
     win = preview_window(img)

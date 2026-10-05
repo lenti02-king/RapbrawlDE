@@ -10,6 +10,8 @@ const errors = [];
 for (const [tag, vp, dpr, extra] of [
   ['ref', { width: 2000, height: 1125 }, 1, ''],
   ['iphone', { width: 844, height: 390 }, 3, '&safe=47'],
+  ['viewer', { width: 844, height: 330 }, 3, ''], // phone in landscape inside the Claude app / a browser (bars eat height)
+  ['tablet', { width: 1024, height: 768 }, 2, ''],
   ['android', { width: 800, height: 360 }, 3, ''],
 ]) {
   if (process.env.ONLY && !process.env.ONLY.split(',').includes(tag)) continue;

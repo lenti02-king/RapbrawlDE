@@ -148,7 +148,9 @@
   position: relative;
   display: inline-block;
   font-style: inherit;
-  padding: 0.04em 0.08em 0.06em;
+  /* background-clip: text only paints inside the padding box: room above the caps for umlaut dots (Ä Ö Ü) */
+  padding: 0.22em 0.08em 0.08em;
+  margin: -0.18em 0 -0.02em;
   background: var(--fill, linear-gradient(180deg, #fff 0%, #fff 42%, #d7deeb 72%, #a9b6cd 100%));
   -webkit-background-clip: text;
   background-clip: text;
@@ -735,9 +737,69 @@
   --sw: 0.1em;
   --sh: 0 0.05em 0 #061226;
 }
-.as-tname.on {
+.as-tile.on .as-tname {
   --fill: linear-gradient(180deg, #fff3b8, #ffd34a 60%, #e9a01c);
   --ol: #2a1204;
+}
+.as-tile .fr-on,
+.as-tile.on .fr-off {
+  display: none;
+}
+.as-tile.on .fr-on {
+  display: block;
+}
+.as-tile.locked .as-pic {
+  filter: grayscale(0.85) brightness(0.55);
+}
+.as-soon {
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.as-soon.off {
+  display: none;
+}
+.as-soon b {
+  padding: calc(var(--u) * 4) calc(var(--u) * 12);
+  rotate: -8deg;
+  background: linear-gradient(180deg, #ffd84a, #e9a01c);
+  border: calc(var(--u) * 3) solid #2a1204;
+  border-radius: calc(var(--u) * 6);
+  color: #2a1204;
+  font: italic 900 calc(var(--u) * 20) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.04em;
+  box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 10) rgba(0, 0, 0, 0.6);
+}
+.as-soon.big {
+  background: rgba(6, 10, 22, 0.35);
+}
+.as-soon.big b {
+  font-size: calc(var(--u) * 54);
+  padding: calc(var(--u) * 10) calc(var(--u) * 36);
+}
+.as-tag {
+  z-index: 3;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  --fill: linear-gradient(180deg, #fff3b8, #ffd34a 60%, #e9a01c);
+  --ol: #2a1204;
+  --sw: 0.12em;
+}
+.as-chip {
+  z-index: 2;
+  border-radius: calc(var(--u) * 12);
+  background: linear-gradient(180deg, rgba(20, 34, 70, 0.95), rgba(10, 18, 40, 0.95));
+  border: calc(var(--u) * 3) solid #c99a2e;
+  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(61, 141, 255, 0.35);
+  color: #ffd45a;
+  font: italic 800 calc(var(--u) * 28) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.04em;
+}
+.as-chip.on {
+  background: linear-gradient(180deg, #ffe27a, #f2a01c);
+  color: #2a1204;
+  border-color: #2a1204;
 }
 .as-back,
 .as-go {
@@ -803,4 +865,74 @@
 .sh-bundle:active,
 .sh-tab:active {
   transform: scale(0.97);
+}
+
+/* ---------------------------------------------------------------------------------------- live 3D figures */
+.mm-figures {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.fig-anchor {
+  pointer-events: none;
+  visibility: hidden;
+}
+.mm-fig {
+  position: absolute;
+}
+/* shop "under construction": the master's shop greyed out behind two hazard tapes */
+.sh-wip {
+  position: absolute;
+  inset: 0;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.sh-wip > * {
+  position: absolute;
+  left: calc(var(--x) * var(--u));
+  top: calc(var(--y) * var(--u));
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+}
+.sh-wip .sh-card,
+.sh-wip .sh-bundle,
+.sh-wip .sh-tab:not(.on) {
+  filter: grayscale(0.85) brightness(0.62);
+}
+.sh-tape {
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background: repeating-linear-gradient(-45deg, #ffd23a 0 calc(var(--u) * 34), #16110a calc(var(--u) * 34) calc(var(--u) * 68));
+  border-block: calc(var(--u) * 6) solid #16110a;
+  box-shadow: 0 calc(var(--u) * 10) calc(var(--u) * 24) rgba(0, 0, 0, 0.6);
+}
+.sh-tape.a {
+  rotate: -7deg;
+}
+.sh-tape.b {
+  rotate: 6deg;
+  translate: 0 calc(var(--u) * 50);
+}
+.sh-tape span {
+  white-space: nowrap;
+  padding: calc(var(--u) * 6) calc(var(--u) * 18);
+  margin-inline: auto;
+  background: #ffd23a;
+  color: #16110a;
+  font: italic 900 calc(var(--u) * 36) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.06em;
+}
+.sh-wip {
+  pointer-events: none;
+}
+.sh-wip > * {
+  pointer-events: auto;
 }

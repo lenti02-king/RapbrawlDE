@@ -5,6 +5,7 @@
 // phone in landscape: groups stick to their screen edges, grow up to 20 % on wide phones and stay inside the
 // safe area (notch, home bar).
 import { clamp, de, esc, fitTexts, pos, safeInsets, text, type Box } from './kit';
+import { MenuFigures } from './figures';
 import { MM_ART, MM_TEXT, type RefSprite } from './mainMenuArt';
 
 type Art = keyof typeof MM_ART;
@@ -144,16 +145,16 @@ export function mainMenuHtml(m: MainMenuModel): string {
          ${text(sub, widen(T[id].sub, id === 'ranked' || id === 'leader' ? 1898 : 472), ox, oy, { cls: 'mm-sub', fs: 27 })}`,
       title,
     );
-  const left = `${mode('quick', 'SCHNELLKAMPF', 'SOFORT IN DEN KAMPF', L[0], L[1])}${mode('online', 'ONLINE', 'GEGEN SPIELER IM NETZ', L[0], L[1])}${mode(
+  const left = `${mode('quick', 'SCHNELLKAMPF', 'SOFORT GEGEN DIE CPU', L[0], L[1])}${mode('online', 'ONLINE', 'ZUFALLSGEGNER · BALD', L[0], L[1])}${mode(
     'friend',
-    'GEGEN FREUNDE',
-    'FORDERE DEINE CREW',
+    'FREUNDE',
+    'ONLINE PER RAUM-CODE',
     L[0],
     L[1],
   )}`;
 
   const R = G.right.box;
-  const right = `${mode('ranked', 'RANGLISTE', 'KÄMPF DICH NACH OBEN', R[0], R[1])}${mode('leader', 'BESTENLISTE', 'WER IST DIE LEGENDE?', R[0], R[1])}
+  const right = `${mode('ranked', 'RANKED', 'KÄMPF UM DEINE LIGA', R[0], R[1])}${mode('leader', 'BESTENLISTE', 'WER IST DIE LEGENDE?', R[0], R[1])}
     ${button(
       'mode',
       'mode',
@@ -212,6 +213,7 @@ export function mainMenuHtml(m: MainMenuModel): string {
   const logo = `<div class="mm-logo" style="${pos(MM_ART.logo.x - lgx, MM_ART.logo.y - lgy, MM_ART.logo.w, MM_ART.logo.h)}"><img alt="RAP BRAWL" draggable="false" src="${MM_ART.logo.src}"></div>`;
 
   return `<div class="mm-bg" style="background-image:url(${MM_ART.bg.src})"></div>
+    <span class="fig-anchor mm-fig"></span>
     <div class="mm-stage">
       ${groupHtml(G.logo, logo)}
       ${groupHtml(G.tl, player)}
@@ -284,12 +286,29 @@ export function layoutMainMenu(root: HTMLElement): number {
     const [x, y, s = 1] = at[id];
     el.style.transform = `translate(${ins.l + x * u}px, ${ins.t + y * u}px)${s !== 1 ? ` scale(${s})` : ''}`;
   }
+  // favourite fighter: stands on the street between the two button columns, feet just above the tab bar
+  const fig = root.querySelector<HTMLElement>('.mm-fig');
+  if (fig) {
+    const cx = (at.left[0] + W_(G.left) + at.right[0]) / 2;
+    const feet = at.bc[1] - 2;
+    const logoBottom = at.logo[1] + H_(G.logo) * (at.logo[2] ?? 1);
+    const h = clamp(feet - logoBottom + 40, 300, 560);
+    fig.style.left = `${ins.l + (cx - h / 4) * u}px`;
+    fig.style.top = `${ins.t + (feet - h) * u}px`;
+    fig.style.width = `${(h / 2) * u}px`;
+    fig.style.height = `${h * u}px`;
+  }
   fitTexts(root);
   return u;
 }
 
-export function mountMainMenu(root: HTMLElement, onAction: (a: MainMenuAction, el: HTMLElement) => void): () => void {
+export function mountMainMenu(root: HTMLElement, onAction: (a: MainMenuAction, el: HTMLElement) => void, favorite?: string): () => void {
   root.classList.add('mm');
+  let figs: MenuFigures | null = null;
+  if (favorite) {
+    figs = new MenuFigures(root, root.querySelector('.mm-stage'));
+    figs.set([{ id: favorite, anchor: root.querySelector<HTMLElement>('.mm-fig')!, facing: 1, rim: 0xffc040, turn: 0.95 }]);
+  }
   const relayout = () => layoutMainMenu(root);
   relayout();
   document.fonts?.ready.then(relayout).catch(() => undefined);
@@ -300,7 +319,10 @@ export function mountMainMenu(root: HTMLElement, onAction: (a: MainMenuAction, e
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
     if (b) onAction(b.dataset.act as MainMenuAction, b);
   });
-  return () => ro.disconnect();
+  return () => {
+    ro.disconnect();
+    figs?.dispose();
+  };
 }
 
 export { toast as mainMenuToast } from './kit';

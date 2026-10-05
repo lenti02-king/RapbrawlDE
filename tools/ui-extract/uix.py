@@ -232,13 +232,37 @@ def inpaint(img: np.ndarray, mask: np.ndarray, max_side=1024, ctx=0.6, min_ctx=4
     return out
 
 
-def outpaint_sides(img: np.ndarray, side: int) -> np.ndarray:
-    """Extend a plate by `side` px left and right (LaMa continues the scene) so wider phones see more of it."""
+PLATE_SIDE = 420  # outpainted margin left/right: covers phones up to ~2.6:1 (19.5:9 + browser/app bars)
+PLATE_TOP = 90  # outpainted margin top/bottom: covers 16:10 and 4:3 tablets
+
+
+def center_crop_w(img: np.ndarray, w: int) -> np.ndarray:
+    """A cached plate may be wider than the master (older outpaint): back to the master's width."""
+    x0 = (img.shape[1] - w) // 2
+    return img[:, x0:x0 + w]
+
+
+def extend_plate(img: np.ndarray, cache: str, side=PLATE_SIDE, top=PLATE_TOP) -> np.ndarray:
+    """Outpaint a clean plate by `side` px left/right and `top` px top/bottom (LaMa continues the scene), so screens
+    fill wide phones and tablets without bars. Cached in `cache` (reused when REUSE_BG is set and the size matches)."""
+    H, W = img.shape[:2]
+    if os.path.exists(cache) and os.environ.get('REUSE_BG'):
+        c = cv2.imread(cache)
+        if c is not None and c.shape[:2] == (H + 2 * top, W + 2 * side):
+            return c
     wide = cv2.copyMakeBorder(img, 0, 0, side, side, cv2.BORDER_REFLECT)
     om = np.zeros(wide.shape[:2], np.uint8)
     om[:, :side] = 255
     om[:, -side:] = 255
-    return inpaint(wide, om, max_side=1024, ctx=0.45, feather=6)
+    wide = inpaint(wide, om, max_side=1024, ctx=0.45, feather=6)
+    if top:
+        tall = cv2.copyMakeBorder(wide, top, top, 0, 0, cv2.BORDER_REFLECT)
+        om = np.zeros(tall.shape[:2], np.uint8)
+        om[:top] = 255
+        om[-top:] = 255
+        wide = inpaint(tall, om, max_side=1400, ctx=0.12, min_ctx=120, feather=6)
+    cv2.imwrite(cache, wide)
+    return wide
 
 
 def inpaint_local(img: np.ndarray, mask: np.ndarray, region=None, **kw) -> np.ndarray:

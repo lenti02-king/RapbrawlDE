@@ -3,7 +3,7 @@
 Output: src/ui/img/select/*.webp + src/ui/menu/charSelectArt.ts. Run: python3 tools/ui-extract/char_select.py
 The background keeps the master's banners, tile grid, name ribbon (incl. the gold VS) and logo. Removed: the two
 pedestal silhouettes (the game puts the chosen fighters there), the baked names, the buttons (own sprites, text out).
-The plate is outpainted 220 px to each side so 19.5:9 phones see the whole 16:9 composition without cropping.
+The plate is outpainted (uix.extend_plate) so wide phones and tablets are filled edge to edge.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ REF = 'tools/ui-extract/ref/char_select.webp'
 OUT = os.path.join(uix.ROOT, 'src/ui/img/select')
 TS = os.path.join(uix.ROOT, 'src/ui/menu/charSelectArt.ts')
 DBG = os.path.join(uix.ROOT, '.cache/ui')
-SIDE = 220  # outpainted margin per side
+SIDE, TOP = uix.PLATE_SIDE, uix.PLATE_TOP  # outpainted plate margins
 
 FIGURES = [(150, 350, 585, 830), (1415, 345, 1855, 830)]  # pedestal silhouettes (removed)
 NAMES = {  # baked texts on the ribbon (removed; native in the game)
@@ -65,14 +65,13 @@ def main():
 
     bg_path = os.path.join(DBG, 'cs_bg.png')
     if os.path.exists(bg_path) and os.environ.get('REUSE_BG'):
-        wide = cv2.imread(bg_path)
+        bg = uix.center_crop_w(cv2.imread(bg_path), W)
     else:
         bg = uix.inpaint(img, hole, max_side=1024, ctx=0.5)
-        wide = uix.outpaint_sides(bg, SIDE)
-        cv2.imwrite(bg_path, wide)
-    bg = wide[:, SIDE:SIDE + W]
-    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/select', box=(0, 0, wide.shape[1], H), quality=86)]
-    sprites[0].x = -SIDE
+    cv2.imwrite(bg_path, bg)
+    wide = uix.extend_plate(bg, os.path.join(DBG, 'cs_plate.png'))
+    sprites = [uix.crop_sprite('bg', wide, None, OUT, '../img/select', box=(0, 0, wide.shape[1], wide.shape[0]), quality=86)]
+    sprites[0].x, sprites[0].y = -SIDE, -TOP
 
     for k, b in BUTTONS.items():
         tm = uix.text_mask(img, b['text'], thr=30, dil=4, k=31) & btn_masks[k]
@@ -84,7 +83,7 @@ def main():
     uix.write_ts(TS, 'CS_ART', sprites, 'tools/ui-extract/char_select.py',
                  extra={'CS_BOXES': {**{k: list(v) for k, v in NAMES.items()}, **{f'tile_{k}': list(v) for k, v in TILES.items()},
                                      **{f'ped_{k}': list(v) for k, v in PEDESTALS.items()},
-                                     **{f'{k}_text': list(b['text']) for k, b in BUTTONS.items()}, 'side': SIDE}})
+                                     **{f'{k}_text': list(b['text']) for k, b in BUTTONS.items()}, 'side': SIDE, 'top': TOP}})
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))
     print(f'{len(sprites)} sprites, {total / 1e6:.2f} MB ->', OUT)
 

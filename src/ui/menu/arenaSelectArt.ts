@@ -17,7 +17,7 @@ export interface RefSprite {
 }
 
 export const AS_ART = {
-  "bg": { src: I_bg, x: -220, y: 0, w: 2440, h: 1125 },
+  "bg": { src: I_bg, x: -420, y: -90, w: 2840, h: 1305 },
   "preview": { src: I_preview, x: 358, y: 368, w: 864, h: 416 },
   "tile_on": { src: I_tile_on, x: 341, y: 751, w: 238, h: 219 },
   "tile": { src: I_tile, x: 570, y: 775, w: 214, h: 196 },

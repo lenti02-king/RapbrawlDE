@@ -59,14 +59,40 @@ export function coverOf(W: number, H: number, refW: number, refH: number, ax = 0
   return { s, ox: (W - refW * s) * ax, oy: (H - refH * s) * ay };
 }
 
-/** Fixed 16:9 stage (the master's coordinate space) centred in the screen at the largest scale that fits ("contain").
- *  Returns the scale (px per reference pixel). Wider phones see the outpainted plate beside it. */
-export function layoutStage(root: HTMLElement, stage: HTMLElement, refW = 2000, refH = 1125): number {
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Stage in the master's coordinate space (2000x1125), scaled as large as the `safe` rect (everything interactive)
+ *  allows inside the usable screen (safe-area insets), the safe rect centred; then slid (not scaled) so the outpainted
+ *  `plate` keeps covering the screen. Phones of any aspect are filled edge to edge; nothing interactive is cut off.
+ *  Returns the scale (px per reference pixel). */
+export function layoutStage(root: HTMLElement, stage: HTMLElement, safe: Box = [0, 0, 2000, 1125], plate?: Rect): number {
   const W = root.clientWidth;
   const H = root.clientHeight;
   if (!W || !H) return 0;
-  const s = Math.min(W / refW, H / refH);
-  stage.style.transform = `translate(${(W - refW * s) / 2}px, ${(H - refH * s) / 2}px)`;
+  const ins = safeInsets(root);
+  const aw = W - ins.l - ins.r;
+  const ah = H - ins.t - ins.b;
+  const sw = safe[2] - safe[0];
+  const sh = safe[3] - safe[1];
+  const s = Math.min(aw / sw, ah / sh);
+  let tx = ins.l + aw / 2 - (safe[0] + sw / 2) * s;
+  let ty = ins.t + ah / 2 - (safe[1] + sh / 2) * s;
+  if (plate) {
+    const slide = (t: number, p0: number, p1: number, view: number, s0: number, s1: number, lo: number, hi: number) => {
+      // plate covering needs t in [view - p1*s, -p0*s]; the safe rect visible needs t in [lo - s0*s, hi - s1*s]
+      const a = Math.max(view - p1 * s, lo - s0 * s);
+      const b = Math.min(-p0 * s, hi - s1 * s);
+      return a <= b ? clamp(t, a, b) : t;
+    };
+    tx = slide(tx, plate.x, plate.x + plate.w, W, safe[0], safe[2], ins.l, W - ins.r);
+    ty = slide(ty, plate.y, plate.y + plate.h, H, safe[1], safe[3], ins.t, H - ins.b);
+  }
+  stage.style.transform = `translate(${tx}px, ${ty}px)`;
   root.style.setProperty('--u', `${s}px`);
   fitTexts(root);
   return s;

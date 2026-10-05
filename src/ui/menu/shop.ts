@@ -6,6 +6,8 @@ import { de, esc, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
 
 type Art = keyof typeof SH_ART;
 const B = SH_BOXES;
+/** Everything interactive or readable (reference px): kept on screen, as large as possible. */
+const SAFE: Box = [10, 2, 1970, 1016];
 
 export interface ShopModel {
   coins: number;
@@ -77,7 +79,9 @@ export function shopHtml(m: ShopModel): string {
       ${btn('back', 'data-back', 'Zurück')}
       ${num('coins', m.coins, B.coinsNum)}${num('gems', m.gems, B.gemsNum)}
       ${btn('menu', 'data-settings', 'Einstellungen')}
-      ${tabs}${cards}${bundle}
+      <div class="sh-wip">${tabs}${cards}${bundle}</div>
+      <div class="sh-tape a" style="${pos(150, 720, 1700, 70)}"><span>${'KOMMT BALD · DESIGNER AM WERK · '.repeat(4)}</span></div>
+      <div class="sh-tape b" style="${pos(150, 720, 1700, 70)}"><span>${'DIE ERSTE KOLLEKTION WIRD GERADE ENTWORFEN · '.repeat(3)}</span></div>
     </div>
     <div class="mm-toast" hidden></div>`;
 }
@@ -85,5 +89,5 @@ export function shopHtml(m: ShopModel): string {
 export function mountShop(root: HTMLElement): () => void {
   root.classList.add('mm', 'sh');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
-  return keepLaidOut(root, () => layoutStage(root, stage));
+  return keepLaidOut(root, () => layoutStage(root, stage, SAFE, SH_ART.bg));
 }

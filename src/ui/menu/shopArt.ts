@@ -26,7 +26,7 @@ export interface RefSprite {
 }
 
 export const SH_ART = {
-  "bg": { src: I_bg, x: -220, y: 0, w: 2440, h: 1125 },
+  "bg": { src: I_bg, x: -420, y: -90, w: 2840, h: 1305 },
   "back": { src: I_back, x: 12, y: 4, w: 161, h: 105 },
   "coins": { src: I_coins, x: 1294, y: 13, w: 273, h: 84 },
   "gems": { src: I_gems, x: 1565, y: 12, w: 263, h: 85 },
