@@ -62,12 +62,15 @@ export class TrainingMonitor {
       this.dirty = true;
     }
     if (this.dirty || s.frame % 6 === 0) {
-      this.el.textContent =
-        `MOVE      ${this.moveName}\n` +
-        `STARTUP   ${this.startup}\n` +
-        `ADVANTAGE ${this.adv}\n` +
-        `COMBO     ${this.lastCombo} hits · ${this.lastDamage} dmg\n` +
-        `INPUT     ${fmt(inputs[0])}`;
+      const rows: [string, string][] = [
+        ['MOVE', this.moveName],
+        ['STARTUP', String(this.startup)],
+        ['VORTEIL', String(this.adv)],
+        ['KOMBO', `${this.lastCombo} Treffer · ${this.lastDamage} Schaden`],
+        ['EINGABE', fmt(inputs[0])],
+      ];
+      const esc = (t: string) => t.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`);
+      this.el.innerHTML = rows.map(([k, v]) => `<div class="ti-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
       this.dirty = false;
     }
   }

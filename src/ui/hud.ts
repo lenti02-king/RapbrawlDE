@@ -8,11 +8,15 @@ import { beatDistance, RULES } from '../core/sim';
 import { TAUNT_AT, TAUNTS, TITLE_AT } from '../render/fatalities';
 import { CAT_COLOR, cardIcon, costBadge, UI_ICONS } from './icons';
 import { portrait } from './portraits';
+import { HUD_ART, HUD_BOXES } from './menu/hudArt';
+import { fitTexts, pos, safeInsets, text } from './menu/kit';
+import './hudm.css';
 
 interface Side {
   root: HTMLElement;
   fill: HTMLElement;
   drain: HTMLElement;
+  pills: HTMLElement[];
   hp: HTMLElement;
   name: HTMLElement;
   avatar: HTMLElement;
@@ -49,6 +53,106 @@ function popHold(k: number, from: number, inEnd = 0.12, outStart = 0.8): [number
   if (k < outStart) return [1, 1];
   const x = (k - outStart) / (1 - outStart);
   return [1 - x, 1 + 0.08 * x];
+}
+
+/** Native text box content (.mm-t: the inner <i> carries the outline copy in data-t). */
+function setT(el: HTMLElement, t: string): void {
+  const i = (el.firstElementChild as HTMLElement | null) ?? el;
+  if (i.textContent === t) return;
+  i.textContent = t;
+  i.dataset.t = t;
+}
+
+// ------------------------------------------------------------------------------------------- master HUD (D38)
+type HudArt = keyof typeof HUD_ART;
+const HB = HUD_BOXES;
+const art = (id: HudArt, ox: number, oy: number, cls = '') => {
+  const a = HUD_ART[id];
+  return `<img class="hm-art ${cls}" alt="" draggable="false" src="${a.src}" style="${pos(a.x - ox, a.y - oy, a.w, a.h)}">`;
+};
+/** Value clip over a fill strip: the strip keeps its pixels, the clip shows `--p` of it from the anchored end. */
+const clip = (id: HudArt, ox: number, oy: number, right: boolean, cls = '') => {
+  const a = HUD_ART[id];
+  return `<span class="hm-clip ${right ? 'r' : ''} ${cls}" style="${pos(a.x - ox, a.y - oy, a.w, a.h)};--p:1"><img alt="" draggable="false" src="${a.src}"></span>`;
+};
+/** Group boxes (reference px) of the master HUD. */
+const HG = {
+  p1: [HUD_ART.p1.x, HUD_ART.p1.y, HUD_ART.p1.x + HUD_ART.p1.w, HUD_ART.p1.y + HUD_ART.p1.h],
+  p2: [HUD_ART.p2.x, HUD_ART.p2.y, HUD_ART.p2.x + HUD_ART.p2.w, HUD_ART.p2.y + HUD_ART.p2.h],
+  mid: [HUD_ART.timer.x, HUD_ART.timer.y, HUD_ART.timer.x + HUD_ART.timer.w, HUD_ART.pause.y + HUD_ART.pause.h],
+  hand: [HUD_ART.card0.x, HUD_ART.card2.y, HUD_ART.hype.x + HUD_ART.hype.w, HUD_ART.hype.y + HUD_ART.hype.h],
+  info: [HUD_ART.info.x, HUD_ART.info.y, HUD_ART.info.x + HUD_ART.info.w, HUD_ART.info.y + HUD_ART.info.h],
+} as const;
+type HGroup = keyof typeof HG;
+const gStyle = (g: HGroup) => `--w:${HG[g][2] - HG[g][0]};--h:${HG[g][3] - HG[g][1]}`;
+
+function sideHtml(cls: 'p1' | 'p2'): string {
+  const [ox, oy] = HG[cls];
+  const r = cls === 'p2';
+  const pb = HB[`${cls}_portrait`];
+  const nb = HB[`${cls}_name`];
+  const hb = HB[`${cls}_num`];
+  const crownX = r ? nb[0] - 150 : nb[2] + 18;
+  return `<div class="hm-g hm-side ${cls}" data-hg="${cls}" style="${gStyle(cls)}">
+      <span class="hm-avatar" style="${pos(pb[0] - ox, pb[1] - oy, pb[2] - pb[0], pb[3] - pb[1])}"></span>
+      ${clip(`${cls}_hp`, ox, oy, r, 'hm-drain')}${clip(`${cls}_hp`, ox, oy, r, 'hm-fill')}
+      ${[0, 1, 2].map((k) => clip(`${cls}_pill${k}` as HudArt, ox, oy, false, 'pill')).join('')}
+      ${art(cls, ox, oy, 'frame')}
+      ${text('', [nb[0] + (r ? 0 : 6), nb[1] + 4, nb[2] - (r ? 6 : 0), nb[3] - 4], ox, oy, { cls: 'hm-name', fs: 40, align: r ? 'right' : 'left' })}
+      ${text('', [hb[0], hb[1] + 2, hb[2], hb[3] - 2], ox, oy, { cls: 'hm-hp', fs: 40, align: 'center' })}
+      <span class="hm-crowns" style="${pos(crownX - ox, nb[1] + 8 - oy, 132, 40)}"></span>
+    </div>`;
+}
+
+function handHtml(): string {
+  const [ox, oy] = HG.hand;
+  const cards = [0, 1, 2]
+    .map((i) => {
+      const b = HB[`card${i}` as 'card0'];
+      const a = HUD_ART[`card${i}` as HudArt];
+      const [ax0, ay0, ax1, ay1] = b.art;
+      return `<div class="hcard ${i === 2 ? 'sig' : ''}" data-slot="${i}" style="${pos(a.x - ox, a.y - oy, a.w, a.h)}">
+        <span class="slotart" style="${pos(ax0 - a.x, ay0 - a.y, ax1 - ax0, ay1 - ay0)}"></span>
+        <span class="fillmask" style="${pos(ax0 - a.x, ay0 - a.y, ax1 - ax0, ay1 - ay0)}"></span>
+        ${art(`card${i}` as HudArt, a.x, a.y, 'frame')}
+        ${text('', [b.cost[0] + 16, b.cost[1] + 16, b.cost[2] + 8, b.cost[3] + 14], a.x, a.y, { cls: 'hm-cost', fs: 50, align: 'center' })}
+        ${text('', [b.name[0], b.name[1], b.name[2], b.name[3]], a.x, a.y, { cls: 'hm-cname', fs: 26 })}
+        ${text(SLOT_KEYS[i], [b.key[0], b.key[1], b.key[2], b.key[3]], a.x, a.y, { cls: 'hm-key', fs: 44, align: 'center' })}
+      </div>`;
+    })
+    .join('');
+  const hl = HB.hypeLabel;
+  const h = HUD_ART.hype;
+  return `<div class="hm-g hand hm-hand" data-hg="hand" style="${gStyle('hand')}">
+      ${cards}
+      <div class="hm-hypebar" style="${pos(h.x - ox, h.y - oy, h.w, h.h)}">
+        ${clip('hype_fill', h.x, h.y, false, 'hfill')}
+        ${art('hype', h.x, h.y, 'frame')}
+        ${text('HYPE', [hl[0], hl[1], hl[2], hl[3]], h.x, h.y, { cls: 'hm-hype', fs: 46, align: 'center' })}
+        ${text('0', [h.x + 64, h.y + 58, h.x + 112, h.y + 100], h.x, h.y, { cls: 'hm-hypen', fs: 32, align: 'center' })}
+      </div>
+    </div>`;
+}
+
+function midHtml(): string {
+  const [ox, oy] = HG.mid;
+  const tb = HB.timerText;
+  const p = HUD_ART.pause;
+  return `<div class="hm-g clock-g" data-hg="mid" style="${gStyle('mid')}">
+      <div class="hm-clock" style="${pos(HUD_ART.timer.x - ox, HUD_ART.timer.y - oy, HUD_ART.timer.w, HUD_ART.timer.h)}">
+        <div class="hm-ring"></div>${art('timer', HUD_ART.timer.x, HUD_ART.timer.y, 'frame')}
+        ${text('99', [tb[0] - 20, tb[1] - 10, tb[2] + 20, tb[3] + 6], HUD_ART.timer.x, HUD_ART.timer.y, { cls: 'hm-timer', fs: 74, align: 'center' })}
+        <div class="hm-beatpop">BEAT!</div>
+      </div>
+      <button class="pause-btn hm-pause" aria-label="Pause" style="${pos(p.x - ox, p.y - oy, p.w, p.h)}">${art('pause', p.x, p.y)}</button>
+    </div>`;
+}
+
+function infoHtml(): string {
+  const [ox, oy] = HG.info;
+  const [l, v] = HB.infoText;
+  return `<div class="hm-g info-g" data-hg="info" style="${gStyle('info')}">${art('info', ox, oy)}
+      <div class="training-info" style="${pos(l[0] - ox, l[1] - oy, v[2] - l[0], v[3] - l[1])}"></div></div>`;
 }
 
 /** Card markup shared by HUD and menus. */
@@ -103,18 +207,9 @@ export class Hud {
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
-    this.root.className = 'hud';
-    const side = (cls: string) => `
-      <div class="side ${cls}">
-        <div class="avatar"><span class="ptag">${cls.toUpperCase()}</span></div>
-        <div class="sidebody">
-          <div class="nameplate"><span class="name"></span><span class="hcrowns"></span></div>
-          <div class="bar"><div class="drain"></div><div class="fill"></div><div class="ticks"></div><div class="hp"></div></div>
-          <div class="mini-hype"><div class="hb"><b></b></div><div class="hb"><b></b></div><div class="hb"><b></b></div></div>
-        </div>
-      </div>`;
+    this.root.className = 'hud hm';
     this.root.innerHTML = `
-      <div class="hud-top">${side('p1')}<div class="clock"><div class="beat-ring"></div><div class="vinyl"></div><div class="timer">99</div><div class="beat-pop">BEAT!</div></div>${side('p2')}</div>
+      ${sideHtml('p1')}${midHtml()}${sideHtml('p2')}
       <div class="duel-ui"><div class="duel-title">MIC-DUELL!</div><div class="duel-sub">TIPPEN! TIPPEN! TIPPEN!</div>
         <div class="duel-bars"><div class="dbar p1"><b></b><span>0</span></div><div class="duel-mic"><svg viewBox="0 0 40 64" aria-hidden="true"><rect x="13" y="30" width="14" height="30" rx="6" fill="#2b2140" stroke="#1a0f2e" stroke-width="4"/><circle cx="20" cy="18" r="15" fill="#d9d4ea" stroke="#1a0f2e" stroke-width="4"/><path d="M9 15q11-8 22 0M8 22q12-7 24 0" stroke="#1a0f2e" stroke-width="2.5" fill="none" opacity="0.5"/><rect x="11" y="30" width="18" height="6" rx="2" fill="#ffc531" stroke="#1a0f2e" stroke-width="3"/></svg></div><div class="dbar p2"><b></b><span>0</span></div></div></div>
       <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div></div>
@@ -124,32 +219,27 @@ export class Hud {
       <div class="combo p2"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
       <div class="card-banner p1"></div><div class="card-banner p2"></div>
       <div class="super-card"></div>
-      <div class="hand">
-        <div class="hcards">
-          ${[0, 1, 2].map((i) => `<div class="hcard ${i === 2 ? 'sig' : ''}" data-slot="${i}"><div class="slotcard"></div><div class="fillmask"></div><kbd class="key">${SLOT_KEYS[i]}</kbd></div>`).join('')}
-        </div>
-        <div class="hypebar"><span class="cost"><b>0</b></span><div class="hb"><b></b></div><div class="hb"><b></b></div><div class="hb"><b></b></div><span class="hlabel">HYPE</span></div>
-      </div>
+      ${handHtml()}
       <div class="sig-ready"></div>
       <div class="tip"></div>
       <div class="announce"></div>
       <div class="letterbox"><div class="lb lb-top"></div><div class="lb lb-bot"></div><div class="cine-title"></div></div>
       <div class="screen-flash"></div>
-      <div class="training-info"></div>
-      <button class="btn icon pause-btn" aria-label="Pause">${UI_ICONS.pause}</button>`;
+      ${infoHtml()}`;
     parent.appendChild(this.root);
     for (const cls of ['p1', 'p2']) {
-      const r = this.root.querySelector<HTMLElement>(`.side.${cls}`)!;
+      const r = this.root.querySelector<HTMLElement>(`[data-hg="${cls}"]`)!;
       const combo = this.root.querySelector<HTMLElement>(`.combo.${cls}`)!;
       this.sides.push({
         root: r,
-        fill: r.querySelector('.fill')!,
-        drain: r.querySelector('.drain')!,
-        hp: r.querySelector('.hp')!,
-        name: r.querySelector('.name')!,
-        avatar: r.querySelector('.avatar')!,
-        crowns: r.querySelector('.hcrowns')!,
-        hypeFill: [...r.querySelectorAll<HTMLElement>('.hb b')],
+        fill: r.querySelector('.hm-fill')!,
+        drain: r.querySelector('.hm-drain')!,
+        hp: r.querySelector('.hm-hp')!,
+        name: r.querySelector('.hm-name')!,
+        avatar: r.querySelector('.hm-avatar')!,
+        crowns: r.querySelector('.hm-crowns')!,
+        hypeFill: [],
+        pills: [...r.querySelectorAll<HTMLElement>('.hm-clip.pill')],
         combo,
         comboN: combo.querySelector('.combo-n')!,
         comboD: combo.querySelector('.combo-d')!,
@@ -162,29 +252,62 @@ export class Hud {
         lastRounds: -1,
       });
     }
-    this.timer = this.root.querySelector('.timer')!;
+    this.timer = this.root.querySelector('.hm-timer')!;
     this.announce = this.root.querySelector('.announce')!;
     this.letterbox = this.root.querySelector('.letterbox')!;
     this.cineTitle = this.root.querySelector('.cine-title')!;
     this.flash = this.root.querySelector('.screen-flash')!;
     this.superCard = this.root.querySelector('.super-card')!;
     this.hand = this.root.querySelector('.hand')!;
-    this.hypebar = this.root.querySelector('.hypebar')!;
-    this.hypeFill = [...this.hypebar.querySelectorAll<HTMLElement>('.hb b')];
-    this.hypeN = this.hypebar.querySelector('.cost b')!;
+    this.hypebar = this.root.querySelector('.hm-hypebar')!;
+    this.hypeFill = [this.hypebar.querySelector<HTMLElement>('.hfill')!];
+    this.hypeN = this.hypebar.querySelector<HTMLElement>('.hm-hypen > i')!;
     this.sigReady = this.root.querySelector('.sig-ready')!;
     this.tip = this.root.querySelector('.tip')!;
     this.handCards.push(...this.root.querySelectorAll<HTMLElement>('.hcard'));
     this.pauseBtn = this.root.querySelector('.pause-btn')!;
-    this.clock = this.root.querySelector('.clock')!;
-    this.ring = this.root.querySelector('.beat-ring')!;
-    this.beatPop = this.root.querySelector('.beat-pop')!;
+    this.clock = this.root.querySelector('.hm-clock')!;
+    this.ring = this.root.querySelector('.hm-ring')!;
+    this.beatPop = this.root.querySelector('.hm-beatpop')!;
     this.duelUi = this.root.querySelector('.duel-ui')!;
     this.duelBars = [...this.root.querySelectorAll<HTMLElement>('.dbar')];
     this.finishSub = this.root.querySelector('.finish-sub')!;
     this.fatalTitle = this.root.querySelector('.fatal-title')!;
     this.tauntEl = this.root.querySelector('.taunt')!;
     this.trainingInfo = this.root.querySelector('.training-info')!;
+    new ResizeObserver(() => this.layout()).observe(this.root);
+  }
+
+  /** Master HUD layout: groups at their master positions, top bar anchored to the top corners and centre, the hand at
+   *  the bottom centre (smaller on phones so the fighters stay visible), all inside the safe area. */
+  layout(): void {
+    const W = this.root.clientWidth;
+    const H = this.root.clientHeight;
+    if (!W || !H) return;
+    const ins = safeInsets(this.root);
+    const base = Math.min((W - ins.l - ins.r) / 2000, (H - ins.t - ins.b) / 1125);
+    const phone = H < 560;
+    const top = base * (phone ? 0.92 : 0.8);
+    const hand = base * (phone ? 0.72 : 0.7);
+    const set = (g: HGroup, u: number, x: number, y: number) => {
+      const el = this.root.querySelector<HTMLElement>(`[data-hg="${g}"]`);
+      if (!el) return;
+      el.style.setProperty('--u', `${u}px`);
+      el.style.transform = `translate(${x}px, ${y}px)`;
+    };
+    const gw = (g: HGroup) => HG[g][2] - HG[g][0];
+    const gh = (g: HGroup) => HG[g][3] - HG[g][1];
+    const ty = ins.t + 8 * top;
+    // the two sides may not overlap the clock: shrink the top bar on narrow screens
+    const need = gw('p1') + gw('mid') + gw('p2') + 40;
+    const u = Math.min(top, (W - ins.l - ins.r - 12) / need);
+    set('p1', u, ins.l + 6 * u, ty);
+    set('p2', u, W - ins.r - 6 * u - gw('p2') * u, ty);
+    set('mid', u, W / 2 - (gw('mid') * u) / 2, ty);
+    set('hand', hand, W / 2 - (gw('hand') * hand) / 2, H - ins.b - gh('hand') * hand - 6 * hand);
+    set('info', u, ins.l + 6 * u, ty + (gh('p1') + 20) * u);
+    this.root.style.setProperty('--u', `${u}px`);
+    fitTexts(this.root);
   }
 
   /** @param local index of the fighter whose hand is shown; @param touch hand cards are tappable buttons */
@@ -197,7 +320,7 @@ export class Hud {
     this.fatalTitle.classList.remove('show');
     s.fighters.forEach((f, i) => {
       const side = this.sides[i];
-      side.name.textContent = getFighter(f.def).name;
+      setT(side.name, getFighter(f.def).name.toUpperCase());
       const img = portrait(f.def, 'bust');
       side.avatar.innerHTML = img ? `<img alt="" src="${img}">` : '';
       side.drainV = 1;
@@ -209,9 +332,16 @@ export class Hud {
     const me = s.fighters[local];
     this.handCards.forEach((el, i) => {
       const id = me.loadout[i];
-      el.querySelector('.slotcard')!.innerHTML = id ? cardHtml(me.def, id) : '';
       el.style.display = id ? '' : 'none';
+      if (!id) return;
+      const c = getCard(me.def, id);
+      const a = portrait(me.def, `art:${c.id}`);
+      el.querySelector<HTMLElement>('.slotart')!.style.backgroundImage = `url('assets/cards/${c.id}.webp')${a ? `, url('${a}')` : ''}`;
+      setT(el.querySelector<HTMLElement>('.hm-cost')!, String(Math.round(c.cost / 100)));
+      setT(el.querySelector<HTMLElement>('.hm-cname')!, c.name.toUpperCase());
+      setT(el.querySelector<HTMLElement>('.hm-key')!, touch ? '' : SLOT_KEYS[i]);
     });
+    this.layout();
     this.hand.classList.toggle('tap', touch);
     this.root.classList.toggle('training', s.config.training);
     this.announce.className = 'announce';
@@ -374,15 +504,15 @@ export class Hud {
       const max = getFighter(f.def).health;
       const hp = f.health / max;
       if (f.health !== side.lastHp) {
-        side.fill.style.transform = `scaleX(${hp})`;
-        side.hp.textContent = String(f.health);
+        side.fill.style.setProperty('--p', hp.toFixed(4));
+        setT(side.hp, String(f.health));
         side.root.classList.toggle('danger', hp < 0.25);
         side.lastHp = f.health;
       }
       const inCombo = f.state === 'hitstun' || f.state === 'juggle' || f.state === 'thrown' || f.state === 'cineDef';
       if (!inCombo) side.drainV = Math.max(hp, side.drainV - dt * 0.6);
       if (side.drainV < hp) side.drainV = hp;
-      side.drain.style.transform = `scaleX(${side.drainV})`;
+      side.drain.style.setProperty('--p', side.drainV.toFixed(4));
       if (f.roundsWon !== side.lastRounds) {
         side.lastRounds = f.roundsWon;
         side.crowns.querySelectorAll('i').forEach((c, k) => c.classList.toggle('won', k < f.roundsWon));
@@ -391,8 +521,8 @@ export class Hud {
         side.lastMeter = f.meter;
         for (let k = 0; k < 3; k++) {
           const v = Math.max(0, Math.min(1, (f.meter - k * 100) / 100));
-          side.hypeFill[k].style.transform = `scaleX(${v})`;
-          side.hypeFill[k].parentElement!.classList.toggle('full', v >= 1);
+          side.pills[k].style.setProperty('--p', v.toFixed(3));
+          side.pills[k].classList.toggle('full', v >= 1);
         }
       }
       // combo counter shows on the ATTACKER side
@@ -415,8 +545,8 @@ export class Hud {
     this.updateHand(s);
     const secs = s.config.training ? -1 : Math.ceil(s.timer / 60);
     if (secs !== this.lastTimer) {
-      this.timer.textContent = secs < 0 ? '∞' : String(Math.max(0, secs));
-      this.timer.classList.toggle('low', secs >= 0 && secs <= 10);
+      setT(this.timer, secs < 0 ? '∞' : String(Math.max(0, secs)));
+      this.clock.classList.toggle('low', secs >= 0 && secs <= 10);
       this.lastTimer = secs;
     }
     this.flash.style.opacity = String(Math.min(0.85, screenFlash));
@@ -469,12 +599,10 @@ export class Hud {
     if (me.meter === this.lastLocalMeter) return;
     const prev = this.lastLocalMeter;
     this.lastLocalMeter = me.meter;
-    for (let k = 0; k < 3; k++) {
-      const v = Math.max(0, Math.min(1, (me.meter - k * 100) / 100));
-      this.hypeFill[k].style.transform = `scaleX(${v})`;
-      this.hypeFill[k].parentElement!.classList.toggle('full', v >= 1);
-    }
+    this.hypeFill[0].style.setProperty('--p', Math.max(0, Math.min(1, me.meter / 300)).toFixed(4));
+    this.hypebar.classList.toggle('full', me.meter >= 300);
     this.hypeN.textContent = String(Math.floor(me.meter / 100));
+    this.hypeN.dataset.t = this.hypeN.textContent;
     this.handCards.forEach((el, i) => {
       const id = me.loadout[i];
       if (!id) return;

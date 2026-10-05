@@ -1,0 +1,385 @@
+/* In-game HUD from the PO master (D38). Every size is reference px x var(--u) (set per group by Hud.layout).
+   Legacy HUD rules (hud.css/style.css/theme.css) still exist for the overlays (combo, banners, duel, finish); the parts
+   rebuilt here use hm-* classes, and the few legacy names that other code relies on (.hand, .hcard, .pause-btn,
+   .training-info) are reset below. */
+.hud.hm .hm-g {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+  transform-origin: 0 0;
+  pointer-events: none;
+  padding: 0;
+  margin: 0;
+  display: block;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+.hud.hm .hm-g > *,
+.hud.hm .hcard > *,
+.hud.hm .hm-hypebar > *,
+.hud.hm .hm-clock > *,
+.hud.hm .hm-pause > *,
+.hud.hm .info-g > * {
+  position: absolute;
+  left: calc(var(--x) * var(--u));
+  top: calc(var(--y) * var(--u));
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+}
+.hud.hm .hm-art {
+  display: block;
+  pointer-events: none;
+  z-index: 1;
+}
+/* soft outer glow of the master (lost on its fake checkerboard), recreated in the sampled colours */
+.hud.hm .hm-side.p1 > .hm-art.frame {
+  filter: drop-shadow(0 0 calc(var(--u) * 6) rgba(255, 70, 40, 0.55));
+}
+.hud.hm .hm-side.p2 > .hm-art.frame {
+  filter: drop-shadow(0 0 calc(var(--u) * 6) rgba(40, 150, 255, 0.6));
+}
+.hud.hm .hm-clock > .hm-art.frame {
+  filter: drop-shadow(0 0 calc(var(--u) * 8) rgba(160, 80, 255, 0.5));
+}
+
+/* portraits sit behind the frame window */
+.hud.hm .hm-avatar {
+  z-index: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #3b4466, #141a30);
+  border-radius: calc(var(--u) * 10);
+}
+.hud.hm .hm-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hud.hm .hm-side.p2 .hm-avatar img {
+  transform: scaleX(-1);
+}
+
+/* value clips: show --p of the strip from the anchored end */
+.hud.hm .hm-clip {
+  overflow: hidden;
+  z-index: 0;
+  width: calc(var(--w) * var(--u) * var(--p)) !important;
+  transition: width 0.08s linear;
+}
+.hud.hm .hm-clip.r {
+  left: calc((var(--x) + var(--w) * (1 - var(--p))) * var(--u)) !important;
+  transition:
+    width 0.08s linear,
+    left 0.08s linear;
+}
+.hud.hm .hm-clip img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: calc(var(--w) * var(--u));
+  max-width: none;
+}
+.hud.hm .hm-clip.r img {
+  left: auto;
+  right: 0;
+}
+.hud.hm .hm-clip.hm-drain {
+  transition: none;
+}
+.hud.hm .hm-clip.hm-drain img {
+  filter: saturate(0) brightness(2.2);
+  opacity: 0.8;
+}
+.hud.hm .hm-side.danger .hm-fill img {
+  animation: hm-danger 0.5s ease-in-out infinite alternate;
+}
+@keyframes hm-danger {
+  to {
+    filter: brightness(1.45) saturate(1.3);
+  }
+}
+.hud.hm .hm-clip.pill.full img {
+  filter: brightness(1.25);
+}
+.hud.hm .hm-crowns {
+  display: flex;
+  gap: calc(var(--u) * 6);
+  align-items: center;
+  z-index: 2;
+}
+.hud.hm .hm-side.p2 .hm-crowns {
+  justify-content: flex-end;
+}
+.hud.hm .hm-crowns i {
+  width: calc(var(--u) * 38);
+  height: calc(var(--u) * 38);
+  opacity: 0.35;
+  filter: grayscale(1);
+}
+.hud.hm .hm-crowns i.won {
+  opacity: 1;
+  filter: drop-shadow(0 0 calc(var(--u) * 6) #ffcf3a);
+}
+.hud.hm .hm-crowns i svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* native texts */
+.hud.hm .hm-name {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: 0.03em;
+  --fill: linear-gradient(180deg, #ffffff, #dfe7f3);
+  --sw: 0.1em;
+  --sh: 0 0.05em 0 #04060d;
+}
+.hud.hm .hm-hp {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  --fill: linear-gradient(180deg, #ffffff, #e8eef7);
+  --sw: 0.1em;
+  --sh: 0 0.05em 0 #04060d;
+}
+.hud.hm .hm-timer {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(180deg, #ffffff 0%, #ffe0f0 55%, #ff7ac0 100%);
+  --ol: #3a0626;
+  --sw: 0.08em;
+  --sh: 0 0 0.25em rgba(255, 60, 160, 0.8);
+}
+.hud.hm .hm-clock.low .hm-timer {
+  --fill: linear-gradient(180deg, #fff, #ff9a8a 60%, #ff3b2a);
+}
+.hud.hm .hm-ring {
+  z-index: 0;
+  border-radius: 50%;
+  inset: 10%;
+  left: 12% !important;
+  top: 12% !important;
+  width: 76% !important;
+  height: 76% !important;
+  box-shadow:
+    0 0 calc(var(--u) * 26) calc(var(--u) * 6) rgba(255, 70, 180, 0.6),
+    inset 0 0 calc(var(--u) * 20) rgba(255, 70, 180, 0.5);
+  opacity: 0.4;
+}
+.hud.hm .hm-beatpop {
+  left: 0 !important;
+  width: 100% !important;
+  top: 100% !important;
+  height: auto !important;
+  text-align: center;
+  font: italic 900 calc(var(--u) * 34) / 1 'Barlow Condensed', sans-serif;
+  color: #ffe36a;
+  text-shadow: 0 calc(var(--u) * 3) 0 #3a0626;
+  opacity: 0;
+  z-index: 3;
+}
+.hud.hm .hm-beatpop.go {
+  animation: hm-beatpop 0.5s ease-out;
+}
+@keyframes hm-beatpop {
+  0% {
+    opacity: 1;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1) translateY(calc(var(--u) * -20));
+  }
+}
+.hud.hm .hm-pause {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  min-width: 0;
+  min-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud.hm .hm-pause:active {
+  transform: scale(0.94);
+}
+
+/* hand: three cards + hype bar */
+.hud.hm .hand {
+  position: absolute;
+  inset: auto;
+  gap: 0;
+  flex-direction: unset;
+  align-items: unset;
+}
+.hud.hm .hcard {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  transform: none;
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  filter: grayscale(0.55) brightness(0.8);
+  transition:
+    filter 0.15s,
+    transform 0.08s;
+}
+.hud.hm .hcard.ready {
+  filter: none;
+}
+.hud.hm .hcard.ready.sig {
+  filter: drop-shadow(0 0 calc(var(--u) * 14) rgba(255, 200, 40, 0.85));
+  animation: hm-sig 1.2s ease-in-out infinite;
+}
+@keyframes hm-sig {
+  50% {
+    filter: drop-shadow(0 0 calc(var(--u) * 22) rgba(255, 220, 80, 1)) brightness(1.08);
+  }
+}
+.hud.hm .hcard.down {
+  transform: scale(0.94);
+}
+.hud.hm .hcard .slotart {
+  z-index: 0;
+  background-size: cover;
+  background-position: 50% 30%;
+  background-color: #1a1430;
+}
+.hud.hm .hcard .fillmask {
+  z-index: 0;
+  transform-origin: 50% 0;
+  background: linear-gradient(180deg, rgba(8, 10, 24, 0.82), rgba(8, 10, 24, 0.6));
+}
+.hud.hm .hcard .frame {
+  z-index: 1;
+}
+.hud.hm .hm-cost {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(#fff, #fff);
+  --sw: 0.1em;
+  --ol: #2a0606;
+  --sh: none;
+}
+.hud.hm .hm-cname {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(#fff, #e6ebf3);
+  --sw: 0.1em;
+  --sh: none;
+}
+.hud.hm .hm-key {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(#1b2133, #0b0f1c);
+  --sw: 0;
+  --sh: none;
+}
+.hud.hm .hm-hypebar {
+  pointer-events: none;
+}
+.hud.hm .hm-hypebar.full .hfill img {
+  animation: hm-danger 0.6s ease-in-out infinite alternate;
+}
+.hud.hm .hm-hype {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(#fff, #ffe3ef);
+  --sw: 0.1em;
+  --ol: #4a0618;
+  --sh: none;
+}
+.hud.hm .hm-hypen {
+  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  z-index: 2;
+  --fill: linear-gradient(#fff, #ffd84a);
+  --sw: 0.12em;
+  --ol: #2a0640;
+  --sh: none;
+}
+
+/* training info panel */
+.hud.hm .info-g {
+  display: none;
+}
+.hud.hm.training .info-g {
+  display: block;
+}
+.hud.hm .training-info {
+  display: block;
+  position: absolute;
+  inset: auto;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  z-index: 2;
+  font: 600 calc(var(--u) * 30) / 1.45 'Barlow Condensed', sans-serif;
+  color: #fff;
+  white-space: pre-line;
+  overflow: hidden;
+}
+
+/* hide the top bar and the hand during cinematics, duel and fatality */
+.hud.hm:has(.letterbox.on) .hm-g,
+.hud.hm.fatal .hm-g,
+.hud.hm.duel .hand {
+  opacity: 0;
+  pointer-events: none;
+}
+.hud.hm .ti-row {
+  display: grid;
+  grid-template-columns: 44% 1fr;
+  white-space: nowrap;
+}
+.hud.hm .ti-row span {
+  color: #8fe0ff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.hud.hm .ti-row b {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* stacking: frame (with the empty track) < drain < fill < texts */
+.hud.hm .hm-clip {
+  z-index: 2;
+}
+.hud.hm .hm-clip.hm-fill,
+.hud.hm .hm-clip.hfill {
+  z-index: 3;
+}
+.hud.hm .mm-t {
+  z-index: 4;
+}
+.hud.hm .hm-clip,
+.hud.hm .hm-clip.r {
+  transition: none;
+}
