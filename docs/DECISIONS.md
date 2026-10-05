@@ -178,3 +178,16 @@ layered (transient, body, thump, sub boom + crunch on heavies, saturation bus). 
 procedurally performed 90 BPM rap beat ("Block Beats", 32-bar form) — GEMA-free; a `bgm.mp3` drop-in (git-ignored, so
 unlicensed songs never reach the public repo) replaces it for the MVP if the PO adds one.
 
+
+## D38 — PO screenshots are the visual master; menus are cut from their pixels (2026-10-05)
+The PO supplied final UI screenshots (2000x1125) and asked for maximum fidelity: no redrawing, art cut from the images,
+text and logic native. `tools/ui-extract/` does this per screen: GrabCut masks per panel (frame interior seeded as
+foreground), LaMa inpainting (Apache-2.0 TorchScript model, CPU, `.cache/lama/`) for the background behind the panels,
+for baked English text and for the Mercedes star on the car (third-party logo, removed at the PO's request), rebuilt
+empty progress tracks, gradient fill for small badge interiors, background-aware matting so glows composite cleanly.
+Output: WebP sprites in `src/ui/img/<screen>/` + a generated TS table of reference-pixel boxes. Runtime: a stage in
+reference pixels scaled by one CSS variable; groups (top bar, columns, bottom row, logo) stick to their screen edges and
+grow up to 20 % on wide phones, inside the safe area — 16:9 matches the master 1:1, 19.5:9 phones keep every element.
+Text is German (PO decision), set in Barlow Condensed italic with gradient fill + outline to match the master lettering
+(SPIELEN as native text, chosen by the agent over baked art so it stays editable). The PO's reference files are not in
+git (they contain third-party marks); see `tools/ui-extract/README.md`.

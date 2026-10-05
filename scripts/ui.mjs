@@ -20,30 +20,32 @@ for (const [tag, vp, touch] of [
   await frames(page, 6);
   await page.screenshot({ path: `${out}/${tag}_0_title.png` });
   await page.click('.splash button[data-default]');
-  await page.waitForSelector('.home');
+  await page.waitForSelector('.main-menu');
   await page.waitForTimeout(600);
   await frames(page, 10);
   await page.screenshot({ path: `${out}/${tag}_1_home.png` });
-  await page.click('[data-nav="fighters"]');
+  await page.click('[data-act="fighters"]');
   await page.waitForSelector('.fcard');
   await page.waitForTimeout(400);
   await frames(page, 4);
   await page.screenshot({ path: `${out}/${tag}_2_fighters.png` });
-  await page.click('[data-back]');
-  await page.click('[data-nav="deck"]');
+  await page.click('[data-todeck]');
   await page.waitForSelector('.deck-slots');
   await page.click('.collection [data-card]:not(:has(.equipped))');
   await page.waitForTimeout(400);
   await frames(page, 3);
   await page.screenshot({ path: `${out}/${tag}_3_deck.png` });
   await page.click('[data-back]');
-  await page.click('[data-nav="help"]');
+  await page.waitForSelector('.fcard');
+  await page.click('[data-back]');
+  await page.waitForSelector('.main-menu');
+  await page.click('[data-act="event"]');
   await page.waitForTimeout(400);
   await frames(page, 3);
   await page.screenshot({ path: `${out}/${tag}_4_help.png` });
   await page.click('[data-back]');
   if (process.env.ONLY_MENU) {
-    await page.click('[data-fight]');
+    await page.click('[data-act="play"]');
     await page.waitForSelector('.st-select');
     await page.waitForTimeout(500);
     await frames(page, 4);
@@ -56,7 +58,7 @@ for (const [tag, vp, touch] of [
     await ctx.close();
     continue;
   }
-  await page.click('[data-fight]');
+  await page.click('[data-act="play"]');
   await page.waitForSelector('.st-select');
   await page.waitForTimeout(500);
   await frames(page, 4);

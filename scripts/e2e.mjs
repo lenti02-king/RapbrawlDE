@@ -38,21 +38,19 @@ const sim = (page) =>
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${out}/d01_title.png` });
   await page.keyboard.press('Enter');
-  await page.waitForSelector('.home');
+  await page.waitForSelector('.main-menu');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${out}/d02_home.png` });
   check(await page.evaluate(() => window.__rb.mode === 'menu' && !window.__rb.runner), 'home screen is a plain menu (3D scene not running yet)');
   // fighter select: pick Bonez MC
-  await page.click('[data-nav="fighters"]');
+  await page.click('[data-act="fighters"]');
   await page.waitForSelector('.fcard[data-f="bonez"]');
   await page.click('.fcard[data-f="bonez"]');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${out}/d03_fighters.png` });
   check((await page.evaluate(() => window.__rb.sel.fighters[0])) === 'bonez', 'fighter select picks Bonez MC');
-  await page.click('[data-ok]');
-  await page.waitForSelector('.home');
-  // deck: swap special 2 (Abriss) for Rauchwand
-  await page.click('[data-nav="deck"]');
+  // deck (from the fighter screen): swap special 2 (Abriss) for Rauchwand
+  await page.click('[data-todeck]');
   await page.waitForSelector('.collection [data-card="bon_smoke"]');
   await page.click('.collection [data-card="bon_smoke"]');
   await page.click('[data-use]');
@@ -61,14 +59,16 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/d04_deck.png` });
   check(!(await page.isDisabled('[data-ok]')), 'legal 2+1 deck enables FERTIG');
   await page.click('[data-ok]');
-  await page.waitForSelector('.home');
+  await page.waitForSelector('.fcard');
+  await page.click('[data-ok]');
+  await page.waitForSelector('.main-menu');
   await page.evaluate(() => {
     window.__vsSeen = false;
     new MutationObserver(() => {
       if (document.querySelector('.vs')) window.__vsSeen = true;
     }).observe(document.body, { childList: true, subtree: true });
   });
-  await page.click('[data-fight]');
+  await page.click('[data-act="play"]');
   // new flow: Tekken-style fighter select -> arena select -> loading screen -> fight
   await page.waitForSelector('.st-select');
   await page.waitForTimeout(400);
@@ -192,10 +192,10 @@ const sim = (page) =>
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/m01_title.png` });
   await page.tap('.splash button');
-  await page.waitForSelector('.home');
+  await page.waitForSelector('.main-menu');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/m02_home.png` });
-  await page.tap('[data-fight]');
+  await page.tap('[data-act="play"]');
   await page.waitForSelector('.st-select');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/m02a_select.png` });

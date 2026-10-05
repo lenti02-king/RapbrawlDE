@@ -15,9 +15,9 @@ const toLobby = async (p) => {
   await p.goto(base + '/?touch=0&q=low&netsilence=60');
   await p.waitForSelector('.splash');
   await p.click('.splash button');
-  await p.waitForSelector('.home');
+  await p.waitForSelector('.main-menu');
   // new flow (session 8): ONLINE mode tile -> fighter select (P1 only) -> lobby
-  await p.click('[data-mode="online"]');
+  await p.click('[data-act="online"]');
   await p.waitForSelector('.st-select');
   await p.click('[data-ready]');
   await p.waitForSelector('.online-grid');

@@ -1,12 +1,23 @@
 # Project status
 
-_Last updated: 2026-10-05 (session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-05 (session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, version 11 = session 8): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 9 — PO master screenshots as the UI source (main menu first)
+| Area | Status | Evidence |
+|---|---|---|
+| Extraction pipeline `tools/ui-extract/` (GrabCut + LaMa + matting, D38) | VERIFIED | 25 sprites, 1.4 MB WebP; contact sheet on magenta; background plate without UI and without the Mercedes star |
+| Main menu = master art + native German text + real buttons | VERIFIED | `node scripts/menushot.mjs`: 2000x1125 capture next to the master (`compare.py`: art identical outside text zones), phones 844x390 (notch, `?safe=47`) and 800x360 |
+| Phone landscape layout (groups stick to edges, +20 % on wide phones, safe area) | VERIFIED (emulated) | screenshots above; real devices UNVERIFIED |
+| Buttons wired: Schnellkampf/Online/Gegen Freunde/Rangliste → flow; SPIELEN = last mode; Modus sheet + CPU-Stärke; Kämpfer, Arenen, Einstellungen, Profil, Event (Hilfe), Glocke (News) | VERIFIED | e2e 24/24 + netplay script use the new menu |
+| Shop, Battle Pass, Bestenliste, Münzen/Diamanten | PLACEHOLDER | local values, "BALD VERFÜGBAR" toast, no real money (PO decision) |
+| Modus sheet + News sheet | RECREATED (no master exists) | simple styled panels until the PO supplies a design |
+| Loading, character select, arena select, shop screens | TODO (next) | PO references received |
 
 ## Session 8 — PO feedback: head/hands, strike variety, mechanics, fatality, abilities, VFX/sound/music, HUD, flow + menus after inspiration boards
 | Area | Status | Evidence |

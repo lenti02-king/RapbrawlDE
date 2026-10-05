@@ -19,3 +19,6 @@ public/assets/music/*.mp3
 public/assets/music/*.ogg
 public/assets/music/*.m4a
 public/assets/music/*.wav
+
+# PO master screenshots for tools/ui-extract (contain third-party marks; see tools/ui-extract/README.md)
+tools/ui-extract/ref/

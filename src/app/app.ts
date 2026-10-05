@@ -19,6 +19,7 @@ import { TOON } from '../ui/toon-icons';
 import { ARENAS, arenaInfo } from '../ui/arenas';
 import { brushBanner, logoHtml, MODE_ICON, SILHOUETTE, stageBg, streetBg } from '../ui/street';
 import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
+import { mainMenuHtml, mainMenuToast, mountMainMenu, type MainMenuModel } from '../ui/menu/mainMenu';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
@@ -142,6 +143,18 @@ function rankOf(p: Profile): { name: string; next: string } {
   while (i + 1 < RANKS.length && p.wins >= RANKS[i + 1][0]) i++;
   const nxt = RANKS[i + 1];
   return { name: RANKS[i][1], next: nxt ? `Noch ${nxt[0] - p.wins} Siege bis ${nxt[1]}` : 'Höchster Rang erreicht' };
+}
+
+type MenuMode = 'quick' | 'online' | 'friend' | 'ranked' | 'training';
+const NEWS_VERSION = 1;
+
+/** Local placeholder economy (PO decision: visible, no real money, nothing to buy yet): coins and diamonds grow
+ *  with played matches, the battle pass levels up every 500 pass XP. */
+function economyOf(p: Profile): { coins: number; gems: number; pass: { level: number; xp: number; xpMax: number } } {
+  const coins = 500 + p.wins * 50 + p.losses * 20 + p.draws * 30;
+  const gems = 50 + Math.floor(p.wins / 5) * 10;
+  const passXp = p.matches * 100 + p.wins * 50;
+  return { coins, gems, pass: { level: 1 + Math.floor(passXp / 500), xp: passXp % 500, xpMax: 500 } };
 }
 
 export class App {
@@ -494,92 +507,143 @@ export class App {
     return { ...NEW_PROFILE, ...store.get<Partial<Profile>>('profile', {}) };
   }
 
-  /** Main menu: night street, graffiti logo, game modes (no fighters here: they are picked when a fight starts). */
+  /** Main menu: the PO's master design (D38) - extracted artwork, native German text, game modes (no fighters here:
+   *  they are picked when a fight starts). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
     const p = this.profileData;
     const lvl = levelOf(p);
-    const rank = rankOf(p);
     const rp = store.get('rp', 0);
     const tier = tierOf(rp);
-    const bust = portrait(this.sel.fighters[0], 'bust');
-    const lv = LEVELS.map((l) => `<span role="button" tabindex="0" class="${this.sel.level === l ? 'on' : ''}" data-level="${l}">${LEVEL_DE[l]}</span>`).join('');
-    const mode = (m: string, icon: string, title: string, sub: string) =>
-      `<button class="st-mode ${m}" data-mode="${m === 'versus' ? 'local' : m}">${icon}<span class="mt"><b>${title}</b><span>${sub}</span></span></button>`;
-    const el = this.open(
-      `${streetBg()}
-       <header class="st-top">
-         <button class="st-player" data-name aria-label="Name ändern">
-           <span class="st-avatar">${bust ? `<img alt="" src="${bust}">` : ''}<b>${lvl.level}</b></span>
-           <span><span class="st-pname">${esc(this.playerName)}</span><span class="st-xp"><i style="width:${lvl.pct.toFixed(0)}%"></i></span></span>
-         </button>
-         <div class="st-chip" title="Ranglisten-Liga">${TOON.crown}<b>${tier.name}</b></div>
-         <div class="st-chip" title="Siege">${TOON.trophy}<b>${p.wins}</b></div>
-         <div class="grow"></div>
-         <button class="st-round" data-nav="help" aria-label="Steuerung">${TOON.help}</button>
-         <button class="st-round" data-sound aria-label="Ton">${this.audio.muted ? TOON.mute : TOON.sound}</button>
-         <button class="st-round" data-settings aria-label="Einstellungen">${TOON.gear}</button>
-       </header>
-       <main class="st-home-main">
-         <section class="st-home-left">
-           ${logoHtml()}
-           <button class="st-pass" data-nav="profile">${TOON.crown}<b>STRASSEN-RANG <em>${rank.name}</em></b>
-             <span class="st-bar"><i style="width:${Math.min(100, (p.wins / Math.max(1, p.wins + (Number(rank.next.match(/\d+/)?.[0]) || 0))) * 100).toFixed(0)}%"></i></span><small>${rank.next}</small></button>
-           <button class="st-event" data-nav="help"><span><small>SAISON 1 · NEU</small><b>FATALITY-FINISHER</b><span>Dazu Mic-Duell, Wand-Splat und Beat-Drop.</span></span><span class="st-new">NEU!</span></button>
-         </section>
-         <section class="st-home-right">
-           <button class="st-mode quick" data-mode="cpu">${MODE_ICON.quick}<span class="mt"><span class="st-tagline">Sofort rein</span><b>SCHNELLER KAMPF</b><span>Gegen die CPU</span></span><span class="st-lvl">${lv}</span></button>
-           <div class="st-grid">
-             ${mode('online', MODE_ICON.online, 'ONLINE', 'Gegen Freunde per Code')}
-             ${mode('versus', MODE_ICON.versus, '2 SPIELER', 'Zu zweit an einem Gerät')}
-             ${mode('ranked', MODE_ICON.ranked, 'RANGLISTE', `${tier.name} · ${rp} RP`)}
-             ${mode('training', MODE_ICON.training, 'TRAINING', 'Kombos & Frame-Daten')}
-           </div>
-           <button class="st-btn yellow st-play" data-fight data-default>${TOON.swords}<span>SPIELEN</span></button>
-         </section>
-       </main>
-       <nav class="st-nav">
-         <button data-nav="fighters">${MODE_ICON.fighters}<span>KÄMPFER</span></button>
-         <button data-nav="arenas">${MODE_ICON.arenas}<span>ARENEN</span></button>
-         <button data-nav="deck">${MODE_ICON.cards}<span>KARTEN</span></button>
-         <button data-nav="profile">${MODE_ICON.profile}<span>PROFIL</span></button>
-       </nav>`,
-      'st home',
-    );
-    el.querySelector('[data-fight]')!.addEventListener('click', () => this.beginFlow(this.sel.mode, false));
-    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const m = b.dataset.mode!;
-        if (m === 'ranked') this.beginFlow('cpu', true);
-        else this.beginFlow(m as PlayMode | 'online', false);
-      }),
-    );
-    el.querySelectorAll<HTMLButtonElement>('[data-level]').forEach((c) =>
-      c.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.sel.level = c.dataset.level as Level;
+    const eco = economyOf(p);
+    const last = store.get<MenuMode>('menuMode', 'quick');
+    const modeInfo: Record<MenuMode, MainMenuModel['mode']> = {
+      quick: { title: 'SCHNELLKAMPF', status: 'CPU-GEGNER BEREIT …', detail: `SCHWIERIGKEIT: ${LEVEL_DE[this.sel.level]}` },
+      online: { title: 'ONLINE', status: 'RAUM PER CODE …', detail: 'ERSTELLEN ODER BEITRETEN' },
+      friend: { title: 'GEGEN FREUNDE', status: '2 SPIELER · 1 GERÄT', detail: 'TASTATUR ODER GAMEPAD' },
+      ranked: { title: 'RANGLISTE', status: `LIGA: ${tier.name} …`, detail: `${rp} RP · ${tier.next.toUpperCase()}` },
+      training: { title: 'TRAINING', status: 'FREIES TRAINING …', detail: 'KOMBOS & FRAME-DATEN' },
+    };
+    const model: MainMenuModel = {
+      name: this.playerName,
+      level: lvl.level,
+      xp: lvl.xp % 400,
+      xpMax: 400,
+      coins: eco.coins,
+      gems: eco.gems,
+      news: store.get('newsSeen', 0) < NEWS_VERSION ? 1 : 0,
+      mode: modeInfo[last],
+      pass: eco.pass,
+    };
+    const el = this.open(mainMenuHtml(model), 'mm main-menu');
+    const start = (m: MenuMode) => {
+      store.set('menuMode', m);
+      if (m === 'quick') this.beginFlow('cpu', false);
+      else if (m === 'online') this.beginFlow('online', false);
+      else if (m === 'friend') this.beginFlow('local', false);
+      else if (m === 'ranked') this.beginFlow('cpu', true);
+      else this.beginFlow('training', false);
+    };
+    const soon = (what: string) => mainMenuToast(el, `${what} – BALD VERFÜGBAR`);
+    const stop = mountMainMenu(el, (a) => {
+      switch (a) {
+        case 'quick':
+        case 'online':
+        case 'friend':
+        case 'ranked':
+          start(a);
+          break;
+        case 'play':
+          start(last);
+          break;
+        case 'mode':
+        case 'modes':
+          this.showModes(el);
+          break;
+        case 'profile':
+          this.showProfile();
+          break;
+        case 'settings':
+          this.showSettings();
+          break;
+        case 'fighters':
+          this.showFighters(0);
+          break;
+        case 'arenas':
+          this.showArenaSelect(() => this.showHome(), true);
+          break;
+        case 'event':
+          this.showHelp(() => this.showHome());
+          break;
+        case 'news':
+          store.set('newsSeen', NEWS_VERSION);
+          this.showNews(el);
+          break;
+        case 'shop':
+          soon('SHOP');
+          break;
+        case 'pass':
+          soon('BATTLE PASS');
+          break;
+        case 'leader':
+          soon('BESTENLISTE');
+          break;
+      }
+    });
+    const obs = new MutationObserver(() => {
+      if (!el.isConnected) {
+        stop();
+        obs.disconnect();
+      }
+    });
+    obs.observe(this.ui, { childList: true });
+  }
+
+  /** Mode list + CPU difficulty (opened from the selected-mode panel and the MODI tab). */
+  private showModes(root: HTMLElement): void {
+    const last = store.get<MenuMode>('menuMode', 'quick');
+    const row = (m: MenuMode, t: string, s: string) =>
+      `<button class="mm-pick${m === last ? ' on' : ''}" data-m="${m}"><b>${t}</b><span>${s}</span></button>`;
+    const lv = LEVELS.map((l) => `<button class="mm-chip${this.sel.level === l ? ' on' : ''}" data-l="${l}">${LEVEL_DE[l]}</button>`).join('');
+    const ov = document.createElement('div');
+    ov.className = 'mm-overlay';
+    ov.innerHTML = `<div class="mm-sheet"><div class="mm-sheet-h">SPIELMODUS</div>
+      ${row('quick', 'SCHNELLKAMPF', 'Gegen die CPU')}${row('ranked', 'RANGLISTE', 'Liga-Kämpfe gegen die CPU')}${row('online', 'ONLINE', 'Raum per Code')}
+      ${row('friend', 'GEGEN FREUNDE', '2 Spieler an einem Gerät')}${row('training', 'TRAINING', 'Kombos & Frame-Daten')}
+      <div class="mm-sheet-h small">CPU-STÄRKE</div><div class="mm-chips">${lv}</div>
+      <button class="mm-close" aria-label="Schließen">OK</button></div>`;
+    root.appendChild(ov);
+    ov.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const m = t.closest<HTMLElement>('[data-m]')?.dataset.m as MenuMode | undefined;
+      const l = t.closest<HTMLElement>('[data-l]')?.dataset.l as Level | undefined;
+      if (m) store.set('menuMode', m);
+      if (l) {
+        this.sel.level = l;
         store.set('selection', this.sel);
+      }
+      if (m || l || t.closest('.mm-close') || t === ov) {
         this.audio.ui('click');
         this.showHome();
-      }),
-    );
-    el.querySelector('[data-settings]')!.addEventListener('click', () => this.showSettings());
-    el.querySelector('[data-sound]')!.addEventListener('click', () => {
-      this.audio.setMuted(!this.audio.muted);
-      store.set('muted', this.audio.muted);
-      this.showHome();
+        if (l) this.showModes(this.screen!);
+      }
     });
-    el.querySelector('[data-name]')!.addEventListener('click', () => this.showNameDialog());
-    el.querySelectorAll<HTMLButtonElement>('[data-nav]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const n = b.dataset.nav;
-        if (n === 'fighters') this.showFighters(0);
-        else if (n === 'deck') this.showDeck(0, () => this.showHome());
-        else if (n === 'arenas') this.showArenaSelect(() => this.showHome(), true);
-        else if (n === 'help') this.showHelp(() => this.showHome());
-        else if (n === 'profile') this.showProfile();
-      }),
-    );
+  }
+
+  private showNews(root: HTMLElement): void {
+    const ov = document.createElement('div');
+    ov.className = 'mm-overlay';
+    ov.innerHTML = `<div class="mm-sheet"><div class="mm-sheet-h">NEU IN SAISON 1</div>
+      <ul class="mm-news"><li><b>Fatality:</b> nach dem letzten K.O. SIGNATURE drücken – brutaler Finisher mit Spott.</li>
+      <li><b>Mic-Duell:</b> zwei Schläge gleichzeitig? Wer schneller tippt, gewinnt.</li>
+      <li><b>Wand-Splat & Beat-Drop:</b> an die Bande klatschen, im Takt härter treffen.</li>
+      <li><b>Neue Karten:</b> Diamanten-Regen (Jazeek) und Tiefergelegt (Bonez MC).</li></ul>
+      <button class="mm-close" aria-label="Schließen">OK</button></div>`;
+    root.appendChild(ov);
+    ov.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('.mm-close') || t === ov) this.showHome();
+    });
   }
 
   /** Mode chosen: pick fighters (Tekken-style), then the arena, then load and fight. */
