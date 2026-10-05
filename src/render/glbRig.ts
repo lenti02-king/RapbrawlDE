@@ -163,8 +163,14 @@ export async function fetchGltf(base: string, exact?: string): Promise<GLTF | nu
 }
 
 /** Try to load `<base>/<id>.glb` for each fighter (missing files are fine: procedural fallback). */
-export async function loadCharacterModels(ids: string[], base = 'assets/characters', overrides: Record<string, string> = {}): Promise<string[]> {
+export async function loadCharacterModels(
+  ids: string[],
+  base = 'assets/characters',
+  overrides: Record<string, string> = {},
+  onProgress?: (done: number) => void,
+): Promise<string[]> {
   const ok: string[] = [];
+  let done = 0;
   await Promise.all(
     ids.map(async (id) => {
       try {
@@ -178,6 +184,8 @@ export async function loadCharacterModels(ids: string[], base = 'assets/characte
         ok.push(id);
       } catch (e) {
         console.warn(`[models] ${id}: failed to load — using placeholder`, e);
+      } finally {
+        onProgress?.(++done);
       }
     }),
   );

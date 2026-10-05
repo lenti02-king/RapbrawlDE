@@ -7,13 +7,16 @@ import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
 import '@fontsource/barlow/500.css';
 import '@fontsource/barlow/600.css';
+import '@fontsource/permanent-marker/400.css';
 import './ui/style.css';
 import './ui/theme.css';
 import './ui/cr.css';
+import './ui/street.css';
 import { App } from './app/app';
 import { ROSTER } from './content';
 import { runLab } from './lab';
 import { loadCharacterModels } from './render/glbRig';
+import { logoHtml, stageBg } from './ui/street';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const ui = document.getElementById('ui') as HTMLElement;
@@ -27,17 +30,30 @@ for (const pair of (params.get('glb') ?? '').split(',')) {
 }
 // Models are ~4 MB each: wait for them (up to 60 s) so menus and fights show them; if they arrive later the menus
 // are re-rendered, and if they fail a visible note says the placeholders are active (instead of failing silently).
+// boot = the start screen's concert stage with a loading bar (the title screen replaces it with the same art)
 const boot = document.createElement('div');
-boot.className = 'boot-status';
-boot.textContent = 'LADE KÄMPFER …';
-ui.appendChild(boot);
+boot.className = 'screen st-title boot-screen';
+boot.innerHTML = `${stageBg()}<div class="st-season">SAISON 1 · BLOCK BEATS</div>${logoHtml()}
+  <div class="st-load"><div class="st-load-label">LÄDT KÄMPFER</div><div class="st-bar"><i></i></div></div>`;
+if (!params.get('lab') && !params.get('quick')) ui.appendChild(boot);
+const bootBar = boot.querySelector<HTMLElement>('.st-bar i')!;
+let bootPct = 4;
+let bootTarget = 10;
+const bootTick = window.setInterval(() => {
+  bootPct += (Math.min(96, bootTarget) - bootPct) * 0.12;
+  bootBar.style.width = `${bootPct.toFixed(1)}%`;
+}, 50);
 let app: App | null = null;
 let started = false;
-const models = loadCharacterModels([...ROSTER, 'volt', 'brick'], 'assets/characters', overrides).catch(() => [] as string[]);
+const modelIds = [...ROSTER, 'volt', 'brick'];
+const models = loadCharacterModels(modelIds, 'assets/characters', overrides, (done) => (bootTarget = 10 + (done / modelIds.length) * 80)).catch(() => [] as string[]);
 const timeout = new Promise((res) => setTimeout(res, 60000));
 void Promise.race([models, timeout]).then(() => {
   started = true;
-  boot.remove();
+  window.clearInterval(bootTick);
+  bootBar.style.width = '100%';
+  // the App renders portraits synchronously; the title screen then replaces the boot screen (same art)
+  if (params.get('lab') || params.get('quick')) boot.remove();
   if (params.get('lab')) runLab(canvas);
   else app = new App(canvas, ui);
 });

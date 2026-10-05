@@ -16,7 +16,8 @@ import { cardHtml, Hud } from '../ui/hud';
 import { CAT_COLOR, CAT_DE, UI_ICONS } from '../ui/icons';
 import { LINE } from '../ui/lines';
 import { TOON } from '../ui/toon-icons';
-import ARENA_CARD from '../ui/img/arena-podcast.jpg?inline';
+import { ARENAS, arenaInfo } from '../ui/arenas';
+import { brushBanner, logoHtml, MODE_ICON, SILHOUETTE, stageBg, streetBg } from '../ui/street';
 import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
@@ -40,7 +41,36 @@ interface Selection {
   loadouts: [string[], string[]];
   level: Level;
   mode: PlayMode;
+  arena: string;
 }
+
+/** Ranked ladder (offline, vs CPU): rank points decide the tier and the CPU strength. */
+const TIERS: [number, string, Level][] = [
+  [0, 'BRONZE', 'easy'],
+  [100, 'SILBER', 'easy'],
+  [250, 'GOLD', 'normal'],
+  [450, 'PLATIN', 'normal'],
+  [700, 'DIAMANT', 'hard'],
+  [1000, 'LEGENDE', 'hard'],
+];
+function tierOf(rp: number): { name: string; level: Level; next: string; pct: number } {
+  let i = 0;
+  while (i + 1 < TIERS.length && rp >= TIERS[i + 1][0]) i++;
+  const nxt = TIERS[i + 1];
+  const pct = nxt ? ((rp - TIERS[i][0]) / (nxt[0] - TIERS[i][0])) * 100 : 100;
+  return { name: TIERS[i][1], level: TIERS[i][2], next: nxt ? `${nxt[0] - rp} RP bis ${nxt[1]}` : 'Höchste Liga', pct };
+}
+const RP_WIN = 25;
+const RP_LOSS = 15;
+
+const LOAD_TIPS = [
+  '<b>Perfekt-Block:</b> tippe BLOCK genau bevor der Schlag trifft – kein Schaden, und dein Konter zählt doppelt.',
+  '<b>Wand-Splat:</b> drück den Gegner an die Bande und triff ihn mit einem harten Schlag – er klebt kurz an der Wand.',
+  '<b>Beat-Drop:</b> Schläge im Takt der Musik geben mehr Hype. Hör auf die Bassdrum!',
+  '<b>Mic-Duell:</b> treffen zwei Schläge gleichzeitig, entscheidet das schnellere Tippen.',
+  '<b>Fatality:</b> nach dem letzten K.O. sofort SIGNATURE drücken – für den brutalen Finisher.',
+  '<b>Launcher:</b> H · L schleudert hoch – halte OBEN für die Luft-Kombo.',
+];
 
 interface Stats {
   maxCombo: [number, number];
@@ -140,11 +170,24 @@ export class App {
   /** The 3D scene (arena + fighters) is only created when the first match starts; menus are plain 2D. */
   get view(): GameView {
     if (!this._view) {
-      this._view = new GameView(this.canvas);
+      this._view = new GameView(this.canvas, this.sel.arena);
+      this.viewArena = this.sel.arena;
       installCinematics(this._view, this.audio);
     }
     return this._view;
   }
+  private viewArena = '';
+  /** Arenas are built with the view: a different arena disposes the old view and starts on a fresh canvas. */
+  private ensureArena(): void {
+    if (!this._view || this.viewArena === this.sel.arena) return;
+    this._view.dispose();
+    const fresh = this.canvas.cloneNode(false) as HTMLCanvasElement;
+    this.canvas.replaceWith(fresh);
+    this.canvas = fresh;
+    this._view = null;
+  }
+  /** Mode chosen on the home screen (ranked = CPU ladder with rank points). */
+  private flow: { mode: PlayMode | 'online'; ranked: boolean } = { mode: 'cpu', ranked: false };
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.ui = ui;
@@ -173,6 +216,7 @@ export class App {
       loadouts: (saved.loadouts as [string[], string[]]) ?? [[], []],
       level: saved.level && saved.level in BOT_LEVELS ? saved.level : 'normal',
       mode: saved.mode && saved.mode in MODE_DE ? saved.mode : 'cpu',
+      arena: params.get('arena') ?? (ARENAS.some((a) => a.id === saved.arena && !a.locked) ? saved.arena! : 'podcast'),
     };
     for (let i = 0; i < 2; i++) {
       if (!ROSTER.includes(this.sel.fighters[i])) this.sel.fighters[i] = ROSTER[i] ?? ROSTER[0];
@@ -412,16 +456,16 @@ export class App {
     return `<div class="header"><button class="btn icon gray" data-back aria-label="Zurück">${LINE.back}</button><div class="title">${title}</div><div class="grow"></div>${extra}</div>`;
   }
 
+  /** Start screen: the concert stage with the graffiti logo (same art as the boot loading screen). */
   showTitle(): void {
-    const hero = (id: string, cls: string) => (portrait(id, 'hero') ? `<img class="cr-hero ${cls}" alt="" src="${portrait(id, 'hero')}">` : '');
+    document.querySelector('.boot-screen')?.remove();
     const el = this.open(
-      `<div class="cr-sky"></div>
-       <div class="cr-title-art"><img class="cr-arena-bg" alt="" src="${ARENA_CARD}">${hero(ROSTER[0], 'l')}${hero(ROSTER[1] ?? ROSTER[0], 'r')}</div>
-       <div class="cr-logo"><span>RAP</span><span>BRAWL</span></div>
-       <div class="cr-logo-sub">BLOCK BEATS · SAISON 1</div>
-       <div class="cr-press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div>
-       <button data-default style="position:absolute;inset:0;opacity:0" aria-label="Start"></button>`,
-      'splash cr',
+      `${stageBg()}
+       <div class="st-season">SAISON 1 · BLOCK BEATS</div>
+       ${logoHtml()}
+       <div class="st-load"><div class="st-press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div></div>
+       <button data-default style="position:absolute;inset:0;opacity:0;z-index:3" aria-label="Start"></button>`,
+      'st-title splash',
     );
     el.querySelector('button')!.addEventListener('click', () => {
       this.audio.unlock();
@@ -431,77 +475,85 @@ export class App {
   }
 
   private sideLabel(i: number): string {
-    if (this.sel.mode === 'local') return `SPIELER ${i + 1}`;
-    return i === 0 ? 'DU' : this.sel.mode === 'training' ? 'DUMMY' : 'CPU';
+    const m = this.flow.mode;
+    if (m === 'local') return `SPIELER ${i + 1}`;
+    if (m === 'online') return i === 0 ? 'DU' : 'ONLINE';
+    return i === 0 ? 'DU' : m === 'training' ? 'DUMMY' : 'CPU';
   }
 
   private get profileData(): Profile {
     return { ...NEW_PROFILE, ...store.get<Partial<Profile>>('profile', {}) };
   }
 
-  /** Main menu, cartoon style: player bar on top, the arena card with your fighter, deck + KAMPF on the side,
-   *  big tab bar at the bottom. Only real features are shown (no shop, chests or currencies). */
+  /** Main menu: night street, graffiti logo, game modes (no fighters here: they are picked when a fight starts). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
-    const fid = this.sel.fighters[0];
-    const d = getFighter(fid);
-    const deck = this.sel.loadouts[0].map((c) => cardHtml(fid, c, 'small')).join('');
     const p = this.profileData;
     const lvl = levelOf(p);
     const rank = rankOf(p);
-    const bust = portrait(fid, 'bust');
-    const hero = portrait(fid, 'hero');
-    const modeSub = this.sel.mode === 'cpu' ? LEVEL_DE[this.sel.level] : this.sel.mode === 'local' ? 'EIN GERÄT' : 'FRAME-DATEN';
+    const rp = store.get('rp', 0);
+    const tier = tierOf(rp);
+    const bust = portrait(this.sel.fighters[0], 'bust');
+    const lv = LEVELS.map((l) => `<span role="button" tabindex="0" class="${this.sel.level === l ? 'on' : ''}" data-level="${l}">${LEVEL_DE[l]}</span>`).join('');
+    const mode = (m: string, icon: string, title: string, sub: string) =>
+      `<button class="st-mode ${m}" data-mode="${m === 'versus' ? 'local' : m}">${icon}<span class="mt"><b>${title}</b><span>${sub}</span></span></button>`;
     const el = this.open(
-      `<div class="cr-sky"></div>
-       <header class="cr-top">
-         <button class="cr-player" data-name aria-label="Name ändern">
-           <span class="cr-lvl">${TOON.star}<b>${lvl.level}</b></span>
-           <span class="cr-pinfo"><span class="cr-pname">${esc(this.playerName)}</span>
-             <span class="cr-xp"><i style="width:${lvl.pct.toFixed(0)}%"></i><em>${Math.round(lvl.pct * 4)}/400</em></span></span>
+      `${streetBg()}
+       <header class="st-top">
+         <button class="st-player" data-name aria-label="Name ändern">
+           <span class="st-avatar">${bust ? `<img alt="" src="${bust}">` : ''}<b>${lvl.level}</b></span>
+           <span><span class="st-pname">${esc(this.playerName)}</span><span class="st-xp"><i style="width:${lvl.pct.toFixed(0)}%"></i></span></span>
          </button>
-         <div class="cr-chip" title="Straßen-Rang">${TOON.crown}<b>${rank.name}</b></div>
-         <div class="cr-chip" title="Siege">${TOON.trophy}<b>${p.wins}</b></div>
+         <div class="st-chip" title="Ranglisten-Liga">${TOON.crown}<b>${tier.name}</b></div>
+         <div class="st-chip" title="Siege">${TOON.trophy}<b>${p.wins}</b></div>
          <div class="grow"></div>
-         <button class="cr-round" data-nav="help" aria-label="Steuerung">${TOON.help}</button>
-         <button class="cr-round" data-sound aria-label="Ton">${this.audio.muted ? TOON.mute : TOON.sound}</button>
-         <button class="cr-round" data-settings aria-label="Einstellungen">${TOON.gear}</button>
+         <button class="st-round" data-nav="help" aria-label="Steuerung">${TOON.help}</button>
+         <button class="st-round" data-sound aria-label="Ton">${this.audio.muted ? TOON.mute : TOON.sound}</button>
+         <button class="st-round" data-settings aria-label="Einstellungen">${TOON.gear}</button>
        </header>
-       <main class="cr-main">
-         <section class="cr-arena">
-           <div class="cr-arena-card">
-             <img class="cr-arena-bg" alt="" src="${ARENA_CARD}">
-             ${hero ? `<img class="cr-hero" alt="" src="${hero}">` : ''}
-             <div class="cr-ribbon"><small>ARENA 1</small>BLOCK BEATS PODCAST</div>
-           </div>
+       <main class="st-home-main">
+         <section class="st-home-left">
+           ${logoHtml()}
+           <button class="st-pass" data-nav="profile">${TOON.crown}<b>STRASSEN-RANG <em>${rank.name}</em></b>
+             <span class="st-bar"><i style="width:${Math.min(100, (p.wins / Math.max(1, p.wins + (Number(rank.next.match(/\d+/)?.[0]) || 0))) * 100).toFixed(0)}%"></i></span><small>${rank.next}</small></button>
+           <button class="st-event" data-nav="help"><span><small>SAISON 1 · NEU</small><b>FATALITY-FINISHER</b><span>Dazu Mic-Duell, Wand-Splat und Beat-Drop.</span></span><span class="st-new">NEU!</span></button>
          </section>
-         <aside class="cr-side">
-           <button class="cr-road" data-nav="profile"><span>${TOON.crown}</span><span><b>RANG ${rank.name}</b><span>${rank.next}</span></span></button>
-           <button class="cr-fighter" data-nav="fighters">
-             <span class="cr-bust">${bust ? `<img alt="" src="${bust}">` : ''}</span>
-             <span class="cr-fname"><small>${d.archetype.toUpperCase()}</small>${d.name}</span>
-             <span class="cr-swap">WECHSELN</span>
-           </button>
-           <div class="cr-deck">
-             <div class="cr-deck-head"><span>DEIN DECK</span><button class="cr-btn blue tiny" data-deck>ÄNDERN</button></div>
-             <div class="cr-deck-cards">${deck}</div>
+         <section class="st-home-right">
+           <button class="st-mode quick" data-mode="cpu">${MODE_ICON.quick}<span class="mt"><span class="st-tagline">Sofort rein</span><b>SCHNELLER KAMPF</b><span>Gegen die CPU</span></span><span class="st-lvl">${lv}</span></button>
+           <div class="st-grid">
+             ${mode('online', MODE_ICON.online, 'ONLINE', 'Gegen Freunde per Code')}
+             ${mode('versus', MODE_ICON.versus, '2 SPIELER', 'Zu zweit an einem Gerät')}
+             ${mode('ranked', MODE_ICON.ranked, 'RANGLISTE', `${tier.name} · ${rp} RP`)}
+             ${mode('training', MODE_ICON.training, 'TRAINING', 'Kombos & Frame-Daten')}
            </div>
-           <button class="cr-btn blue cr-mode" data-modes><small>MODUS · ${modeSub}</small>${MODE_DE[this.sel.mode]}</button>
-           <button class="cr-btn yellow cr-battle" data-fight data-default>${TOON.swords}<span>KAMPF!</span></button>
-         </aside>
+           <button class="st-btn yellow st-play" data-fight data-default>${TOON.swords}<span>SPIELEN</span></button>
+         </section>
        </main>
-       <nav class="cr-tabs">
-         <button data-nav="fighters">${TOON.glove}<span>KÄMPFER</span></button>
-         <button data-nav="deck">${TOON.cards}<span>KARTEN</span></button>
-         <button class="on" data-nav="fight">${TOON.swords}<span>KAMPF</span></button>
-         <button data-nav="training">${TOON.dumbbell}<span>TRAINING</span></button>
-         <button data-nav="profile">${TOON.trophy}<span>PROFIL</span></button>
+       <nav class="st-nav">
+         <button data-nav="fighters">${MODE_ICON.fighters}<span>KÄMPFER</span></button>
+         <button data-nav="arenas">${MODE_ICON.arenas}<span>ARENEN</span></button>
+         <button data-nav="deck">${MODE_ICON.cards}<span>KARTEN</span></button>
+         <button data-nav="profile">${MODE_ICON.profile}<span>PROFIL</span></button>
        </nav>`,
-      'home cr-home',
+      'st home',
     );
-    el.querySelector('[data-fight]')!.addEventListener('click', () => this.startMatch(this.sel.mode));
-    el.querySelector('[data-deck]')!.addEventListener('click', () => this.showDeck(0, () => this.showHome()));
-    el.querySelector('[data-modes]')!.addEventListener('click', () => this.showModes());
+    el.querySelector('[data-fight]')!.addEventListener('click', () => this.beginFlow(this.sel.mode, false));
+    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const m = b.dataset.mode!;
+        if (m === 'ranked') this.beginFlow('cpu', true);
+        else this.beginFlow(m as PlayMode | 'online', false);
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-level]').forEach((c) =>
+      c.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.sel.level = c.dataset.level as Level;
+        store.set('selection', this.sel);
+        this.audio.ui('click');
+        this.showHome();
+      }),
+    );
     el.querySelector('[data-settings]')!.addEventListener('click', () => this.showSettings());
     el.querySelector('[data-sound]')!.addEventListener('click', () => {
       this.audio.setMuted(!this.audio.muted);
@@ -514,59 +566,197 @@ export class App {
         const n = b.dataset.nav;
         if (n === 'fighters') this.showFighters(0);
         else if (n === 'deck') this.showDeck(0, () => this.showHome());
-        else if (n === 'online') this.showOnlineLobby();
+        else if (n === 'arenas') this.showArenaSelect(() => this.showHome(), true);
         else if (n === 'help') this.showHelp(() => this.showHome());
         else if (n === 'profile') this.showProfile();
-        else if (n === 'modes') this.showModes();
-        else if (n === 'training') {
-          this.sel.mode = 'training';
-          store.set('selection', this.sel);
-          this.startMatch('training');
-        }
       }),
     );
   }
 
-  /** Mode select: big banner tiles with the fighters' key art. */
-  showModes(): void {
-    const a = this.sel.fighters[0];
-    const b = ROSTER.find((x) => x !== a) ?? a;
-    const hero = (id: string) => (portrait(id, 'hero') ? `<img alt="" src="${portrait(id, 'hero')}">` : '');
-    const tiles: { mode: PlayMode | 'online'; title: string; sub: string; art: string; bg: string }[] = [
-      { mode: 'cpu', title: 'GEGEN CPU', sub: 'Drei Stufen. Halte den Hinterhof gegen die KI.', art: hero(b), bg: 'linear-gradient(120deg, rgba(246,182,50,0.35), transparent 60%)' },
-      { mode: 'local', title: '2 SPIELER', sub: 'Zu zweit an einem Gerät – Tastatur oder zwei Controller.', art: hero(a) + hero(b), bg: 'linear-gradient(120deg, rgba(61,139,255,0.3), transparent 45%, rgba(255,59,78,0.3))' },
-      { mode: 'online', title: 'FREUNDE', sub: 'Online gegen Freunde per Code, mit Rollback-Netcode.', art: hero(a), bg: 'linear-gradient(120deg, rgba(155,92,255,0.38), transparent 60%)' },
-      { mode: 'training', title: 'TRAINING', sub: 'Frame-Daten, Hitboxen und Kombos in Ruhe üben.', art: hero(b), bg: 'linear-gradient(120deg, rgba(61,220,132,0.22), transparent 60%)' },
+  /** Mode chosen: pick fighters (Tekken-style), then the arena, then load and fight. */
+  private beginFlow(mode: PlayMode | 'online', ranked: boolean): void {
+    this.flow = { mode, ranked };
+    if (mode !== 'online') this.sel.mode = mode;
+    store.set('selection', this.sel);
+    this.showCharSelect(0);
+  }
+
+  private statsOf(id: string): [string, number][] {
+    const all = ROSTER.map((x) => fighterStats(x));
+    const st = fighterStats(id);
+    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((v) => v[k]));
+    // style: how many ways the fighter has to extend a combo (chains, target combos, launchers)
+    const style = (x: string) => {
+      const f = getFighter(x);
+      return Object.values(f.moves).reduce((a, m) => a + (m.chains?.length ?? 0) + (m.targets ? Object.keys(m.targets).length * 2 : 0) + (m.jumpCancel ? 2 : 0), 0) + f.cards.length;
+    };
+    const maxStyle = Math.max(...ROSTER.map(style));
+    return [
+      ['KRAFT', st.dmg / max('dmg')],
+      ['TEMPO', st.speed / max('speed')],
+      ['STYLE', style(id) / maxStyle],
+      ['ABWEHR', st.health / max('health')],
     ];
-    const chips = LEVELS.map((l) => `<span class="chip ${this.sel.level === l ? 'on' : ''}" data-level="${l}">${LEVEL_DE[l]}</span>`).join('');
+  }
+
+  /** Character select: P1 big on the left, roster in the middle, P2 big on the right (tap a side to pick for it). */
+  showCharSelect(picking: number): void {
+    const m = this.flow.mode;
+    if (m === 'online') picking = 0;
+    const side = (i: number) => {
+      const id = this.sel.fighters[i];
+      const d = getFighter(id);
+      const hidden = m === 'online' && i === 1;
+      const hero = hidden ? '' : portrait(id, 'hero');
+      const bars = hidden ? '' : this.statsOf(id).map(([l, v]) => `<span>${l}</span><i><b style="width:${(Math.max(0.08, v) * 100).toFixed(0)}%"></b></i>`).join('');
+      const deck = hidden ? '' : this.sel.loadouts[i].map((c) => cardHtml(id, c, 'small')).join('');
+      return `<button class="st-side p${i + 1} ${picking === i ? 'picking' : ''}" data-side="${i}">
+          <span class="st-ptag">P${i + 1}</span><span class="st-who">${this.sideLabel(i)}</span>
+          <span class="st-big">${hero ? `<img alt="" src="${hero}">` : hidden ? `<span style="position:absolute;inset:15% 20% 0;color:#2c2350">${SILHOUETTE}</span>` : ''}</span>
+          <span class="st-plate"><small>${hidden ? 'WARTET AUF VERBINDUNG' : d.archetype.toUpperCase()}</small><b>${hidden ? '???' : d.name}</b></span>
+          ${hidden ? '' : `<span class="st-stats">${bars}</span>`}
+          ${hidden || m === 'training' && i === 1 ? '' : `<span class="st-sidedeck">${deck}<span class="st-btn dark" data-deckside="${i}">DECK</span></span>`}
+        </button>`;
+    };
+    const tiles =
+      ROSTER.map((fid) => {
+        const img = portrait(fid, 'card');
+        const tg = [0, 1]
+          .filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1))
+          .map((i) => `<span class="tg ${i ? 'b' : 'a'}">P${i + 1}</span>`)
+          .join('');
+        const cls = [0, 1].filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1)).map((i) => `p${i + 1}`).join(' ');
+        return `<button class="st-tile ${cls}" data-f="${fid}">${img ? `<img alt="" src="${img}">` : ''}${tg}<span class="tn">${getFighter(fid).name}</span></button>`;
+      }).join('') + Array.from({ length: Math.max(0, 9 - ROSTER.length) }, () => `<div class="st-tile locked">${SILHOUETTE}<span class="lk">${MODE_ICON.lock}</span><span class="tn">BALD</span></div>`).join('');
+    const hint =
+      m === 'online'
+        ? 'Dein Gegner wählt auf seinem Gerät.'
+        : picking === 0
+          ? `Wähle deinen Kämpfer${m === 'local' ? ' – dann tippe auf P2' : ' · tippe auf P2, um den Gegner zu ändern'}.`
+          : `${this.sideLabel(1)} wählt · tippe auf P1 für deine Seite.`;
     const el = this.open(
-      `${this.header('SPIELMODI')}
-       <div class="modes-grid">${tiles
-         .map(
-           (t) => `<button class="mode-tile ${this.sel.mode === t.mode ? 'on' : ''}" data-mode="${t.mode}" style="--tile-bg:${t.bg}">${t.art}
-             <div class="mt-text"><div class="mt-title">${t.title}</div><div class="mt-sub">${t.sub}</div>${t.mode === 'cpu' ? `<div class="mt-chips">${chips}</div>` : ''}</div></button>`,
-         )
-         .join('')}</div>`,
+      `${streetBg()}
+       <div class="st-head">${logoHtml('st-logo-sm')}${brushBanner('KÄMPFERWAHL')}<div class="grow"></div>
+         <span class="st-chip">${this.flow.ranked ? TOON.crown : TOON.swords}<b>${this.flow.ranked ? `RANGLISTE · ${tierOf(store.get('rp', 0)).name}` : m === 'cpu' ? `CPU · ${LEVEL_DE[this.sel.level]}` : MODE_DE[m as PlayMode] ?? 'ONLINE'}</b></span></div>
+       <main class="st-sel-main">
+         ${side(0)}
+         <section class="st-center">
+           <div class="st-roster">${tiles}</div>
+           <div class="st-hint">${hint}</div>
+           <div class="st-vsrow"><button class="st-btn dark" data-back>ZURÜCK</button><button class="st-btn yellow st-ready" data-ready data-default>BEREIT!</button></div>
+         </section>
+         ${side(1)}
+       </main>`,
+      'st st-select',
     );
-    el.querySelectorAll<HTMLElement>('[data-level]').forEach((c) =>
-      c.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.sel.level = c.dataset.level as Level;
-        this.sel.mode = 'cpu';
+    el.querySelectorAll<HTMLButtonElement>('[data-f]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const fid = b.dataset.f!;
+        this.sel.fighters[picking] = fid;
+        if (validateLoadout(fid, this.sel.loadouts[picking])) this.sel.loadouts[picking] = picking === 0 ? this.presetDeck(fid) : getFighter(fid).defaultLoadout.slice();
+        // vs CPU: the opponent follows to the other fighter (a mirror match stays possible by picking on P2)
+        if (picking === 0 && m !== 'local' && this.sel.fighters[1] === fid) {
+          const other = ROSTER.find((x) => x !== fid);
+          if (other) {
+            this.sel.fighters[1] = other;
+            this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
+          }
+        }
         store.set('selection', this.sel);
-        this.showModes();
+        this.audio.ui('click');
+        // two players: P1 picked -> P2's turn
+        this.showCharSelect(m === 'local' && picking === 0 ? 1 : picking);
       }),
     );
-    el.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) =>
-      b.addEventListener('click', () => {
-        const m = b.dataset.mode as PlayMode | 'online';
-        if (m === 'online') return this.showOnlineLobby();
-        this.sel.mode = m;
-        store.set('selection', this.sel);
-        this.showHome();
+    el.querySelectorAll<HTMLElement>('[data-side]').forEach((b) =>
+      b.addEventListener('click', (e) => {
+        const ds = (e.target as HTMLElement).closest<HTMLElement>('[data-deckside]');
+        if (ds) {
+          const i = Number(ds.dataset.deckside);
+          return this.showDeck(i, () => this.showCharSelect(picking));
+        }
+        if (m === 'online') return;
+        this.showCharSelect(Number(b.dataset.side));
       }),
     );
     el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
+    el.querySelector('[data-ready]')!.addEventListener('click', () => {
+      store.set('selection', this.sel);
+      if (m === 'online') this.showOnlineLobby();
+      else this.showArenaSelect(() => this.showCharSelect(picking));
+    });
+  }
+
+  /** Arena select: big preview with info, thumbnails below. `browse` = opened from the menu (no fight after). */
+  showArenaSelect(back: () => void, browse = false): void {
+    const cur = arenaInfo(this.sel.arena);
+    const tiles = ARENAS.map(
+      (a) =>
+        `<button class="st-ar-tile ${a.id === cur.id ? 'on' : ''} ${a.locked ? 'locked' : ''}" data-arena="${a.id}" ${a.locked ? 'aria-disabled="true"' : ''}>${a.locked ? '' : `<img alt="" src="${a.img}">`}${a.locked ? MODE_ICON.lock : ''}<span class="tn">${a.name}</span></button>`,
+    ).join('');
+    const el = this.open(
+      `${streetBg()}
+       <div class="st-head">${logoHtml('st-logo-sm')}${brushBanner('ARENA WÄHLEN')}<div class="grow"></div></div>
+       <main class="st-ar-main">
+         <div class="st-ar-preview"><img alt="" src="${cur.img}"><span class="st-ar-badge">${ARENAS.filter((a) => !a.locked).indexOf(cur) + 1} / ${ARENAS.filter((a) => !a.locked).length}</span></div>
+         <div class="panel st-ar-info"><span class="dist">${cur.district}</span><h3>${cur.name}</h3><p>${cur.desc}</p>
+           <div class="st-ar-facts"><div><small>ZEIT</small><b>${cur.time}</b></div><div><small>STIMMUNG</small><b>${cur.mood}</b></div><div><small>PUBLIKUM</small><b>${cur.crowd}</b></div></div></div>
+         <div class="st-ar-grid">${tiles}</div>
+       </main>
+       <div class="st-ar-actions"><button class="st-btn dark" data-back>ZURÜCK</button>
+         <button class="st-btn yellow" data-arena-ok data-default>${browse ? 'ÜBERNEHMEN' : 'ARENA WÄHLEN'}</button></div>`,
+      'st st-arena',
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-arena]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const a = ARENAS.find((x) => x.id === b.dataset.arena);
+        if (!a || a.locked) return;
+        this.sel.arena = a.id;
+        store.set('selection', this.sel);
+        this.audio.ui('click');
+        this.showArenaSelect(back, browse);
+      }),
+    );
+    el.querySelector('[data-back]')!.addEventListener('click', back);
+    el.querySelector('[data-arena-ok]')!.addEventListener('click', () => (browse ? this.showHome() : this.launch()));
+  }
+
+  /** Loading screen (concert stage): builds the 3D scene for the chosen arena, then starts the match. */
+  private launch(): void {
+    const mode = this.flow.mode as PlayMode;
+    if (this.flow.ranked) this.sel.level = tierOf(store.get('rp', 0)).level;
+    const [a, b] = this.sel.fighters.map((f) => getFighter(f).name);
+    const tip = LOAD_TIPS[(Math.random() * LOAD_TIPS.length) | 0];
+    const el = this.open(
+      `${stageBg()}
+       <div class="st-vs-mini">${a} <em>VS</em> ${b}</div>
+       <div class="st-season">${arenaInfo(this.sel.arena).name}</div>
+       ${logoHtml()}
+       <div class="st-load"><div class="st-load-label">LÄDT</div><div class="st-bar"><i></i></div><div class="st-tip">${tip}</div></div>`,
+      'st-title st-loading',
+    );
+    const bar = el.querySelector<HTMLElement>('.st-bar i')!;
+    let pct = 0;
+    const t0 = performance.now();
+    const tick = window.setInterval(() => {
+      pct += (92 - pct) * 0.08;
+      bar.style.width = `${pct.toFixed(1)}%`;
+    }, 50);
+    // let the screen paint before the (synchronous) scene build
+    window.setTimeout(() => {
+      this.ensureArena();
+      const view = this.view;
+      const ready = (view.arena as unknown as { ready?: Promise<void> }).ready ?? Promise.resolve();
+      const timeout = new Promise((r) => window.setTimeout(r, 15000));
+      void Promise.race([ready, timeout]).then(() => {
+        const wait = Math.max(0, 1300 - (performance.now() - t0));
+        window.setTimeout(() => {
+          window.clearInterval(tick);
+          bar.style.width = '100%';
+          window.setTimeout(() => this.startMatch(mode), 180);
+        }, wait);
+      });
+    }, 60);
   }
 
   showProfile(): void {
@@ -1035,6 +1225,15 @@ export class App {
       cls = 'lose';
     }
     if (this.mode === 'cpu' || this.mode === 'online') this.recordResult(w === 2 ? 'D' : w === me ? 'W' : 'L', s);
+    let rpLine = '';
+    if (this.mode === 'cpu' && this.flow.ranked && w !== 2) {
+      const before = store.get('rp', 0);
+      const after = Math.max(0, before + (w === me ? RP_WIN : -RP_LOSS));
+      store.set('rp', after);
+      const t0 = tierOf(before).name;
+      const t1 = tierOf(after).name;
+      rpLine = `<span class="pill">RANGLISTE <b>${w === me ? '+' + RP_WIN : '-' + Math.min(before, RP_LOSS)} RP · ${after} RP${t0 !== t1 ? ` · ${t1}!` : ''}</b></span>`;
+    }
     const winner = w === 2 ? s.fighters[me] : s.fighters[w];
     const img = portrait(winner.def, 'card');
     const crowns = Array.from({ length: s.config.roundsToWin }, (_, k) => `<i class="${k < winner.roundsWon ? 'on' : ''}">${UI_ICONS.crown}</i>`).join('');
@@ -1046,6 +1245,7 @@ export class App {
            <span class="pill">MAX. KOMBO <b>${this.stats.maxCombo[0]} : ${this.stats.maxCombo[1]}</b></span>
            <span class="pill">SCHADEN <b>${this.stats.damage[0]} : ${this.stats.damage[1]}</b></span>
            <span class="pill">KARTEN <b>${this.stats.specials[0]} : ${this.stats.specials[1]}</b></span>
+           ${rpLine}
          </div>
          <div class="row" style="justify-content:center;margin-top:0.4rem">
            ${this.mode === 'online' ? '' : '<button class="btn gold" data-a="rematch" data-default>NOCHMAL</button><button class="btn" data-a="deck">DECK</button>'}
@@ -1058,7 +1258,10 @@ export class App {
       b.addEventListener('click', () => {
         const a = b.dataset.a;
         const mode = this.mode as PlayMode;
-        if (a === 'rematch') this.startMatch(mode);
+        if (a === 'rematch') {
+          if (this.flow.ranked) this.sel.level = tierOf(store.get('rp', 0)).level;
+          this.startMatch(mode);
+        }
         else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
         else this.quitToMenu();
       }),
@@ -1077,7 +1280,7 @@ export class App {
     const bf = (p.byFighter[f] ??= { m: 0, w: 0 });
     bf.m++;
     if (r === 'W') bf.w++;
-    p.history = [...p.history, { f, o: s.fighters[1 - me].def, r, mode: this.mode === 'online' ? 'ONLINE' : `CPU ${LEVEL_DE[this.sel.level]}`, t: Date.now() }].slice(-30);
+    p.history = [...p.history, { f, o: s.fighters[1 - me].def, r, mode: this.mode === 'online' ? 'ONLINE' : this.flow.ranked ? 'RANGLISTE' : `CPU ${LEVEL_DE[this.sel.level]}`, t: Date.now() }].slice(-30);
     store.set('profile', p);
   }
 

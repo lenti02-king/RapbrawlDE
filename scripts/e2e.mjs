@@ -69,7 +69,21 @@ const sim = (page) =>
     }).observe(document.body, { childList: true, subtree: true });
   });
   await page.click('[data-fight]');
-  await page.waitForFunction(() => window.__rb.mode === 'cpu');
+  // new flow: Tekken-style fighter select -> arena select -> loading screen -> fight
+  await page.waitForSelector('.st-select');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${out}/d05a_select.png` });
+  check((await page.textContent('.st-side.p1 .st-plate')).includes('BONEZ'), 'fighter select shows the chosen P1 fighter big on the left');
+  await page.click('[data-ready]');
+  await page.waitForSelector('.st-arena');
+  await page.click('[data-arena="club"]');
+  await page.waitForSelector('.st-ar-tile.on[data-arena="club"]');
+  await page.screenshot({ path: `${out}/d05b_arena.png` });
+  await page.click('[data-arena-ok]');
+  await page.waitForSelector('.st-loading');
+  await page.screenshot({ path: `${out}/d05c_loading.png` });
+  await page.waitForFunction(() => window.__rb.mode === 'cpu', null, { timeout: 60000 });
+  check(await page.evaluate(() => window.__rb.sel.arena === 'club'), 'chosen arena is used for the match');
   let s = await sim(page);
   check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['bon_croc', 'bon_smoke', 'bon_palm']), `chosen deck reaches the match (${s.f[0].loadout})`);
   check(await page.evaluate(() => window.__vsSeen), 'VS intro is shown at match start');
@@ -182,7 +196,15 @@ const sim = (page) =>
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/m02_home.png` });
   await page.tap('[data-fight]');
-  await page.waitForFunction(() => window.__rb.mode === 'cpu');
+  await page.waitForSelector('.st-select');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${out}/m02a_select.png` });
+  await page.tap('[data-ready]');
+  await page.waitForSelector('.st-arena');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/m02b_arena.png` });
+  await page.tap('[data-arena-ok]');
+  await page.waitForFunction(() => window.__rb.mode === 'cpu', null, { timeout: 60000 });
   await page.evaluate(() => {
     window.__rb.runner.sources[1].poll = () => 0; // freeze CPU for deterministic checks
   });

@@ -42,7 +42,34 @@ for (const [tag, vp, touch] of [
   await frames(page, 3);
   await page.screenshot({ path: `${out}/${tag}_4_help.png` });
   await page.click('[data-back]');
+  if (process.env.ONLY_MENU) {
+    await page.click('[data-fight]');
+    await page.waitForSelector('.st-select');
+    await page.waitForTimeout(500);
+    await frames(page, 4);
+    await page.screenshot({ path: `${out}/${tag}_5a_select.png` });
+    await page.click('[data-ready]');
+    await page.waitForSelector('.st-arena');
+    await page.waitForTimeout(500);
+    await frames(page, 4);
+    await page.screenshot({ path: `${out}/${tag}_5b_arena.png` });
+    await ctx.close();
+    continue;
+  }
   await page.click('[data-fight]');
+  await page.waitForSelector('.st-select');
+  await page.waitForTimeout(500);
+  await frames(page, 4);
+  await page.screenshot({ path: `${out}/${tag}_5a_select.png` });
+  await page.click('[data-ready]');
+  await page.waitForSelector('.st-arena');
+  await page.waitForTimeout(500);
+  await frames(page, 4);
+  await page.screenshot({ path: `${out}/${tag}_5b_arena.png` });
+  await page.click('[data-arena-ok]');
+  await page.waitForSelector('.st-loading');
+  await frames(page, 4);
+  await page.screenshot({ path: `${out}/${tag}_5c_loading.png` });
   // the VS splash can come and go while the 3D scene is being built (main thread busy): best effort
   await page.waitForSelector('.vs', { timeout: 8000 }).catch(() => {});
   await frames(page, 2);
