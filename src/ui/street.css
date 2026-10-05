@@ -1343,7 +1343,7 @@
   .st-nav button {
     min-height: 2.8rem;
   }
-  .st-event span,
+  .st-event > span > span,
   .st-pass small {
     display: none;
   }
