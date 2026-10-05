@@ -18,6 +18,10 @@ export interface CharacterRig {
   setFlash(intensity: number, color?: THREE.ColorRepresentation): void;
 }
 
+/** Fraction of the full fist curl applied to finger bones (models from tools/meshy/skin.py). The two-bone finger
+ *  rig cannot form a clean fist on the sculpted hands; a light curl keeps them readable without crumpling. */
+const FIST_CURL = 0.4;
+
 /** Humanoid bone names (Mixamo convention; prefixes like "mixamorig:" are ignored). */
 const BONE_FOR: Partial<Record<JointName, string>> = {
   hips: 'Hips',
@@ -280,6 +284,13 @@ export class GlbRig implements CharacterRig {
       if (typeof o.userData?.rb_head_pitch === 'number') this.headPitch.setFromAxisAngle(new THREE.Vector3(0, 0, 1), (o.userData.rb_head_pitch * Math.PI) / 180);
       if (o.userData?.rb_fist) fist = true;
     });
+    // debug: ?fist=0 shows the sculpted open hands
+    // ?fist=0..1 scales the curl (debug)
+    const fistQ = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('fist') : null;
+    const curlScale = fistQ === null ? FIST_CURL : Number(fistQ);
+    if (curlScale <= 0) fist = false;
+    this.model.traverse(() => {
+    });
     const s = !fitHeight && refHips > 0.2 && modelHips > 0.05 ? refHips / modelHips : heightM / h;
     this.fit.scale.setScalar(s);
     this.root.updateMatrixWorld(true);
@@ -343,7 +354,7 @@ export class GlbRig implements CharacterRig {
         this.restLocal.set(o as THREE.Bone, o.quaternion.clone());
         const c = fist ? CURL.find(([re]) => re.test(canon(o.name))) : undefined;
         // the bone's local X is the knuckle axis; +rotation curls toward the palm
-        if (c) this.fistLocal.set(o, o.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (c[1] * Math.PI) / 180)));
+        if (c) this.fistLocal.set(o, o.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (c[1] * curlScale * Math.PI) / 180)));
       }
     });
     const hp = this.hips.parent!;

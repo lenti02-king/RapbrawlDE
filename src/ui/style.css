@@ -1453,6 +1453,11 @@ kbd {
 .announce.win {
   color: var(--gold);
 }
+.announce.pblock {
+  color: #ffd34a;
+  font-size: 4.2rem;
+  top: 30%;
+}
 @keyframes announce {
   0% {
     opacity: 0;

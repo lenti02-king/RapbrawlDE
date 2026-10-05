@@ -22,6 +22,7 @@ export type SimEvent =
       projectile: boolean;
     }
   | { t: 'block'; a: number; d: number; x: number; y: number; strength: Strength; projectile: boolean }
+  | { t: 'perfectBlock'; a: number; d: number; x: number; y: number }
   | { t: 'armor'; a: number; d: number; x: number; y: number }
   | { t: 'moveStart'; p: number; move: string; card: string | null }
   | { t: 'active'; p: number; move: string; strength: Strength }

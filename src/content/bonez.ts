@@ -18,6 +18,7 @@ const N = {
   throw: 'bon_throw',
   LLL: 'bon_LLL',
   HH: 'bon_HH',
+  HL: 'bon_HL',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -46,7 +47,7 @@ const moves: MoveDef[] = [
     hit: { damage: 100, strength: 2, hitstun: 22, blockstun: 17, boxes: [box(0.3, 1.25, 1.18, 1.72)], reaction: 'high' },
     extra: {
       specialCancel: true,
-      targets: { heavy: { move: N.HH } },
+      targets: { heavy: { move: N.HH }, light: { move: N.HL } },
       velocity: [
         { frame: 8, vx: mps(1.0) },
         { frame: 15, vx: 0 },
@@ -84,6 +85,22 @@ const moves: MoveDef[] = [
       hurt: [{ start: 10, end: 32, boxes: [box(0.25, 1.15, 1.0, 1.8)] }],
     },
   }),
+  // H·L: launcher, Up on hit jumps after the opponent (air combo: jL -> jH)
+  simpleMove(N.HL, 'normal', {
+    name: 'Kran-Hebel',
+    startup: 10,
+    active: 4,
+    recovery: 24,
+    hit: { damage: 68, strength: 2, blockstun: 15, boxes: [box(0.25, 1.0, 0.7, 1.9)], launch: { vx: 60, vy: 1380 }, reaction: 'gut' },
+    extra: {
+      jumpCancel: true,
+      specialCancel: true,
+      // steps in: the heavy before it pushes the opponent away
+      velocity: [
+        { frame: 2, vx: mps(2.6) },
+        { frame: 10, vx: 0 },
+      ], hurt: [{ start: 9, end: 24, boxes: [box(0.2, 0.9, 0.7, 1.7)] }] },
+  }),
   simpleMove(N.H2, 'normal', {
     name: 'Aufwärtshaken',
     startup: 11,
@@ -105,7 +122,7 @@ const moves: MoveDef[] = [
     active: 6,
     recovery: 8,
     hit: { damage: 50, strength: 0, hitstun: 13, blockstun: 10, level: 'overhead', boxes: [box(0.05, 0.65, 0.3, 1.0)] },
-    extra: { air: true, landingLag: 3 },
+    extra: { chains: [N.jH], air: true, landingLag: 3 },
   }),
   simpleMove(N.jH, 'normal', {
     name: 'Hammerfaust',

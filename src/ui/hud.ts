@@ -229,6 +229,9 @@ export class Hud {
         case 'fight':
           this.say(s.config.training ? 'TRAINING' : 'FIGHT!', 'fight', 900);
           break;
+        case 'perfectBlock':
+          this.say('PERFEKT-BLOCK!', 'pblock', 900);
+          break;
         case 'ko':
           this.say(e.loser < 0 ? 'DOPPEL-K.O.' : 'K.O.', 'ko', 2200);
           break;

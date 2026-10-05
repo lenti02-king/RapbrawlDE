@@ -18,6 +18,7 @@ const N = {
   throw: 'jaz_throw',
   LLL: 'jaz_LLL',
   HH: 'jaz_HH',
+  HL: 'jaz_HL',
 };
 const LIGHT_CHAINS = [N.L5, N.L2, N.H5, N.H2];
 
@@ -46,7 +47,7 @@ const moves: MoveDef[] = [
     hit: { damage: 82, strength: 2, hitstun: 20, blockstun: 15, boxes: [box(0.25, 1.0, 1.1, 1.55)], reaction: 'high' },
     extra: {
       specialCancel: true,
-      targets: { heavy: { move: N.HH } },
+      targets: { heavy: { move: N.HH }, light: { move: N.HL } },
       velocity: [
         { frame: 5, vx: mps(1.4) },
         { frame: 12, vx: 0 },
@@ -78,6 +79,22 @@ const moves: MoveDef[] = [
     hit: { damage: 78, strength: 3, blockstun: 16, knockdown: true, boxes: [box(0.2, 0.95, 1.0, 1.95)], reaction: 'gut' },
     extra: { hurt: [{ start: 6, end: 22, boxes: [box(0.2, 0.8, 1.1, 1.9)] }] },
   }),
+  // H·L: launcher, Up on hit jumps after the opponent (air combo: jL -> jH)
+  simpleMove(N.HL, 'normal', {
+    name: 'Encore-Kick',
+    startup: 8,
+    active: 3,
+    recovery: 22,
+    hit: { damage: 58, strength: 2, blockstun: 14, boxes: [box(0.2, 0.95, 0.7, 1.75)], launch: { vx: 60, vy: 1380 }, reaction: 'gut' },
+    extra: {
+      jumpCancel: true,
+      specialCancel: true,
+      // steps in: the heavy before it pushes the opponent away
+      velocity: [
+        { frame: 2, vx: mps(2.6) },
+        { frame: 10, vx: 0 },
+      ], hurt: [{ start: 7, end: 20, boxes: [box(0.2, 0.8, 0.6, 1.5)] }] },
+  }),
   simpleMove(N.H2, 'normal', {
     name: 'Breakdance-Sweep',
     startup: 10,
@@ -92,7 +109,7 @@ const moves: MoveDef[] = [
     active: 7,
     recovery: 6,
     hit: { damage: 45, strength: 0, hitstun: 13, blockstun: 10, level: 'overhead', boxes: [box(0.05, 0.55, 0.25, 0.95)] },
-    extra: { air: true, landingLag: 3 },
+    extra: { chains: [N.jH], air: true, landingLag: 3 },
   }),
   simpleMove(N.jH, 'normal', {
     name: 'Sprung-Drehkick',

@@ -47,6 +47,16 @@ export const RULES = {
   COUNTER_HIT_STUN_BONUS: 4,
   COUNTER_STAGGER: 40,
   COUNTER_HITSTOP: 16,
+  /** Perfect block: press block (or tap back) at most this many frames before the hit lands. */
+  PB_WINDOW: 6,
+  /** A new perfect-block window needs this many frames since the last press (mashing does not work). */
+  PB_LOCK: 22,
+  /** Blockstun after a perfect block (the attacker is still recovering: free punish). */
+  PB_STUN: 2,
+  PB_HITSTOP_BONUS: 5,
+  PB_METER: 25,
+  /** Frames after a perfect block in which the defender's hits count as counter hits. */
+  PB_PUNISH: 26,
   TRAINING_REFILL_DELAY: 50,
 } as const;
 
@@ -288,6 +298,12 @@ function readInput(f: FighterState, bits: number): void {
   f.input = bits;
   const edge = bits & ~f.prevInput;
   for (let i = 0; i < BUFFERED.length; i++) if (edge & BUFFERED[i]) f.buf[i] = RULES.BUFFER;
+  // perfect block: a fresh press of block, or of "away" (stick back on phones), opens a short window
+  const away = f.facing > 0 ? IN.LEFT : IN.RIGHT;
+  if (edge & (IN.BLOCK | away) && f.pbLock === 0) {
+    f.pbWin = RULES.PB_WINDOW;
+    f.pbLock = RULES.PB_LOCK;
+  }
   if (edge & IN.LEFT) {
     if (f.tapL > 0) {
       f.dashReq = -1;
@@ -308,6 +324,9 @@ function readInput(f: FighterState, bits: number): void {
 
 function tickBuffers(f: FighterState): void {
   for (let i = 0; i < f.buf.length; i++) if (f.buf[i] > 0) f.buf[i]--;
+  if (f.pbWin > 0) f.pbWin--;
+  if (f.pbLock > 0) f.pbLock--;
+  if (f.pbPunish > 0) f.pbPunish--;
   if (f.tapL > 0) f.tapL--;
   if (f.tapR > 0) f.tapR--;
   if (f.dashReqT > 0 && --f.dashReqT === 0) f.dashReq = 0;
@@ -558,6 +577,12 @@ function tryCancel(s: GameState, f: FighterState, ev: SimEvent[]): void {
   if (f.connected === 'none') return;
   const mv = getMove(f.def, f.move!);
   if (mv.specialCancel && tryCards(s, f, ev, !!mv.air)) return;
+  // launcher: Up after a connected hit jumps after the opponent (air combo)
+  if (mv.jumpCancel && f.connected === 'hit' && f.y === 0 && held(f, IN.UP)) {
+    setState(f, 'jumpSquat', getFighter(f.def).jumpSquat);
+    f.vx = 0;
+    return;
+  }
   if (mv.targets && f.chainDepth < 3 && f.state !== 'air' && !held(f, IN.DOWN)) {
     const heavy = f.buf[B_HEAVY] > 0;
     const light = f.buf[B_LIGHT] > 0;
@@ -574,7 +599,9 @@ function tryCancel(s: GameState, f: FighterState, ev: SimEvent[]): void {
     const heavy = f.buf[B_HEAVY] > 0;
     const light = f.buf[B_LIGHT] > 0;
     if (!heavy && !light) return;
-    const key = normalKeyFor(f, heavy);
+    // air normals chain into air normals (jL -> jH in an air combo)
+    const n = getFighter(f.def).normals;
+    const key = mv.air ? (heavy ? n.jH : n.jL) : normalKeyFor(f, heavy);
     if (mv.chains.includes(key)) {
       f.buf[heavy ? B_HEAVY : B_LIGHT] = 0;
       const depth = f.chainDepth + 1;
@@ -1168,6 +1195,23 @@ function applyHit(
   const levelOk =
     stance !== null &&
     (h.level === 'mid' || (h.level === 'low' && stance === 'crouch') || (h.level === 'overhead' && stance === 'stand'));
+  if (levelOk && def.pbWin > 0) {
+    // perfect block: no chip, almost no blockstun, a dramatic pause and a punish window
+    def.pbWin = 0;
+    setState(def, 'blockstun', RULES.PB_STUN);
+    def.crouching = stance === 'crouch';
+    def.vx = 0;
+    def.push = pushDir * 120;
+    def.pbPunish = RULES.PB_PUNISH;
+    def.hitstop = h.hitstop + RULES.PB_HITSTOP_BONUS;
+    if (!proj) {
+      atk.hitstop = h.hitstop + RULES.PB_HITSTOP_BONUS;
+      atk.connected = 'block';
+    }
+    addMeter(s, def, RULES.PB_METER);
+    ev.push({ t: 'perfectBlock', a: atk.idx, d: def.idx, x, y });
+    return;
+  }
   if (levelOk) {
     setState(def, 'blockstun', h.blockstun);
     def.crouching = stance === 'crouch';
@@ -1208,10 +1252,13 @@ function applyHit(
     def.comboDamage = 0;
     def.juggle = 0;
   }
-  const counterHit = def.state === 'move' || def.state === 'countered';
+  // punish after a perfect block counts as a counter hit too
+  const punish = !proj && atk.pbPunish > 0;
+  if (punish) atk.pbPunish = 0;
+  const counterHit = def.state === 'move' || def.state === 'countered' || punish;
   def.combo++;
   let dmg = idiv(h.damage * comboScale(def.combo), 100);
-  if (counterHit && def.state === 'move') dmg = idiv(dmg * RULES.COUNTER_HIT_DAMAGE_PCT, 100);
+  if (counterHit && (def.state === 'move' || punish)) dmg = idiv(dmg * RULES.COUNTER_HIT_DAMAGE_PCT, 100);
   dmg = Math.max(1, dmg);
   def.health = Math.max(s.config.training ? 1 : 0, def.health - dmg);
   def.comboDamage += dmg;
@@ -1232,7 +1279,7 @@ function applyHit(
     damage: dmg,
     combo: def.combo,
     move: proj ? proj.move : atk.move ?? '',
-    counter: counterHit && def.state === 'move',
+    counter: counterHit && (def.state === 'move' || punish),
     launch: !!h.launch,
     projectile: !!proj,
   });
@@ -1250,8 +1297,9 @@ function applyHit(
       def.vx = pushDir * h.launch.vx;
       def.vy = h.launch.vy;
     } else {
-      def.vx = pushDir * 160;
-      def.vy = airborne ? 700 : 500;
+      // juggled opponents pop up only a little and drift less, so a follow-up air hit can still reach them
+      def.vx = pushDir * (airborne ? 100 : 160);
+      def.vy = airborne ? 320 : 500;
     }
     def.y = Math.max(def.y, 1);
     def.push = 0;

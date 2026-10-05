@@ -103,6 +103,9 @@ describe('attacks and defense', () => {
     const s = newMatch();
     place(s, 0.8);
     const hp = s.fighters[1].health;
+    // guard already held well before the hit (a press right before it would be a perfect block)
+    run(s, RULES.PB_WINDOW + 2, 0, IN.RIGHT | IN.BLOCK);
+    place(s, 0.8);
     const evs = run(s, 1, L, IN.RIGHT);
     evs.push(...run(s, 20, 0, IN.RIGHT));
     expect(ofType(evs, 'block')).toHaveLength(1);
@@ -113,6 +116,7 @@ describe('attacks and defense', () => {
   it('block button blocks regardless of direction', () => {
     const s = newMatch();
     place(s, 0.8);
+    run(s, RULES.PB_WINDOW + 2, 0, IN.BLOCK);
     const evs = run(s, 1, L, IN.BLOCK);
     evs.push(...run(s, 20, 0, IN.BLOCK));
     expect(ofType(evs, 'block')).toHaveLength(1);
@@ -127,8 +131,49 @@ describe('attacks and defense', () => {
 
     s = newMatch();
     place(s, 0.8);
+    run(s, RULES.PB_WINDOW + 2, 0, IN.BLOCK | IN.DOWN);
     evs = run(s, 1, IN.DOWN | L, IN.BLOCK | IN.DOWN);
     evs.push(...run(s, 20, IN.DOWN, IN.BLOCK | IN.DOWN));
+    expect(ofType(evs, 'block')).toHaveLength(1);
+  });
+
+  it('perfect block: a press just before the hit takes no chip, gives meter and a counter-hit punish', () => {
+    const s = newMatch();
+    place(s, 0.8);
+    const [a, b] = s.fighters;
+    const hp = b.health;
+    const meter = b.meter;
+    // heavy (chip damage) starts; the defender presses block a few frames before it lands
+    const evs = run(s, 1, H);
+    evs.push(...run(s, 6));
+    evs.push(...run(s, 1, 0, IN.BLOCK));
+    // the perfect block freezes both a little longer (drama), then the defender is free almost at once
+    evs.push(...run(s, 24, 0, IN.BLOCK));
+    expect(ofType(evs, 'perfectBlock')).toHaveLength(1);
+    expect(ofType(evs, 'block')).toHaveLength(0);
+    expect(b.health).toBe(hp);
+    expect(b.meter).toBeGreaterThan(meter);
+    // defender is free long before the attacker recovers: the punish is a counter hit
+    expect(b.state === 'idle' || b.state === 'guard').toBe(true);
+    expect(a.state).toBe('move');
+    const punish = run(s, 1, 0, L);
+    punish.push(...run(s, 12));
+    const hits = ofType(punish, 'hit');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].counter).toBe(true);
+  });
+
+  it('perfect block cannot be mashed: a second press inside the lock opens no new window', () => {
+    const s = newMatch();
+    place(s, 0.8);
+    // press, release, press again just before the hit: still inside the lock -> normal block
+    run(s, 1, 0, IN.BLOCK);
+    run(s, 1, 0, 0);
+    const evs = run(s, 1, H, IN.BLOCK);
+    evs.push(...run(s, 4, 0, 0));
+    evs.push(...run(s, 1, 0, IN.BLOCK));
+    evs.push(...run(s, 14, 0, IN.BLOCK));
+    expect(ofType(evs, 'perfectBlock')).toHaveLength(0);
     expect(ofType(evs, 'block')).toHaveLength(1);
   });
 

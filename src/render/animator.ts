@@ -122,11 +122,14 @@ export class FighterAnimator {
           out[JOINT_INDEX.shR * 3 + 2] -= br * 1.5;
           out[R_Y] += br * 0.008;
           if (this.set.idleBounce) {
-            out[R_Y] -= this.beat * this.set.idleBounce;
-            out[S_SQ] += this.beat * 0.025;
-            out[JOINT_INDEX.knL * 3 + 2] -= this.beat * 6;
-            out[JOINT_INDEX.knR * 3 + 2] -= this.beat * 6;
-            out[JOINT_INDEX.head * 3 + 2] += this.beat * 3;
+            // smooth bob on the music: the beat value is a decaying pulse (1 on the beat), so recover its phase and use
+            // a cosine; a raw pulse dropped the body in a single frame on every beat (looked like a glitch)
+            const phase = 1 - Math.cbrt(Math.max(0, Math.min(1, this.beat)));
+            const bob = 0.5 + 0.5 * Math.cos(phase * Math.PI * 2);
+            out[R_Y] -= bob * this.set.idleBounce;
+            out[JOINT_INDEX.knL * 3 + 2] -= bob * 5;
+            out[JOINT_INDEX.knR * 3 + 2] -= bob * 5;
+            out[JOINT_INDEX.head * 3 + 2] += bob * 2;
           }
           fade = this.key.startsWith('walk') ? 5 : f.state === 'crouch' || this.key === 'crouch' ? 3 : 6;
           break;
@@ -237,7 +240,7 @@ export class FighterAnimator {
           break;
         case 'throwing': {
           const anim = throwAnim(f);
-          const clip = anim ? this.set.throwAtk[anim] : undefined;
+          const clip = anim ? (this.set.throwAtk[`${anim}_back`] && f.jumpDir < 0 ? this.set.throwAtk[`${anim}_back`] : this.set.throwAtk[anim]) : undefined;
           if (clip) clip.sample(f.throwFrame + a, out);
           else out.set(P.stance);
           fade = 2;
@@ -246,7 +249,8 @@ export class FighterAnimator {
         case 'thrown': {
           const anim = throwAnim(o);
           const atkSet = ANIM_SETS[o.def];
-          const clip = anim ? atkSet.throwDef[anim] : undefined;
+          // back throws (back + grab) have their own pair when the attacker's set defines one
+          const clip = anim ? (atkSet.throwDef[`${anim}_back`] && o.jumpDir < 0 ? atkSet.throwDef[`${anim}_back`] : atkSet.throwDef[anim]) : undefined;
           if (clip) {
             clip.sample(o.throwFrame + a, out);
             fixPivot(out, atkSet.pivot, this.set.pivot);

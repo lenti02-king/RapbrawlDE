@@ -84,6 +84,11 @@ export interface FighterState {
   throwMove: string | null;
   throwFrame: number;
   techWindow: number;
+  /** Perfect-block window (frames left) opened by a fresh block / back press, and the re-arm lock against mashing. */
+  pbWin: number;
+  pbLock: number;
+  /** Frames left in which this fighter's hits count as counter hits (punish after a perfect block). */
+  pbPunish: number;
   roundsWon: number;
   /** Jump direction chosen at jump squat end (-1, 0, 1 relative to facing). */
   jumpDir: number;
@@ -180,6 +185,9 @@ export function createFighter(idx: number, def: string, loadout: string[]): Figh
     throwMove: null,
     throwFrame: 0,
     techWindow: 0,
+    pbWin: 0,
+    pbLock: 0,
+    pbPunish: 0,
     roundsWon: 0,
     jumpDir: 0,
   };

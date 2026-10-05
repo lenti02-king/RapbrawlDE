@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { step } from '../src/core/sim';
 import { validateLoadout } from '../src/core/registry';
 import { IN, newMatch, ofType, place, run, script } from './helpers';
 
@@ -174,4 +175,36 @@ describe('target combos (buttons only)', () => {
     });
     expect(m3).not.toContain('bon_LLL');
   });
+
+  // H·L launcher -> Up (jump after them) -> jL -> jH: driven by the state, like a player reacting
+  for (const [a, b, launcher] of [
+    ['jazeek', 'bonez', 'jaz_HL'],
+    ['bonez', 'jazeek', 'bon_HL'],
+  ] as const) {
+    it(`${a}: H·L launches, Up on hit jumps after them, jL -> jH chain in the air (air combo)`, () => {
+      const s = newMatch({ fighters: [a, b] });
+      place(s, 1.0);
+      const [f, o] = s.fighters;
+      const moves: string[] = [];
+      const hits: number[] = [];
+      let phase = 0;
+      for (let i = 0; i < 160; i++) {
+        let bits = 0;
+        if (phase === 0) bits = IN.HEAVY;
+        else if (phase === 1 && f.state === 'move' && f.move?.endsWith('_5H') && f.connected === 'hit') bits = IN.LIGHT;
+        else if ((phase === 2 && f.move === launcher && f.connected === 'hit') || (phase === 3 && f.state === 'jumpSquat')) bits = IN.UP | IN.RIGHT;
+        else if (phase === 3 && f.state === 'air' && f.vy < 600) bits = IN.LIGHT;
+        else if (phase === 4 && f.state === 'move' && f.move?.endsWith('_jL') && f.connected === 'hit') bits = IN.HEAVY;
+        for (const e of step(s, [bits, 0])) if (e.t === 'hit' && e.a === 0) hits.push(e.combo);
+        if (f.state === 'move' && f.mf === 1 && moves[moves.length - 1] !== f.move) moves.push(f.move!);
+        if (phase === 0 && f.move?.endsWith('_5H')) phase = 1;
+        else if (phase === 1 && f.move === launcher) phase = 2;
+        else if (phase === 2 && (f.state === 'jumpSquat' || f.state === 'air')) phase = 3;
+        else if (phase === 3 && f.move?.endsWith('_jL')) phase = 4;
+      }
+      expect(moves).toEqual([`${a.slice(0, 3)}_5H`, launcher, `${a.slice(0, 3)}_jL`, `${a.slice(0, 3)}_jH`]);
+      expect(hits).toEqual([1, 2, 3, 4]);
+      expect(o.state === 'juggle' || o.state === 'knockdown' || o.state === 'wakeup' || o.state === 'idle').toBe(true);
+    });
+  }
 });

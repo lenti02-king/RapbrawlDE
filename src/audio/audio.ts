@@ -556,6 +556,14 @@ export class AudioEngine {
         case 'tech':
           this.block(2);
           break;
+        case 'perfectBlock': {
+          // bright "ting" + low thump: unmistakable, rewarding
+          const t = this.now();
+          this.tone(t, 'triangle', 1568, 1568, 0.22 * vol, 0.32, 0.4);
+          this.tone(t + 0.05, 'triangle', 2093, 2093, 0.26 * vol, 0.3, 0.4);
+          this.tone(t, 'sine', 110, 55, 0.5 * vol, 0.25);
+          break;
+        }
         case 'counter':
           this.tone(this.now(), 'square', 1760, 1500, 0.12, 0.3, 0.6);
           this.whoosh(2);

@@ -81,7 +81,6 @@ const _e = new THREE.Euler();
 const _qa = new THREE.Quaternion();
 const _qb = new THREE.Quaternion();
 const _qc = new THREE.Quaternion();
-const _d = new THREE.Vector3();
 const RAD = Math.PI / 180;
 const PARENT: Record<string, JointName[]> = {
   shL: ['hips', 'spine', 'chest'],
@@ -102,20 +101,63 @@ function chainQ(p: Float32Array, chain: JointName[], out: THREE.Quaternion): THR
   for (const j of chain) out.multiply(jointQ(p, j, _qb));
   return out;
 }
+const _m4 = new THREE.Matrix4();
+const _u = new THREE.Vector3();
+const _f = new THREE.Vector3();
+const _x = new THREE.Vector3();
+const _y = new THREE.Vector3();
+const _z = new THREE.Vector3();
+// where the lower segment goes when the joint bends: forearms fold up/forward, shins fold back/down
+const PREF_ARM = new THREE.Vector3(0.3, 1, 0).normalize();
+const PREF_LEG = new THREE.Vector3(-1, -1, 0).normalize();
+const LIMBS: [JointName, JointName, boolean][] = [
+  ['shL', 'elL', true],
+  ['shR', 'elR', true],
+  ['thL', 'knL', false],
+  ['thR', 'knR', false],
+];
+
+/**
+ * Two-segment limb solve with a real hinge: the upper joint gets the rotation (incl. roll) that points its segment
+ * along the aim AND puts the lower segment's aim in the hinge plane; the elbow/knee only bends (Z), as anatomy does.
+ */
 function solveAim(p: Float32Array, aim: Aim): void {
-  // order matters: parents before children
-  for (const j of ['shL', 'shR', 'thL', 'thR', 'elL', 'elR', 'knL', 'knR'] as const) {
-    const dir = aim[j];
-    if (!dir) continue;
-    chainQ(p, PARENT[j], _qa);
-    _d.set(dir[0], dir[1], dir[2]).normalize().applyQuaternion(_qc.copy(_qa).invert());
-    // R = Rz(c) Ry(0) Rx(a) applied to (0,-1,0) gives (cos a sin c, -cos a cos c, -sin a)
-    const a = Math.asin(Math.max(-1, Math.min(1, -_d.z)));
-    const c = Math.atan2(_d.x, -_d.y);
-    const i = JOINT_INDEX[j] * 3;
-    p[i] = a / RAD;
-    p[i + 1] = 0;
-    p[i + 2] = c / RAD;
+  for (const [up, lo, arm] of LIMBS) {
+    const ua = aim[up as keyof Aim] as Dir | undefined;
+    const la = aim[lo as keyof Aim] as Dir | undefined;
+    if (!ua && !la) continue;
+    chainQ(p, PARENT[up], _qa);
+    const inv = _qc.copy(_qa).invert();
+    if (ua) _u.set(ua[0], ua[1], ua[2]).normalize().applyQuaternion(inv);
+    else _u.set(0, -1, 0).applyQuaternion(jointQ(p, up, _qb)); // keep the authored upper direction
+    const li = JOINT_INDEX[lo] * 3;
+    let theta: number;
+    _x.set(0, 0, 0);
+    if (la) {
+      _f.set(la[0], la[1], la[2]).normalize().applyQuaternion(inv);
+      theta = Math.acos(Math.max(-1, Math.min(1, _u.dot(_f))));
+      _x.copy(_f).addScaledVector(_u, -_f.dot(_u));
+    } else theta = Math.abs(p[li + 2]) * RAD;
+    if (_x.lengthSq() < 1e-6) {
+      _x.copy(arm ? PREF_ARM : PREF_LEG).applyQuaternion(inv);
+      _x.addScaledVector(_u, -_x.dot(_u));
+      if (_x.lengthSq() < 1e-6) _x.set(1, 0, 0).addScaledVector(_u, -_u.x);
+    }
+    _x.normalize();
+    // local frame: Y = -segment, X = bend direction (arms) / opposite (legs, knees bend with -Z)
+    if (!arm) _x.negate();
+    _y.copy(_u).negate();
+    _z.crossVectors(_x, _y).normalize();
+    _x.crossVectors(_y, _z).normalize();
+    _m4.makeBasis(_x, _y, _z);
+    _e.setFromRotationMatrix(_m4, 'ZYX');
+    const ui = JOINT_INDEX[up] * 3;
+    p[ui] = _e.x / RAD;
+    p[ui + 1] = _e.y / RAD;
+    p[ui + 2] = _e.z / RAD;
+    p[li] = 0;
+    p[li + 1] = 0;
+    p[li + 2] = ((arm ? 1 : -1) * theta) / RAD;
   }
   if (aim.face) {
     const twist = p[R_YAW] + p[JOINT_INDEX.hips * 3 + 1] + p[JOINT_INDEX.spine * 3 + 1] + p[JOINT_INDEX.chest * 3 + 1];

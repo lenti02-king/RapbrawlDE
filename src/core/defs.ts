@@ -124,6 +124,8 @@ export interface MoveDef {
   targets?: { light?: TargetDef; heavy?: TargetDef };
   /** May cancel into a special card once it has connected. */
   specialCancel?: boolean;
+  /** On hit, holding Up cancels the recovery into a jump (launcher -> air combo). */
+  jumpCancel?: boolean;
   velocity?: VelocityKey[];
   /** Invulnerable to strikes and projectiles (not throws) during [start,end]. */
   strikeInvuln?: [number, number];

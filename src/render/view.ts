@@ -241,6 +241,24 @@ export class GameView {
           this.director.shake(0.25);
           break;
         }
+        case 'perfectBlock': {
+          // gold shield burst on the defender: the hit bounced off
+          const x = e.x / U;
+          const y = e.y / U;
+          const gold = C(0xffd34a);
+          this.vfx.ring(x, y, 1.8, gold, 0.4);
+          this.vfx.ring(x, y, 1.1, C(0xffffff), 0.25);
+          this.vfx.sparks(x, y, 22, gold, 10, -s.fighters[e.d].facing, 2);
+          this.toon.impact(x, y, 1.15, gold, { spikes: 14, jag: 0.12, life: 0.3 });
+          this.toon.speedLines(x, y, C(0xfff2c0), 0.32, 0.5);
+          this.flash[e.d] = 1;
+          this.flashColor[e.d].set(0xffd34a);
+          this.screenFlash = Math.max(this.screenFlash, 0.45);
+          this.director.punch(2.2);
+          this.director.shake(0.2);
+          this.arena.pulse(0.6);
+          break;
+        }
         case 'counter': {
           const x = e.x / U;
           const y = e.y / U;
@@ -256,7 +274,10 @@ export class GameView {
           break;
         }
         case 'throwHit': {
-          const x = e.x / U;
+          // the slam lands where the victim's body is (back throws land behind the thrower)
+          const hips = this.rigs[e.d]?.joints.hips.getWorldPosition(new THREE.Vector3());
+          const x = hips ? hips.x : e.x / U;
+          this.toon.impactFrame(0.06);
           this.toon.puff(x, 0, 12, 1.2, DUST, 0.3, 0.9);
           this.vfx.ring(x, 0.05, 1.6, C(0xffffff), 0.3, true);
           this.vfx.sparks(x, 0.4, 12, HIT_COLORS[2], 8, 1, 2);
@@ -264,8 +285,9 @@ export class GameView {
           this.toon.crack(x, 1.8);
           this.toon.rubble(x, 0, 10);
           this.toon.speedLines(x, 0.5, C(0xffffff), 0.28, 0.5);
-          this.director.shake(0.45);
-          this.director.kick(0, -0.06, 0);
+          this.director.shake(0.6);
+          this.director.kick(0, -0.08, 0);
+          this.arena.pulse(0.8);
           this.flash[e.d] = 1;
           this.flashColor[e.d].set(0xffffff);
           break;

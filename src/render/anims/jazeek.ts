@@ -39,7 +39,7 @@ const jab: PoseDef = {
 };
 const cross: PoseDef = {
   x: 0.16,
-  s: { aR: 0.16 },
+  s: { aR: 0.1 },
   aim: { shR: [1, 0.25, 0.0], elR: [1, 0.24, 0.0], face: 0.8 },
   j: {
     hips: [0, 0, 0],
@@ -56,7 +56,7 @@ const cross: PoseDef = {
 };
 const backhand: PoseDef = {
   x: 0.12,
-  s: { aL: 0.12 },
+  s: { aL: 0.1 },
   aim: { shL: [1, 0.34, 0.3], elL: [1, 0.3, 0.36], face: 0.7 },
   j: { hips: [0, -40, 0], spine: [0, -18, -10], chest: [0, -44, -8], haL: [0, 0, -20], shR: [-20, 0, 40], elR: [0, 0, 120] },
 };
@@ -74,7 +74,7 @@ const hookL: PoseDef = {
 };
 const kickHigh: PoseDef = {
   x: 0.1,
-  s: { lR: 0.22 },
+  s: { lR: 0.15 },
   aim: { thR: [1, 0.55, 0.1], knR: [1, 0.53, 0.1], face: 0.5 },
   j: { hips: [0, 30, 10], spine: [0, 10, 14], chest: [0, 10, 8], ftR: [0, 0, -10], thL: [6, 20, -6], knL: [0, 0, -14], shL: [40, 0, 40], elL: [0, 0, 90], shR: [-40, 0, 20], elR: [0, 0, 90] },
 };
@@ -91,6 +91,13 @@ const sing: PoseDef = {
     elL: [0, 0, 12],
     haL: [0, 0, -50],
   },
+};
+
+// clinch for the slams: both arms wrapped round the opponent's waist
+const CLINCH: PoseDef = {
+  x: 0.08,
+  aim: { shL: [0.8, -0.45, -0.3], elL: [0.35, 0.05, 0.95], shR: [0.8, -0.45, 0.3], elR: [0.35, 0.05, -0.95], face: 0.5 },
+  j: { spine: [0, -6, -18], chest: [0, -10, -10] },
 };
 
 // ---- normals: anticipation -> contact (with cartoon reach) -> follow-through -> settle (anims/motion.ts strike())
@@ -134,13 +141,13 @@ const normals: Record<string, Clip> = {
       },
       hit: {
         x: 0.08,
-        s: { aL: 0.12, sq: -0.04 },
+        s: { aL: 0.1, sq: -0.04 },
         aim: { shL: [1, 0.34, 0.3], elL: [1, 0.3, 0.36], face: 0.7 },
         j: { hips: [0, -40, 0], spine: [0, -18, -10], chest: [0, -44, -8], haL: [0, 0, -24], shR: [-22, 0, 42], elR: [0, 0, 124], thL: [6, 20, 34], knL: [0, 0, -40], thR: [-8, 18, -28], knR: [0, 0, -8], ftR: [0, 0, 30] },
       },
       hold: {
         x: 0.09,
-        s: { aL: 0.14 },
+        s: { aL: 0.1 },
         aim: { shL: [1, 0.3, 0.18], elL: [1, 0.28, 0.18], face: 0.7 },
         j: { hips: [0, -44, 0], spine: [0, -20, -10], chest: [0, -50, -8], haL: [0, 0, -26], shR: [-22, 0, 42], elR: [0, 0, 124], thL: [6, 20, 34], knL: [0, 0, -40], thR: [-8, 18, -28], knR: [0, 0, -8], ftR: [0, 0, 30] },
       },
@@ -161,10 +168,10 @@ const normals: Record<string, Clip> = {
       },
       {
         f: 8,
-        p: compose(kickHigh, { yaw: -350, x: 0.24, s: { lR: 0.34, sq: -0.04 }, j: { hips: [0, 50, 14], chest: [0, 20, 10] }, aim: { thR: [1, 0.5, 0.15], knR: [1, 0.48, 0.15], face: 0.5 } }),
+        p: compose(kickHigh, { yaw: -350, x: 0.34, s: { lR: 0.15, sq: -0.04 }, j: { hips: [0, 50, 14], chest: [0, 20, 10] }, aim: { thR: [1, 0.5, 0.15], knR: [1, 0.48, 0.15], face: 0.5 } }),
         e: 'snap',
       },
-      { f: 10, p: compose(kickHigh, { yaw: -362, x: 0.25, s: { lR: 0.36 }, j: { hips: [0, 54, 14], chest: [0, 22, 10] }, aim: { thR: [1, 0.54, 0.1], knR: [1, 0.52, 0.1], face: 0.5 } }), e: 'out' },
+      { f: 10, p: compose(kickHigh, { yaw: -362, x: 0.35, s: { lR: 0.15 }, j: { hips: [0, 54, 14], chest: [0, 22, 10] }, aim: { thR: [1, 0.54, 0.1], knR: [1, 0.52, 0.1], face: 0.5 } }), e: 'out' },
       { f: 14, p: compose(kickHigh, { yaw: -380, x: 0.14, s: { lR: 0.08 }, j: { hips: [0, 60, 10], chest: [0, 26, 8], knR: [0, 0, -60] }, aim: { thR: [0.8, 0.3, -0.5] } }), e: 'out' },
       { f: 21, p: { yaw: -366, y: -0.06, s: { sq: 0.08 }, j: { thR: [-8, 18, -4], knR: [0, 0, -40], thL: [6, 20, 30], knL: [0, 0, -44] } }, e: 'inOut' },
       { f: 29, p: { yaw: -360 }, e: 'inOut' },
@@ -187,14 +194,14 @@ const normals: Record<string, Clip> = {
       hit: {
         y: 0.06,
         x: 0.08,
-        s: { aR: 0.14, sq: -0.16 },
+        s: { aR: 0.1, sq: -0.16 },
         aim: { shR: [1, 0.4, 0.0], elR: [0.95, 1, 0.0] },
         j: { hips: [0, 6, 0], spine: [0, 6, 8], chest: [0, 12, 6], neck: [0, -6, 4], head: [0, -12, 10], haR: [0, 0, -10], shL: [24, 0, 30], elL: [0, 0, 112], thR: [-10, 14, -22], knR: [0, 0, -2], ftR: [0, 0, 30], thL: [6, 20, 30], knL: [0, 0, -20] },
       },
       hold: {
         y: 0.08,
         x: 0.08,
-        s: { aR: 0.16, sq: -0.18 },
+        s: { aR: 0.1, sq: -0.18 },
         aim: { shR: [1, 0.48, 0.0], elR: [0.85, 1, 0.0] },
         j: { hips: [0, 8, 0], spine: [0, 6, 10], chest: [0, 14, 8], neck: [0, -6, 6], head: [0, -14, 12], haR: [0, 0, -10], shL: [24, 0, 30], elL: [0, 0, 112], thR: [-10, 14, -22], knR: [0, 0, -2], ftR: [0, 0, 30], thL: [6, 20, 30], knL: [0, 0, -20] },
       },
@@ -212,8 +219,8 @@ const normals: Record<string, Clip> = {
       base: r.crouch,
       windAt: 4,
       wind: { s: { sq: 0.04 }, j: { thL: [8, 20, 70], knL: [0, 0, -124], ftL: [0, 0, 30], chest: [0, -6, -8] } },
-      hit: { y: -0.28, x: 0.04, s: { lL: 0.22 }, j: { spine: [0, -6, 6], chest: [0, -20, 0], thL: [4, 14, 82], knL: [0, 0, -4], ftL: [0, 0, -20], shL: [20, 0, 40], elL: [0, 0, 110] } },
-      hold: { y: -0.28, x: 0.05, s: { lL: 0.26 }, j: { spine: [0, -6, 6], chest: [0, -20, 0], thL: [4, 14, 84], knL: [0, 0, -2], ftL: [0, 0, -22], shL: [20, 0, 40], elL: [0, 0, 110] } },
+      hit: { y: -0.28, x: 0.04, s: { lL: 0.15 }, j: { spine: [0, -6, 6], chest: [0, -20, 0], thL: [4, 14, 82], knL: [0, 0, -4], ftL: [0, 0, -20], shL: [20, 0, 40], elL: [0, 0, 110] } },
+      hold: { y: -0.28, x: 0.05, s: { lL: 0.15 }, j: { spine: [0, -6, 6], chest: [0, -20, 0], thL: [4, 14, 84], knL: [0, 0, -2], ftL: [0, 0, -22], shL: [20, 0, 40], elL: [0, 0, 110] } },
       follow: { y: -0.32, s: { lL: 0.05 }, j: { thL: [6, 18, 74], knL: [0, 0, -60], ftL: [0, 0, 10] } },
       settle: { y: -0.38, s: { sq: 0.03 } },
     },
@@ -236,17 +243,17 @@ const normals: Record<string, Clip> = {
       },
       hit: {
         y: -0.44,
-        x: 0.05,
+        x: 0.15,
         yaw: 20,
-        s: { lR: 0.26 },
+        s: { lR: 0.15 },
         aim: { thR: [1, -0.2, 0.15], knR: [1, -0.14, 0.15] },
         j: { hips: [0, 60, 0], spine: [0, 10, -30], chest: [0, 10, -14], ftR: [0, 0, -10], thL: [8, 20, 70], knL: [0, 0, -130], shL: [30, 0, 100], elL: [0, 0, 10], shR: [-30, 0, 96], elR: [0, 0, 10] },
       },
       hold: {
         y: -0.44,
-        x: 0.05,
+        x: 0.15,
         yaw: 40,
-        s: { lR: 0.28 },
+        s: { lR: 0.15 },
         aim: { thR: [1, -0.2, 0.0], knR: [1, -0.14, 0.0] },
         j: { hips: [0, 70, 0], spine: [0, 10, -30], chest: [0, 10, -14], ftR: [0, 0, -10], thL: [8, 20, 70], knL: [0, 0, -130], shL: [30, 0, 100], elL: [0, 0, 10], shR: [-30, 0, 96], elR: [0, 0, 10] },
       },
@@ -255,7 +262,27 @@ const normals: Record<string, Clip> = {
     },
     S,
   ),
-  // jumping knee, startup 5 / active 7 / total 17
+  // H·L launcher "Encore-Kick", startup 8 / active 3 / total 32: dips, then a rising kick that sends them up
+  jaz_HL: strike(
+    {
+      startup: 8,
+      active: 3,
+      total: 32,
+      windAt: 5,
+      wind: { y: -0.1, x: 0.02, s: { sq: 0.12 }, j: { spine: [0, -6, -16], chest: [0, -16, -8], thR: [-8, 18, 20], knR: [0, 0, -100], thL: [6, 20, 40], knL: [0, 0, -60], shL: [30, 0, 30], elL: [0, 0, 110], shR: [-30, 0, 20], elR: [0, 0, 110] } },
+      hit: {
+        y: 0.08,
+        x: 0.12,
+        rot: 12,
+        s: { lR: 0.12, sq: -0.12 },
+        aim: { thR: [0.55, 1, 0.12], knR: [0.5, 1, 0.12], face: 0.6 },
+        j: { spine: [0, 0, 12], chest: [0, 6, 10], head: [0, -10, 12], thL: [6, 20, -6], knL: [0, 0, -10], shL: [40, 0, 50], elL: [0, 0, 70], shR: [-40, 0, -20], elR: [0, 0, 60] },
+      },
+      follow: { y: 0.06, x: 0.1, rot: 8, aim: { thR: [0.2, 1, 0.1], knR: [-0.2, 0.6, 0.1] }, j: { spine: [0, 0, 10], thL: [6, 20, -6], knL: [0, 0, -12] } },
+      settle: { y: -0.06, s: { sq: 0.08 } },
+    },
+    S,
+  ),
   jaz_jL: strike(
     {
       startup: 5,
@@ -282,7 +309,7 @@ const normals: Record<string, Clip> = {
         yaw: -20,
         rot: 10,
         x: 0.05,
-        s: { lR: 0.22, sq: -0.05 },
+        s: { lR: 0.15, sq: -0.05 },
         aim: { thR: [1, -0.8, 0.12], knR: [1, -0.85, 0.12] },
         j: { hips: [0, 20, 0], spine: [0, 0, 10], chest: [0, 10, 8], ftR: [0, 0, -14], thL: [6, 10, 30], knL: [0, 0, -96], shL: [50, 0, 70], elL: [0, 0, 40], shR: [-50, 0, 50], elR: [0, 0, 60] },
       },
@@ -379,8 +406,8 @@ const moves: Record<string, Clip> = {
   jaz_heart: new Clip(
     [
       { f: 1, p: sing },
-      { f: 8, p: { x: 0.15, s: { aL: 0.12 }, aim: { shL: [1, 0.15, 0.3], elL: [1, 0.15, 0.3], face: 0.6 }, j: { spine: [0, -10, -12], chest: [0, -24, -8], haL: [0, 0, -60], shR: [-20, 0, 60], elR: [0, 0, 130] } }, e: 'snap' },
-      { f: 13, p: { x: 0.15, s: { aL: 0.12 }, aim: { shL: [1, 0.15, 0.3], elL: [1, 0.15, 0.3], face: 0.6 }, j: { spine: [0, -10, -12], chest: [0, -24, -8], haL: [0, 0, -60], shR: [-20, 0, 60], elR: [0, 0, 130] } } },
+      { f: 8, p: { x: 0.15, s: { aL: 0.1 }, aim: { shL: [1, 0.15, 0.3], elL: [1, 0.15, 0.3], face: 0.6 }, j: { spine: [0, -10, -12], chest: [0, -24, -8], haL: [0, 0, -60], shR: [-20, 0, 60], elR: [0, 0, 130] } }, e: 'snap' },
+      { f: 13, p: { x: 0.15, s: { aL: 0.1 }, aim: { shL: [1, 0.15, 0.3], elL: [1, 0.15, 0.3], face: 0.6 }, j: { spine: [0, -10, -12], chest: [0, -24, -8], haL: [0, 0, -60], shR: [-20, 0, 60], elR: [0, 0, 130] } } },
       { f: 30, p: {} },
       { f: 58, p: {} },
     ],
@@ -436,14 +463,35 @@ export const JAZEEK_ANIMS: AnimSet = {
     S,
   ),
   moves,
+  // Grabs are wrestling slams (sim: 44 frames, tech window 10, damage on frame 30, victim ends 1.7 m away).
+  // Forward: "Showtime-Spinebuster" (lift chest to chest, drive the opponent down in front).
+  // Back (back + grab): "Encore-Suplex" (German suplex: the opponent flips over Jazeek's head and lands behind).
   throwAtk: {
     jaz_throw: new Clip(
       [
-        { f: 0, p: { x: 0.05, j: { shL: [24, 0, 84], elL: [0, 0, 40], shR: [-24, 0, 80], elR: [0, 0, 40] } } },
-        { f: 10, p: { yaw: -90, j: { shL: [60, 0, 80], elL: [0, 0, 30], shR: [-60, 0, 80], elR: [0, 0, 30] } } },
-        { f: 22, p: { yaw: -270, j: { shL: [60, 0, 80], elL: [0, 0, 30], shR: [-60, 0, 80], elR: [0, 0, 30] } }, e: 'linear' },
-        { f: 30, p: { yaw: -360, x: 0.1, j: { shL: [30, 0, 100], elL: [0, 0, 10], shR: [-30, 0, 110], elR: [0, 0, 10] } }, e: 'snap' },
-        { f: 44, p: { yaw: -360 } },
+        { f: 0, p: CLINCH },
+        { f: 8, p: compose(CLINCH, { y: -0.12, s: { sq: 0.12 }, j: { thL: [6, 20, 50], knL: [0, 0, -70], thR: [-8, 18, -4], knR: [0, 0, -60] } }), e: 'out' },
+        { f: 16, p: { y: 0.04, s: { sq: -0.1 }, aim: { shL: [0.3, 0.9, -0.3], elL: [0.4, 0.4, 0.8], shR: [0.3, 0.9, 0.3], elR: [0.4, 0.4, -0.8], face: 0.6 }, j: { spine: [0, -4, 14], chest: [0, -6, 10], head: [0, 0, 10] } }, e: 'out' },
+        { f: 22, p: { y: 0.06, s: { sq: -0.12 }, aim: { shL: [0.4, 0.95, -0.3], elL: [0.5, 0.4, 0.8], shR: [0.4, 0.95, 0.3], elR: [0.5, 0.4, -0.8], face: 0.6 }, j: { spine: [0, -4, 18], chest: [0, -6, 12], head: [0, 0, 14] } }, e: 'inOut' },
+        // drive down: one step in, the whole body follows the opponent into the floor
+        { f: 27, p: { x: 0.18, y: -0.18, aim: { shL: [1, -0.5, -0.2], elL: [1, -0.6, 0.1], shR: [1, -0.5, 0.2], elR: [1, -0.6, -0.1], face: 0.5 }, j: { spine: [0, -6, -34], chest: [0, -8, -20], thL: [6, 20, 60], knL: [0, 0, -80], thR: [-8, 18, -30], knR: [0, 0, -20] } }, e: 'in' },
+        { f: 30, p: { x: 0.26, y: -0.38, s: { sq: 0.16 }, aim: { shL: [1, -0.9, -0.2], elL: [1, -0.9, 0], shR: [1, -0.9, 0.2], elR: [1, -0.9, 0], face: 0.4 }, j: { spine: [0, -6, -46], chest: [0, -8, -26], thL: [6, 20, 76], knL: [0, 0, -120], thR: [-8, 18, -10], knR: [0, 0, -110] } }, e: 'snap' },
+        { f: 36, p: { x: 0.24, y: -0.34, s: { sq: 0.06 }, aim: { shL: [1, -0.9, -0.2], elL: [1, -0.9, 0], shR: [1, -0.9, 0.2], elR: [1, -0.9, 0] }, j: { spine: [0, -6, -40], chest: [0, -8, -22], thL: [6, 20, 76], knL: [0, 0, -120], thR: [-8, 18, -10], knR: [0, 0, -110] } }, e: 'out' },
+        // pop up and point at the crowd
+        { f: 44, p: compose(sing, { x: 0.1 }), e: 'inOut' },
+      ],
+      S,
+    ),
+    jaz_throw_back: new Clip(
+      [
+        { f: 0, p: CLINCH },
+        { f: 9, p: compose(CLINCH, { y: -0.14, s: { sq: 0.14 }, j: { thL: [6, 20, 56], knL: [0, 0, -80], thR: [-8, 18, 0], knR: [0, 0, -70] } }), e: 'out' },
+        { f: 17, p: { y: 0.02, rot: 24, s: { sq: -0.1 }, aim: { shL: [-0.2, 1, -0.3], elL: [0.3, 0.5, 0.8], shR: [-0.2, 1, 0.3], elR: [0.3, 0.5, -0.8] }, j: { spine: [0, 0, 18], chest: [0, 0, 16], head: [0, 0, 20], thL: [6, 20, -10], knL: [0, 0, -20], thR: [-8, 18, -30], knR: [0, 0, -10] } }, e: 'out' },
+        // bridge: arch back, the opponent goes over the head
+        { f: 24, p: { y: -0.14, rot: 58, aim: { shL: [-0.9, 0.2, -0.3], elL: [-0.9, -0.2, 0.4], shR: [-0.9, 0.2, 0.3], elR: [-0.9, -0.2, -0.4] }, j: { spine: [0, 0, 22], chest: [0, 0, 20], neck: [0, 0, 16], head: [0, 0, 20], thL: [6, 20, -40], knL: [0, 0, -50], thR: [-8, 18, -60], knR: [0, 0, -40] } }, e: 'inOut' },
+        { f: 30, p: { y: -0.34, rot: 78, s: { sq: 0.1 }, aim: { shL: [-0.9, -0.3, -0.3], elL: [-0.8, -0.6, 0.2], shR: [-0.9, -0.3, 0.3], elR: [-0.8, -0.6, -0.2] }, j: { spine: [0, 0, 24], chest: [0, 0, 22], neck: [0, 0, 20], head: [0, 0, 24], thL: [6, 20, -62], knL: [0, 0, -70], thR: [-8, 18, -76], knR: [0, 0, -60] } }, e: 'snap' },
+        { f: 36, p: { y: -0.3, rot: 70, aim: { shL: [-0.9, -0.3, -0.3], shR: [-0.9, -0.3, 0.3] }, j: { spine: [0, 0, 20], chest: [0, 0, 18], thL: [6, 20, -56], knL: [0, 0, -70], thR: [-8, 18, -70], knR: [0, 0, -60] } }, e: 'out' },
+        { f: 44, p: compose(sing, {}), e: 'inOut' },
       ],
       S,
     ),
@@ -451,12 +499,30 @@ export const JAZEEK_ANIMS: AnimSet = {
   throwDef: {
     jaz_throw: new Clip(
       [
-        { f: 0, p: r.hitHigh },
-        { f: 10, p: compose(r.juggle, { y: 0.2, rot: 20 }) },
-        { f: 22, p: compose(r.juggle, { y: 0.35, rot: 40 }) },
-        { f: 30, p: compose(r.juggle, { x: -0.5, y: 0.5, rot: 60 }) },
-        { f: 38, p: compose(r.juggle, { x: -0.9, y: 0.25, rot: 80 }) },
-        { f: 44, p: compose(r.lying, { x: -(1.7 - 0.53) + 0.05 }) },
+        { f: 0, p: compose(r.hitGut, { x: 0.06 }) },
+        { f: 8, p: compose(r.hitGut, { x: 0.1, y: 0.04 }), e: 'out' },
+        // lifted chest to chest, legs dangling
+        { f: 16, p: compose(r.juggle, { x: 0.12, y: 0.62, rot: 8, j: { thL: [10, 0, 10], knL: [0, 0, -40], thR: [-10, 0, -6], knR: [0, 0, -30] } }), e: 'out' },
+        { f: 22, p: compose(r.juggle, { x: 0.12, y: 0.72, rot: 14, j: { thL: [10, 0, 14], knL: [0, 0, -50], thR: [-10, 0, -2], knR: [0, 0, -36] } }), e: 'inOut' },
+        { f: 27, p: compose(r.juggle, { x: -0.1, y: 0.42, rot: 62 }), e: 'in' },
+        // slammed flat on the back
+        { f: 30, p: compose(r.lying, { x: -0.32, s: { sq: 0.22 } }), e: 'snap' },
+        { f: 34, p: compose(r.lying, { x: -0.62, y: (r.lying.y ?? 0) + 0.14, rot: 80 }), e: 'out' },
+        { f: 38, p: compose(r.lying, { x: -0.92, s: { sq: 0.08 } }), e: 'in' },
+        { f: 44, p: compose(r.lying, { x: -(1.7 - 0.53) + 0.05 }), e: 'out' },
+      ],
+      S,
+    ),
+    jaz_throw_back: new Clip(
+      [
+        { f: 0, p: compose(r.hitGut, { x: 0.06 }) },
+        { f: 9, p: compose(r.hitGut, { x: 0.1, y: 0.02, rot: -8 }), e: 'out' },
+        { f: 17, p: compose(r.juggle, { x: 0.3, y: 0.82, rot: -70 }), e: 'out' },
+        // over the top, head first
+        { f: 24, p: compose(r.juggle, { x: 0.86, y: 0.86, rot: -170 }), e: 'inOut' },
+        { f: 30, p: compose(r.lying, { x: 1.26, y: (r.lying.y ?? 0) + 0.18, rot: -232, s: { sq: 0.2 } }), e: 'snap' },
+        { f: 35, p: compose(r.lying, { x: 1.6, rot: -262 }), e: 'out' },
+        { f: 44, p: compose(r.lying, { x: 1.7 + 0.53 - 0.05, rot: -270 }), e: 'out' },
       ],
       S,
     ),
