@@ -30,6 +30,7 @@ export const P1_KEYS: KeyMap = {
   KeyU: IN.S1,
   KeyI: IN.S2,
   KeyO: IN.S3,
+  KeyC: IN.CHARGE,
 };
 
 export const P2_KEYS: KeyMap = {
@@ -106,6 +107,7 @@ export class GamepadSource implements InputSource {
     if (b(4)) bits |= IN.S1;
     if (b(5)) bits |= IN.S2;
     if (b(7)) bits |= IN.S3;
+    if (b(10) || b(11)) bits |= IN.CHARGE;
     return socd(bits);
   }
 }

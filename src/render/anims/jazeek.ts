@@ -500,7 +500,7 @@ export const JAZEEK_ANIMS: AnimSet = {
   walkB: [walkB, walkA],
   // light, bouncy steps
   walk: { step: 0.46, bob: 0.032, lift: 24, twist: 8, lean: -4 },
-  idleBounce: 0.022,
+  idleBounce: 0.01,
   intro: new Clip(
     [
       { f: 0, p: { j: { head: [0, -30, 4], neck: [0, -10, 0], shR: [-30, 0, 66], elR: [0, 0, 142], shL: [20, 0, 10], elL: [0, 0, 20] } } },

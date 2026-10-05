@@ -15,6 +15,8 @@ export const IN = {
   S1: 1 << 8,
   S2: 1 << 9,
   S3: 1 << 10,
+  /** Hold to charge Hype ("Aufladen"): standing still, can't block. */
+  CHARGE: 1 << 11,
 } as const;
 
 /** Buttons whose presses are buffered (index = slot in FighterState.buf). */

@@ -130,6 +130,7 @@ function handHtml(): string {
         ${art('hype', h.x, h.y, 'frame')}
         ${text('HYPE', [hl[0], hl[1], hl[2], hl[3]], h.x, h.y, { cls: 'hm-hype', fs: 46, align: 'center' })}
         ${text('0', [h.x + 64, h.y + 58, h.x + 112, h.y + 100], h.x, h.y, { cls: 'hm-hypen', fs: 32, align: 'center' })}
+        ${text('HALTEN = AUFLADEN', [h.x + 140, h.y + 30, h.x + 560, h.y + 80], h.x, h.y, { cls: 'hm-chargehint', fs: 26, align: 'center' })}
       </div>
     </div>`;
 }
@@ -188,6 +189,8 @@ export class Hud {
   private local = 0;
   private lastLocalMeter = -1;
   readonly pauseBtn: HTMLButtonElement;
+  /** The Hype bar: hold to charge ("Aufladen"). */
+  readonly chargeEl: HTMLElement;
   readonly trainingInfo: HTMLElement;
   /** The three hand cards (S1, S2, S3) — TouchControls binds them as buttons. */
   readonly handCards: HTMLElement[] = [];
@@ -260,6 +263,7 @@ export class Hud {
     this.superCard = this.root.querySelector('.super-card')!;
     this.hand = this.root.querySelector('.hand')!;
     this.hypebar = this.root.querySelector('.hm-hypebar')!;
+    this.chargeEl = this.hypebar;
     this.hypeFill = [this.hypebar.querySelector<HTMLElement>('.hfill')!];
     this.hypeN = this.hypebar.querySelector<HTMLElement>('.hm-hypen > i')!;
     this.sigReady = this.root.querySelector('.sig-ready')!;
@@ -343,6 +347,7 @@ export class Hud {
     });
     this.layout();
     this.hand.classList.toggle('tap', touch);
+    setT(this.hypebar.querySelector<HTMLElement>('.hm-chargehint')!, touch ? 'HALTEN = AUFLADEN' : 'C HALTEN = AUFLADEN');
     this.root.classList.toggle('training', s.config.training);
     this.announce.className = 'announce';
     this.tweens = [];
@@ -596,6 +601,7 @@ export class Hud {
 
   private updateHand(s: GameState): void {
     const me = s.fighters[this.local];
+    this.hypebar.classList.toggle('charging', me.state === 'charge');
     if (me.meter === this.lastLocalMeter) return;
     const prev = this.lastLocalMeter;
     this.lastLocalMeter = me.meter;

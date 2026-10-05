@@ -197,6 +197,8 @@ export class Bot implements InputSource {
       const buff = ready((c) => c.ai === 'buff');
       if (proj >= 0 && this.chance(this.level.meterUse * 0.25)) useCard(proj, 30);
       else if (buff >= 0 && me.meter < 200 && this.chance(0.08)) useCard(buff, 20);
+      // Aufladen when there is room (the opponent can punish it from close)
+      else if (me.meter < 260 && dist > 4.2 && this.chance(0.12 + this.level.meterUse * 0.1)) this.queue([{ bits: IN.CHARGE, frames: 30 + Math.floor(this.rnd() * 40) }]);
       else if (this.chance(0.25)) this.queue([{ bits: FWD, frames: 1 }, { bits: 0, frames: 2 }, { bits: FWD, frames: 1 }, { bits: 0, frames: 14 }]);
       else this.queue([{ bits: FWD, frames: 10 + Math.floor(this.rnd() * 12) }]);
     } else if (dist > jabRange + 0.25) {

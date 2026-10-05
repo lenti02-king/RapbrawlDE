@@ -383,3 +383,27 @@
 .hud.hm .hm-clip.r {
   transition: none;
 }
+/* the Hype bar is the "Aufladen" button: hold it (touch) or C / L3-R3 */
+.hud.hm .hm-hypebar {
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud.hm .hm-hypebar.down .hfill img,
+.hud.hm .hm-hypebar.charging .hfill img {
+  animation: hm-danger 0.25s ease-in-out infinite alternate;
+}
+.hud.hm .hm-chargehint {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+  --fill: linear-gradient(#fff, #f3e6ff);
+  --sw: 0.08em;
+  --ol: #2a0640;
+  --sh: none;
+}
+.hud.hm .hm-hypebar.full .hm-chargehint {
+  opacity: 0;
+}

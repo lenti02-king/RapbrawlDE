@@ -219,6 +219,7 @@ export class App {
     this.hud.screenOf = (i) => this._view?.screenOf(i) ?? null;
     this.touch = new TouchControls(ui);
     this.touch.bindCards(this.hud.handCards);
+    this.touch.bindCharge(this.hud.chargeEl);
     this.hud.onSigReady = () => this.audio.chime();
     const params = new URLSearchParams(location.search);
     const touchPref = store.get<'auto' | 'on' | 'off'>('touch', 'auto');

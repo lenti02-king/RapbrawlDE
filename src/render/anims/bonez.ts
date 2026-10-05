@@ -425,7 +425,7 @@ export const BONEZ_ANIMS: AnimSet = {
   walkB: [walkB, walkA],
   // heavy, rolling steps
   walk: { step: 0.44, bob: 0.022, lift: 18, twist: 6, lean: -2 },
-  idleBounce: 0.008,
+  idleBounce: 0.006,
   intro: new Clip(
     [
       { f: 0, p: { j: { chest: [0, -10, 4], shL: [30, 0, 10], elL: [0, 0, 20], shR: [-30, 0, 10], elR: [0, 0, 20] } } },

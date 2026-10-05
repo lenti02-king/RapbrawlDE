@@ -13,6 +13,7 @@ import type { ToonFX } from './toonfx';
 import type { CameraDirector } from './camera';
 
 const U = UNITS_PER_METER;
+const CHARGE = '__charge';
 const CAT_HEX: Record<string, number> = {
   offense: 0xff6a3d,
   zoning: 0x3dc8ff,
@@ -159,6 +160,15 @@ export class SpecialAura {
 
   onEvents(s: GameState, events: readonly SimEvent[]): void {
     for (const e of events) {
+      if (e.t === 'charge' && e.on) {
+        // Aufladen: the same aura in Hype violet while the button is held
+        const slot = this.slots[e.p];
+        slot.card = CHARGE;
+        slot.t = 0;
+        slot.color.setHex(0xb45cff);
+        this.vfx.ring(s.fighters[e.p].x / U, 0.04, 2.2, slot.color, 0.35, true);
+        continue;
+      }
       if (e.t !== 'card') continue;
       const f = s.fighters[e.p];
       let cat = 'offense';
@@ -192,7 +202,7 @@ export class SpecialAura {
       const slot = this.slots[i];
       const anim = anims[i];
       const rig = rigs[i];
-      const active = !!slot.card && f.state === 'move' && f.card === slot.card;
+      const active = !!slot.card && ((f.state === 'move' && f.card === slot.card) || (slot.card === CHARGE && f.state === 'charge'));
       slot.t += dt;
       // fast power-up, slower fade
       slot.level = active ? Math.min(1, slot.level + dt * 9) : Math.max(0, slot.level - dt * 3);

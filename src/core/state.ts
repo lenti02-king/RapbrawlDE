@@ -36,7 +36,9 @@ export type FighterStateName =
   /** Wand-Splat: stuck to the stage wall for a moment (still hittable). */
   | 'wallSplat'
   /** Beaten at match point and wobbling, waiting for the winner's fatality. */
-  | 'dizzy';
+  | 'dizzy'
+  /** Charging Hype ("Aufladen", hold CHARGE): no blocking, interrupted by any hit. */
+  | 'charge';
 
 export interface FighterState {
   idx: number;

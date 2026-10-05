@@ -34,6 +34,7 @@ export type SimEvent =
   | { t: 'jump'; p: number }
   | { t: 'land'; p: number }
   | { t: 'dash'; p: number; forward: boolean }
+  | { t: 'charge'; p: number; on: boolean }
   | { t: 'throwStart'; a: number; d: number; move: string }
   | { t: 'throwHit'; a: number; d: number; damage: number; x: number; y: number }
   | { t: 'tech'; x: number; y: number }

@@ -23,6 +23,9 @@ export interface CharacterRig {
 const FIST_CURL = 0.4;
 /** Extra curl when the arm is extended (punch contact): a straight arm closes the hand into a tight fist. */
 const FIST_STRIKE = 0.45;
+/** Arm length relative to the sculpt (PO: arms looked oversized next to the body; the hands read better smaller too).
+ *  Applied as upper-arm bone scale, so the whole arm chain shrinks toward the shoulder. */
+const ARM_SCALE: Record<string, number> = { jazeek: 0.9, bonez: 0.9 };
 /** Thumb fold across the fingers at a full fist (deg, per model: the sculpted thumbs point different ways). */
 const THUMB_FOLD: Record<string, number> = { jazeek: -90, bonez: 0 };
 
@@ -207,6 +210,8 @@ interface MapEntry {
 
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
+const _v2 = new THREE.Vector3();
+const _v3 = new THREE.Vector3();
 const _X = new THREE.Vector3(1, 0, 0);
 const _Z = new THREE.Vector3(0, 0, 1);
 const _v = new THREE.Vector3();
@@ -237,6 +242,9 @@ export class GlbRig implements CharacterRig {
    *  rest rotation, curl angle (rad at full fist) and side (0 = left/far arm, 1 = right/near arm). */
   private fistBones = new Map<THREE.Object3D, { rest: THREE.Quaternion; ang: number; side: 0 | 1; fold?: number }>();
   private curlBase = FIST_CURL;
+  /** Ground clamp: sole joints (ankles + toes) and their lowest root-space height in the rest pose. */
+  private soles: THREE.Object3D[] = [];
+  private soleRest = 0;
 
   constructor(
     id: string,
@@ -393,9 +401,32 @@ export class GlbRig implements CharacterRig {
     this.hipsRestPos.copy(tgtP(this.hips));
     this.refHipsRest.copy(refP('hips'));
     this.hipScale = this.hipsRestPos.y / Math.max(0.01, this.refHipsRest.y);
+    for (const n of ['LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase']) {
+      const b = bones.get(n);
+      if (b) this.soles.push(b);
+    }
+    this.root.updateMatrixWorld(true);
+    this.soleRest = this.soleHeight();
+    const arm = ARM_SCALE[id] ?? 1;
+    if (arm !== 1)
+      for (const n of ['LeftArm', 'RightArm']) {
+        const b = bones.get(n);
+        if (b) b.scale.multiplyScalar(arm);
+      }
   }
 
   private restPos = new Map<THREE.Object3D, THREE.Vector3>();
+
+  /** Lowest sole joint in root space (root's own scale undone: same units as the hips offset). */
+  private soleHeight(): number {
+    let low = Infinity;
+    for (const b of this.soles) {
+      b.getWorldPosition(_v2);
+      this.root.worldToLocal(_v2);
+      low = Math.min(low, _v2.y);
+    }
+    return low === Infinity ? 0 : low;
+  }
 
   apply(p: Float32Array, facing: number): void {
     const ref = this.ref;
@@ -435,7 +466,17 @@ export class GlbRig implements CharacterRig {
     // hips translation: reference offset from rest, scaled to the model's leg length
     ref.joints.hips.getWorldPosition(_v);
     _v.sub(this.refHipsRest).multiplyScalar(this.hipScale).add(this.hipsRestPos);
+    _v3.copy(_v);
     this.hips.position.copy(_v.applyMatrix4(_m.copy(this.hipsParentWorldInv)));
+    // ground clamp: a crouched or bobbing pose must never push the shoes into the floor (PO: "Schuhe tauchen ein")
+    if (this.soles.length) {
+      this.root.updateMatrixWorld(true);
+      const sink = this.soleRest - this.soleHeight();
+      if (sink > 0.002) {
+        _v3.y += sink;
+        this.hips.position.copy(_v3.applyMatrix4(_m));
+      }
+    }
     // cartoon stretch: elbow/wrist (knee/ankle) move away from their parent along the bone, the skin follows
     for (const [jn, ch] of LIMB_STRETCH) {
       const b = this.joints[jn];

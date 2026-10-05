@@ -320,6 +320,21 @@ export class FighterAnimator {
           fade = 1;
           break;
         }
+        case 'charge': {
+          // Aufladen: a low power stance, fists pulled to the hips, chest up, the whole body trembling with energy
+          lerpPose(P.stance, P.crouch, 0.35, out);
+          const tr = Math.sin(time * 48) * 0.6 + Math.sin(time * 31) * 0.4;
+          out[JOINT_INDEX.chest * 3 + 2] -= 10;
+          out[JOINT_INDEX.head * 3 + 2] -= 6;
+          out[JOINT_INDEX.shL * 3 + 2] -= 25;
+          out[JOINT_INDEX.shR * 3 + 2] -= 25;
+          out[JOINT_INDEX.elL * 3 + 2] -= 35;
+          out[JOINT_INDEX.elR * 3 + 2] -= 35;
+          out[JOINT_INDEX.chest * 3 + 1] += tr * 1.5;
+          out[R_X] += tr * 0.004;
+          fade = 5;
+          break;
+        }
         case 'dizzy': {
           const X = extras(this.set);
           const w = 0.5 + 0.5 * Math.sin(time * 3.2);

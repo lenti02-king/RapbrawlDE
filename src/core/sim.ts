@@ -55,6 +55,11 @@ export const RULES = {
   PB_STUN: 2,
   PB_HITSTOP_BONUS: 5,
   PB_METER: 25,
+  /** Aufladen: Hype per 3 frames while holding CHARGE (4 per 3 frames = one bar in 75 frames). */
+  CHARGE_PER_3F: 4,
+  /** Hype for taking damage, in tenths of the damage: 3 = a full 3-bar Signature over a full health bar (PO: you
+   *  must not lose without having had the Signature once). */
+  HURT_METER_TENTHS: 3,
   /** Frames after a perfect block in which the defender's hits count as counter hits. */
   PB_PUNISH: 26,
   TRAINING_REFILL_DELAY: 50,
@@ -578,6 +583,12 @@ function timers(s: GameState, f: FighterState, o: FighterState, ev: SimEvent[]):
     case 'dashB':
       if (--f.timer <= 0) toNeutral(f);
       return;
+    case 'charge':
+      if (!held(f, IN.CHARGE) || f.meter >= RULES.METER_MAX) {
+        ev.push({ t: 'charge', p: f.idx, on: false });
+        toNeutral(f);
+      } else if (f.sf % 3 === 0) addMeter(s, f, RULES.CHARGE_PER_3F);
+      return;
     case 'throwing':
       stepThrow(s, f, o, ev);
       return;
@@ -655,6 +666,12 @@ function think(s: GameState, f: FighterState, o: FighterState, ev: SimEvent[]): 
   if (held(f, IN.UP)) {
     setState(f, 'jumpSquat', def.jumpSquat);
     f.vx = 0;
+    return;
+  }
+  if (held(f, IN.CHARGE) && f.meter < RULES.METER_MAX && !s.config.training) {
+    setState(f, 'charge');
+    f.vx = 0;
+    ev.push({ t: 'charge', p: f.idx, on: true });
     return;
   }
   const down = held(f, IN.DOWN);
@@ -801,6 +818,7 @@ function physics(s: GameState, f: FighterState, ev: SimEvent[]): void {
     case 'countered':
     case 'intro':
     case 'win':
+    case 'charge':
       f.vx = 0;
       break;
     case 'walkF':
@@ -1205,6 +1223,7 @@ function throwable(d: FighterState): boolean {
     case 'jumpSquat':
     case 'land':
     case 'dashF':
+    case 'charge':
       return true;
     case 'dashB':
       return d.sf > 3;
@@ -1395,7 +1414,7 @@ function applyHit(
   def.health = Math.max(s.config.training ? 1 : 0, def.health - dmg);
   def.comboDamage += dmg;
   addMeter(s, atk, onBeat ? h.meterOnHit * 2 : h.meterOnHit);
-  addMeter(s, def, idiv(dmg, 5));
+  addMeter(s, def, idiv(dmg * RULES.HURT_METER_TENTHS, 10));
   if (!proj) atk.connected = 'hit';
   const airborne = def.y > 0 || AIR_STATES.has(def.state);
   const wasMoveCrouch = def.crouching;

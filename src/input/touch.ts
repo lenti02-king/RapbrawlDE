@@ -131,6 +131,13 @@ export class TouchControls implements InputSource {
     });
   }
 
+  /** Hold-to-charge Hype ("Aufladen") on the HUD's Hype bar. */
+  bindCharge(el: HTMLElement): void {
+    if (el.dataset.bound) return;
+    el.dataset.bound = '1';
+    this.bindButton(el, IN.CHARGE);
+  }
+
   setVisible(v: boolean): void {
     this.visible = v;
     this.root.style.display = v ? '' : 'none';
