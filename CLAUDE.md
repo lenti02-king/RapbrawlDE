@@ -29,6 +29,12 @@ node scripts/netplay.mjs 60         # two pages play online (same-device transpo
 npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
 node scripts/single-file.mjs out.html  # one self-contained HTML page (used for the claude.ai Artifact)
 node scripts/vfx.mjs [low|medium|high]  # frame-accurate hit-VFX capture sheet -> artifacts/vfx
+node scripts/mechanics.mjs duel|splat|fatality|fatality-bonez [every] [q]  # session 8 mechanics in-game (F=jazeek,jazeek for a duel)
+node scripts/hudshot.mjs out.png [w] [h] [touch]   # one in-game frame with the HUD
+node scripts/handshot.mjs jazeek move:jaz_5L:6 out.png [haL|haR]   # hand close-up (fist/thumb checks; EXTRA="&thz=..&thx=..")
+node scripts/cards.mjs              # deck screens of both fighters (card art)
+node scripts/arena-thumbs.mjs       # arena select thumbnails -> src/ui/img/arena-<id>.jpg
+node scripts/audio-render.mjs [secs]   # offline render of the beat + SFX -> artifacts/audio (levels printed)
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
@@ -48,8 +54,9 @@ sources not in git, see `public/assets/characters/README.md`; landmarks in `tool
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=courtyard|club|toon` for the old ones.
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
-UI: `src/ui/cr.css` (cartoon menu look + home/title, loaded last, D32) over `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
-Signature music: `public/assets/music/<fighter>.mp3` only when licensed (README there, D33); default = original stingers in `audio.ts`.
+UI: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
+Music: `public/assets/music/<fighter>.mp3` / `bgm.mp3` drop-ins (git-ignored, README there, D33/D37); default = original stingers + the procedural 90 BPM beat in `audio.ts` (the sim's beat clock is the truth, RULES.BEAT_FRAMES).
+Flow (D34): home (modes) → `showCharSelect` → `showArenaSelect` → `launch()` (loading screen) → `startMatch`. Mechanics (D35): `s.duel`, `wallSplat`, `beatDistance`, phase `finish` + `s.fatal`; fatalities in `render/fatalities.ts`.
 Useful URLs: `/?quick=jazeek,bonez&mode=cpu|local|training|demo` (any registered id, incl. hidden volt/brick), `/?touch=1` (force touch UI), `/?lab=poses&a=jazeek&b=bonez&pose=<name>&zoom=2&teeth=1`.
 Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1(bits, frames)`, `.view.debug = true` for hitboxes).
 

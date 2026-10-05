@@ -1,12 +1,32 @@
 # Project status
 
-_Last updated: 2026-10-05 (session 7: clean hands/arms, slams, perfect block, air combos, cartoon main menu, signature music system)._
+_Last updated: 2026-10-05 (session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, version 10 = session 7: cartoon menu, slams, perfect block, air combos): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, version 11 = session 8): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 8 — PO feedback: head/hands, strike variety, mechanics, fatality, abilities, VFX/sound/music, HUD, flow + menus after inspiration boards
+| Area | Status | Evidence |
+|---|---|---|
+| Head looked "in weird directions" while striking (sky on uppercuts, away on spins) → head stabiliser after blending (D37) | VERIFIED (before/after strips) | `artifacts/film/jazeek_before_*`, `*_after_*` |
+| Fists: tighter when the arm extends, thumb folded over the fingers (per-model axis) | VERIFIED (close-ups) | `node scripts/handshot.mjs` |
+| New strings L·L·H and 2L·H per fighter (flying knee, back-flip kick launcher, headbutt, clinch knee) | VERIFIED (unit tests + in-game strips, all connect) | `tests/fighters.test.ts`, `artifacts/film/*_LLH.png`, `*_2LH.png` |
+| Beat-Drop, Mic-Duell, Wand-Splat, Fatality in the sim (rollback-safe) | VERIFIED (unit tests: 7 new) + online checksum check | `tests/mechanics.test.ts`, `node scripts/netplay.mjs 60` |
+| Mic-Duell presentation (close camera, mic prop, tap bars + countdown, tap-anywhere on phones), Wand-Splat (wall crack, impact), Beat-Drop (record clock with beat ring, BEAT! pop, gold rings), fatalities: Jazeek "Platin-Finale", Bonez "Krokodil-Finale", each ends in a taunt | VERIFIED (in-game frame sheets); feel UNVERIFIED (no human) | `node scripts/mechanics.mjs duel|splat|fatality|fatality-bonez`, `artifacts/mech/` |
+| New abilities: Diamanten-Regen (overhead zone), Tiefergelegt (generic tuner car, Bonez hops over it) | VERIFIED (unit tests + strips) | `artifacts/film/jazeek_jaz_rain.png`, `bonez_bon_car.png` |
+| Card art shows the ability (props/effects rendered with the fighter) | VERIFIED (deck screenshots) | `node scripts/cards.mjs`, `artifacts/ui/cards_*.png` |
+| Special-move auras (rune circle, energy pillar, light in the card colour, limb trails) | VERIFIED (frame captures) | `artifacts/film/aura_frame.png` |
+| Impact/whoosh sounds layered + saturation; new original 90 BPM beat (GEMA-free) | BUILT + rendered offline (levels OK, no clipping, peak −1.1 dB SFX); never heard by the agent | `node scripts/audio-render.mjs`, `artifacts/audio/*.mp3` |
+| Music synced to the sim beat; `bgm.mp3` drop-in for the PO's tracks (git-ignored) | BUILT; drift correction UNVERIFIED on a real device | `public/assets/music/README.md` |
+| Menus after the 4 boards: start/loading screen (concert stage), main menu with modes (no characters), Tekken-style fighter select (P1 left, P2 right, roster middle), arena select (4 arenas + 2 announced), loading screen with tips | VERIFIED (desktop + phone landscape screenshots, E2E walks the flow) | `node scripts/ui.mjs`, `artifacts/ui/`, `npm run e2e` |
+| Ranked = offline CPU ladder with rank points (tiers set the CPU level) | VERIFIED by code path only (no long play session) | |
+| HUD redesign (slanted ink-outlined bars, player-colour portraits, record clock, overlays) | VERIFIED (screenshots) | `node scripts/hudshot.mjs` |
+| Arena/fighter blending: arena light probe (environment map rendered from the arena) + rug-coloured floor bounce | VERIFIED (before/after); judged subjective | `artifacts/blend_cmp.png` |
+| Balance after new strings | VERIFIED by bot probe only: Jazeek ≈55 % (±5 % noise) | `npx tsx scripts/botmatch.ts 120 hard` |
+| Unit tests 68/68, E2E 24/24, typecheck, build | VERIFIED locally | |
 
 ## Session 7 — PO feedback: crippled hands/arms, idle hop, better grabs/combos/block, cartoon main menu, songs
 | Area | Status | Evidence |
@@ -124,7 +144,10 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **GitHub release with the original models**: the repository is public, so the release makes the 70 MB originals downloadable by anyone; delete it (the agent keeps local copies in `.cache/meshy2/`) or make the repository private.
 - **Crocodile emblem** on Bonez's tracksuit (generated by Meshy): trademark check before release.
 - **Songs for the Signature moves**: written licences (publisher/GEMA side incl. sync for a game + label for the master) before any real track goes in; until then original stingers play.
-- **New mechanic + character abilities**: pick from the brainstorm (session 7 report) before they are built.
+- **Music for the MVP**: drop your own tracks into `public/assets/music/` (`bgm.mp3`, `<fighter>.mp3`) on your machine — they are git-ignored so they never land in the public repo; written licences before any public release.
+- **Pistol ability for Bonez**: not built (guns + a real person = reputational/age-rating risk); decide explicitly if wanted.
+- **Fatality tone**: cartoon brutality only (no blood); confirm this is the intended level, given real people are depicted.
+- **Online ranked / leaderboard / shop / battle pass**: need a server and monetisation decisions; the menu shows only real features.
 - **Source models**: keep the textured Meshy GLBs; the build expects them in `.cache/meshy2/` (not in git, see `public/assets/characters/README.md`).
 - **Shop / Battle Pass / currencies**: monetisation is a business decision (not built).
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.

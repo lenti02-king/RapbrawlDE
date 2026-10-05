@@ -167,6 +167,8 @@ export class App {
   private netTransport: Transport | null = null;
   private keyHandler = (e: KeyboardEvent) => this.onKey(e);
   private tapMode = false;
+  /** Seconds without peer data before "VERBINDUNG WEG" (?netsilence= raises it for software-GL test runs). */
+  private netSilence = Number(new URLSearchParams(location.search).get('netsilence') ?? 6);
 
   /** The 3D scene (arena + fighters) is only created when the first match starts; menus are plain 2D. */
   get view(): GameView {
@@ -272,7 +274,7 @@ export class App {
         if (tapMode !== this.tapMode) this.touch.setTapMode((this.tapMode = tapMode));
         // Beat-Drop: keep the music's beat on the sim's beat clock (rollback-safe: the sim decides what is on beat)
         if (s.phase === 'fight') this.audio.syncBeat(((RULES.BEAT_FRAMES - (s.frame % RULES.BEAT_FRAMES)) % RULES.BEAT_FRAMES) / 60);
-        if (this.runner instanceof NetMatchRunner && this.runner.silence > 6 && !this.resultsShown) this.connectionLost();
+        if (this.runner instanceof NetMatchRunner && this.runner.silence > this.netSilence && !this.resultsShown) this.connectionLost();
         this.training?.update(s, this.runner.lastInputs);
         if (s.phase === 'matchOver' && s.phaseFrame > 90 && !this.resultsShown) this.showResults();
       }

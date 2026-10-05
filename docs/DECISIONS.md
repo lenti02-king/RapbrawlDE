@@ -136,3 +136,45 @@ The product owner wants the fighters' songs during special moves. In Germany sho
 licence comes from the publisher and the master from the label). The game therefore plays `assets/music/<fighter>.mp3`
 (optional excerpt window in `<fighter>.json`) only if the PO adds licensed files; otherwise an original procedural
 stinger per fighter plays over the Signature cinematic and the in-game beat ducks. No third-party music is committed.
+
+## D34 — Night-street menus and the fight flow Mode → Fighter → Arena → Loading (2026-10-05) — supersedes D32's look
+The product owner sent four inspiration boards (main menu, loading screen, arena select, character select) and asked
+for game modes instead of characters on the main menu, fighters picked only when a fight is entered (Tekken-style: P1
+big on the left, P2 big on the right, roster in the middle), then the arena. `src/ui/street.css` + `src/ui/street.ts`
+(original procedural SVG art: graffiti logo with crown and mic, night city, concert stage with truss and crowd, brush
+banners; fonts Permanent Marker (Apache 2.0), Lilita One, Nunito (OFL)). Modes: Schneller Kampf, Online (friend code),
+2 Spieler, Rangliste, Training. "Rangliste" is an offline CPU ladder with local rank points (tiers decide the CPU level)
+— real online ranking needs a server (PO decision). The boards' shop, coins/gems and battle pass were not built
+(monetisation is the PO's call); their slots show real features (Straßen-Rang progress, a news banner). Arena select
+offers the four existing arenas (thumbnails rendered in-game by `scripts/arena-thumbs.mjs`) plus two announced ones.
+
+## D35 — Mic-Duell, Wand-Splat, Beat-Drop, Fatality (2026-10-05)
+Chosen by the PO from the session 7 brainstorm, all in the deterministic sim (rollback-safe) with tests:
+- **Beat-Drop**: the music runs at 90 BPM = 40 sim frames per beat; hits within ±4 frames of a beat deal +15 % damage
+  and double Hype. The sim's beat clock is the truth; the audio engine nudges the music onto it (`syncBeat`).
+- **Mic-Duell**: a trade involving a heavy-class hit (both grounded, 15 s cooldown) becomes a 2.5 s tap duel; the
+  faster tapper sends the other flying (90 damage). Phones: the whole screen is the tap button.
+- **Wand-Splat**: strong knockdowns (strength 3 knockback) or a duel loss into the stage wall stick the opponent to it
+  for 42 frames (still hittable, two extra juggle hits); KO flights into the wall bounce with a "Wand-Finisher".
+- **Fatality**: at match point the beaten fighter staggers up (phase `finish`, 3.5 s); the winner presses SIGNATURE (or
+  any card button) for a 5 s finisher, which ends with the winner mocking the loser. Cartoon brutality only (squash,
+  stars, a crocodile death roll, a falling platinum record) — no blood or gore, given real people are depicted.
+
+## D36 — Strike variations, new abilities, card art that shows the ability (2026-10-05)
+Each fighter got two new button strings (no new buttons, phone-friendly): L·L·H and 2L·H (stick released) — Jazeek's
+flying knee and back-flip kick (launcher), Bonez's headbutt and clinch knee. New cards: Jazeek "Diamanten-Regen" (an
+overhead zone of falling diamonds 1.4–2.6 m ahead) and Bonez "Tiefergelegt" (a lowered tuner car drifts in from behind
+him; generic design, no brand or badge — the PO's "Honda Civic" idea without the trademark). A pistol ability was not
+built: guns on a real person are a reputational/age-rating risk the PO should decide on explicitly. Card art now renders
+the ability's props (waves, notes, hearts, diamonds, croc, smoke, wrecking ball, palms, car) around the fighter.
+
+## D37 — Head stabiliser, dynamic fists, arena light probe, special auras, sound and music (2026-10-05)
+The head kept looking at the sky or away during strikes: after blending, `stabilizeHead` turns neck+head toward the
+opponent (moves 0.85, movement 0.7, reactions 0.2; per-move override `AnimSet.headFree` for headbutts/flips; nod clamped,
+max 75° relative to the chest). Fists close further when the arm extends, thumbs fold over the fingers (per-model axis).
+Fighters get an environment map rendered from the arena itself (`GameView.buildProbe`) so they pick up its colours.
+Card specials get a coloured aura (rune circle, energy pillar, light, limb trails) instead of only impact stars. Hits are
+layered (transient, body, thump, sub boom + crunch on heavies, saturation bus). The background music is an original,
+procedurally performed 90 BPM rap beat ("Block Beats", 32-bar form) — GEMA-free; a `bgm.mp3` drop-in (git-ignored, so
+unlicensed songs never reach the public repo) replaces it for the MVP if the PO adds one.
+

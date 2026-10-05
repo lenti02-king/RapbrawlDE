@@ -12,11 +12,14 @@ const [A, B] = [await ctx.newPage(), await ctx.newPage()];
 const errors = [];
 for (const p of [A, B]) p.on('pageerror', (e) => errors.push(e.message));
 const toLobby = async (p) => {
-  await p.goto(base + '/?touch=0&q=low');
+  await p.goto(base + '/?touch=0&q=low&netsilence=60');
   await p.waitForSelector('.splash');
   await p.click('.splash button');
   await p.waitForSelector('.home');
-  await p.click('[data-nav="online"]');
+  // new flow (session 8): ONLINE mode tile -> fighter select (P1 only) -> lobby
+  await p.click('[data-mode="online"]');
+  await p.waitForSelector('.st-select');
+  await p.click('[data-ready]');
   await p.waitForSelector('.online-grid');
   await p.click(`[data-lag="${lag}"]`);
 };
@@ -26,7 +29,7 @@ await A.click('[data-bhost]');
 const code = await A.inputValue('#room-code');
 await B.fill('#room-code', code);
 await B.click('[data-bjoin]');
-await Promise.all([A, B].map((p) => p.waitForFunction(() => window.__rb?.mode === 'online' && window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 })));
+await Promise.all([A, B].map((p) => p.waitForFunction(() => window.__rb?.mode === 'online' && window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 }))).catch(async (e) => { for (const p of [A, B]) console.log('STATE', await p.evaluate(() => JSON.stringify({ mode: window.__rb?.mode, phase: window.__rb?.runner?.state.phase, screen: document.querySelector('.screen')?.className, txt: document.querySelector('.screen')?.innerText.slice(0, 300) }))); console.log('ERRORS', errors); throw e; });
 console.log('both peers in fight, room', code, 'lag', lag, 'ms');
 // inputs: A walks in and attacks, B attacks back
 const IN = { LEFT: 1, RIGHT: 2, LIGHT: 16, HEAVY: 32 };
