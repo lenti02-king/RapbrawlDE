@@ -163,6 +163,30 @@ describe('attacks and defense', () => {
     expect(hits[0].counter).toBe(true);
   });
 
+  it('perfect block works as a quick tap (released before the hit lands)', () => {
+    const s = newMatch();
+    place(s, 0.8);
+    const hp = s.fighters[1].health;
+    const evs = run(s, 1, H);
+    evs.push(...run(s, 6));
+    evs.push(...run(s, 1, 0, IN.BLOCK)); // one-frame tap
+    evs.push(...run(s, 24));
+    expect(ofType(evs, 'perfectBlock')).toHaveLength(1);
+    expect(ofType(evs, 'hit')).toHaveLength(0);
+    expect(s.fighters[1].health).toBe(hp);
+  });
+
+  it('a tap long before the hit is not a block (the window is short)', () => {
+    const s = newMatch();
+    place(s, 0.8);
+    const evs = run(s, 1, 0, IN.BLOCK);
+    evs.push(...run(s, RULES.PB_WINDOW + 2));
+    evs.push(...run(s, 1, L));
+    evs.push(...run(s, 20));
+    expect(ofType(evs, 'perfectBlock')).toHaveLength(0);
+    expect(ofType(evs, 'hit')).toHaveLength(1);
+  });
+
   it('perfect block cannot be mashed: a second press inside the lock opens no new window', () => {
     const s = newMatch();
     place(s, 0.8);

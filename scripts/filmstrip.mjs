@@ -26,7 +26,7 @@ await page.evaluate(() => {
 for (const action of actions.split(',')) {
   const isMove = await page.evaluate((a) => window.__rb.moveList(0).includes(a), action);
   const seqLen = action.startsWith('seq:') ? action.slice(4).split('.').reduce((a, t) => a + Number(t.split('*')[1] ?? 1), 0) : 0;
-  const total = Number(framesArg ?? (isMove ? 0 : seqLen ? seqLen + 10 : action.startsWith('jump') ? 48 : action === 'hit' ? 30 : 40));
+  const total = Number(framesArg ?? (isMove ? 0 : seqLen ? seqLen + 10 : action.startsWith('jump') ? 48 : action === 'hit' ? 30 : action === 'pblock' ? 60 : 40));
   const n = await page.evaluate(
     ({ action, isMove, total, GAP }) => {
       const rb = window.__rb;
@@ -64,6 +64,20 @@ for (const action of actions.split(',')) {
         }
         let k = 0;
         r.sources[0].poll = () => frames[k++] ?? 0;
+      } else if (action === 'pblock') {
+        // P2 throws its heavy, P1 taps block just before it lands (perfect block), then punishes with a jab
+        const st = rb.runner.state;
+        const heavy = rb.moveList(1).find((k) => k.endsWith('_5H'));
+        let k = 0;
+        r.sources[1].poll = () => (k++ < 1 ? rb.IN.HEAVY : 0);
+        let j = 0;
+        r.sources[0].poll = () => {
+          j++;
+          const o = st.fighters[1];
+          if (o.state === 'move' && o.move === heavy && o.mf >= 9 && o.mf <= 10) return rb.IN.BLOCK;
+          if (st.fighters[0].pbPunish > 0 && st.fighters[0].state !== 'blockstun' && st.fighters[0].hitstop === 0) return rb.IN.LIGHT;
+          return 0;
+        };
       } else if (action === 'hit') {
         r.sources[1].poll = (() => {
           let k = 0;
@@ -75,7 +89,7 @@ for (const action of actions.split(',')) {
       }
       return total;
     },
-    { action, isMove, total, GAP: Number(process.env.GAP ?? (action.startsWith('walk') || action.startsWith('dash') ? 34000 : action === 'hit' ? 11000 : 19000)) },
+    { action, isMove, total, GAP: Number(process.env.GAP ?? (action.startsWith('walk') || action.startsWith('dash') ? 34000 : action === 'hit' || action === 'pblock' ? 11000 : 19000)) },
   );
   const name = process.env.NAME ?? action.replace(/[^a-zA-Z0-9_]+/g, '_').slice(0, 40);
   const len = isMove && !total ? (await page.evaluate((a) => window.__rb.moveTotal(0, a), action)) + 6 : n;

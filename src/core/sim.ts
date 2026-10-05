@@ -1127,7 +1127,8 @@ const BLOCK_STATES: ReadonlySet<FighterStateName> = new Set(['idle', 'walkB', 'c
 function blockStance(d: FighterState, fromX: number): 'stand' | 'crouch' | null {
   if (!BLOCK_STATES.has(d.state) || d.y > 0) return null;
   const away = fromX > d.x ? IN.LEFT : fromX < d.x ? IN.RIGHT : d.facing > 0 ? IN.LEFT : IN.RIGHT;
-  const guarding = held(d, IN.BLOCK) || held(d, away);
+  // a perfect-block tap counts as guarding even if the button was already released (phones: tap, don't hold)
+  const guarding = held(d, IN.BLOCK) || held(d, away) || d.pbWin > 0;
   if (!guarding && d.state !== 'blockstun') return null;
   if (guarding || held(d, IN.DOWN)) return held(d, IN.DOWN) ? 'crouch' : 'stand';
   return d.crouching ? 'crouch' : 'stand';
