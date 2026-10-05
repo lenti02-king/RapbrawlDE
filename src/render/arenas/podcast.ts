@@ -56,7 +56,7 @@ export class PodcastArena implements ArenaLike {
 
   private buildLights(scene: THREE.Scene): void {
     const low = this.quality === 'low';
-    const hemi = new THREE.HemisphereLight(0xb8a4ff, 0x4a2a1c, low ? 1.2 : 0.55);
+    const hemi = new THREE.HemisphereLight(0xb8a4ff, 0x6a3a7a, low ? 1.2 : 0.5); // ground = the purple rug's bounce
     const key = new THREE.DirectionalLight(0xffe0c4, low ? 1.3 : 1.25);
     key.position.set(-3, 9, 9);
     key.target.position.set(0, 0, 0);

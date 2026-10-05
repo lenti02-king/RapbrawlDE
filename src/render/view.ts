@@ -106,6 +106,8 @@ export class GameView {
       this.arena = a;
     }
     this.post = new PostFX(this.renderer, this.scene, this.director.cam, this.quality);
+    // fighters pick up the arena's own light (once its textures are in): see buildProbe()
+    if (this.quality !== 'low') void Promise.resolve((this.arena as ArenaLike & { ready?: Promise<void> }).ready).then(() => this.buildProbe());
     this.post.applyLook((this.arena as ArenaLike & { look?: Look }).look);
     this.scene.add(this.vfx.group);
     this.scene.add(this.fx.group);
@@ -139,6 +141,36 @@ export class GameView {
     this.scene.add(g);
     this.micGroup = g;
     return g;
+  }
+
+  /** Arena light probe: the arena rendered into an environment map from the fighters' position. */
+  private probe: THREE.Texture | null = null;
+  private buildProbe(): void {
+    try {
+      const hidden: THREE.Object3D[] = [this.vfx.group, this.fx.group, this.toon.group, this.aura.group, this.debugGroup, ...this.rigs.map((r) => r.root), ...this.shadows];
+      const vis = hidden.map((o) => o.visible);
+      hidden.forEach((o) => (o.visible = false));
+      const pm = new THREE.PMREMGenerator(this.renderer);
+      const rt = pm.fromScene(this.scene, 0.06, 0.1, 80, { size: 128, position: new THREE.Vector3(0, 1.1, 0.4) });
+      pm.dispose();
+      hidden.forEach((o, i) => (o.visible = vis[i]));
+      this.probe = rt.texture;
+      for (const r of this.rigs) this.applyProbe(r);
+    } catch (e) {
+      console.warn('[view] arena probe failed', e);
+    }
+  }
+  private applyProbe(rig: CharacterRig): void {
+    if (!this.probe) return;
+    rig.root.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[] | undefined;
+      for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
+        if (!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) continue;
+        mat.envMap = this.probe;
+        mat.envMapIntensity = 0.5;
+        mat.needsUpdate = true;
+      }
+    });
   }
 
   resize(): void {
@@ -185,6 +217,7 @@ export class GameView {
       });
       this.rigs.push(rig);
       this.scene.add(rig.root);
+      this.applyProbe(rig);
       const sh = new THREE.Mesh(
         new THREE.PlaneGeometry(1, 1),
         new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: this.quality === 'low' ? 0.75 : 0.45 }),
