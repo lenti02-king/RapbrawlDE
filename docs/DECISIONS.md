@@ -113,3 +113,26 @@ five deformation channels (arm/leg stretch along the bone, body squash) give ant
 without touching the sim; normals are built by `strike()` (anticipation, contact, follow-through, settle) and movement by
 `motionClips()` (4-key shuffle walk driven by distance, dash burst and plant, jump squash/stretch, impact-snap reactions).
 Every normal's fist/foot is checked against its sim hitbox (`scripts/reach.mjs`), so what players see matches what hits.
+
+## D31 — Perfect block, launcher air combos and wrestling slams (2026-10-05)
+The product owner asked for better blocking, more combos, better grabs ("wrestling or MMA slams") and fresh variety, all
+easy on a phone. Chosen: a timing-based perfect block on the existing Block button and on a back tap (one input, high
+skill ceiling, readable reward: gold flash, "PERFEKT-BLOCK!", counter-hit punish), anti-mash lock; one launcher string per
+fighter (H·L) with jump-cancel on hit and an air chain (jL→jH), so air combos need only taps and an upward swipe; grabs
+became slams with a forward and a back variant (back + Grab) using the existing throw-direction support. All in the
+deterministic sim with tests (perfect block, mashing, air combo for both fighters); bot balance unchanged (52/48).
+
+## D32 — Cartoon main menu (2026-10-05) — supersedes the "Block Beats Night" look of D22 for the menus
+The product owner wants a main menu at app start laid out like popular mobile arena games, in their playful, childish
+style. `src/ui/cr.css` (loaded last) gives every menu a sky-blue background, thick navy outlines, 3D candy buttons and
+Lilita One/Nunito (OFL); the home screen is rebuilt: player bar (level star, XP, rank, wins), the arena card with the
+selected fighter, rank road, fighter, deck and a big KAMPF! button, and a five-tab bar (Kämpfer, Karten, Kampf,
+Training, Profil). Only real features are shown (no shop, chests or currencies — monetisation is the PO's call). Icons
+(`ui/toon-icons.ts`) and layout are original; no third-party game assets, fonts or logos.
+
+## D33 — Signature music: licensed drop-in, original stingers by default (2026-10-05)
+The product owner wants the fighters' songs during special moves. In Germany short excerpts are not automatically free
+(sampling and synchronisation need the rights holders' consent; GEMA administers performance rights, the game sync
+licence comes from the publisher and the master from the label). The game therefore plays `assets/music/<fighter>.mp3`
+(optional excerpt window in `<fighter>.json`) only if the PO adds licensed files; otherwise an original procedural
+stinger per fighter plays over the Signature cinematic and the in-game beat ducks. No third-party music is committed.

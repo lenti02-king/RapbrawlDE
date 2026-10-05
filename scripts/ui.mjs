@@ -43,7 +43,8 @@ for (const [tag, vp, touch] of [
   await page.screenshot({ path: `${out}/${tag}_4_help.png` });
   await page.click('[data-back]');
   await page.click('[data-fight]');
-  await page.waitForSelector('.vs');
+  // the VS splash can come and go while the 3D scene is being built (main thread busy): best effort
+  await page.waitForSelector('.vs', { timeout: 8000 }).catch(() => {});
   await frames(page, 2);
   await page.screenshot({ path: `${out}/${tag}_5_vs.png` });
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 120000 });

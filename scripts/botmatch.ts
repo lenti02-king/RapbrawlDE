@@ -16,6 +16,7 @@ interface Agg {
   damage: number;
   hits: number;
   blocks: number;
+  pblocks: number;
   throws: number;
   cards: Record<string, number>;
   cines: number;
@@ -23,7 +24,7 @@ interface Agg {
 }
 
 function runPairing(a: string, b: string, loadA?: string[], loadB?: string[]) {
-  const agg: [Agg, Agg] = [0, 1].map(() => ({ wins: 0, rounds: 0, frames: 0, damage: 0, hits: 0, blocks: 0, throws: 0, cards: {}, cines: 0, meterUsed: 0 })) as [Agg, Agg];
+  const agg: [Agg, Agg] = [0, 1].map(() => ({ wins: 0, rounds: 0, frames: 0, damage: 0, hits: 0, blocks: 0, pblocks: 0, throws: 0, cards: {}, cines: 0, meterUsed: 0 })) as [Agg, Agg];
   let totalRoundFrames = 0;
   let roundCount = 0;
   let timeouts = 0;
@@ -46,6 +47,7 @@ function runPairing(a: string, b: string, loadA?: string[], loadB?: string[]) {
           agg[e.a].hits++;
         }
         if (e.t === 'block') agg[e.d].blocks++;
+        if (e.t === 'perfectBlock') agg[e.d].pblocks++;
         if (e.t === 'throwHit') {
           agg[e.a].throws++;
           agg[e.a].damage += e.damage;
@@ -72,7 +74,7 @@ function runPairing(a: string, b: string, loadA?: string[], loadB?: string[]) {
   agg.forEach((g, i) => {
     const name = i === 0 ? a : b;
     console.log(
-      `${name.padEnd(6)} wins ${String(g.wins).padStart(3)} (${((100 * g.wins) / matches).toFixed(0)}%) rounds ${g.rounds} · dmg/match ${(g.damage / matches).toFixed(0)} · hits ${(g.hits / matches).toFixed(1)} · blocks ${(g.blocks / matches).toFixed(1)} · throws ${(g.throws / matches).toFixed(1)} · cinematics ${g.cines} · cards ${JSON.stringify(g.cards)}`,
+      `${name.padEnd(6)} wins ${String(g.wins).padStart(3)} (${((100 * g.wins) / matches).toFixed(0)}%) rounds ${g.rounds} · dmg/match ${(g.damage / matches).toFixed(0)} · hits ${(g.hits / matches).toFixed(1)} · blocks ${(g.blocks / matches).toFixed(1)} (perfect ${(g.pblocks / matches).toFixed(1)}) · throws ${(g.throws / matches).toFixed(1)} · cinematics ${g.cines} · cards ${JSON.stringify(g.cards)}`,
     );
   });
 }

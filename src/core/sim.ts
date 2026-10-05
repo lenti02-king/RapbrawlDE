@@ -1297,9 +1297,10 @@ function applyHit(
       def.vx = pushDir * h.launch.vx;
       def.vy = h.launch.vy;
     } else {
-      // juggled opponents pop up only a little and drift less, so a follow-up air hit can still reach them
-      def.vx = pushDir * (airborne ? 100 : 160);
-      def.vy = airborne ? 320 : 500;
+      // inside an air combo the juggled opponent pops up only a little, so a follow-up air hit can still reach them
+      const juggled = airborne && inCombo;
+      def.vx = pushDir * (juggled ? 100 : 160);
+      def.vy = juggled ? 320 : airborne ? 700 : 500;
     }
     def.y = Math.max(def.y, 1);
     def.push = 0;

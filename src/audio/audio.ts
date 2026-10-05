@@ -376,6 +376,87 @@ export class AudioEngine {
     this.crowdSwell(0.2);
   }
 
+  // ------------------------------------------------------------ signature music
+  // A licensed track per fighter can be dropped in as public/assets/music/<fighter>.mp3 (+ optional <fighter>.json
+  // {"start": seconds, "length": seconds}); it then plays as a short excerpt over the Signature cinematic. Without a
+  // file (default, and always until the rights are cleared) an original procedural stinger plays instead.
+  private tracks = new Map<string, { buf: AudioBuffer; start: number; length: number } | null>();
+
+  async loadSignatureTrack(fighter: string): Promise<boolean> {
+    if (this.tracks.has(fighter)) return !!this.tracks.get(fighter);
+    this.tracks.set(fighter, null);
+    if (!this.ctx) return false;
+    try {
+      const res = await fetch(`assets/music/${fighter}.mp3`);
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !type.startsWith('audio')) return false;
+      const buf = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      type Meta = { start?: number; length?: number };
+      const meta: Meta = await fetch(`assets/music/${fighter}.json`)
+        .then((r) => (r.ok ? (r.json() as Promise<Meta>) : {}))
+        .catch(() => ({}));
+      this.tracks.set(fighter, { buf, start: meta.start ?? 0, length: Math.min(meta.length ?? 8, 15) });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Plays the fighter's Signature music (licensed excerpt if present, else an original stinger), ducking the beat. */
+  signatureMusic(fighter: string): void {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx;
+    const t = this.now();
+    const tr = this.tracks.get(fighter);
+    const dur = tr ? tr.length : 4.2;
+    // duck the generative beat under it
+    this.music.gain.cancelScheduledValues(t);
+    this.music.gain.setTargetAtTime(0.05, t, 0.08);
+    this.music.gain.setTargetAtTime(0.32, t + dur, 0.4);
+    if (tr) {
+      const src = ctx.createBufferSource();
+      src.buffer = tr.buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.9, t + 0.25);
+      g.gain.setValueAtTime(0.9, t + dur - 0.6);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(g).connect(this.master);
+      src.start(t, tr.start, dur);
+      return;
+    }
+    this.stinger(fighter, t);
+  }
+
+  /** Original 4-second themes: Jazeek = smooth R&B (sus chords, sung lead), Bonez = dark street (808, minor riff). */
+  private stinger(fighter: string, t0: number): void {
+    const beat = 0.34;
+    const n = (semi: number) => 220 * Math.pow(2, semi / 12);
+    if (fighter === 'jazeek') {
+      // Fmaj9 -> Em7 -> Dm9 -> G13 stabs with a vibrato lead on top
+      const chords = [
+        [-4, 0, 3, 7, 10],
+        [-5, -2, 2, 5, 9],
+        [-7, -3, 0, 3, 7],
+        [-2, 2, 5, 9, 12],
+      ];
+      chords.forEach((c, i) => c.forEach((st) => this.tone(t0 + i * beat * 2, 'triangle', n(st), n(st), 0.07, beat * 2.1, 0.5)));
+      const lead = [12, 14, 15, 14, 12, 10, 12, 7, 9, 10, 12, 15];
+      lead.forEach((st, i) => this.sing([0], 0.06, n(st + 12) / 2, t0 + i * beat * 0.67));
+      for (let i = 0; i < 12; i++) this.noiseHit(t0 + i * beat * 0.67, 'highpass', 7000, 0.6, 0.08, 0.03);
+    } else {
+      // 808 slides + a dark minor riff on a detuned saw
+      const bass = [-24, -24, -21, -26];
+      bass.forEach((st, i) => this.tone(t0 + i * beat * 2, 'sine', n(st), n(st - 2), 0.55, beat * 1.9));
+      const riff = [0, 3, 7, 6, 3, 0, -2, 0, 3, 5, 3, -2];
+      riff.forEach((st, i) => {
+        this.tone(t0 + i * beat * 0.67, 'sawtooth', n(st - 5), n(st - 5), 0.05, beat * 0.6, 0.3);
+        this.tone(t0 + i * beat * 0.67, 'sawtooth', n(st - 5) * 1.006, n(st - 5) * 1.006, 0.04, beat * 0.6);
+      });
+      for (let i = 0; i < 12; i++) this.noiseHit(t0 + i * beat * 0.67, 'highpass', i % 3 === 2 ? 3000 : 8000, 0.6, i % 3 === 2 ? 0.16 : 0.07, 0.04);
+    }
+  }
+
   riser(): void {
     if (!this.ctx) return;
     const ctx = this.ctx;
@@ -424,10 +505,10 @@ export class AudioEngine {
   }
 
   /** Sung phrase: sawtooth through two vowel formants with vibrato. notes = semitones over base. */
-  sing(notes: number[], step = 0.16, base = 330): void {
+  sing(notes: number[], step = 0.16, base = 330, at?: number): void {
     if (!this.ctx) return;
     const ctx = this.ctx;
-    const t0 = this.now();
+    const t0 = at ?? this.now();
     notes.forEach((n, i) => {
       const t = t0 + i * step;
       const f = base * Math.pow(2, n / 12);
@@ -581,6 +662,9 @@ export class AudioEngine {
           break;
         case 'superFlash':
           this.riser();
+          break;
+        case 'cineStart':
+          this.signatureMusic(s.fighters[e.owner].def);
           break;
         case 'cineHit':
           if (e.strength >= 3) this.boom();

@@ -9,6 +9,7 @@ import '@fontsource/barlow/500.css';
 import '@fontsource/barlow/600.css';
 import './ui/style.css';
 import './ui/theme.css';
+import './ui/cr.css';
 import { App } from './app/app';
 import { ROSTER } from './content';
 import { runLab } from './lab';

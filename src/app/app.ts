@@ -15,6 +15,8 @@ import { installCinematics } from '../render/cinematics';
 import { cardHtml, Hud } from '../ui/hud';
 import { CAT_COLOR, CAT_DE, UI_ICONS } from '../ui/icons';
 import { LINE } from '../ui/lines';
+import { TOON } from '../ui/toon-icons';
+import ARENA_CARD from '../ui/img/arena-podcast.jpg?inline';
 import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
@@ -267,6 +269,8 @@ export class App {
   // ------------------------------------------------------------- matches
   startMatch(mode: PlayMode | 'online', splash = true): void {
     if (mode === 'online') return this.showOnlineLobby();
+    // licensed Signature music, if the product owner dropped files into assets/music (else original stingers)
+    for (const f of this.sel.fighters) void this.audio.loadSignatureTrack(f);
     this.leaveNet();
     this.localIdx = 0;
     this.mode = mode;
@@ -409,14 +413,15 @@ export class App {
   }
 
   showTitle(): void {
+    const hero = (id: string, cls: string) => (portrait(id, 'hero') ? `<img class="cr-hero ${cls}" alt="" src="${portrait(id, 'hero')}">` : '');
     const el = this.open(
-      `<div class="watermark">BLOCK BEATS</div>
-       ${[0, 1].map((i) => (portrait(this.sel.fighters[i] ?? ROSTER[i], 'hero') ? `<img class="hero-art ${i ? 'r' : 'l'}" alt="" src="${portrait(ROSTER[i] ?? ROSTER[0], 'hero')}">` : '')).join('')}
-       <div class="logo">RAPBRAWL</div>
-       <div class="logo-sub">HINTERHOF · BLOCK BEATS</div>
-       <div class="press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div>
+      `<div class="cr-sky"></div>
+       <div class="cr-title-art"><img class="cr-arena-bg" alt="" src="${ARENA_CARD}">${hero(ROSTER[0], 'l')}${hero(ROSTER[1] ?? ROSTER[0], 'r')}</div>
+       <div class="cr-logo"><span>RAP</span><span>BRAWL</span></div>
+       <div class="cr-logo-sub">BLOCK BEATS · SAISON 1</div>
+       <div class="cr-press">${this.touchEnabled ? 'TIPPEN ZUM STARTEN' : 'KLICK ODER ENTER'}</div>
        <button data-default style="position:absolute;inset:0;opacity:0" aria-label="Start"></button>`,
-      'splash',
+      'splash cr',
     );
     el.querySelector('button')!.addEventListener('click', () => {
       this.audio.unlock();
@@ -434,56 +439,65 @@ export class App {
     return { ...NEW_PROFILE, ...store.get<Partial<Profile>>('profile', {}) };
   }
 
+  /** Main menu, cartoon style: player bar on top, the arena card with your fighter, deck + KAMPF on the side,
+   *  big tab bar at the bottom. Only real features are shown (no shop, chests or currencies). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
     const fid = this.sel.fighters[0];
     const d = getFighter(fid);
     const deck = this.sel.loadouts[0].map((c) => cardHtml(fid, c, 'small')).join('');
-    const sig = getCard(fid, this.sel.loadouts[0][SIGNATURE_SLOT]);
-    const lvl = levelOf(this.profileData);
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const rank = rankOf(p);
     const bust = portrait(fid, 'bust');
-    const modeSub =
-      this.sel.mode === 'cpu' ? `STUFE · ${LEVEL_DE[this.sel.level]}` : this.sel.mode === 'local' ? 'EIN GERÄT · LOKAL' : 'DUMMY · FRAME-DATEN';
+    const hero = portrait(fid, 'hero');
+    const modeSub = this.sel.mode === 'cpu' ? LEVEL_DE[this.sel.level] : this.sel.mode === 'local' ? 'EIN GERÄT' : 'FRAME-DATEN';
     const el = this.open(
-      `<div class="watermark">BLOCK BEATS</div>
-       ${portrait(fid, 'hero') ? `<img class="hero-art" alt="" src="${portrait(fid, 'hero')}">` : ''}
-       <div class="brand"><div class="logo">RAPBRAWL</div><div class="season">SAISON 1<b>BLOCK BEATS</b></div></div>
-       <div class="top-right">
-         <button class="player-chip" data-name><span class="avatar">${bust ? `<img alt="" src="${bust}">` : ''}</span>
-           <span style="text-align:left"><div class="pname">${esc(this.playerName)}</div>
-           <div class="ptag"><span class="lvl">${lvl.level}</span><span class="xp"><b style="width:${lvl.pct.toFixed(0)}%"></b></span></div></span></button>
-         <button class="btn icon gray" data-sound aria-label="Ton">${this.audio.muted ? LINE.mute : LINE.sound}</button>
-         <button class="btn icon gray" data-settings aria-label="Einstellungen">${LINE.gear}</button>
-       </div>
-       <div class="rail">
-         <button data-nav="profile">${LINE.user}PROFIL</button>
-         <button data-nav="modes">${LINE.grid}MODI</button>
-         <button data-nav="help">${LINE.pad}STEUERUNG</button>
-       </div>
-       <div class="side">
-         <div>
-           <div class="hero-arch">${d.archetype.toUpperCase()}</div>
-           <div class="hero-name">${d.name}</div>
-           <div class="hero-tag">${d.tagline}</div>
-         </div>
-         <div class="panel deck-strip">
-           <div class="row"><span class="lbl">DEIN DECK</span><span class="pill gold">★ ${sig.name}</span></div>
-           <div class="row"><div class="mini-deck">${deck}</div><button class="btn small" data-deck>KARTEN</button></div>
-         </div>
-         <button class="panel mode-card" data-modes>
-           <div><div class="mc-sub">SPIELMODUS</div><div class="mc-title">${MODE_DE[this.sel.mode]}</div><div class="mc-sub">${modeSub}</div></div>
-           <span class="chev">›</span>
+      `<div class="cr-sky"></div>
+       <header class="cr-top">
+         <button class="cr-player" data-name aria-label="Name ändern">
+           <span class="cr-lvl">${TOON.star}<b>${lvl.level}</b></span>
+           <span class="cr-pinfo"><span class="cr-pname">${esc(this.playerName)}</span>
+             <span class="cr-xp"><i style="width:${lvl.pct.toFixed(0)}%"></i><em>${Math.round(lvl.pct * 4)}/400</em></span></span>
          </button>
-         <button class="btn gold play-btn" data-fight data-default>SPIELEN<span class="arrow">${LINE.play}</span></button>
-       </div>
-       <nav class="bottomnav">
-         <button class="navbtn on" data-nav="fight">${LINE.swords}LOBBY</button>
-         <button class="navbtn" data-nav="fighters">${LINE.fighter}KÄMPFER</button>
-         <button class="navbtn" data-nav="deck">${LINE.cards}KARTEN</button>
-         <button class="navbtn" data-nav="online">${LINE.online}ONLINE</button>
-         <button class="navbtn" data-nav="profile">${LINE.trophy}PROFIL</button>
+         <div class="cr-chip" title="Straßen-Rang">${TOON.crown}<b>${rank.name}</b></div>
+         <div class="cr-chip" title="Siege">${TOON.trophy}<b>${p.wins}</b></div>
+         <div class="grow"></div>
+         <button class="cr-round" data-nav="help" aria-label="Steuerung">${TOON.help}</button>
+         <button class="cr-round" data-sound aria-label="Ton">${this.audio.muted ? TOON.mute : TOON.sound}</button>
+         <button class="cr-round" data-settings aria-label="Einstellungen">${TOON.gear}</button>
+       </header>
+       <main class="cr-main">
+         <section class="cr-arena">
+           <div class="cr-arena-card">
+             <img class="cr-arena-bg" alt="" src="${ARENA_CARD}">
+             ${hero ? `<img class="cr-hero" alt="" src="${hero}">` : ''}
+             <div class="cr-ribbon"><small>ARENA 1</small>BLOCK BEATS PODCAST</div>
+           </div>
+         </section>
+         <aside class="cr-side">
+           <button class="cr-road" data-nav="profile"><span>${TOON.crown}</span><span><b>RANG ${rank.name}</b><span>${rank.next}</span></span></button>
+           <button class="cr-fighter" data-nav="fighters">
+             <span class="cr-bust">${bust ? `<img alt="" src="${bust}">` : ''}</span>
+             <span class="cr-fname"><small>${d.archetype.toUpperCase()}</small>${d.name}</span>
+             <span class="cr-swap">WECHSELN</span>
+           </button>
+           <div class="cr-deck">
+             <div class="cr-deck-head"><span>DEIN DECK</span><button class="cr-btn blue tiny" data-deck>ÄNDERN</button></div>
+             <div class="cr-deck-cards">${deck}</div>
+           </div>
+           <button class="cr-btn blue cr-mode" data-modes><small>MODUS · ${modeSub}</small>${MODE_DE[this.sel.mode]}</button>
+           <button class="cr-btn yellow cr-battle" data-fight data-default>${TOON.swords}<span>KAMPF!</span></button>
+         </aside>
+       </main>
+       <nav class="cr-tabs">
+         <button data-nav="fighters">${TOON.glove}<span>KÄMPFER</span></button>
+         <button data-nav="deck">${TOON.cards}<span>KARTEN</span></button>
+         <button class="on" data-nav="fight">${TOON.swords}<span>KAMPF</span></button>
+         <button data-nav="training">${TOON.dumbbell}<span>TRAINING</span></button>
+         <button data-nav="profile">${TOON.trophy}<span>PROFIL</span></button>
        </nav>`,
-      'home lobby',
+      'home cr-home',
     );
     el.querySelector('[data-fight]')!.addEventListener('click', () => this.startMatch(this.sel.mode));
     el.querySelector('[data-deck]')!.addEventListener('click', () => this.showDeck(0, () => this.showHome()));
@@ -504,6 +518,11 @@ export class App {
         else if (n === 'help') this.showHelp(() => this.showHome());
         else if (n === 'profile') this.showProfile();
         else if (n === 'modes') this.showModes();
+        else if (n === 'training') {
+          this.sel.mode = 'training';
+          store.set('selection', this.sel);
+          this.startMatch('training');
+        }
       }),
     );
   }
@@ -897,6 +916,8 @@ export class App {
            <div class="hint" style="color:#e6edff;margin-top:0.4rem">Rechts: <b>L</b> leicht · <b>H</b> schwer · <b>GRIFF</b> · <b>BLOCK</b>. Die Karten unten in der Mitte sind deine Specials – die <b style="color:#ffd23a">goldene Karte</b> ist die Signature.</div>
            <h3 style="margin-top:0.8rem">SO KÄMPFST DU</h3>
            <div class="hint" style="color:#e6edff">Hype lädt sich durch Treffen, Blocken und Einstecken auf. Specials kosten 1–2 Hype, die Signature 3. Treffer lassen sich in Specials abbrechen. Trifft die Signature, startet die Kino-Sequenz – geblockt oder verfehlt ist sie gefährlich.</div>
+           <h3 style="margin-top:0.8rem">PERFEKT-BLOCK &amp; SLAMS</h3>
+           <div class="hint" style="color:#e6edff">Tippe <b>BLOCK</b> (oder den Stick kurz zurück) genau vor dem Treffer: kein Schaden, Hype gibt's obendrauf und dein nächster Treffer zählt als Konter. Dauerdrücken klappt nicht. <b>GRIFF</b> wirft mit einem Slam nach vorn, <b>zurück + GRIFF</b> schleudert den Gegner hinter dich.</div>
            <h3 style="margin-top:0.8rem">KOMBOS</h3>
            <div class="hint" style="color:#e6edff">Schläge und Tritte brauchen keine Karten – nur Knöpfe. Karten sind nur für Fähigkeiten und die Signature (Handy: Karte antippen).</div>
            <div class="combos">${this.comboList()}</div>
@@ -908,21 +929,29 @@ export class App {
     el.querySelector('[data-ok]')!.addEventListener('click', back);
   }
 
-  /** Button-only target combos per fighter, read from the sim content (MoveDef.targets). */
+  /** Button-only target combos per fighter, read from the sim content (MoveDef.targets), plus the launcher air combo. */
   private comboList(): string {
-    const btn = (k: 'light' | 'heavy') => (k === 'light' ? 'L' : 'H');
+    const kb = (k: string) => `<kbd>${k}</kbd>`;
+    const seqHtml = (keys: string[]) => keys.map(kb).join('<i>·</i>');
     return ROSTER.map((id) => {
       const def = getFighter(id);
+      const startBtn: Record<string, string> = { [def.normals['5L']]: 'L', [def.normals['5H']]: 'H', [def.normals['2L']]: '↓L', [def.normals['2H']]: '↓H' };
       const rows: string[] = [];
       for (const mv of Object.values(def.moves)) {
+        const first = startBtn[mv.key];
+        if (!first) continue;
         for (const k of ['light', 'heavy'] as const) {
           const t = mv.targets?.[k];
           if (!t) continue;
-          const seq = Array((t.minDepth ?? 0) + 2).fill(btn(k)).map((b) => `<kbd>${b}</kbd>`).join('<i>·</i>');
-          rows.push(`<span class="seq">${seq}</span><span>${getMove(id, t.move).name}</span>`);
+          const keys = [...Array<string>((t.minDepth ?? 0) + 1).fill(first), k === 'light' ? 'L' : 'H'];
+          const target = getMove(id, t.move);
+          rows.push(`<span class="seq">${seqHtml(keys)}</span><span>${target.name}</span>`);
+          // launcher: jump after the opponent and finish in the air
+          if (target.jumpCancel) rows.push(`<span class="seq">${seqHtml([...keys, '↑', 'L', 'H'])}</span><span>Luft-Kombo</span>`);
         }
       }
-      rows.push(`<span class="seq"><kbd>L</kbd><i>·</i><kbd>L</kbd><i>·</i><kbd>H</kbd></span><span>Kette, dann Special</span>`);
+      rows.push(`<span class="seq">${seqHtml(['L', 'L', 'H'])}</span><span>Kette, dann Special</span>`);
+      rows.push(`<span class="seq">${seqHtml(['←', 'G'])}</span><span>Rückwärts-Slam</span>`);
       return `<div class="combo-f"><b>${def.name}</b><div class="keys">${rows.join('')}</div></div>`;
     }).join('');
   }

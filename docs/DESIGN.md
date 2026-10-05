@@ -24,6 +24,11 @@ Touch stick: horizontal sectors are ±26°, vertical ±21°, diagonals the rest;
 - **Grab** beats block (short range, cannot grab airborne or stunned opponents). Tech by pressing Grab within 10 frames.
 - **Strikes** beat grabs. Trades are symmetric (no P1/P2 advantage; follow-ups are cancelled for anyone hit that frame).
 - Holding back auto-guards only when an attack/projectile threatens. Backdash is strike-invulnerable early; wakeup is invulnerable.
+- **Perfect block** (mobile-friendly timing skill): a fresh press of Block, or a tap of back, at most 6 frames before the
+  hit lands: no chip, 2 frames of blockstun, +5 hitstop for drama, +25 Hype, and the defender's next hit within 26 frames
+  is a counter hit. A new window needs 22 frames since the last press (mashing does not work). Event `perfectBlock`.
+- **Slams**: Grab = forward slam (Jazeek Spinebuster, Bonez Powerbomb); back + Grab = back slam (Jazeek German suplex,
+  Bonez "Hafenkran"), the opponent lands behind. Same sim frames per fighter (tech window 10 frames).
 
 ## Offense
 - Chains: Light → Light → Heavy (max 3 chains). Lights and heavies cancel into special cards on connect.
@@ -31,6 +36,9 @@ Touch stick: horizontal sectors are ±26°, vertical ±21°, diagonals the rest;
 - Cards are only abilities and the Signature; punches and kicks never cost cards.
 - Hit language (presentation): impact star size = strength, speed lines from heavy, impact frame on counter-heavy / KO / Signature finisher (setting BLITZEFFEKTE), smears on the striking limb, cracks + rubble on slams.
 - Counter-hit: +20 % damage, +4 hitstun. Damage scaling: hits 1–2 at 100 %, then −12 % per hit, floor 30 %.
+- Launcher (H·L, on contact): Encore-Kick / Kran-Hebel launch the opponent; on hit, Up cancels the recovery into a jump
+  (`MoveDef.jumpCancel`), and in the air jL chains into jH: H·L·↑·L·H is a four-hit air combo for both fighters.
+  Inside an air combo juggled opponents pop up less (vy 320) so the follow-up can reach them.
 - Juggles: max 4 juggle hits, then the opponent becomes intangible until landing.
 
 ## Hype meter

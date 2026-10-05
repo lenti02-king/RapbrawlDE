@@ -86,6 +86,7 @@ export function runLab(canvas: HTMLCanvasElement): void {
     cam.updateProjectionMatrix();
     if (params.get('hide') === 'other') rigs.forEach((r, i) => (r.root.visible = i === Number(params.get('who') ?? 0)));
   }
+  if (params.get('hide') === 'all') rigs.forEach((r) => (r.root.visible = false));
   /** Re-pose a fighter without reloading (scripts/posesheet.mjs): same syntax as &pose=. */
   const setPose = (i: number, spec: string) => rigs[i].apply(toArr(labPose(ANIM_SETS[ids[i]], spec)), i ? -1 : 1);
   /** Reach check (scripts/reach.mjs): world positions of fists/feet for a pose, the fighter at the origin facing +x. */
