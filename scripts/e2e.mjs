@@ -73,11 +73,11 @@ const sim = (page) =>
   await page.waitForSelector('.st-select');
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${out}/d05a_select.png` });
-  check((await page.textContent('.st-side.p1 .st-plate')).includes('BONEZ'), 'fighter select shows the chosen P1 fighter big on the left');
+  check((await page.textContent('.cs-name.p1')).includes('BONEZ') && (await page.isVisible('.cs-ped.p1 img')), 'fighter select shows the chosen P1 fighter big on the left');
   await page.click('[data-ready]');
   await page.waitForSelector('.st-arena');
   await page.click('[data-arena="club"]');
-  await page.waitForSelector('.st-ar-tile.on[data-arena="club"]');
+  await page.waitForSelector('.as-tile.on[data-arena="club"]');
   await page.screenshot({ path: `${out}/d05b_arena.png` });
   await page.click('[data-arena-ok]');
   await page.waitForSelector('.st-loading');

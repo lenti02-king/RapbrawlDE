@@ -191,3 +191,9 @@ grow up to 20 % on wide phones, inside the safe area — 16:9 matches the master
 Text is German (PO decision), set in Barlow Condensed italic with gradient fill + outline to match the master lettering
 (SPIELEN as native text, chosen by the agent over baked art so it stays editable). The PO's reference files are not in
 git (they contain third-party marks); see `tools/ui-extract/README.md`.
+Follow-up (same session): loading/title/boot, character select, arena select and shop use the same pipeline. Screens
+with a fixed composition (select screens, shop) are laid out in the master's 2000x1125 space ("contain") on a plate
+outpainted 220 px per side, so 19.5:9 phones see a continuation of the scene instead of black bars; the main menu keeps
+its edge-anchored groups. Third-party marks found in the masters are retouched out (Mercedes star, a luxury-car hood
+ornament, Nike swooshes on sneakers). The shop's tabs stay as drawn (SKINS selected); per-tab selected art comes with
+the real shop. Shared helpers: `src/ui/menu/kit.ts` + `kit.css`.

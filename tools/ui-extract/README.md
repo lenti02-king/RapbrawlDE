@@ -20,6 +20,10 @@ car badge). Names used by the scripts: `main_menu.webp`, `logo.jpg` (PO logo on 
 ## Run
 ```
 python3 tools/ui-extract/main_menu.py        # -> src/ui/img/menu/*.webp + src/ui/menu/mainMenuArt.ts (~2 min CPU)
+python3 tools/ui-extract/loading.py          # loading/title screen
+python3 tools/ui-extract/char_select.py      # character select (plate outpainted for wide phones, ~4 min)
+python3 tools/ui-extract/arena_select.py     # arena select
+python3 tools/ui-extract/shop.py             # shop (swooshes retouched first)
 REUSE_BG=1 python3 tools/ui-extract/main_menu.py   # keep the cached background plate (.cache/ui/mm_bg.png)
 python3 tools/ui-extract/sheet.py src/ui/img/menu .cache/ui/sheet.png   # sprites on magenta (alpha check)
 node scripts/menushot.mjs artifacts/menu     # captures: 2000x1125 + phones in landscape (dev server running)

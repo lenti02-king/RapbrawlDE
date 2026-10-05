@@ -17,7 +17,11 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Buttons wired: Schnellkampf/Online/Gegen Freunde/Rangliste → flow; SPIELEN = last mode; Modus sheet + CPU-Stärke; Kämpfer, Arenen, Einstellungen, Profil, Event (Hilfe), Glocke (News) | VERIFIED | e2e 24/24 + netplay script use the new menu |
 | Shop, Battle Pass, Bestenliste, Münzen/Diamanten | PLACEHOLDER | local values, "BALD VERFÜGBAR" toast, no real money (PO decision) |
 | Modus sheet + News sheet | RECREATED (no master exists) | simple styled panels until the PO supplies a design |
-| Loading, character select, arena select, shop screens | TODO (next) | PO references received |
+| Loading / title / boot screen (PO master: plate + PO logo + extracted bar with blue fill and spark) | VERIFIED | `node scripts/loadshot.mjs`: 2000x1125 next to the master, phones |
+| Character select (PO master: outpainted plate, fighters on the pedestals, busts in two roster tiles, ribbon names + hometowns native) | VERIFIED | `node scripts/selectshot.mjs` (also captures the arena select) |
+| Arena select (PO master: preview frame over the arena picture, tile frames normal/selected, info panel native; car hood ornament removed) | VERIFIED | same script |
+| Shop (PO master: tabs, item cards, bundle; Nike swooshes retouched out of shelves, card, bundle, tab icon; no real money: "BALD VERFÜGBAR") | VERIFIED (placeholder: nothing buyable, other tabs say "KATEGORIE KOMMT BALD") | `node scripts/shopshot.mjs` |
+| Battle Pass, HUD, Bestenliste masters | TODO | PO references received (battle_pass, hud, leaderboard) |
 
 ## Session 8 — PO feedback: head/hands, strike variety, mechanics, fatality, abilities, VFX/sound/music, HUD, flow + menus after inspiration boards
 | Area | Status | Evidence |

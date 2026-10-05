@@ -4,11 +4,10 @@
 // px per reference pixel) scales the whole thing. Layout keeps the master's composition and adapts it to the
 // phone in landscape: groups stick to their screen edges, grow up to 20 % on wide phones and stay inside the
 // safe area (notch, home bar).
-import './mainMenu.css';
+import { clamp, de, esc, fitTexts, pos, safeInsets, text, type Box } from './kit';
 import { MM_ART, MM_TEXT, type RefSprite } from './mainMenuArt';
 
 type Art = keyof typeof MM_ART;
-type Box = readonly [number, number, number, number];
 
 export interface MainMenuModel {
   name: string;
@@ -42,32 +41,12 @@ export type MainMenuAction =
 
 const REF_W = 2000;
 const REF_H = 1125;
-const de = (n: number) => Math.round(n).toLocaleString('de-DE');
-const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // --------------------------------------------------------------------------------------------- building blocks
-
-const pos = (x: number, y: number, w: number, h: number) => `--x:${x};--y:${y};--w:${w};--h:${h}`;
 
 function img(id: Art, ox: number, oy: number, cls = ''): string {
   const s: RefSprite = MM_ART[id];
   return `<img class="mm-art ${cls}" alt="" draggable="false" src="${s.src}" style="${pos(s.x - ox, s.y - oy, s.w, s.h)}">`;
-}
-
-interface TextOpts {
-  cls: string; // style class (mm-title, mm-sub, ...)
-  fs: number; // font size in reference px
-  align?: 'left' | 'center' | 'right';
-  html?: string; // rich content (already escaped)
-}
-
-/** Native text in a reference box (relative to the parent sprite at ox/oy); shrinks to fit if a German word is longer. */
-function text(t: string, box: Box, ox: number, oy: number, o: TextOpts): string {
-  const [x0, y0, x1, y1] = box;
-  const inner = o.html ?? esc(t);
-  return `<span class="mm-t ${o.cls}" style="${pos(x0 - ox, y0 - oy, x1 - x0, y1 - y0)};--fs:${o.fs};justify-content:${
-    o.align === 'center' ? 'center' : o.align === 'right' ? 'flex-end' : 'flex-start'
-  }"><i data-t="${esc(t)}">${inner}</i></span>`;
 }
 
 /** A button whose face is one extracted sprite; children are positioned relative to that sprite. */
@@ -256,24 +235,6 @@ function bar(id: 'xp_fill' | 'pass_fill', pct: number, trackW: number, ox: numbe
 
 // --------------------------------------------------------------------------------------------- layout
 
-const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
-
-function safeInsets(root: HTMLElement): { l: number; r: number; t: number; b: number } {
-  const forced = new URLSearchParams(location.search).get('safe'); // test hook: ?safe=47 simulates a notch phone
-  if (forced) {
-    const v = Number(forced) || 0;
-    return { l: v, r: v, t: 0, b: Math.round(v * 0.45) };
-  }
-  let probe = root.querySelector<HTMLElement>('.mm-safe');
-  if (!probe) {
-    probe = document.createElement('div');
-    probe.className = 'mm-safe';
-    root.appendChild(probe);
-  }
-  const cs = getComputedStyle(probe);
-  return { l: parseFloat(cs.paddingLeft) || 0, r: parseFloat(cs.paddingRight) || 0, t: parseFloat(cs.paddingTop) || 0, b: parseFloat(cs.paddingBottom) || 0 };
-}
-
 const W_ = (g: Group) => g.box[2] - g.box[0];
 const H_ = (g: Group) => g.box[3] - g.box[1];
 
@@ -327,18 +288,6 @@ export function layoutMainMenu(root: HTMLElement): number {
   return u;
 }
 
-/** Shrink native text that is wider than its box (German words run longer than the English master). */
-export function fitTexts(root: HTMLElement): void {
-  root.querySelectorAll<HTMLElement>('.mm-t').forEach((el) => {
-    el.style.setProperty('--fit', '1');
-    const i = el.firstElementChild as HTMLElement | null;
-    if (!i) return;
-    const need = i.scrollWidth;
-    const have = el.clientWidth;
-    if (need > have && need > 0) el.style.setProperty('--fit', (have / need).toFixed(3));
-  });
-}
-
 export function mountMainMenu(root: HTMLElement, onAction: (a: MainMenuAction, el: HTMLElement) => void): () => void {
   root.classList.add('mm');
   const relayout = () => layoutMainMenu(root);
@@ -354,15 +303,4 @@ export function mountMainMenu(root: HTMLElement, onAction: (a: MainMenuAction, e
   return () => ro.disconnect();
 }
 
-let toastTimer = 0;
-export function mainMenuToast(root: HTMLElement, msg: string): void {
-  const t = root.querySelector<HTMLElement>('.mm-toast');
-  if (!t) return;
-  t.textContent = msg;
-  t.hidden = false;
-  t.classList.remove('on');
-  void t.offsetWidth;
-  t.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => (t.hidden = true), 2200);
-}
+export { toast as mainMenuToast } from './kit';

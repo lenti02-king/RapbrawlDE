@@ -232,6 +232,15 @@ def inpaint(img: np.ndarray, mask: np.ndarray, max_side=1024, ctx=0.6, min_ctx=4
     return out
 
 
+def outpaint_sides(img: np.ndarray, side: int) -> np.ndarray:
+    """Extend a plate by `side` px left and right (LaMa continues the scene) so wider phones see more of it."""
+    wide = cv2.copyMakeBorder(img, 0, 0, side, side, cv2.BORDER_REFLECT)
+    om = np.zeros(wide.shape[:2], np.uint8)
+    om[:, :side] = 255
+    om[:, -side:] = 255
+    return inpaint(wide, om, max_side=1024, ctx=0.45, feather=6)
+
+
 def inpaint_local(img: np.ndarray, mask: np.ndarray, region=None, **kw) -> np.ndarray:
     """Inpaint only inside `region` (x0,y0,x1,y1) of `img` (context = that region only, e.g. one panel)."""
     if region is None:

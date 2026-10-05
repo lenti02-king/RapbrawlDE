@@ -21,7 +21,7 @@ import { App } from './app/app';
 import { ROSTER } from './content';
 import { runLab } from './lab';
 import { loadCharacterModels } from './render/glbRig';
-import { logoHtml, stageBg } from './ui/street';
+import { loadingHtml, mountLoading, setLoading } from './ui/menu/loading';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 const ui = document.getElementById('ui') as HTMLElement;
@@ -35,18 +35,19 @@ for (const pair of (params.get('glb') ?? '').split(',')) {
 }
 // Models are ~4 MB each: wait for them (up to 60 s) so menus and fights show them; if they arrive later the menus
 // are re-rendered, and if they fail a visible note says the placeholders are active (instead of failing silently).
-// boot = the start screen's concert stage with a loading bar (the title screen replaces it with the same art)
+// boot = the PO's loading screen (D38); the title screen replaces it with the same art and "TIPPEN ZUM STARTEN"
 const boot = document.createElement('div');
-boot.className = 'screen st-title boot-screen';
-boot.innerHTML = `${stageBg()}<div class="st-season">SAISON 1 · BLOCK BEATS</div>${logoHtml()}
-  <div class="st-load"><div class="st-load-label">LÄDT KÄMPFER</div><div class="st-bar"><i></i></div></div>`;
-if (!params.get('lab') && !params.get('quick')) ui.appendChild(boot);
-const bootBar = boot.querySelector<HTMLElement>('.st-bar i')!;
+boot.className = 'screen boot-screen';
+boot.innerHTML = loadingHtml('LÄDT …');
+if (!params.get('lab') && !params.get('quick')) {
+  ui.appendChild(boot);
+  mountLoading(boot);
+}
 let bootPct = 4;
 let bootTarget = 10;
 const bootTick = window.setInterval(() => {
   bootPct += (Math.min(96, bootTarget) - bootPct) * 0.12;
-  bootBar.style.width = `${bootPct.toFixed(1)}%`;
+  setLoading(boot, bootPct / 100);
 }, 50);
 let app: App | null = null;
 let started = false;
@@ -56,7 +57,7 @@ const timeout = new Promise((res) => setTimeout(res, 60000));
 void Promise.race([models, timeout]).then(() => {
   started = true;
   window.clearInterval(bootTick);
-  bootBar.style.width = '100%';
+  setLoading(boot, 1);
   // the App renders portraits synchronously; the title screen then replaces the boot screen (same art)
   if (params.get('lab') || params.get('quick')) boot.remove();
   if (params.get('lab')) runLab(canvas);
