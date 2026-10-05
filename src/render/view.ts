@@ -644,7 +644,7 @@ export class GameView {
     for (const [id, m] of this.projMeshes) {
       if (!alive.has(id)) {
         // the car does not vanish on impact: it keeps drifting off screen for a moment
-        if (m.userData.kind === 'car' && (m.userData.coast ?? 0) < 1.0) {
+        if (m.userData.kind === 'car' && !s.cine && (m.userData.coast ?? 0) < 1.0) {
           m.userData.coast = (m.userData.coast ?? 0) + dt;
           m.position.x += (m.userData.dir ?? 1) * 15 * dt;
           continue;

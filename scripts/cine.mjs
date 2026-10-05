@@ -1,6 +1,6 @@
 // Frame-accurate capture of a signature cinematic: pauses the sim and steps to chosen
 // cinematic frames. Usage: node scripts/cine.mjs jazeek|bonez|volt|brick|croc [f1,f2,..]
-// (croc = Bonez' Krokodil-Attacke: special in slot 1, a running projectile that starts the cinematic on hit)
+// (croc = Bonez' Krokodil-Attacke, car = Tiefergelegt: specials put in slot 1; projectiles that start a cinematic on hit)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -12,12 +12,12 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-const croc = who === 'croc';
+const croc = who === 'croc' || who === 'car';
 const quick = who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez';
 await page.goto(`${base}/?quick=${quick}&mode=cpu`);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
 const idx = who === 'brick' || who === 'bonez' || croc ? 1 : 0;
-await page.evaluate(([idx, croc]) => {
+await page.evaluate(([idx, croc, who]) => {
   const r = window.__rb.runner;
   r.paused = true;
   r.sources[0].poll = () => 0;
@@ -26,12 +26,13 @@ await page.evaluate(([idx, croc]) => {
   s.fighters[0].x = croc ? -16000 : -6000;
   s.fighters[1].x = croc ? 16000 : 6000;
   s.fighters[idx].meter = 300;
+  if (croc) s.fighters[idx].loadout[0] = who === 'car' ? 'bon_car' : 'bon_croc';
   const src = r.sources[idx];
   // tap the signature button (every other frame) until the super flash starts
   let n = 0;
   const btn = croc ? window.__rb.IN.S1 : window.__rb.IN.S3;
   src.poll = () => (r.state.freeze > 0 || r.state.cine || r.state.fighters[idx].state === 'move' || n > 120 ? 0 : n++ % 2 === 0 ? btn : 0);
-}, [idx, croc]);
+}, [idx, croc, who]);
 const stepUntil = async (pred, max = 400, arg = null) => {
   for (let i = 0; i < max; i++) {
     const done = await page.evaluate(pred, arg);
@@ -65,6 +66,7 @@ const FRAMES = {
   jazeek: [8, 20, 34, 52, 60, 70, 86, 97, 110, 121, 128, 146],
   bonez: [10, 24, 32, 52, 70, 76, 92, 108, 116, 119, 126, 150],
   croc: [4, 9, 14, 24, 35, 50, 57, 64, 72, 80, 86, 89, 92, 97, 104],
+  car: [3, 8, 20, 32, 44, 50, 56, 70, 84, 88, 92, 98, 104, 112, 118],
 };
 const frames = (process.argv[3] ? process.argv[3].split(',').map(Number) : null) ?? FRAMES[who];
 for (const f of frames) {

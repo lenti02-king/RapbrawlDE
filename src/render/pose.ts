@@ -240,12 +240,31 @@ export class Clip {
   private frames: number[];
   private poses: Float32Array[];
   private eases: ((t: number) => number)[];
+  /** Smooth mode: segments without an explicit ease follow a Hermite spline through their neighbours (continuous
+   *  velocity, no stop at every key); keys next to explicitly eased segments (snap, hold, ...) keep a zero tangent. */
+  private smoothSeg: boolean[] | null = null;
+  private tan: Float32Array[] = [];
 
-  constructor(keys: Key[], base?: PoseDef) {
+  constructor(keys: Key[], base?: PoseDef, smooth = false) {
     const sorted = [...keys].sort((a, b) => a.f - b.f);
     this.frames = sorted.map((k) => k.f);
     this.poses = sorted.map((k) => toArr(base ? compose(base, k.p) : k.p));
     this.eases = sorted.map((k) => EASE[k.e ?? 'inOut']);
+    if (smooth) {
+      const seg = sorted.map((k, i) => i > 0 && !k.e);
+      this.smoothSeg = seg;
+      const fr = this.frames;
+      const P = this.poses;
+      this.tan = P.map((p, i) => {
+        const t = new Float32Array(p.length);
+        // a tangent only where both sides are smooth segments (else ease into / out of the key)
+        if (i > 0 && i < P.length - 1 && seg[i] && seg[i + 1]) {
+          const dt = Math.max(1e-6, fr[i + 1] - fr[i - 1]);
+          for (let c = 0; c < p.length; c++) t[c] = (P[i + 1][c] - P[i - 1][c]) / dt;
+        }
+        return t;
+      });
+    }
   }
 
   get length(): number {
@@ -259,9 +278,30 @@ export class Clip {
     if (frame >= fr[last]) return out.set(this.poses[last]), out;
     let i = 1;
     while (i < last && fr[i] < frame) i++;
-    const t = (frame - fr[i - 1]) / Math.max(1e-6, fr[i] - fr[i - 1]);
-    return lerpPose(this.poses[i - 1], this.poses[i], this.eases[i](Math.min(1, Math.max(0, t))), out);
+    const span = Math.max(1e-6, fr[i] - fr[i - 1]);
+    const t = Math.min(1, Math.max(0, (frame - fr[i - 1]) / span));
+    if (this.smoothSeg?.[i]) {
+      // cubic Hermite between key i-1 and key i
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const h00 = 2 * t3 - 3 * t2 + 1;
+      const h10 = (t3 - 2 * t2 + t) * span;
+      const h01 = -2 * t3 + 3 * t2;
+      const h11 = (t3 - t2) * span;
+      const a = this.poses[i - 1];
+      const b = this.poses[i];
+      const ma = this.tan[i - 1];
+      const mb = this.tan[i];
+      for (let c = 0; c < out.length; c++) out[c] = h00 * a[c] + h10 * ma[c] + h01 * b[c] + h11 * mb[c];
+      return out;
+    }
+    return lerpPose(this.poses[i - 1], this.poses[i], this.eases[i](t), out);
   }
+}
+
+/** A clip with smooth (spline) motion between its un-eased keys: cinematics, fatalities, emotes. */
+export function smoothClip(keys: Key[], base?: PoseDef): Clip {
+  return new Clip(keys, base, true);
 }
 
 export function jointRot(p: Float32Array, j: JointName): JointRot {

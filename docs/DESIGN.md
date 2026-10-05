@@ -49,8 +49,13 @@ Touch stick: horizontal sectors are ±26°, vertical ±21°, diagonals the rest;
   both bounce apart. The round timer stops during the duel.
 - **Wand-Splat**: strength-3 knockdowns push 2.6 cm/frame; an airborne opponent hitting the stage wall at ≥1 cm/frame
   sticks for 42 frames (hittable, two extra juggle hits), once per combo, then drops into a knockdown.
-- **Fatality**: match point → phase `finish` (210 frames): the loser is dizzy, the winner presses SIGNATURE (or any card
-  button, after 20 frames) → 300-frame finisher, the loser is flattened, the winner taunts. No press → the loser falls.
+- **Fatality** (D39): match point → phase `finish`: the loser is dizzy, the winner can walk; within 1.8 m the Fatality
+  card (SIGNATURE / any card button) starts a minigame: three shown buttons (L/H/Griff), each within 55 frames (first
+  +20). All right → 400-frame finisher in three stages with blood (USK 16), the loser is flattened, the winner taunts.
+  A wrong button, a timeout or no press → the loser just falls.
+- **Aufladen** (D39): hold the Hype bar (touch), C or a stick click: +4 Hype per 3 frames, can't block or move.
+  Damage taken also builds Hype (a full health bar = 3 bars).
+- **Fight intro** (D39): round 1 shows each fighter (emote, face close-up, name); any attack/card button skips.
 
 ## Hype meter
 Max 3 bars (300), carries over between rounds. Gain: landing hits 12/18/24 (light/medium/heavy), blocked hits 6/9/12, defender gains 1/5 of damage taken and +6 per block. Jazeek gains 10 % more (tempo character). Specials cost 0–2 bars, the Signature 3.
@@ -62,7 +67,7 @@ Max 3 bars (300), carries over between rounds. Gain: landing hits 12/18/24 (ligh
 **JAZEEK — Tempo & Konter** (fast, rhythmic, precise). Normals: Schneller Jab (5f), Tiefer Kick (6f, low), Rückhand (9f), Breakdance-Sweep (10f, low), Sprungknie, Sprung-Drehkick. Throw: Spin-Wurf.
 Cards: Diamanten-Regen (2, overhead zone of falling diamonds 1.4–2.6 m ahead, 72 dmg), Stimmwelle (1, short sound-wave projectile with big pushback), Spotlight-Dash (1, passes through the opponent, strike-invulnerable early), Rhythmus-Konter (1, counter stance that also catches lows → 3 hits; loses to throws/projectiles), MVP-Kombo (2, dash jab → 5-hit series with launcher, unsafe on block), **Herzbrecher** (3, Signature).
 **BONEZ MC — Reichweite & Druck** (1.98 m, long reach, heavy single hits, readable wind-ups). Normals: Langer Jab (7f), Stiefeltritt (8f, low), Rechte Gerade (13f), Aufwärtshaken (11f, anti-air), Sprung-Ellbogen, Hammerfaust. Throw: Schulterwurf.
-Cards: Tiefergelegt (2, a tuner car drifts in from 3.2 m behind him at 15 m/s, 100 dmg, launch + knockdown, blockable), Krokodil-Schnapper (1, 2.2 m reach, first active frame 20, knockdown), Rauchwand (1, stationary barrier that absorbs projectiles; a gold glint keeps Bonez readable behind it), Abriss (1, one hit of armor; throws beat it), Goldzahn-Grinsen (0, +70 Hype if not interrupted), **Palmen-Bassdrop** (3, Signature; hits low on both sides → crouch-block or jump).
+Cards: Tiefergelegt (2, a tuner car drifts in from 3.2 m behind him at 15 m/s, blockable; a grounded hit = 3-stage car cinematic: roof ride, donuts, hard brake, 100 dmg; airborne = launch), Krokodil-Attacke (1, a little croc runs along the floor from frame 16, low = crouch-block; on hit: bite, drag, two death rolls, toss = 120 dmg cinematic), Rauchwand (1, stationary barrier that absorbs projectiles; a gold glint keeps Bonez readable behind it), Abriss (1, one hit of armor; throws beat it), Goldzahn-Grinsen (0, +70 Hype if not interrupted), **Palmen-Bassdrop** (3, Signature; hits low on both sides → crouch-block or jump).
 
 ## Cinematic signatures
 Flow: activation → 36-frame super flash (game frozen, card reveal UI, camera close-up) → startup (strike-invulnerable) → hit check. **Blocked/whiffed: no cinematic, big recovery.** Confirmed hit → sim enters cinematic state (both fighters locked, timer stopped, damage applied at scripted frames) → presentation plays camera cuts/poses/VFX → victim knocked down at a scripted distance → control returns. Lengths: Herzbrecher 2.5 s (hits at frames 70/78/86/96/120, 325 base damage incl. the 40 on contact), Palmen-Bassdrop 2.7 s (hits at 30/74/118, 300 incl. contact). Kept short for repeated competitive play.

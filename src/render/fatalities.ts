@@ -1,35 +1,50 @@
 // Fatalities (finish phase after the match-deciding KO): a brutal cartoon finisher per fighter that ends with the
 // winner mocking the flattened loser. Pure presentation keyed to the sim's fatal.frame (src/core/sim.ts stepFinish);
-// the victim stands 1.1 m in front of the attacker at frame 0. Cartoon violence only: squash, stars, no gore.
+// the victim stands 1.1 m in front of the attacker at frame 0. PO: longer and more brutal, blood allowed but the
+// rating must stay at USK 16: a few blood droplets and small floor splats (toon.blood, setting "Blut"), squash and
+// stars; no gore, no dismemberment. Each finisher has three stages (beat-down, a brutal middle stage, the big prop).
 import * as THREE from 'three';
 import { BONEZ_ANIMS, BONEZ_POSES } from './anims/bonez';
 import { JAZEEK_ANIMS, JAZEEK_POSES } from './anims/jazeek';
 import { reactions } from './anims/stances';
 import type { AnimSet } from './anims/types';
 import type { CineDef, CineProps, FxCtx, PropCtx } from './cinematics';
-import { Clip, compose, sampleDef, type PoseDef } from './pose';
+import { compose, sampleDef, smoothClip, type Clip, type EaseName, type PoseDef } from './pose';
 import { makeCroc } from './props';
 
-export const FATALITY_FRAMES = 300;
+export const FATALITY_FRAMES = 400;
 /** Mocking last words (shown by the HUD at the end of the fatality). */
 export const TAUNTS: Record<string, string[]> = {
   jazeek: ['Zu leise, Bro.', 'Nächstes Mal mit Playback?', 'Danke fürs Zuhören!', 'Platin für mich, Pfannkuchen für dich.'],
   bonez: ['Ab ins Becken!', 'Nächster!', 'Kroko hatte Hunger.', 'Bleib liegen, Kleiner.'],
 };
 /** Frame from which the HUD shows the taunt bubble / the FATALITY title. */
-export const TAUNT_AT = 212;
-export const TITLE_AT = 168;
+export const TAUNT_AT = 312;
+export const TITLE_AT = 268;
 
 const C = (h: number) => new THREE.Color(h);
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) * (1 - t));
 const ramp = (f: number, a: number, b: number) => ease((f - a) / Math.max(1, b - a));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** Every key at or after `at` moves `by` frames later (the stages added in session 9 sit in front of the old tails). */
+const later = <T extends { f: number }>(keys: T[], at: number, by: number): T[] => keys.map((k) => (k.f >= at ? { ...k, f: k.f + by } : k));
+/** Old keys before `at`, then the new stage, then the old tail `by` frames later. */
+function insertStage<T extends { f: number }>(old: T[], at: number, by: number, stage: T[]): T[] {
+  return [...old.filter((k) => k.f < at), ...stage, ...later(old.filter((k) => k.f >= at), at, by)];
+}
+/** Pose moved forward by dx (keeps the pose's own x offset). */
+const fwd = (p: PoseDef, dx: number): PoseDef => compose(p, { x: (p.x ?? 0) + dx });
+/** Blood droplets from the victim's head (dy ~0.6) or body. */
+function bleed(c: FxCtx, n: number, dy = 0.6, speed = 2.6): void {
+  c.view.toon.blood(c.def.x, c.def.y + dy, n, -c.facing, speed);
+}
 
-function hitFx(c: FxCtx, strength: number, color = 0xffd36b, y = 0.45): void {
+/** `scale` shrinks the impact star for close/medium shots (a full-size star covers the whole frame there). */
+function hitFx(c: FxCtx, strength: number, color = 0xffd36b, y = 0.45, scale = 1): void {
   const p = c.def.clone().add(new THREE.Vector3(0, y, 0.25));
   c.view.vfx.sparks(p.x, p.y, 16 + strength * 8, C(color), 8 + strength * 2, -c.facing);
-  c.view.vfx.flash(p.x, p.y, 0.6 + strength * 0.2, C(0xfff4c2), 0.08);
-  c.view.toon.impact(p.x, p.y, 0.9 + strength * 0.3, C(color), { spikes: 10 + strength * 2, life: 0.22 + strength * 0.05 });
+  c.view.vfx.flash(p.x, p.y, (0.6 + strength * 0.2) * scale, C(0xfff4c2), 0.08);
+  c.view.toon.impact(p.x, p.y, (0.9 + strength * 0.3) * scale, C(color), { spikes: 10 + strength * 2, life: 0.22 + strength * 0.05 });
   if (strength >= 2) c.view.toon.speedLines(p.x, p.y, C(0xffffff), 0.3, 0.5);
   c.view.director.shake(0.2 + strength * 0.12);
   c.audio.hit(Math.min(3, strength), strength >= 3);
@@ -59,8 +74,8 @@ const crouchSign: PoseDef = { y: -0.36, x: 0.35, j: { spine: [0, 0, -30], chest:
 const kissHand: PoseDef = { j: { shR: [-30, 0, 128], elR: [0, 0, 150], haR: [0, 0, -20], head: [0, -10, 8], shL: [20, 0, 30], elL: [0, 0, 40] } };
 const kissBlow: PoseDef = { x: 0.04, j: { shR: [-8, 0, 92], elR: [0, 0, 6], haR: [0, 0, -40], head: [0, -6, -2], shL: [20, 0, 30], elL: [0, 0, 40] } };
 
-const JAZ_ATK = new Clip(
-  [
+type Key = { f: number; p: PoseDef; e?: EaseName };
+const JAZ_ATK_V1: Key[] = [
     { f: 0, p: {} },
     { f: 12, p: beckon, e: 'out' },
     { f: 22, p: compose(beckon, { j: { elR: [0, 0, 140] } }) },
@@ -94,14 +109,37 @@ const JAZ_ATK = new Clip(
     { f: 236, p: compose(kissBlow, { x: 0.24, j: { elR: [0, 0, 14] } }) },
     { f: 250, p: compose(J.sing, { x: 0.2 }) },
     { f: 300, p: compose(J.sing, { x: 0.2, j: { head: [0, -16, 22] } }) },
-  ],
+];
+const jazCrouch: PoseDef = { x: 0.15, y: -0.25, s: { sq: 0.12 }, j: { spine: [0, 0, -16], thL: [6, 20, 70], knL: [0, 0, -100], thR: [-8, 18, 60], knR: [0, 0, -100], shL: [20, 0, 40], shR: [-20, 0, 40], head: [0, 0, 20] } };
+const jazJump: PoseDef = { x: 0.3, y: 1.3, s: { sq: -0.1 }, j: { thL: [6, 20, 70], knL: [0, 0, -100], thR: [-8, 18, 30], knR: [0, 0, -60], shL: [30, 0, 150], elL: [0, 0, 20], shR: [-30, 0, 150], elR: [0, 0, 20], head: [0, 0, 24] } };
+const jazLand: PoseDef = { x: 0.5, y: -0.2, s: { sq: 0.14 }, j: { spine: [0, 0, -20], thL: [6, 20, 60], knL: [0, 0, -90], thR: [-8, 18, 40], knR: [0, 0, -90] } };
+// stage 2 (frames 72-172): jumps after the launched victim, axe kick down into the floor, "get up", a four-hit
+// beat-down and the launcher that sends them up for the platinum record
+const JAZ_ATK = smoothClip(
+  insertStage(JAZ_ATK_V1, 80, 100, [
+    { f: 78, p: jazCrouch, e: 'inOut' },
+    { f: 86, p: jazJump, e: 'out' },
+    { f: 92, p: compose(J.kickHigh, { x: 0.4, y: 1.25 }), e: 'snap' },
+    { f: 100, p: jazLand, e: 'in' },
+    { f: 110, p: compose(beckon, { x: 0.5 }), e: 'inOut' },
+    { f: 122, p: { x: 0.55 } },
+    { f: 126, p: compose(J.jab, { x: 0.62 }), e: 'snap' },
+    { f: 130, p: { x: 0.6 } },
+    { f: 134, p: compose(J.cross, { x: 0.66 }), e: 'snap' },
+    { f: 138, p: { x: 0.64 } },
+    { f: 142, p: compose(J.hookL, { x: 0.68 }), e: 'snap' },
+    { f: 147, p: { x: 0.64, y: -0.06 } },
+    { f: 149, p: compose(sampleDef(jM.jaz_HH, 4), { x: 0.6 }) },
+    { f: 152, p: compose(sampleDef(jM.jaz_HH, 8), { x: 0.62 }), e: 'snap' },
+    { f: 160, p: compose(sampleDef(jM.jaz_HH, 12), { x: 0.55 }) },
+    { f: 172, p: { x: 0.2 } },
+  ]),
   JAZEEK_ANIMS.stance,
 );
 
 function jazVictim(set: AnimSet): Clip {
   const r = reactions(set.stance, set.pivot ?? 0.9);
-  return new Clip(
-    [
+  const v1: Key[] = [
       ...dizzyKeys(r, 24),
       { f: 28, p: compose(r.hitHigh, { x: -0.06 }), e: 'snap' },
       { f: 34, p: compose(r.hitHigh, { x: -0.1, j: { head: [0, -30, 30] } }), e: 'snap' },
@@ -119,7 +157,27 @@ function jazVictim(set: AnimSet): Clip {
       { f: 244, p: compose(pancake(r, 0, 0.64), { j: { shL: [70, 0, 70], shR: [-70, 0, 70] } }) },
       { f: 252, p: pancake(r, 0, 0.68) },
       { f: 300, p: pancake(r, 0, 0.68) },
-    ],
+  ];
+  return smoothClip(
+    insertStage(v1, 82, 100, [
+      { f: 80, p: compose(r.juggle, { x: -0.15, y: 1.5, rot: -40 }), e: 'out' },
+      { f: 92, p: compose(r.juggle, { x: -0.2, y: 1.6, rot: -60 }) },
+      // axe kick: straight down into the floor, bounce
+      { f: 99, p: compose(r.lying, { x: -0.25, s: { sq: 0.22 } }), e: 'in' },
+      { f: 104, p: compose(r.juggle, { x: -0.3, y: 0.35, rot: 70 }), e: 'out' },
+      { f: 110, p: compose(r.lying, { x: -0.32 }), e: 'in' },
+      { f: 116, p: compose(r.lying, { x: -0.32 }) },
+      { f: 121, p: compose(r.crouch, { x: -0.3, j: { head: [0, 20, 20] } }), e: 'inOut' },
+      { f: 125, p: compose(r.hitGut, { x: -0.3 }) },
+      // four-hit beat-down
+      { f: 126, p: compose(r.hitHigh, { x: -0.34, j: { head: [0, -30, 30] } }), e: 'snap' },
+      { f: 131, p: compose(r.hitGut, { x: -0.34 }) },
+      { f: 134, p: compose(r.hitHigh, { x: -0.38, j: { head: [0, 30, 26] } }), e: 'snap' },
+      { f: 139, p: compose(r.hitGut, { x: -0.38 }) },
+      { f: 142, p: compose(r.hitHigh, { x: -0.42, rot: -8, j: { head: [0, -36, 34] } }), e: 'snap' },
+      { f: 148, p: compose(r.hitGut, { x: -0.42, y: -0.04 }) },
+      { f: 152, p: compose(r.juggle, { x: -0.4, y: 0.5, rot: -20 }), e: 'snap' },
+    ]),
     set.stance,
   );
 }
@@ -178,7 +236,8 @@ function jazProps(): CineProps {
   return {
     group,
     lights: [glow],
-    update(f: number, c: PropCtx) {
+    update(f0: number, c: PropCtx) {
+      const f = f0 - 100; // the record stage comes after the session-9 beat-down stage
       const vis = f >= 80 && f < 190;
       rec.visible = vis;
       glow.intensity = vis ? 6 * ramp(f, 80, 96) * (1 - ramp(f, 170, 188)) : 0;
@@ -203,30 +262,42 @@ export const FATAL_JAZEEK: CineDef = {
     { f: 26, pos: [0.55, 1.15, 4.4], target: [0.55, 1.2, 0], fov: 40, cut: true },
     { f: 58, pos: [0.65, 1.2, 4.0], target: [0.6, 1.25, 0], fov: 40 },
     { f: 60, pos: [0.1, 0.35, 3.0], target: [0.9, 1.6, 0], fov: 50, cut: true },
-    { f: 82, pos: [0.2, 0.5, 3.4], target: [0.9, 2.6, 0], fov: 52 },
-    { f: 84, pos: [0.3, 0.9, 4.2], target: [1.0, 3.4, 0], fov: 54, cut: true },
-    { f: 97, pos: [0.4, 1.1, 4.6], target: [1.0, 1.4, 0], fov: 50 },
-    { f: 99, pos: [0.7, 1.9, 6.4], target: [0.8, 0.5, 0], fov: 44, cut: true },
-    { f: 150, pos: [1.8, 1.5, 5.0], target: [0.85, 0.7, 0], fov: 42 },
-    { f: 176, pos: [1.6, 1.0, 3.6], target: [0.85, 0.4, 0], fov: 38 },
-    { f: 210, pos: [1.4, 0.9, 3.0], target: [0.8, 0.45, 0], fov: 36 },
-    { f: 212, pos: [0.65, 1.5, 2.1], target: [0.15, 1.45, 0], fov: 30, cut: true },
-    { f: 300, pos: [0.7, 1.55, 2.6], target: [0.25, 1.4, 0], fov: 32 },
+    { f: 76, pos: [0.15, 0.4, 3.3], target: [0.85, 1.9, 0], fov: 52 },
+    // stage 2: jump + axe kick (wide), the floor slam (low), the beat-down (side), the launcher (low, looking up)
+    { f: 78, pos: [0.6, 1.0, 5.2], target: [0.7, 1.3, 0], fov: 44, cut: true },
+    { f: 97, pos: [0.6, 1.0, 5.0], target: [0.7, 1.0, 0], fov: 44 },
+    { f: 99, pos: [1.7, 0.35, 2.5], target: [1.0, 0.25, 0], fov: 40, cut: true },
+    { f: 110, pos: [1.6, 0.45, 2.7], target: [1.0, 0.35, 0], fov: 40 },
+    { f: 112, pos: [0.95, 1.3, 3.2], target: [0.95, 1.2, 0], fov: 38, cut: true },
+    { f: 150, pos: [0.95, 1.3, 2.9], target: [0.95, 1.25, 0], fov: 36 },
+    { f: 152, pos: [0.1, 0.35, 3.0], target: [0.9, 1.6, 0], fov: 50, cut: true },
+    // stage 3: the platinum record
+    { f: 182, pos: [0.2, 0.5, 3.4], target: [0.9, 2.6, 0], fov: 52 },
+    { f: 184, pos: [0.3, 0.9, 4.2], target: [1.0, 3.4, 0], fov: 54, cut: true },
+    { f: 197, pos: [0.4, 1.1, 4.6], target: [1.0, 1.4, 0], fov: 50 },
+    { f: 199, pos: [0.7, 1.9, 6.4], target: [0.8, 0.5, 0], fov: 44, cut: true },
+    { f: 250, pos: [1.8, 1.5, 5.0], target: [0.85, 0.7, 0], fov: 42 },
+    { f: 276, pos: [1.6, 1.0, 3.6], target: [0.85, 0.4, 0], fov: 38 },
+    { f: 310, pos: [1.4, 0.9, 3.0], target: [0.8, 0.45, 0], fov: 36 },
+    { f: 312, pos: [0.65, 1.5, 2.1], target: [0.15, 1.45, 0], fov: 30, cut: true },
+    { f: 400, pos: [0.7, 1.55, 2.6], target: [0.25, 1.4, 0], fov: 32 },
   ],
   atk: JAZ_ATK,
   def: jazVictim,
   props: jazProps,
-  dim: (f) => (f < 100 ? 0.55 : f < 200 ? 0.35 : 0.5),
-  fx: [
-    { f: 1, run: (c) => (c.audio.riser(), c.view.arena.pulse(0.6)) },
-    { f: 28, run: (c) => hitFx(c, 1) },
-    { f: 34, run: (c) => hitFx(c, 1, 0xffd36b, 0.55) },
-    { f: 40, run: (c) => hitFx(c, 2, 0xff6fae, 0.5) },
-    { f: 52, run: (c) => hitFx(c, 2, 0xffd36b, 0.2) },
+  dim: (f) => (f < 200 ? 0.55 : f < 300 ? 0.35 : 0.5),
+  fx: insertStage(
+    [
+    { f: 1, run: (c: FxCtx) => (c.audio.riser(), c.view.arena.pulse(0.6)) },
+    { f: 28, run: (c: FxCtx) => hitFx(c, 1) },
+    { f: 34, run: (c: FxCtx) => (hitFx(c, 1, 0xffd36b, 0.55), bleed(c, 3)) },
+    { f: 40, run: (c: FxCtx) => (hitFx(c, 2, 0xff6fae, 0.5), bleed(c, 5)) },
+    { f: 52, run: (c: FxCtx) => hitFx(c, 2, 0xffd36b, 0.2) },
     {
       f: 65,
-      run: (c) => {
+      run: (c: FxCtx) => {
         hitFx(c, 3, 0xff3d7f, 0.6);
+        bleed(c, 6, 0.5, 3);
         c.view.toon.impactFrame(0.06);
         c.audio.whoosh(2);
       },
@@ -256,8 +327,48 @@ export const FATAL_JAZEEK: CineDef = {
     ...[112, 122, 132, 142].map((f) => ({ f, run: (c: FxCtx) => (c.view.vfx.sparks(c.atk.x + c.facing * 1.4, 0.2, 18, C(0xffd36b), 6, 1, 2), c.audio.hit(1, false)) })),
     { f: 168, run: (c) => (c.audio.crowdSwell(0.7), c.view.vfx.confetti(c.def.x, 3.5, 70)) },
     { f: 200, run: (c) => c.view.vfx.sparks(c.def.x, 0.1, 12, C(0xff3d7f), 3, 1, 2) },
-    { f: 222, run: (c) => c.view.fx.heartBurst(c.atk.x + c.facing * 0.4, 1.55, 6, 1) },
-  ],
+    { f: 222, run: (c: FxCtx) => c.view.fx.heartBurst(c.atk.x + c.facing * 0.4, 1.55, 6, 1) },
+    ],
+    84,
+    100,
+    [
+      { f: 86, run: (c: FxCtx) => c.audio.whoosh(2) },
+      {
+        f: 92,
+        run: (c: FxCtx) => {
+          hitFx(c, 3, 0xff3d7f, 0.6);
+          bleed(c, 8, 0.5, 3);
+          c.view.toon.impactFrame(0.05);
+        },
+      },
+      {
+        f: 99,
+        run: (c: FxCtx) => {
+          const x = c.def.x;
+          c.audio.boom();
+          c.audio.slam();
+          c.view.toon.crack(x, 2.2);
+          c.view.toon.rubble(x, 0, 12, 4);
+          c.view.toon.puff(x, 0, 10, 1.4, new THREE.Color(0xe9dfd0), 0.26, 0.7);
+          c.view.toon.blood(x, 0.25, 10, 0, 3);
+          c.view.vfx.ring(x, 0.05, 2.4, C(0xff3d7f), 0.4, true);
+          c.view.director.shake(0.9);
+          c.view.director.punch(4);
+        },
+      },
+      { f: 110, run: (c: FxCtx) => (c.audio.crowdSwell(0.4), c.view.fx.noteBurst(c.atk.x + c.facing * 0.2, 1.7, 4, c.facing)) },
+      ...[126, 134, 142].map((f, i) => ({ f, run: (c: FxCtx) => (hitFx(c, i === 2 ? 3 : 2, i % 2 ? 0xff6fae : 0xffd36b, 0.75, 0.5), bleed(c, 4 + i * 2)) })),
+      {
+        f: 152,
+        run: (c: FxCtx) => {
+          hitFx(c, 3, 0xff3d7f, 0.6, 0.6);
+          bleed(c, 8, 0.6, 3.4);
+          c.view.toon.impactFrame(0.06);
+          c.audio.whoosh(3);
+        },
+      },
+    ],
+  ),
 };
 
 // =================================================================== BONEZ — KROKODIL-FINALE
@@ -269,8 +380,7 @@ const stomp: PoseDef = { y: 0.04, j: { thR: [-8, 12, 64], knR: [0, 0, -80], ftR:
 const stompDown: PoseDef = { y: -0.02, j: { thR: [-8, 12, 50], knR: [0, 0, -40], ftR: [0, 0, -10], spine: [0, 0, -12], chest: [0, -10, -8], shL: [40, 0, 40], elL: [0, 0, 130], shR: [-40, 0, 40], elR: [0, 0, 130] } };
 const flex: PoseDef = { j: { shL: [60, 0, 90], elL: [0, 0, 130], shR: [-60, 0, 90], elR: [0, 0, 130], chest: [0, 0, 8], head: [0, -10, 14] } };
 
-const BON_ATK = new Clip(
-  [
+const BON_ATK_V1: Key[] = [
     { f: 0, p: {} },
     { f: 10, p: neckRoll, e: 'inOut' },
     { f: 18, p: compose(neckRoll, { j: { head: [0, 24, -18], neck: [0, 10, -10] } }) },
@@ -291,14 +401,38 @@ const BON_ATK = new Clip(
     { f: 212, p: compose(stompDown, compose(B.grin, { x: 0.8 })), e: 'inOut' },
     { f: 240, p: compose(flex, { x: 0.8 }), e: 'out' },
     { f: 300, p: compose(flex, { x: 0.8, j: { head: [0, -18, 16] } }) },
-  ],
+];
+// stage 2 (frames 60-160): grabs the collar, two headbutts, then his Kiez-Powerbomb (the throw clip, staged 0.57 m
+// further forward because the fatality starts at 1.1 m instead of the throw's 0.53 m)
+const THROW_IN = 1.1 - 0.53;
+const clinch = sampleDef(BONEZ_ANIMS.throwAtk.bon_throw, 0);
+const headBack: PoseDef = compose(clinch, { j: { head: [0, 0, -22], neck: [0, 0, -12], chest: [0, -6, -2], spine: [0, 0, 6] } });
+const headButt: PoseDef = compose(clinch, { j: { head: [0, 0, 34], neck: [0, 0, 16], chest: [0, -6, -12], spine: [0, 0, -16] } });
+const powerbomb: Key[] = [];
+for (let t = 0; t <= 50; t += 2) powerbomb.push({ f: 92 + t, p: fwd(sampleDef(BONEZ_ANIMS.throwAtk.bon_throw, t), THROW_IN), e: 'linear' });
+const BON_ATK = smoothClip(
+  insertStage(BON_ATK_V1, 60, 100, [
+    { f: 60, p: { x: 0.05 } },
+    { f: 66, p: fwd(clinch, THROW_IN - 0.08), e: 'inOut' },
+    { f: 71, p: fwd(headBack, THROW_IN - 0.1), e: 'out' },
+    { f: 75, p: fwd(headButt, THROW_IN + 0.04), e: 'snap' },
+    { f: 81, p: fwd(headBack, THROW_IN - 0.1), e: 'inOut' },
+    { f: 85, p: fwd(headButt, THROW_IN + 0.04), e: 'snap' },
+    { f: 90, p: fwd(clinch, THROW_IN) },
+    ...powerbomb,
+    { f: 150, p: compose(B.grin, { x: 0.3, j: { head: [0, -20, 12] } }), e: 'inOut' },
+  ]),
   BONEZ_ANIMS.stance,
 );
 
 function bonVictim(set: AnimSet): Clip {
   const r = reactions(set.stance, set.pivot ?? 0.9);
-  return new Clip(
-    [
+  const thrown = BONEZ_ANIMS.throwDef.bon_throw;
+  const bomb: Key[] = [];
+  for (let t = 0; t <= 34; t += 2) bomb.push({ f: 92 + t, p: sampleDef(thrown, t), e: 'linear' });
+  const pulled = compose(r.hitGut, { x: 0.08, rot: -14 });
+  const butted: PoseDef = compose(r.hitHigh, { x: 0.02, rot: -12, j: { head: [0, 0, 44], neck: [0, 0, 22] } });
+  const v1: Key[] = [
       ...dizzyKeys(r, 32),
       { f: 38, p: compose(r.hitHigh, { x: -0.08, j: { head: [0, 0, 40], neck: [0, 0, 20] } }), e: 'snap' },
       { f: 48, p: compose(r.hitHigh, { x: -0.1 }) },
@@ -317,7 +451,22 @@ function bonVictim(set: AnimSet): Clip {
       { f: 176, p: pancake(r, -0.6, 0.68) },
       { f: 180, p: pancake(r, -0.6, 0.74) },
       { f: 300, p: pancake(r, -0.6, 0.72) },
-    ],
+  ];
+  return smoothClip(
+    insertStage(v1, 60, 100, [
+      { f: 66, p: pulled, e: 'inOut' },
+      { f: 75, p: butted, e: 'snap' },
+      { f: 80, p: pulled },
+      { f: 85, p: butted, e: 'snap' },
+      { f: 91, p: pulled },
+      ...bomb,
+      // the powerbomb lands at 126: bounce, lie there, stagger up again for the croc
+      { f: 130, p: compose(r.lying, { x: -0.5, y: (r.lying.y ?? 0) + 0.16, rot: 80 }), e: 'out' },
+      { f: 136, p: compose(r.lying, { x: -0.6, s: { sq: 0.1 } }), e: 'in' },
+      { f: 148, p: compose(r.lying, { x: -0.6 }) },
+      { f: 156, p: compose(r.crouch, { x: -0.4, j: { head: [0, 20, 24] } }), e: 'inOut' },
+      { f: 166, p: compose(r.hitHigh, { x: -0.3, rot: -4, j: { head: [0, 14, 16] } }), e: 'inOut' },
+    ]),
     set.stance,
   );
 }
@@ -330,7 +479,8 @@ function bonProps(): CineProps {
   return {
     group,
     lights: [glow],
-    update(f: number, c: PropCtx) {
+    update(f0: number, c: PropCtx) {
+      const f = f0 - 100; // the croc stage comes after the session-9 powerbomb stage
       const show = f >= 74 && f < 152;
       croc.setOpacity(show ? ramp(f, 74, 80) * (1 - ramp(f, 142, 152)) : 0);
       glow.intensity = show ? 4 * ramp(f, 74, 84) * (1 - ramp(f, 138, 150)) : 0;
@@ -354,30 +504,42 @@ export const FATAL_BONEZ: CineDef = {
   startDx: 1.1,
   teeth: [
     [20, 32],
-    [205, 300],
+    [146, 160],
+    [305, 400],
   ],
   camera: [
     { f: 0, pos: [1.0, 1.9, 2.3], target: [0.05, 1.78, 0], fov: 30 },
     { f: 28, pos: [0.95, 1.88, 2.5], target: [0.08, 1.75, 0], fov: 30 },
     { f: 30, pos: [0.6, 1.3, 4.6], target: [0.6, 1.35, 0], fov: 40, cut: true },
-    { f: 66, pos: [0.7, 1.3, 4.4], target: [0.6, 1.3, 0], fov: 40 },
-    { f: 68, pos: [-0.6, 0.5, 3.6], target: [0.9, 1.5, 0], fov: 50, cut: true },
-    { f: 96, pos: [-0.4, 0.7, 4.0], target: [0.9, 1.6, 0], fov: 50 },
-    { f: 98, pos: [1.0, 1.6, 5.8], target: [0.9, 1.3, 0], fov: 44, cut: true },
-    { f: 150, pos: [0.6, 1.4, 6.0], target: [0.5, 0.8, 0], fov: 42 },
-    { f: 176, pos: [1.6, 1.0, 3.6], target: [0.6, 0.5, 0], fov: 38, cut: true },
-    { f: 210, pos: [1.4, 1.1, 3.4], target: [0.6, 0.6, 0], fov: 38 },
-    { f: 212, pos: [1.5, 1.85, 2.6], target: [0.85, 1.65, 0], fov: 32, cut: true },
-    { f: 300, pos: [1.6, 1.9, 3.0], target: [0.85, 1.6, 0], fov: 34 },
+    { f: 58, pos: [0.7, 1.3, 4.4], target: [0.6, 1.3, 0], fov: 40 },
+    // stage 2: headbutts close at head height, the powerbomb wide from low, the impact on the floor
+    { f: 60, pos: [0.75, 1.55, 2.4], target: [0.7, 1.5, 0], fov: 36, cut: true },
+    { f: 90, pos: [0.75, 1.6, 2.1], target: [0.72, 1.52, 0], fov: 34 },
+    { f: 92, pos: [0.2, 0.5, 4.6], target: [0.8, 1.6, 0], fov: 46, cut: true },
+    { f: 122, pos: [0.3, 0.6, 4.3], target: [0.8, 1.3, 0], fov: 46 },
+    { f: 124, pos: [1.7, 0.35, 2.4], target: [0.9, 0.3, 0], fov: 40, cut: true },
+    { f: 146, pos: [1.6, 0.45, 2.6], target: [0.9, 0.35, 0], fov: 40 },
+    { f: 148, pos: [0.85, 1.75, 1.6], target: [0.3, 1.7, 0], fov: 30, cut: true },
+    { f: 160, pos: [0.85, 1.7, 1.8], target: [0.3, 1.65, 0], fov: 30 },
+    // stage 3: the croc
+    { f: 168, pos: [-0.6, 0.5, 3.6], target: [0.9, 1.5, 0], fov: 50, cut: true },
+    { f: 196, pos: [-0.4, 0.7, 4.0], target: [0.9, 1.6, 0], fov: 50 },
+    { f: 198, pos: [1.0, 1.6, 5.8], target: [0.9, 1.3, 0], fov: 44, cut: true },
+    { f: 250, pos: [0.6, 1.4, 6.0], target: [0.5, 0.8, 0], fov: 42 },
+    { f: 276, pos: [1.6, 1.0, 3.6], target: [0.6, 0.5, 0], fov: 38, cut: true },
+    { f: 310, pos: [1.4, 1.1, 3.4], target: [0.6, 0.6, 0], fov: 38 },
+    { f: 312, pos: [1.5, 1.85, 2.6], target: [0.85, 1.65, 0], fov: 32, cut: true },
+    { f: 400, pos: [1.6, 1.9, 3.0], target: [0.85, 1.6, 0], fov: 34 },
   ],
   atk: BON_ATK,
   def: bonVictim,
   props: bonProps,
-  dim: (f) => (f < 150 ? 0.6 : 0.45),
-  fx: [
-    { f: 1, run: (c) => (c.audio.riser(), c.view.arena.pulse(0.6)) },
-    { f: 38, run: (c) => (hitFx(c, 3, 0xffffff, 0.75), c.view.toon.impactFrame(0.05)) },
-    { f: 54, run: (c) => hitFx(c, 2, 0xffd36b, 0.6) },
+  dim: (f) => (f < 250 ? 0.6 : 0.45),
+  fx: insertStage(
+    [
+    { f: 1, run: (c: FxCtx) => (c.audio.riser(), c.view.arena.pulse(0.6)) },
+    { f: 38, run: (c: FxCtx) => (hitFx(c, 3, 0xffffff, 0.75, 0.6), bleed(c, 6, 0.65), c.view.toon.impactFrame(0.05)) },
+    { f: 54, run: (c: FxCtx) => (hitFx(c, 2, 0xffd36b, 0.6, 0.6), bleed(c, 4)) },
     {
       f: 76,
       run: (c) => {
@@ -392,17 +554,18 @@ export const FATAL_BONEZ: CineDef = {
     { f: 88, run: (c) => c.audio.snap() },
     {
       f: 96,
-      run: (c) => {
+      run: (c: FxCtx) => {
         c.audio.snap();
         c.audio.boom();
         hitFx(c, 3, 0x7cff5a, 0.9);
+        bleed(c, 14, 0.4, 3.4);
         c.view.toon.impactFrame(0.08);
         c.view.director.punch(5);
         c.view.screenFlash = 1;
         c.audio.crowdSwell(0.8);
       },
     },
-    ...[104, 112, 120].map((f) => ({ f, run: (c: FxCtx) => (c.audio.whoosh(2), c.view.director.shake(0.5), c.view.vfx.dust(c.def.x, 0.4, 8, 1.2)) })),
+    ...[104, 112, 120].map((f) => ({ f, run: (c: FxCtx) => (c.audio.whoosh(2), c.view.director.shake(0.5), c.view.vfx.dust(c.def.x, 0.4, 8, 1.2), bleed(c, 4, 0.2)) })),
     { f: 132, run: (c) => (c.audio.snap(), c.audio.whoosh(3)) },
     {
       f: 152,
@@ -416,8 +579,45 @@ export const FATAL_BONEZ: CineDef = {
     },
     { f: 168, run: (c) => (c.audio.crowdSwell(0.7), c.view.vfx.confetti(c.def.x, 3.5, 60)) },
     { f: 176, run: (c) => (c.audio.slam(), c.view.director.shake(0.5), c.view.vfx.dust(c.def.x, 0.05, 10, 1)) },
-    { f: 205, run: (c) => c.view.vfx.sparks(c.atk.x + c.facing * 0.85, 1.78, 14, C(0xffd65a), 4, c.facing, 2) },
-  ],
+    { f: 205, run: (c: FxCtx) => c.view.vfx.sparks(c.atk.x + c.facing * 0.85, 1.78, 14, C(0xffd65a), 4, c.facing, 2) },
+    ],
+    60,
+    100,
+    [
+      ...[75, 85].map((f) => ({
+        f,
+        run: (c: FxCtx) => {
+          // close camera: a small star at the foreheads instead of the full-size hit star
+          const p = c.def.clone().add(new THREE.Vector3(c.facing * 0.12, 0.75, 0.25));
+          c.view.toon.impact(p.x, p.y, 0.65, C(0xffffff), { spikes: 10, life: 0.16 });
+          c.view.vfx.sparks(p.x, p.y, 14, C(0xffffff), 6, -c.facing);
+          c.view.director.shake(0.45);
+          c.audio.hit(3, true);
+          bleed(c, 8, 0.75, 3);
+        },
+      })),
+      { f: 100, run: (c: FxCtx) => (c.audio.whoosh(2), c.audio.crowdSwell(0.4)) },
+      {
+        f: 126,
+        run: (c: FxCtx) => {
+          const x = c.def.x;
+          c.audio.boom();
+          c.audio.slam();
+          c.view.toon.impactFrame(0.07);
+          c.view.toon.crack(x, 2.6);
+          c.view.toon.rubble(x, 0, 16, 5);
+          c.view.toon.puff(x, 0, 14, 1.8, new THREE.Color(0xe9dfd0), 0.3, 0.8);
+          c.view.toon.blood(x, 0.3, 12, 0, 3.2);
+          c.view.vfx.ring(x, 0.05, 3.0, C(0xffd36b), 0.45, true);
+          c.view.director.shake(1.1);
+          c.view.director.punch(5);
+          c.view.screenFlash = 0.7;
+          c.audio.crowdSwell(0.7);
+        },
+      },
+      { f: 150, run: (c: FxCtx) => c.view.vfx.sparks(c.atk.x + c.facing * 0.4, 1.75, 12, C(0xffd65a), 4, c.facing, 2) },
+    ],
+  ),
 };
 
 export const FATALITIES: Record<string, CineDef> = { fatal_jazeek: FATAL_JAZEEK, fatal_bonez: FATAL_BONEZ };

@@ -7,8 +7,9 @@ import { JAZEEK_ANIMS, JAZEEK_POSES } from './anims/jazeek';
 import { reactions } from './anims/stances';
 import type { AnimSet } from './anims/types';
 import type { CineDef, CineProps, FxCtx, PropCtx } from './cinematics';
-import { Clip, compose, sampleDef, type PoseDef } from './pose';
+import { compose, EASE, sampleDef, smoothClip, type Clip, type PoseDef } from './pose';
 import { heartGeometry, heartMaterial, makeCroc, makeCrocRunner, makePalm, makeSplitHeart, makeSpotlight, makeSunset } from './props';
+import { makeTunerCar } from './specials';
 
 const C = (h: number) => new THREE.Color(h);
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 - (1 - t) * (1 - t));
@@ -38,7 +39,7 @@ const kissHand: PoseDef = { j: { shR: [-30, 0, 128], elR: [0, 0, 150], haR: [0, 
 const kissBlow: PoseDef = { x: 0.04, j: { shR: [-8, 0, 92], elR: [0, 0, 6], haR: [0, 0, -40], head: [0, 0, -4], shL: [20, 0, 30], elL: [0, 0, 40] } };
 const palmStrike = compose(J.cross, { j: { shL: [6, 0, 92], elL: [0, 0, 4], haL: [0, 0, -50], haR: [0, 0, -50] } });
 
-const HEART_ATK = new Clip(
+const HEART_ATK = smoothClip(
   [
     { f: 0, p: J.sing },
     { f: 10, p: compose(J.sing, { j: { shL: [20, 0, 150], elL: [0, 0, 10], haL: [0, 0, -30], head: [0, -10, 24], chest: [0, -24, 14] } }) },
@@ -76,7 +77,7 @@ function heartDef(set: AnimSet): Clip {
   });
   const swoon = compose(dazed, { x: 0.04, j: { head: [0, 0, -18], shL: [10, 0, 40], elL: [0, 0, 110], shR: [-10, 0, 40], elR: [0, 0, 110] } });
   const endX = -(2.1 - 0.9) + 0.05;
-  return new Clip(
+  return smoothClip(
     [
       { f: 0, p: r.hitHigh },
       { f: 8, p: compose(r.hitHigh, { x: -0.04 }) },
@@ -305,7 +306,7 @@ const hammerLand: PoseDef = {
   },
 };
 
-const PALM_ATK = new Clip(
+const PALM_ATK = smoothClip(
   [
     { f: 0, p: slam },
     { f: 24, p: compose(slam, { j: { head: [0, 0, 16] } }) },
@@ -353,7 +354,7 @@ function palmDef(set: AnimSet): Clip {
       ftR: [0, 0, -24],
     },
   });
-  return new Clip(
+  return smoothClip(
     [
       { f: 0, p: r.hitLow },
       { f: 12, p: compose(r.hitLow, { x: -0.02 }) },
@@ -519,7 +520,7 @@ const fistUp: PoseDef = compose(B.grin, { y: 0.04, j: { shR: [-10, 0, 172], elR:
 const laugh = (k: number): PoseDef =>
   compose(crossed, { y: k ? -0.015 : 0.01, j: { chest: [0, -8, k ? -6 : 2], head: [0, -10, k ? 18 : 6], spine: [0, 0, k ? -4 : 2] } });
 
-const CROC_ATK = new Clip(
+const CROC_ATK = smoothClip(
   [
     { f: 0, p: pointCroc },
     { f: 8, p: compose(pointCroc, { j: { head: [0, -4, -8] } }) },
@@ -575,7 +576,7 @@ function crocDef(set: AnimSet): Clip {
     });
   const roll = (deg: number, k: number): PoseDef =>
     compose(drag(DRAG_END, k), { y: (r.lying.y ?? 0) + 0.05, j: { hips: [0, deg, 0] } });
-  return new Clip(
+  return smoothClip(
     [
       { f: 0, p: compose(r.hitLow, { x: 0.02 }) },
       { f: 5, p: compose(r.hitLow, { x: 0.04, y: -0.06, j: { spine: [0, -6, -16], head: [0, 10, -10] } }) },
@@ -761,5 +762,222 @@ export const CROC_ATTACK: CineDef = {
       },
     },
     { f: 104, run: (c) => c.view.toon.puff(c.atk.x - c.facing * 0.2, 0, 8, 0.8, C(0xe8dccb), 0.22, 0.6) },
+  ],
+};
+
+// =================================================================== BONEZ — TIEFERGELEGT (car special)
+// Three stages after the car hits a grounded opponent: (1) scooped onto the roof and carried, (2) two donuts with the
+// victim spinning on the roof while Bonez "steers" along, (3) hard brake: the victim flies off the roof and slams
+// down; the car turns into the background and drives off. Victim-local x is toward Bonez; startDx 2.0, endDx 5.0.
+const CAR_START = 2.0;
+const CAR_END = 5.0;
+const CAR_SPIN = [40, 80] as const;
+const wheel = (turn: number): PoseDef => ({
+  y: -0.03,
+  aim: { shL: [0.75, -0.2, -0.35], elL: [0.8, 0.45 - turn * 0.5, -0.1 + turn * 0.3], shR: [0.75, -0.2, 0.35], elR: [0.8, 0.45 + turn * 0.5, 0.1 + turn * 0.3] },
+  j: { chest: [0, turn * 12, -4], head: [0, turn * 8, 4], spine: [0, 0, -6], thL: [12, 14, 20], knL: [0, 0, -24], thR: [-12, 12, 6], knR: [0, 0, -18] },
+});
+const CAR_ATK = smoothClip(
+  [
+    // he jumped over his car: landing
+    { f: 0, p: { y: 0.45, j: { thL: [12, 14, 60], knL: [0, 0, -80], thR: [-12, 12, 30], knR: [0, 0, -90], shL: [30, 0, 120], shR: [-30, 0, 120] } } },
+    { f: 6, p: compose(bR.crouch, { y: -0.12, s: { sq: 0.14 } }), e: 'in' },
+    { f: 14, p: {}, e: 'out' },
+    { f: 20, p: { x: 0.04, aim: { shR: [1, 0.05, 0.1], elR: [1, 0.08, 0.1] }, j: { chest: [0, -10, 0], head: [0, -4, 4] } }, e: 'snap' },
+    { f: 32, p: compose(B.grin, { j: { chest: [0, -6, 8] } }), e: 'inOut' },
+    // steering along with the donuts
+    { f: 42, p: wheel(0), e: 'inOut' },
+    { f: 48, p: wheel(-1) },
+    { f: 54, p: wheel(1) },
+    { f: 60, p: wheel(-1) },
+    { f: 66, p: compose(crossed, { j: { head: [0, -16, 12] } }), e: 'inOut' },
+    { f: 70, p: laugh(1) },
+    { f: 74, p: laugh(0) },
+    { f: 78, p: laugh(1) },
+    // brake!
+    { f: 84, p: { x: 0.06, aim: { shR: [1, 0.1, 0.1], elR: [1, 0.12, 0.1] }, j: { chest: [0, -12, -4], head: [0, -6, -2] } }, e: 'snap' },
+    { f: 99, p: compose(fistUp, { y: -0.02 }), e: 'snap' },
+    { f: 108, p: compose(fistUp, { y: 0.02 }) },
+    { f: 120, p: compose(crossed, { j: { head: [0, -14, 10] } }), e: 'inOut' },
+  ],
+  bStance,
+);
+
+function carDef(set: AnimSet): Clip {
+  const r = victimReactions(set);
+  const roofY = (r.lying.y ?? 0) + 0.9;
+  const endX = -(CAR_END - CAR_START) + 0.05;
+  const flail = (k: number): PoseDef => ({
+    j: { shL: [70, 0, k ? 150 : 90], elL: [0, 0, k ? 30 : 80], shR: [-70, 0, k ? 100 : 160], elR: [0, 0, k ? 70 : 20], head: [0, k ? 20 : -20, -10], thL: [8, 0, k ? 40 : 10], knL: [0, 0, k ? -60 : -20] },
+  });
+  const ride = (x: number, k: number, yaw = 0): PoseDef => compose(r.lying, flail(k), { x, y: roofY, yaw });
+  return smoothClip(
+    [
+      { f: 0, p: compose(r.hitLow, { x: 0 }) },
+      { f: 4, p: compose(r.juggle, { x: 0.02, y: 0.75, rot: 60 }), e: 'out' },
+      { f: 10, p: ride(0, 0), e: 'in' },
+      { f: 18, p: ride(-0.35, 1), e: 'out' },
+      { f: 26, p: ride(-0.58, 0), e: 'out' },
+      { f: 36, p: ride(-0.7, 1), e: 'out' },
+      // donuts: spin with the car, sampled from the car's own spin curve (opposite sign: the victim is mirrored
+      // against the prop group)
+      ...Array.from({ length: 11 }, (_, i) => {
+        const f = CAR_SPIN[0] + i * 4;
+        const yaw = -720 * EASE.inOut((f - CAR_SPIN[0]) / (CAR_SPIN[1] - CAR_SPIN[0]));
+        return { f, p: ride(-0.7, i % 2, yaw), e: i ? ('linear' as const) : undefined };
+      }),
+      { f: CAR_SPIN[1] + 1, p: ride(-0.7, 0, 0), e: 'hold' },
+      // hard brake (84): off the roof, over the bonnet, slam (98), bounce
+      { f: 84, p: ride(-0.95, 1) },
+      { f: 91, p: compose(r.juggle, { x: -1.9, y: 1.9, rot: 300 }), e: 'out' },
+      { f: 98, p: compose(r.lying, { x: -2.7, rot: 450, s: { sq: 0.18 } }), e: 'in' },
+      { f: 104, p: compose(r.juggle, { x: -2.85, y: 0.35, rot: 560 }), e: 'out' },
+      { f: 110, p: compose(r.lying, { x: endX, rot: 810 }), e: 'in' },
+      { f: 120, p: compose(r.lying, { x: endX, rot: 810 }) },
+    ],
+    set.stance,
+  );
+}
+
+function carProps(): CineProps {
+  const group = new THREE.Group();
+  const car = makeTunerCar();
+  group.add(car);
+  const body = car.getObjectByName('body')!;
+  const wheels = car.userData.wheels as THREE.Object3D[];
+  const mats = new Set<THREE.Material>();
+  car.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+    if (m) mats.add(m);
+  });
+  for (const m of mats) {
+    m.userData.baseOpacity = m.opacity;
+    m.transparent = true;
+  }
+  let last = -1;
+  return {
+    group,
+    update(f: number, c: PropCtx) {
+      const fi = Math.floor(f);
+      const fresh = fi !== last;
+      if (fi < last) last = -1;
+      const [dx] = c.defLocal;
+      // x: rams in, then carries the victim (car centre under the hips), brake lurch, holds
+      let x = f < 10 ? lerp(0.9, CAR_START, f / 10) : f < CAR_SPIN[1] ? dx : CAR_START + 0.7 + 0.25 * EASE.out(Math.min(1, (f - CAR_SPIN[1]) / 6));
+      let z = 0.05;
+      const spin = f >= CAR_SPIN[0] && f < CAR_SPIN[1] ? EASE.inOut((f - CAR_SPIN[0]) / (CAR_SPIN[1] - CAR_SPIN[0])) * Math.PI * 4 : 0;
+      // after the stunt: nose into the background and away
+      const turn = (Math.PI / 2) * EASE.inOut(Math.min(1, Math.max(0, (f - 100) / 6)));
+      if (f >= 106) {
+        const d = Math.pow((f - 106) / 14, 2) * 6;
+        z -= d;
+        x += 0;
+      }
+      car.position.set(x, 0, z);
+      car.rotation.set(0, spin + turn, 0);
+      // body: roll in the donuts, nose dive on the brake, bounce on landing
+      const dive = f >= 80 && f < 96 ? -0.14 * Math.sin(((f - 80) / 16) * Math.PI) : 0;
+      body.rotation.set(spin ? 0.07 : 0, 0, dive);
+      body.position.y = f < 12 ? Math.max(0, Math.sin((f / 12) * Math.PI) * 0.05) : 0;
+      const roll = f < 10 ? f * 1.2 : f < CAR_SPIN[1] ? 10 + f * 0.9 : f < 84 ? 80 : f >= 100 ? 80 + (f - 100) * 2 : 80;
+      for (const w of wheels) w.rotation.z = -roll;
+      const a = 1 - ramp(f, 110, 120);
+      for (const m of mats) m.opacity = (m.userData.baseOpacity as number) * a;
+      car.visible = a > 0.01;
+      if (fresh) {
+        for (let k = last + 1; k <= fi; k++) {
+          // tyre smoke in the donuts, sparks from the bumper on the brake
+          if (k >= CAR_SPIN[0] && k < CAR_SPIN[1] && k % 2 === 0) {
+            const a2 = spin + Math.PI;
+            const p = c.world(x + Math.cos(a2) * 1.0, 0.1, z - Math.sin(a2) * 1.0);
+            c.view.toon.puff(p.x, 0, 2, 0.6, C(0xdcd6ea), 0.3, 0.7);
+            c.view.vfx.dust(p.x, 0.05, 2, 0.6, C(0xdcd6ea));
+          }
+          if (k >= 80 && k < 92 && k % 2 === 0) {
+            const p = c.world(x + 1.15, 0.15, 0.1);
+            c.view.vfx.sparks(p.x, 0.15, 6, C(0xffb347), 5, c.facing, 1);
+          }
+          if (k >= 106 && k < 118 && k % 2 === 0) {
+            const p = c.world(x, 0.1, z);
+            c.view.vfx.dust(p.x, 0.05, 3, 0.8, C(0xdcd6ea));
+          }
+        }
+        last = fi;
+      }
+    },
+  };
+}
+
+export const CAR_RIDE: CineDef = {
+  frames: 120,
+  startDx: CAR_START,
+  teeth: [
+    [30, 42],
+    [64, 82],
+    [98, 120],
+  ],
+  camera: [
+    // impact, low
+    { f: 0, pos: [1.15, 0.45, 2.7], target: [2.0, 0.75, 0], fov: 42, cut: true },
+    { f: 10, pos: [1.5, 0.7, 3.7], target: [2.2, 0.95, 0], fov: 44 },
+    // roof ride, side
+    { f: 22, pos: [2.5, 1.7, 4.8], target: [2.6, 1.0, 0], fov: 42, cut: true },
+    { f: 38, pos: [2.6, 1.8, 4.6], target: [2.7, 1.0, 0], fov: 42 },
+    // donuts from above
+    { f: 40, pos: [2.7, 3.8, 4.6], target: [2.7, 0.6, 0], fov: 48, cut: true },
+    { f: 62, pos: [2.8, 3.4, 4.0], target: [2.7, 0.7, 0], fov: 48 },
+    // Bonez laughing
+    { f: 64, pos: [0.9, 1.65, 2.0], target: [0.1, 1.6, 0], fov: 30, cut: true },
+    { f: 79, pos: [0.85, 1.68, 1.85], target: [0.12, 1.62, 0], fov: 29 },
+    // the brake and the flight, wide and low
+    { f: 80, pos: [2.6, 0.6, 6.6], target: [3.4, 1.2, 0], fov: 46, cut: true },
+    { f: 98, pos: [2.9, 0.7, 6.4], target: [3.9, 0.8, 0], fov: 46 },
+    // the victim on the floor, car leaving into the background
+    { f: 100, pos: [4.0, 0.7, 3.4], target: [4.6, 0.35, -0.5], fov: 42, cut: true },
+    { f: 120, pos: [4.1, 0.8, 3.7], target: [4.6, 0.4, -0.8], fov: 42 },
+  ],
+  atk: CAR_ATK,
+  def: carDef,
+  props: carProps,
+  dim: (f) => (f < 110 ? 0.5 : 0.35),
+  fx: [
+    {
+      f: 2,
+      run: (c) => {
+        hitFx(c, 2, 0xffa23a);
+        c.audio.slam();
+        c.view.toon.blood(c.def.x, c.def.y + 0.2, 5, -c.facing, 2.4);
+      },
+    },
+    { f: 10, run: (c) => (c.audio.block(2), c.view.director.shake(0.35)) },
+    { f: 40, run: (c) => (c.audio.carIn(), c.audio.crowdSwell(0.4)) },
+    ...[44, 58].map((f) => ({ f, run: (c: FxCtx) => c.view.vfx.ring(c.def.x, 0.03, 3.2, C(0x7cff5a), 0.5, true) })),
+    {
+      f: 62,
+      run: (c) => {
+        hitFx(c, 2, 0x7cff5a);
+        c.view.toon.blood(c.def.x, c.def.y + 0.3, 5, 0, 2.4);
+      },
+    },
+    { f: 80, run: (c) => (c.audio.carIn(), c.audio.whoosh(3)) },
+    {
+      f: 98,
+      run: (c) => {
+        const x = c.def.x;
+        c.audio.boom();
+        c.audio.slam();
+        c.view.toon.impactFrame(0.06);
+        c.view.toon.crack(x, 2.2);
+        c.view.toon.rubble(x, 0, 12, 4);
+        c.view.toon.puff(x, 0, 12, 1.3, C(0xe9dfd0), 0.28, 0.8);
+        c.view.toon.blood(x, 0.3, 10, -c.facing, 3);
+        c.view.vfx.ring(x, 0.05, 2.8, C(0xffa23a), 0.45, true);
+        c.view.director.shake(1);
+        c.view.director.punch(5);
+        c.view.screenFlash = 0.6;
+        c.audio.crowdSwell(0.7);
+      },
+    },
+    { f: 100, run: (c) => c.view.vfx.sparks(c.atk.x + c.facing * 0.12, 1.75, 14, C(0xffd65a), 4, c.facing, 2) },
   ],
 };

@@ -163,14 +163,17 @@ describe('Bonez MC', () => {
       const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
       place(s, 4.5);
       s.fighters[1].meter = 200;
-      const evs = run(s, 1, p1, IN.S1).concat(run(s, 130, p1, 0));
+      const evs = run(s, 1, p1, IN.S1).concat(run(s, 220, p1, 0));
       return { s, evs };
     };
     const open = go(0);
     const hit = ofType(open.evs, 'hit')[0];
     expect(hit?.projectile).toBe(true);
     expect(hit?.move).toBe('bon_car');
-    expect(ofType(open.evs, 'knockdown').length).toBeGreaterThan(0);
+    // a grounded hit becomes the three-stage car cinematic (roof ride, donuts, hard brake): 100 damage in total
+    expect(ofType(open.evs, 'cineStart').map((c) => c.id)).toEqual(['bon_car']);
+    expect(ofType(open.evs, 'cineEnd')).toHaveLength(1);
+    expect(1000 - open.s.fighters[0].health).toBe(20 + 25 + 25 + 30);
     const blocked = go(IN.BLOCK);
     expect(ofType(blocked.evs, 'block')).toHaveLength(1);
     expect(ofType(blocked.evs, 'hit')).toHaveLength(0);
@@ -185,8 +188,9 @@ describe('Bonez MC', () => {
     s.fighters[1].x += shift;
     s.camX += shift;
     s.fighters[1].meter = 200;
-    const evs = run(s, 1, 0, IN.S1).concat(run(s, 130));
+    const evs = run(s, 1, 0, IN.S1).concat(run(s, 220));
     expect(ofType(evs, 'hit').some((h) => h.move === 'bon_car')).toBe(true);
+    expect(ofType(evs, 'cineEnd')).toHaveLength(1);
   });
 
   it('Goldzahn-Grinsen builds meter', () => {

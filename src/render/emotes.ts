@@ -6,7 +6,7 @@ import { BONEZ_ANIMS, BONEZ_POSES } from './anims/bonez';
 import { JAZEEK_ANIMS, JAZEEK_POSES } from './anims/jazeek';
 import type { AnimSet } from './anims/types';
 import type { CamKey } from './cinematics';
-import { Clip, compose, type PoseDef } from './pose';
+import { compose, smoothClip, type Clip, type PoseDef } from './pose';
 
 const J = JAZEEK_POSES;
 const B = BONEZ_POSES;
@@ -21,7 +21,7 @@ const point: PoseDef = {
   aim: { shR: [0.55, 0.12, 0.83], elR: [0.55, 0.14, 0.82] },
   j: { chest: [0, -14, 2], neck: [0, -10, 0], head: [0, -26, 4], shL: [30, 0, 20], elL: [0, 0, 60], hips: [0, -6, 0] },
 };
-const JAZEEK_EMOTE = new Clip(
+const JAZEEK_EMOTE = smoothClip(
   [
     { f: 0, p: {} },
     { f: 10, p: J.sing, e: 'out' },
@@ -53,7 +53,7 @@ const knuckles = (k: number): PoseDef => ({
 });
 // arms crossed low (at the belly), so the face close-up stays clear
 const crossed: PoseDef = { j: { chest: [0, -6, 6], shL: [16, 0, 40], elL: [0, 0, 122], shR: [-16, 0, 40], elR: [0, 0, 122] } };
-const BONEZ_EMOTE = new Clip(
+const BONEZ_EMOTE = smoothClip(
   [
     { f: 0, p: {} },
     { f: 10, p: knuckles(0), e: 'out' },

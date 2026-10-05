@@ -220,7 +220,8 @@ const moves: MoveDef[] = [
       },
     },
   },
-  // Tiefergelegt: a lowered tuner car drifts in from behind him and runs the opponent over (no brand, no logos)
+  // Tiefergelegt: a lowered tuner car drifts in from behind him and runs the opponent over (no brand, no logos).
+  // On a grounded hit the car scoops them onto its roof, spins donuts and brakes hard (cinematic 'bon_car', 3 stages)
   {
     key: 'bon_car',
     name: 'Tiefergelegt',
@@ -237,13 +238,14 @@ const moves: MoveDef[] = [
         half: { w: m(1.0), h: m(0.55) },
         life: 64,
         hit: hit(1, 1, {
-          damage: 100,
+          damage: 20,
           chip: 16,
           strength: 3,
           blockstun: 20,
           hitstop: 12,
           knockdown: true,
           launch: { vx: 420, vy: 950 },
+          cinematic: 'bon_car',
           pushBlock: 1600,
           boxes: [],
           meterOnHit: 0,
@@ -413,6 +415,17 @@ export const BONEZ: FighterDef = {
     },
   ],
   cinematics: {
+    bon_car: {
+      id: 'bon_car',
+      frames: 120,
+      startDx: m(2.0),
+      hits: [
+        { frame: 6, damage: 25, strength: 2 },
+        { frame: 62, damage: 25, strength: 2 },
+        { frame: 98, damage: 30, strength: 3 },
+      ],
+      endDx: m(4.2),
+    },
     bon_croc: {
       id: 'bon_croc',
       frames: 110,

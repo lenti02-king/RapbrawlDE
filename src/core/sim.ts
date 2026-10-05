@@ -80,7 +80,7 @@ export const RULES = {
   STRONG_KNOCKBACK: 260,
   /** Finish phase (match point): window to start the fatality, fatality length. */
   FINISH_WINDOW: 210,
-  FATALITY_FRAMES: 300,
+  FATALITY_FRAMES: 400,
   /** Fatality: the winner must stand this close (units) to play the card. */
   FATAL_RANGE: 18000,
   /** Fatality minigame: frames per button. */

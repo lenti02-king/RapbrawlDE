@@ -20,7 +20,8 @@ npm run e2e            # Playwright E2E against BASE_URL (default localhost:5173
 node scripts/play.mjs basic|super   # scripted gameplay screenshots -> artifacts/
 node scripts/shot.mjs "/?lab=poses&pose=crouch" out.png   # pose lab screenshot
 node scripts/moves.mjs jazeek|bonez # every move at first active frame + hitbox overlay -> contact sheet
-node scripts/cine.mjs jazeek|bonez [f1,f2,..]  # frame-accurate signature cinematic capture
+node scripts/cine.mjs jazeek|bonez|croc|car [f1,f2,..]  # frame-accurate cinematic capture (croc/car = Bonez' grabbing specials)
+node scripts/introshot.mjs [f1,f2,..]   # round-1 fighter showcase (emote, face close-up, name) at intro frames -> artifacts/intro
 node scripts/specials.mjs           # special-move VFX/props sheet (voice wave, spotlight, croc, smoke, grin)
 node scripts/ui.mjs                 # menu flow + HUD screenshots, desktop and phone landscape -> artifacts/ui
 EXTRA="&glb=jazeek:test-models/Xbot.glb" node scripts/moves.mjs jazeek   # test a GLB model (public/test-models is gitignored)
@@ -60,6 +61,7 @@ Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug s
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
 UI (D38): the PO's master screenshots are the source — art is cut from their pixels (`tools/ui-extract/`), text is native German; screens in `src/ui/menu/` (mainMenu, loading, charSelect, arenaSelect, shop; shared `kit.ts/.css`; generated `*Art.ts`; sprites in `src/ui/img/<screen>/`). Older screens: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
 Music: `public/assets/music/<fighter>.mp3` / `bgm.mp3` drop-ins (git-ignored, README there, D33/D37); default = original stingers + the procedural 90 BPM beat in `audio.ts` (the sim's beat clock is the truth, RULES.BEAT_FRAMES).
+Fight intro, charge, fatality minigame, grabbing projectiles, blood, smooth cinematic clips: D39 (`src/render/emotes.ts`, `smoothClip` in `render/pose.ts`, `ToonFX.blood`).
 Flow (D34): home (modes) → `showCharSelect` → `showArenaSelect` → `launch()` (loading screen) → `startMatch`. Mechanics (D35): `s.duel`, `wallSplat`, `beatDistance`, phase `finish` + `s.fatal`; fatalities in `render/fatalities.ts`.
 Useful URLs: `/?quick=jazeek,bonez&mode=cpu|local|training|demo` (any registered id, incl. hidden volt/brick), `/?touch=1` (force touch UI), `/?lab=poses&a=jazeek&b=bonez&pose=<name>&zoom=2&teeth=1`.
 Debug API in browser console: `window.__rb` (App: `.runner.state`, `.debugHoldP1(bits, frames)`, `.view.debug = true` for hitboxes).

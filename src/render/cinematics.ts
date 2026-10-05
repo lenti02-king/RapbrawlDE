@@ -11,13 +11,13 @@ import { BRICK_ANIMS } from './anims/brick';
 import { reactions, BRICK_STANCE } from './anims/stances';
 import { VOLT_ANIMS } from './anims/volt';
 import { buildCharacter } from './characters';
-import { Clip, compose, EASE, sampleDef, type EaseName, type PoseDef } from './pose';
+import { compose, EASE, sampleDef, smoothClip, type Clip, type EaseName, type PoseDef } from './pose';
 import { ANIM_SETS } from './animator';
 import type { CharacterRig } from './glbRig';
 import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
-import { CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { CAR_RIDE, CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
 import { emoteCamera, emoteFor, emoteFx, emoteTeeth } from './emotes';
 import { FATALITIES } from './fatalities';
 
@@ -111,7 +111,7 @@ const HEADLINER: CineDef = {
     { f: 132, pos: [0.9, 1.3, 6.0], target: [0.9, 1.0, 0], fov: 36 },
     { f: 156, pos: [0.9, 1.4, 6.6], target: [0.9, 1.0, 0], fov: 32 },
   ],
-  atk: new Clip(
+  atk: smoothClip(
     [
       { f: 0, p: { j: { shR: [-20, 0, 96], elR: [0, 0, 8], chest: [0, 10, 0], head: [0, -10, 4] } } },
       { f: 12, p: {} },
@@ -135,7 +135,7 @@ const HEADLINER: CineDef = {
     ],
     vs,
   ),
-  def: new Clip(
+  def: smoothClip(
     [
       { f: 0, p: defR.hitHigh },
       { f: 18, p: compose(defR.hitHigh, { x: -0.06 }), e: 'snap' },
@@ -226,7 +226,7 @@ const guardRunB: PoseDef = {
   j: { spine: [0, 0, -18], shL: [10, 0, 60], elL: [0, 0, 90], shR: [-10, 0, -50], elR: [0, 0, 80], thL: [6, 0, -30], knL: [0, 0, -60], thR: [-6, 0, 60], knR: [0, 0, -70] },
 };
 function guardClip(): Clip {
-  return new Clip(
+  return smoothClip(
     [
       { f: 18, p: guardRunA },
       { f: 24, p: guardRunB },
@@ -259,7 +259,7 @@ const SECURITY: CineDef = {
     { f: 150, pos: [1.0, 1.4, 6.4], target: [1.2, 1.0, 0], fov: 36 },
     { f: 168, pos: [0.9, 1.4, 6.8], target: [0.9, 1.0, 0], fov: 32 },
   ],
-  atk: new Clip(
+  atk: smoothClip(
     [
       { f: 0, p: compose(BRICK_ANIMS.moves.brick_security ? sampleDef(BRICK_ANIMS.moves.brick_security, 12) : {}, { j: { head: [0, 0, 24] } }) },
       { f: 18, p: compose(sampleDef(BRICK_ANIMS.moves.brick_security, 12), { j: { head: [0, 0, 30] } }) },
@@ -277,7 +277,7 @@ const SECURITY: CineDef = {
     ],
     bs,
   ),
-  def: new Clip(
+  def: smoothClip(
     [
       { f: 0, p: vdef.hitGut },
       { f: 40, p: compose(vdef.hitGut, { x: -0.2 }) },
@@ -389,12 +389,31 @@ export const CINEMATICS: Record<string, CineDef> = {
   jaz_heart: HERZBRECHER,
   bon_palm: PALMEN_BASSDROP,
   bon_croc: CROC_ATTACK,
+  bon_car: CAR_RIDE,
   ...FATALITIES,
 };
 
 // ------------------------------------------------------------- runtime
 
-function sampleCam(keys: CamKey[], f: number): { pos: THREE.Vector3; target: THREE.Vector3; fov: number } {
+/** Camera key as 7 numbers (pos, target, fov). */
+const camVec = (k: CamKey) => [...k.pos, ...k.target, k.fov];
+
+/** Velocity at key i of a shot (a run of keys between cuts): central difference inside the shot, one-sided at its
+ *  ends, so a camera move keeps a continuous speed through its keys (no stop at every key). */
+function camTangent(keys: CamKey[], i: number): number[] {
+  const k = keys[i];
+  const prev = i > 0 && !k.cut && !k.e ? keys[i - 1] : null;
+  const next = i < keys.length - 1 && !keys[i + 1].cut && !keys[i + 1].e ? keys[i + 1] : null;
+  const a = prev ?? k;
+  const b = next ?? k;
+  const dt = b.f - a.f;
+  if (dt <= 0) return [0, 0, 0, 0, 0, 0, 0];
+  const va = camVec(a);
+  const vb = camVec(b);
+  return va.map((x, c) => (vb[c] - x) / dt);
+}
+
+export function sampleCam(keys: CamKey[], f: number): { pos: THREE.Vector3; target: THREE.Vector3; fov: number } {
   let i = 0;
   while (i < keys.length - 1 && keys[i + 1].f <= f) i++;
   const a = keys[i];
@@ -402,12 +421,29 @@ function sampleCam(keys: CamKey[], f: number): { pos: THREE.Vector3; target: THR
   if (!b || b.cut) {
     return { pos: new THREE.Vector3(...a.pos), target: new THREE.Vector3(...a.target), fov: a.fov };
   }
-  const t = EASE[b.e ?? 'inOut'](Math.min(1, Math.max(0, (f - a.f) / Math.max(1, b.f - a.f))));
-  return {
-    pos: new THREE.Vector3(...a.pos).lerp(new THREE.Vector3(...b.pos), t),
-    target: new THREE.Vector3(...a.target).lerp(new THREE.Vector3(...b.target), t),
-    fov: a.fov + (b.fov - a.fov) * t,
-  };
+  const span = Math.max(1, b.f - a.f);
+  const t = Math.min(1, Math.max(0, (f - a.f) / span));
+  if (b.e) {
+    const e = EASE[b.e](t);
+    return {
+      pos: new THREE.Vector3(...a.pos).lerp(new THREE.Vector3(...b.pos), e),
+      target: new THREE.Vector3(...a.target).lerp(new THREE.Vector3(...b.target), e),
+      fov: a.fov + (b.fov - a.fov) * e,
+    };
+  }
+  // cubic Hermite through the shot's keys
+  const va = camVec(a);
+  const vb = camVec(b);
+  const ma = camTangent(keys, i);
+  const mb = camTangent(keys, i + 1);
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const h00 = 2 * t3 - 3 * t2 + 1;
+  const h10 = (t3 - 2 * t2 + t) * span;
+  const h01 = -2 * t3 + 3 * t2;
+  const h11 = (t3 - t2) * span;
+  const v = va.map((x, c) => h00 * x + h10 * ma[c] + h01 * vb[c] + h11 * mb[c]);
+  return { pos: new THREE.Vector3(v[0], v[1], v[2]), target: new THREE.Vector3(v[3], v[4], v[5]), fov: v[6] };
 }
 
 function samplePath(path: ExtraActor['path'], f: number): V3 {

@@ -197,3 +197,28 @@ outpainted 220 px per side, so 19.5:9 phones see a continuation of the scene ins
 its edge-anchored groups. Third-party marks found in the masters are retouched out (Mercedes star, a luxury-car hood
 ornament, Nike swooshes on sneakers). The shop's tabs stay as drawn (SKINS selected); per-tab selected art comes with
 the real shop. Shared helpers: `src/ui/menu/kit.ts` + `kit.css`.
+
+
+## D39 — PO review 9b: whole-app master skin, fight intro, charge, fatality minigame, staged specials, blood (2026-10-05)
+- **App-wide skin**: every screen without its own master (Kämpfer, Karten, Profil, Einstellungen, Steuerung, Pause,
+  Ergebnis, Online) uses kit sprites cut from the leaderboard master (stadium backdrop, glass panel and blue/gold
+  buttons as CSS 9-slices, `src/ui/menu/skin.ts`). Live GLB fighters idle on the menu pedestals (`figures.ts`).
+- **Meter balance** (PO: you must not lose without ever having a full bar, or get a charge button; agent's choice):
+  both. *Aufladen*: hold the Hype bar / C / stick clicks to charge (`IN.CHARGE`, state `charge`, can't block, 4 meter
+  per 3 frames). *Comeback*: damage taken builds meter (a full health bar = 300 = a Signature).
+- **Fatality** (PO: card or minigame, in range): after the match-deciding KO the winner can walk, plays the Fatality card
+  within `FATAL_RANGE` (1.8 m), then presses three shown buttons in time (`s.fatalQte`, sequence from the sim RNG); a miss
+  ends the round without a finisher. Fatalities are 400 frames in three stages (beat-down, a brutal middle stage —
+  Jazeek: axe kick into the floor + four-hit beat-down, Bonez: headbutts + Kiez-Powerbomb — then the big prop).
+- **Blood** (PO: allowed, rating must stay at USK 16): short dark droplets + small floor splats that fade within ~2 s
+  (`ToonFX.blood`), only on hard hits, specials and fatalities; no gore, no dismemberment; setting "BLUT" turns it off.
+- **Projectiles that grab**: a projectile hit may start a cinematic (`HitDef.cinematic`) when the victim is grounded.
+  Bonez' *Krokodil-Attacke* (a little croc runs along the floor, low; bite, drag, two death rolls, toss) and
+  *Tiefergelegt* (car: roof ride, donuts, hard brake). Projectile hits are collected first and applied after, so two
+  grabbing projectiles on the same frame trade without a cinematic (P1/P2 symmetry).
+- **Fight intro** (PO: emote, face zoom, name): round 1 starts with a showcase per fighter (`RULES.SHOWCASE_EACH` = 96
+  frames, in the sim's intro phase, either player's button press skips it; training has none). Presentation:
+  `src/render/emotes.ts` (emote clip + push-in camera) and the HUD name slam.
+- **Smoother cinematics** (PO): cinematic, fatality and emote clips use `smoothClip` — keys without an explicit ease
+  follow a cubic Hermite spline through their neighbours instead of stopping at every key; camera keys inside a shot do
+  the same (continuous dolly speed). Explicit eases (snap, hold, ...) keep their exact timing.
