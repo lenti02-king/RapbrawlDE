@@ -209,7 +209,7 @@ export class SpecialFX {
           // + = back into the scene; 0 = hanging straight down at the opponent's head
           const th = mf < 18 ? 1.25 * (1 - k(4, 18) * k(4, 18)) : mf < 24 ? -0.5 * ease(k(18, 24)) : -0.5 + 0.35 * ease(k(24, 36));
           ball.visible = true;
-          ball.position.set(x + f.facing * 1.1, 3.6, 0);
+          ball.position.set(x + f.facing * 1.1, 2.9, 0); // the ~1 m ball hangs at the opponent's head on the hit frame
           ball.rotation.set(th, 0, 0);
           setOpacity(ball.userData.mats as THREE.Material[], Math.min(k(1, 6), 1 - k(32, 41)));
           if (mf === 18 && f.hitstop === 0 && emitTick) this.vfx.sparks(x + f.facing * 1.1, 1.5, 12, new THREE.Color(0xffd36b), 6, f.facing, 2);

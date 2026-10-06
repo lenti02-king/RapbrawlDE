@@ -13,7 +13,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 |---|---|---|
 | PO props (release `modelle-2`) at real size: joint 17 cm, mic 30 cm, heart 55 cm, diamond 20 cm, ball+chain 1.5 m, croc 1.5 m, car 2.7 m, palm 5 m; reoriented, reduced, croc jaw + heart halves split | VERIFIED (props lab + in-game sheets) | `python3 tools/meshy/props.py`, `?lab=props` |
 | Croc (bites with its own jaw), tuner car, broken heart, gold mic in Jazeek's hand | VERIFIED (cine sheets) | `node scripts/cine.mjs croc|car|jazeek` |
-| Wrecking ball (Abrissbirne) swinging in from the background on its chain | UNVERIFIED (see below) | |
+| Wrecking ball (Abrissbirne) swinging in from the background on its chain into the opponent's head (pivot lowered after the first strip) | VERIFIED (film strip) | `CROP=full node scripts/filmstrip.mjs bonez bon_abriss 3` |
 | Diamanten-Regen with the PO diamond, Palmen-Bassdrop with the PO palms | BUILT; not captured this session (capture of `cine.mjs bonez` times out in SwiftShader) | |
 | "Blunt für dich" (Jazeek): rolls, licks, lights (flame), drags, blows a smoke cloud; grounded hit = 150-frame cinematic (coughing, smoke ring, backfist, sweep, 3 beat hits, spin kick, last drag) | VERIFIED (unit tests + move/cine sheets, 151 damage incl. beat bonus) | `node scripts/cine.mjs blunt`, `tests/fighters.test.ts` |
 | Arenas Festival-Bühne + Bahnhofsviertel: PO painting as backdrop (real names replaced), 3D floor (sand / wet cobbles with reflection), lights, beams/CO2/dust resp. neon flicker/drizzle/steam | VERIFIED (screenshots close/mid/wide) | `node scripts/arena-shot.mjs artifacts/arena/x high "&arena=festival"` |
