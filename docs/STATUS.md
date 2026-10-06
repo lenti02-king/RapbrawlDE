@@ -1,12 +1,24 @@
 # Project status
 
-_Last updated: 2026-10-05 (session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-06 (session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, version 11 = session 8): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 9c — PO props, "Blunt für dich", Festival + Bahnhofsviertel arenas (overnight)
+| Area | Status | Evidence |
+|---|---|---|
+| PO props (release `modelle-2`) at real size: joint 17 cm, mic 30 cm, heart 55 cm, diamond 20 cm, ball+chain 1.5 m, croc 1.5 m, car 2.7 m, palm 5 m; reoriented, reduced, croc jaw + heart halves split | VERIFIED (props lab + in-game sheets) | `python3 tools/meshy/props.py`, `?lab=props` |
+| Croc (bites with its own jaw), tuner car, broken heart, gold mic in Jazeek's hand | VERIFIED (cine sheets) | `node scripts/cine.mjs croc|car|jazeek` |
+| Wrecking ball (Abrissbirne) swinging in from the background on its chain | UNVERIFIED (see below) | |
+| Diamanten-Regen with the PO diamond, Palmen-Bassdrop with the PO palms | BUILT; not captured this session (capture of `cine.mjs bonez` times out in SwiftShader) | |
+| "Blunt für dich" (Jazeek): rolls, licks, lights (flame), drags, blows a smoke cloud; grounded hit = 150-frame cinematic (coughing, smoke ring, backfist, sweep, 3 beat hits, spin kick, last drag) | VERIFIED (unit tests + move/cine sheets, 151 damage incl. beat bonus) | `node scripts/cine.mjs blunt`, `tests/fighters.test.ts` |
+| Arenas Festival-Bühne + Bahnhofsviertel: PO painting as backdrop (real names replaced), 3D floor (sand / wet cobbles with reflection), lights, beams/CO2/dust resp. neon flicker/drizzle/steam | VERIFIED (screenshots close/mid/wide) | `node scripts/arena-shot.mjs artifacts/arena/x high "&arena=festival"` |
+| 3D crowds: festival hipsters (jump, cheer, film, fist pump, clap, sway, two circle pits), rocker gangs with bikes (arms crossed, nod, drink beer, point); react to hits and the beat | VERIFIED (lab close-ups + in-game shots); motion feel UNVERIFIED on a device | `node scripts/crowdshot.mjs`, `?lab=crowd` |
+| Car cinematic end position = sim end distance (4.2 m; was 5.0 in the render → visible jump) | FIXED | |
 
 ## Session 9b — PO review: whole app in the master design, fight intro, charge, fatality minigame, staged specials, blood
 | Area | Status | Evidence |
@@ -185,8 +197,11 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Source models**: keep the textured Meshy GLBs; the build expects them in `.cache/meshy2/` (not in git, see `public/assets/characters/README.md`).
 - **Shop / Battle Pass / currencies**: monetisation is a business decision (not built).
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
-- **Assets**: 3D models for the croc, the tuner car (no brand), accessories/outfits and mode tiles — prompts in `docs/ASSET_PROMPTS.md`; until then primitive placeholders.
+- **Assets**: accessories/outfits and mode tiles — prompts in `docs/ASSET_PROMPTS.md` (croc, car, props now delivered by the PO and in the game).
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
+- **Blunt für dich**: a real person (Jazeek) rolling and smoking a joint — affects the USK rating (drug use depicted) and is a reputation question for the artist; decide before release (option: a neutral "Zigarre"/vape or a fictional herb).
+- **Arena paintings**: the PO's two images contain real brands/businesses (festival logo, bar and kiosk names); the game uses retouched copies with fictional names (FESTIVAL-BÜHNE, PIK ASS, KIOSK 069, WEINECK). Check the image source/licence of the paintings themselves.
+- **Crowd look**: built from primitives in the game-art style; for a richer look, a few rigged stylized crowd models (prompt on request) could replace them.
 - Hosting decision for signaling/matchmaking + TURN.
 
 ## Next objectives (suggested order)

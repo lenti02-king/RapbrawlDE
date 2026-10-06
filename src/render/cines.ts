@@ -770,9 +770,9 @@ export const CROC_ATTACK: CineDef = {
 // =================================================================== BONEZ — TIEFERGELEGT (car special)
 // Three stages after the car hits a grounded opponent: (1) scooped onto the roof and carried, (2) two donuts with the
 // victim spinning on the roof while Bonez "steers" along, (3) hard brake: the victim flies off the roof and slams
-// down; the car turns into the background and drives off. Victim-local x is toward Bonez; startDx 2.0, endDx 5.0.
+// down; the car turns into the background and drives off. Victim-local x is toward Bonez; startDx 2.0, endDx 4.2.
 const CAR_START = 2.0;
-const CAR_END = 5.0;
+const CAR_END = 4.2; // = the sim's endDx (content/bonez.ts), so nobody jumps when control returns
 const CAR_SPIN = [40, 80] as const;
 const wheel = (turn: number): PoseDef => ({
   y: -0.03,
@@ -1108,14 +1108,14 @@ export const BLUNT_SESSION: CineDef = {
     // the drag, close
     { f: 12, pos: [0.75, 1.62, 1.35], target: [0.05, 1.6, 0], fov: 28, cut: true },
     { f: 25, pos: [0.7, 1.64, 1.25], target: [0.06, 1.6, 0], fov: 27 },
-    // the smoke ring hits them
-    { f: 26, pos: [1.0, 1.42, 1.9], target: [1.6, 1.35, 0], fov: 32, cut: true },
-    { f: 43, pos: [1.05, 1.44, 1.65], target: [1.6, 1.36, 0], fov: 31 },
+    // the smoke ring hits them (knees up, the ring and the cloud round the head in frame)
+    { f: 26, pos: [0.75, 1.5, 3.1], target: [1.5, 1.42, 0], fov: 34, cut: true },
+    { f: 43, pos: [0.85, 1.52, 2.8], target: [1.55, 1.45, 0], fov: 33 },
     { f: 44, pos: [0.9, 1.2, 4.4], target: [0.95, 1.1, 0], fov: 38, cut: true },
     { f: 64, pos: [1.0, 1.15, 4.0], target: [1.0, 1.05, 0], fov: 38 },
     // slow-motion orbit round the floating combo
-    { f: 66, pos: [0.4, 0.5, 2.9], target: [1.3, 0.95, 0], fov: 44, cut: true },
-    { f: 98, pos: [1.9, 0.6, 2.7], target: [1.4, 1.0, 0], fov: 42 },
+    { f: 66, pos: [0.35, 0.8, 3.3], target: [1.3, 1.3, 0], fov: 46, cut: true },
+    { f: 98, pos: [1.95, 0.9, 3.1], target: [1.4, 1.4, 0], fov: 44 },
     { f: 100, pos: [1.2, 1.1, 5.2], target: [1.4, 1.0, 0], fov: 42, cut: true },
     { f: 128, pos: [1.1, 1.0, 5.6], target: [1.7, 0.8, 0], fov: 42 },
     // last drag

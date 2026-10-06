@@ -58,6 +58,7 @@ let propsDone = 0;
 const progress = () => (bootTarget = 10 + ((modelsDone + propsDone) / (modelIds.length + PROP_IDS.length)) * 80);
 // the PO's prop models (croc, car, mic, ...) load alongside; every user falls back to its procedural prop without them
 const props = loadPropModels('assets/props', (d) => ((propsDone = d), progress())).catch(() => []);
+void props.then((ok) => ((window as unknown as { __props: string[] }).__props = ok)); // read by scripts/artifact-check.mjs
 const models = Promise.all([
   loadCharacterModels(modelIds, 'assets/characters', overrides, (d) => ((modelsDone = d), progress())).catch(() => [] as string[]),
   props,

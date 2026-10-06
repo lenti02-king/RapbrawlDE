@@ -52,7 +52,7 @@ const snap = async (name) => {
   await page.screenshot({ path: f });
   files.push(f);
 };
-if (blunt) {
+if (blunt && process.env.MOVE !== '0') {
   for (const mf of [6, 14, 22, 31, 36, 42, 48, 56]) {
     await stepUntil((mf) => window.__rb.runner.state.fighters[0].mf >= mf, 200, mf);
     await snap(`m${String(mf).padStart(2, '0')}`);
