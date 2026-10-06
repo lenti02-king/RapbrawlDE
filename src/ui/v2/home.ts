@@ -46,7 +46,6 @@ export function homeHtml(m: HomeModel): string {
     ])}
     <span class="fig-anchor" data-fig="0" style="--x:${fx - FIG_H / 4};--y:${fy - FIG_H};--w:${FIG_H / 2};--h:${FIG_H}"></span>`;
 
-  const [px, py] = [HOME_ART.profile[0], HOME_ART.profile[1]];
   const [xx, xy, xw, xh] = HOME_ART.xp_fill;
   const profile = button(
     A,
@@ -58,8 +57,6 @@ export function homeHtml(m: HomeModel): string {
        ${t(m.name, [T.profile.name[0], T.profile.name[1], T.profile.name[0] + 214, T.profile.name[3]], ox, oy, { cls: 'v2-label', fs: 27 })}
        ${t(`Lv. ${m.level}`, zone(T.profile.level), ox, oy, { cls: 'v2-label', fs: 25 })}`,
   );
-  void px;
-  void py;
 
   const pill = (k: 'coins' | 'gems' | 'energy', v: string, label: string, b: [number, number, number, number]) =>
     hit(b, 'shop', label, t(v, zone(T[k].amount), b[0], b[1], { cls: 'v2-num', fs: 27, align: 'center' }));
@@ -71,7 +68,7 @@ export function homeHtml(m: HomeModel): string {
 
   const tile = (id: 'fighters' | 'decks' | 'shop' | 'events' | 'missions', act: HomeAction, label: string) =>
     button(A, id, act, label, (ox, oy) => t(label, zone(T[id].label), ox, oy, { cls: 'v2-label', fs: 33 }));
-  const [bx, by, bw, bh] = HOME_ART.pass_fill;
+  const [bx, by, , bh] = HOME_ART.pass_fill;
   const passTile = button(
     A,
     'pass',
@@ -85,7 +82,6 @@ export function homeHtml(m: HomeModel): string {
        ${t(`${m.pass.xp}/${m.pass.xpMax}`, zone(T.pass.progress), ox, oy, { cls: 'v2-small', fs: 21, align: 'center' })}
        ${t(String(Math.min(99, m.pass.level)), [1590, 581, 1619, 607], ox, oy, { cls: 'v2-label v2-gold', fs: 22, align: 'center' })}`,
   );
-  void bw;
 
   const tiles = `${tile('fighters', 'fighters', 'KÄMPFER')}${badge('b_fighters', m.badges.fighters)}
     ${tile('decks', 'decks', 'DECKS')}

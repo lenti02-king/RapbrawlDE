@@ -10,7 +10,7 @@ import v2x  # noqa: E402
 ELEMENTS = {
     'profile': dict(box=(22, 8, 398, 112), shape='rect', socket=False, text={'name': (146, 24, 300, 58), 'level': (146, 62, 218, 94)},
                     bars=[((220, 64, 384, 92), (330, 378))], marks={'avatar': (30, 14, 128, 104), 'xp': (224, 68, 380, 88)}),
-    'cur': dict(box=(1050, 4, 1672, 74), shape='rect', socket=False,
+    'cur': dict(box=(1050, 4, 1672, 74), shape='rect', socket=False, fit=False,
                 text={'coins': (1104, 18, 1176, 54), 'gems': (1276, 18, 1344, 54), 'energy': (1428, 18, 1502, 54)}, smooth=['coins', 'gems', 'energy'],
                 clear=[(1574, 0, 1606, 30)],
                 marks={'t_coins': (1052, 8, 1222, 68), 't_gems': (1226, 8, 1384, 68), 't_energy': (1388, 8, 1540, 68), 't_mail': (1542, 8, 1602, 70), 't_gear': (1604, 8, 1664, 70)}),

@@ -609,8 +609,6 @@
   white-space: normal;
 }
 .v2-chip {
-  height: calc(var(--u) * 44) !important;
-  top: calc(var(--u) * 636) !important;
   border-radius: calc(var(--u) * 22);
   border: calc(var(--u) * 2) solid #ffcf3a !important;
   background: rgba(10, 8, 20, 0.86) !important;
@@ -879,4 +877,172 @@
     opacity: 0;
     transform: translateY(calc(var(--u) * 6));
   }
+}
+
+/* ------------------------------------------------------------------------------------------- customize */
+.v2-preset {
+  overflow: hidden;
+  border-radius: calc(var(--u) * 10);
+  background: radial-gradient(90% 90% at 50% 30%, #3a2c10, #120c04);
+}
+.v2-preset img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+.v2-preset.on {
+  box-shadow: 0 0 0 calc(var(--u) * 3) #ffcf3a, 0 0 calc(var(--u) * 16) rgba(255, 200, 40, 0.7);
+}
+.v2-preview img {
+  /* head to knees: the hero render is a tall full-body shot, the window is wide */
+  object-fit: contain;
+  height: 128%;
+  object-position: 50% 0;
+  background: radial-gradient(80% 80% at 50% 40%, #3d2a6a, #120a24);
+}
+.v2-btn.v2-on {
+  filter: brightness(1.15) drop-shadow(0 0 calc(var(--u) * 10) rgba(255, 200, 40, 0.75));
+}
+
+/* ------------------------------------------------------------------------------------------- lobby */
+.v2-xp {
+  pointer-events: none !important;
+  border-radius: calc(var(--u) * 8);
+  overflow: hidden;
+}
+.v2-xp i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc(var(--p) * 100%);
+  background: linear-gradient(180deg, #8fe8ff, #2c9bff 60%, #1a6fd6);
+  box-shadow: 0 0 calc(var(--u) * 8) rgba(60, 170, 255, 0.7);
+}
+.v2-flist {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 10);
+  padding: calc(var(--u) * 10) calc(var(--u) * 6);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 600;
+  font-size: calc(var(--u) * 21);
+  line-height: 1.2;
+  color: #e9e8f2;
+}
+.v2-flist p {
+  margin: 0;
+}
+.v2-flist b {
+  color: #ffd23c;
+  font-weight: 800;
+}
+.v2-join {
+  display: flex;
+  gap: calc(var(--u) * 8);
+  flex-wrap: wrap;
+}
+.v2-code {
+  width: calc(var(--u) * 120);
+  height: calc(var(--u) * 46);
+  border-radius: calc(var(--u) * 8);
+  border: calc(var(--u) * 2) solid #3f8dff;
+  background: rgba(6, 10, 26, 0.9);
+  color: #fff;
+  text-align: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: calc(var(--u) * 28);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.v2-pill {
+  height: calc(var(--u) * 46);
+  padding: 0 calc(var(--u) * 16);
+  border-radius: calc(var(--u) * 10);
+  border: calc(var(--u) * 2) solid #ffcf3a;
+  background: linear-gradient(180deg, #ffe25a, #f2a412);
+  color: #1d1203;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: calc(var(--u) * 21);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.v2-pill:active {
+  transform: scale(0.96);
+}
+.v2-status {
+  min-height: calc(var(--u) * 48);
+  color: #9ff4ff;
+  font-weight: 700;
+}
+.v2-status.err {
+  color: #ff7a8a;
+}
+.v2-slot {
+  overflow: hidden;
+  border-radius: calc(var(--u) * 10);
+}
+.v2-slot img {
+  position: absolute;
+  inset: 6% 6% 26% 6%;
+  width: 88%;
+  height: 68%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  border-radius: calc(var(--u) * 8);
+}
+.v2-slot.locked {
+  filter: grayscale(0.8) brightness(0.7);
+}
+.v2-astrip {
+  overflow: hidden;
+  border-radius: calc(var(--u) * 8);
+  border: calc(var(--u) * 2) solid rgba(180, 190, 255, 0.35);
+}
+.v2-astrip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.v2-astrip span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6%;
+  text-align: center;
+  font-family: 'Permanent Marker', sans-serif;
+  font-size: calc(var(--u) * var(--afs, 22));
+  white-space: nowrap;
+  color: #fff;
+  -webkit-text-stroke: calc(var(--u) * 1) #000;
+  text-shadow: 0 calc(var(--u) * 2) 0 #000;
+}
+.v2-astrip.on {
+  border-color: #ffcf3a;
+  box-shadow: 0 0 calc(var(--u) * 14) rgba(255, 200, 40, 0.8);
+}
+.v2-rtc {
+  width: calc(var(--u) * 820);
+  max-height: calc(var(--u) * 800);
+  padding: calc(var(--u) * 24);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 12);
+  font-size: calc(var(--u) * 22);
+}
+.v2-rtc textarea {
+  width: 100%;
+  height: calc(var(--u) * 140);
+  font-family: monospace;
+  font-size: calc(var(--u) * 15);
+  background: #070b1c;
+  color: #cfe4ff;
+  border: calc(var(--u) * 2) solid #3f8dff;
+  border-radius: calc(var(--u) * 8);
+}
+.v2-rtc .v2-pill {
+  align-self: flex-start;
 }

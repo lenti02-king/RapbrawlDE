@@ -173,7 +173,14 @@ export class MenuFigures {
       }
       const set = ANIM_SETS[spec.id];
       const stance = (set?.stance ?? {}) as PoseDef;
-      const base = toArr(spec.showcase ? showcasePose(spec.id, stance) : stance);
+      // the player can pick the menu pose (Kämpfer anpassen -> POSE): upright showcase or the fight stance
+      let pose = 'showcase';
+      try {
+        pose = JSON.parse(localStorage.getItem('rapbrawl.menuPose') ?? '"showcase"');
+      } catch {
+        /* storage unavailable */
+      }
+      const base = toArr(spec.showcase && pose !== 'fight' ? showcasePose(spec.id, stance) : stance);
       let height = 1.8;
       try {
         height = getFighter(spec.id).height / UNITS_PER_METER;

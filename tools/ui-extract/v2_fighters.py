@@ -31,7 +31,7 @@ ELEMENTS = {
     'cards': dict(box=(1180, 576, 1656, 750), shape='rect', socket=False,
                   text={'n1': (1210, 708, 1300, 738), 'n2': (1356, 708, 1450, 738), 'n3': (1490, 708, 1640, 738)}, smooth=['n1', 'n2', 'n3'],
                   marks={'c1': (1192, 600, 1316, 706), 'c2': (1340, 600, 1464, 706), 'c3': (1490, 592, 1640, 706)}),
-    'cur': dict(box=(996, 4, 1672, 74), shape='rect', socket=False,
+    'cur': dict(box=(996, 4, 1672, 74), shape='rect', socket=False, fit=False,
                 text={'coins': (1060, 20, 1134, 56), 'gems': (1250, 20, 1316, 56), 'energy': (1418, 20, 1492, 56)}, smooth=['coins', 'gems', 'energy'],
                 clear=[(1574, 0, 1610, 30)],
                 marks={'t_coins': (996, 8, 1186, 68), 't_gems': (1190, 8, 1368, 68), 't_energy': (1372, 8, 1540, 68), 't_mail': (1542, 8, 1600, 70), 't_gear': (1604, 8, 1664, 70)}),

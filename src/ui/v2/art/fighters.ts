@@ -5,11 +5,6 @@ export const FIGHTERS_DIR = 'assets/ui2/fighters/';
 export const FIGHTERS_SIZE = [1672, 941] as const;
 export const FIGHTERS_PLATE = {"l": [-400, 0, 404, 941], "c": [-4, 0, 1680, 941], "r": [1668, 0, 404, 941]} as const;
 export const FIGHTERS_ART = {
-  "roster": [15, 233, 664, 670],
-  "tabs": [23, 237, 630, 78],
-  "info": [1173, 211, 490, 382],
-  "cards": [1177, 573, 482, 180],
-  "cur": [993, 1, 679, 76],
   "select": [1200, 772, 443, 113],
   "fill_lv": [1344, 348, 116, 18],
   "fill_p": [1364, 397, 156, 19],

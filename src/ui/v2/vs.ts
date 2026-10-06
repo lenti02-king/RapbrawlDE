@@ -70,7 +70,6 @@ export function vsHtml(m: VsModel): string {
   };
   const S = T.stage;
   const dots = Array.from({ length: Math.min(8, m.arenaCount) }, (_, k) => `<i class="${k === m.arenaIdx ? 'on' : ''}"></i>`).join('');
-  const rb = VS_ART.ready;
   const front = `${hazeHtml([300, 600, 1380, 860], '200 170 255', 0.4)}
     <span class="v2-graffiti you" style="--x:${VS_YOU[0]};--y:${VS_YOU[1]};--w:${VS_YOU[2] - VS_YOU[0]};--h:${VS_YOU[3] - VS_YOU[1]};--gs:${gs(m.sides[0].label, 84)}">${esc(m.sides[0].label)}</span>
     <span class="v2-graffiti opp" style="--x:${VS_OPP[0]};--y:${VS_OPP[1]};--w:${VS_OPP[2] - VS_OPP[0]};--h:${VS_OPP[3] - VS_OPP[1]};--gs:${gs(m.sides[1].label, 70)}">${esc(m.sides[1].label)}</span>
@@ -80,7 +79,6 @@ export function vsHtml(m: VsModel): string {
     <span class="v2-dots" style="--x:760;--y:752;--w:150;--h:18">${dots}</span>
     ${button(A, 'arrow_l', 'arena-prev', 'Vorherige Arena')}${button(A, 'arrow_r', 'arena-next', 'Nächste Arena')}
     ${button(A, 'ready', 'ready', 'Bereit', (ox, oy) => t('BEREIT!', zone([T.ready.label[0] - 20, T.ready.label[1], T.ready.label[2] + 30, T.ready.label[3]]), ox, oy, { cls: 'v2-brush', fs: 92, align: 'center' }), 'v2-main', `--mask:url(${src(A, 'ready')})`).replace('data-act="ready"', 'data-act="ready" data-default')}`;
-  void rb;
   return screenHtml(back, front);
 }
 

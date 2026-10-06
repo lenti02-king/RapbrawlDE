@@ -98,7 +98,7 @@ export function showcaseHtmlV2(items: ShowcaseItem[], cur: ShowcaseItem, o: Show
     <span class="v2-dist" style="--x:1228;--y:284;--w:420;--h:26">${esc(cur.district)}</span>
     <span class="v2-desc" style="--x:1228;--y:308;--w:420;--h:62">${esc(cur.desc)}</span>
     ${trait(0)}${trait(1)}${trait(2)}
-    ${o.chip ? `<button class="v2-hit v2-chip" data-chip style="--x:1290;--y:630;--w:300;--h:0"><span>${esc(o.chip)}</span></button>` : ''}
+    ${o.chip ? `<button class="v2-hit v2-chip" data-chip style="--x:1290;--y:636;--w:300;--h:44"><span>${esc(o.chip)}</span></button>` : ''}
     ${btnSpr('button', 'data-ok data-default', o.okLabel, t(o.okLabel, [bt[0] - 14, bt[1], bt[2] + 30, bt[3]], ARENA_ART.button[0], ARENA_ART.button[1], { cls: 'v2-brush', fs: 58, align: 'center' }), 'v2-main')}
     <div class="v2-cards" data-page="${page}" data-pages="${Math.ceil(items.length / PER_PAGE)}">${cards}</div>
     ${items.length > PER_PAGE ? `${btnSpr('arrow_l', 'data-flip="-1"', 'Zurück blättern')}${btnSpr('arrow_r', 'data-flip="1"', 'Weiter blättern')}` : ''}`;

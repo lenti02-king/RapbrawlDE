@@ -55,6 +55,13 @@ node scripts/reach.mjs jazeek|bonez   # fist/foot position at the first active f
 node scripts/glb-to-json.mjs in.glb out.gltf.json [--external-images]   # Artifact host does not serve .glb (images as separate files keep each file < 15 MB)
 node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ (page + assets/**) and assert models AND arena load under an Artifact-like CSP (run before every publish)
 tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek   # rebuild the fighter models (Blender bpy)
+python3 tools/ui-extract/v2_home.py|v2_select.py|v2_arena.py|v2_vs.py|v2_loading.py|v2_fighters.py|v2_custom.py|v2_lobby.py   # design v2 art from the PO masters (tools/ui-extract/ref/v2/, git-ignored) -> public/assets/ui2 + src/ui/v2/art (D42)
+node scripts/v2shot.mjs "showHome()" artifacts/v2/home "1672x941,932x430"   # v2 screen captures (any window.__rb call)
+node scripts/webkit.mjs "/?ui=v2" out.png 932 430 30000 "window.__rb.showHome()"   # WebKit engine (WebKitGTK via WebDriver; DPR=3 XSCREEN=3000x1600x24 for retina)
+python3 tools/characters/cutout.py manuellsen|lacazette   # 2D cutout fighters from the PO's cartoon references (D42)
+node scripts/rainshot.mjs           # Diamanten-Regen capture sheet -> artifacts/rain
+node scripts/posegrid.mjs jazeek out.png '<PoseDef json>' ...   # menu pose iteration (POSE=stance|showcase, YAW=deg)
+BIG=1 node scripts/arena-thumbs.mjs festival,bahnhof,podcast   # full-screen arena renders for the v2 arena screen
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
@@ -65,6 +72,7 @@ Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/a
 Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.ts`, procedural fallback); hand-held ones via `render/handProps.ts` (grips per prop).
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
+Design (D42): two designs in the code — v2 (default, `src/ui/v2/`, PO's second master set) and v1 (D38 screens); `?ui=v1|v2` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`). Manuellsen + Lacazette are 2D cutouts (`render/cutout.ts`), art never mirrored.
 UI (D38): the PO's master screenshots are the source — art is cut from their pixels (`tools/ui-extract/`), text is native German; screens in `src/ui/menu/` (mainMenu, loading, charSelect, arenaSelect, shop; shared `kit.ts/.css`; generated `*Art.ts`; sprites in `src/ui/img/<screen>/`). Older screens: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
 Music: `public/assets/music/<fighter>.mp3` / `bgm.mp3` drop-ins (git-ignored, README there, D33/D37); default = original stingers + the procedural 90 BPM beat in `audio.ts` (the sim's beat clock is the truth, RULES.BEAT_FRAMES).
 Fight intro, charge, fatality minigame, grabbing projectiles, blood, smooth cinematic clips: D39 (`src/render/emotes.ts`, `smoothClip` in `render/pose.ts`, `ToonFX.blood`).

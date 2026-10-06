@@ -32,6 +32,8 @@ import { design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
 import { fightersHtml, mountFighters, type RosterEntry } from '../ui/v2/fighters';
+import { CUSTOM_MENU, customHtml, mountCustom } from '../ui/v2/custom';
+import { lobbyHtml, lobbyOpponent, lobbySheet, lobbyStatus, mountLobby } from '../ui/v2/lobby';
 import type { TopBar } from '../ui/v2/arena';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
@@ -151,6 +153,7 @@ function rankOf(p: Profile): { name: string; next: string } {
 
 /** Hometowns on the character-select ribbon (from the PO's master design). */
 const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
+const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club']);
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
 /** Stored menu mode (older saves used 'online' for the friend room code). */
@@ -879,6 +882,7 @@ export class App {
   }
 
   private arenaItems(): ShowcaseItem[] {
+    // full-screen 1672x941 renders for the v2 arena screen (scripts/arena-thumbs.mjs BIG=1); others use the thumbnail
     const fav = this.favArena;
     return ARENAS.map((a) => ({
       id: a.id,
@@ -891,7 +895,7 @@ export class App {
         ['PUBLIKUM', a.crowd],
       ],
       img: a.locked ? '' : a.img,
-      big: a.locked ? undefined : `assets/ui2/arenas/${a.id}.webp`,
+      big: a.locked || !BIG_ARENAS.has(a.id) ? undefined : `assets/ui2/arenas/${a.id}.webp`,
       locked: a.locked,
       tag: a.id === fav ? 'FAVORIT' : undefined,
     }));
@@ -1365,7 +1369,56 @@ export class App {
       this.showFightersV2(id, tab);
       toast(this.screen!, `${d.name.toUpperCase()} IST JETZT DEIN FAVORIT`);
     });
+    el.querySelector('[data-custom]')?.addEventListener('click', go(() => this.showCustomV2(id)));
     el.querySelector('[data-back]')?.addEventListener('click', go(() => this.showHome()));
+  }
+
+  /** Design v2 "Kämpfer anpassen" (D42): the PO's master; only the pose exists so far, the rest says KOMMT BALD. */
+  private showCustomV2(id: string, tab = 0): void {
+    const rotated = (cur: string) => [...ROSTER.slice(ROSTER.indexOf(cur)), ...ROSTER.slice(0, ROSTER.indexOf(cur))].slice(0, 4);
+    const pose = store.get<'showcase' | 'fight'>('menuPose', 'showcase');
+    const el = this.open(
+      customHtml({
+        id,
+        name: getFighter(id).name.toUpperCase(),
+        hero: portrait(id, 'hero'),
+        // the current fighter sits in the first slot (the master's gold-framed one), the others follow in roster order
+        presets: rotated(id).map((f) => portrait(f, 'card')),
+        presetIds: rotated(id),
+        tab,
+        bar: this.topBar,
+      }),
+      'mm v2-customscreen',
+    );
+    const stop = mountCustom(el, id, pose);
+    const go = (fn: () => void) => () => {
+      stop();
+      fn();
+    };
+    this.bindTopBar(el, stop);
+    const SOON = ['OUTFITS', 'HANDSCHUHE & BANDAGEN', 'SCHUHE', '', 'INTROS', 'FINISHER', 'FARBVARIANTEN', 'ACCESSOIRES'];
+    el.querySelectorAll<HTMLElement>('[data-act^="tab:"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const i = Number(b.dataset.act!.slice(4));
+        if (i === 3) {
+          store.set('menuPose', pose === 'showcase' ? 'fight' : 'showcase');
+          stop();
+          this.showCustomV2(id); // OUTFIT (the fighter presets) stays the open category: only its button is the yellow one
+          toast(this.screen!, pose === 'showcase' ? 'POSE: KAMPFHALTUNG' : 'POSE: AUFRECHT');
+          return;
+        }
+        toast(el, `${SOON[i] || CUSTOM_MENU[i]} – KOMMT BALD`);
+      }),
+    );
+    const cycle = (d: number) => ROSTER[(ROSTER.indexOf(id) + d + ROSTER.length) % ROSTER.length];
+    el.querySelectorAll<HTMLElement>('[data-preset]').forEach((b) => b.addEventListener('click', go(() => this.showCustomV2(b.dataset.preset!, tab))));
+    el.querySelectorAll<HTMLElement>('[data-switch]').forEach((b) => b.addEventListener('click', go(() => this.showCustomV2(cycle(Number(b.dataset.switch)), tab))));
+    el.querySelector('[data-act="random"]')?.addEventListener('click', go(() => this.showCustomV2(cycle(1 + Math.floor(Math.random() * (ROSTER.length - 1))), tab)));
+    el.querySelector('[data-act="save"]')?.addEventListener('click', () => {
+      store.set('favFighter', id);
+      toast(el, `LOOK GESPEICHERT – ${getFighter(id).name.toUpperCase()} IST DEIN FAVORIT`);
+    });
+    el.querySelector('[data-back]')?.addEventListener('click', go(() => this.showFightersV2(id)));
   }
 
   /** Deck presets: three saved decks per fighter; returns the active one (or the default deck). */
@@ -1798,6 +1851,7 @@ export class App {
   }
 
   showOnlineLobby(): void {
+    if (design() === 'v2') return this.showLobbyV2();
     store.set('selection', this.sel);
     const mine = { fighter: this.sel.fighters[0], loadout: this.sel.loadouts[0].slice() };
     const el = this.open(
@@ -1908,6 +1962,160 @@ export class App {
     });
     el.querySelector('[data-back]')!.addEventListener('click', () => {
       this.leaveNet();
+      this.showHome();
+    });
+  }
+
+  /** Design v2 friends lobby (D42): room code for a second tab, P2P invitation codes, arena pick, start. */
+  private showLobbyV2(lag = 0, page = 0, keepCode = ''): void {
+    store.set('selection', this.sel);
+    const mine = { fighter: this.sel.fighters[0], loadout: this.sel.loadouts[0].slice() };
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const eco = economyOf(p);
+    const code = keepCode || Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
+    const arenas = this.arenaItems()
+      .filter((a) => !a.locked)
+      .map((a) => ({ id: a.id, name: a.name, img: a.img }));
+    const el = this.open(
+      lobbyHtml({
+        name: this.playerName,
+        level: lvl.level,
+        xp: (lvl.xp % 400) / 400,
+        bust: portrait(mine.fighter, 'bust'),
+        fighter: mine.fighter,
+        code,
+        lag,
+        arenas,
+        arena: this.sel.arena,
+        page,
+        coins: eco.coins,
+        gems: eco.gems,
+        energy: '40/40',
+      }),
+      'mm v2-lobbyscreen',
+    );
+    const stop = mountLobby(el);
+    const leave = () => {
+      stop();
+      this.leaveNet();
+    };
+    this.bindTopBar(el, leave);
+    const say = (m: string, err = false) => lobbyStatus(el, m, err);
+    let busy = false;
+    const go = (t: Transport, host: boolean) => {
+      if (busy) return;
+      busy = true;
+      lobbyOpponent(el, host ? 'WARTET …' : 'VERBINDE …');
+      runLobby(t, host, mine, (g) => this.onlineConfig(g))
+        .then((res) => {
+          stop();
+          this.startOnline(res, t);
+        })
+        .catch((e: Error) => {
+          busy = false;
+          say(e.message, true);
+        });
+    };
+    const act = (a: string, fn: () => void) => el.querySelector(`[data-act="${a}"]`)?.addEventListener('click', fn);
+    act('host', () => {
+      go(sameDeviceTransport(code, true, lag), true);
+      say(`Raum ${code} offen – im zweiten Tab FREUNDE öffnen, ${code} eingeben, BEITRETEN.`);
+    });
+    act('join', () => {
+      const c = (el.querySelector('.v2-code') as HTMLInputElement).value.trim().toUpperCase();
+      if (c.length !== 4) return say('Gib den 4-stelligen Raum-Code vom Host ein.', true);
+      go(sameDeviceTransport(c, false, lag), false);
+    });
+    act('copy', () => {
+      navigator.clipboard?.writeText(code).then(
+        () => toast(el, 'CODE KOPIERT'),
+        () => toast(el, `CODE: ${code}`),
+      );
+    });
+    act('mode2', () => toast(el, '2 GEGEN 2 KOMMT BALD'));
+    act('lag', () => {
+      if (busy) return;
+      stop();
+      this.showLobbyV2(lag === 0 ? 60 : lag === 60 ? 120 : 0, page, code);
+    });
+    const flip = (d: number) => () => {
+      if (busy) return;
+      stop();
+      this.showLobbyV2(lag, (page + d + arenas.length) % arenas.length, code);
+    };
+    act('arena-prev', flip(-1));
+    act('arena-next', flip(1));
+    el.querySelectorAll<HTMLElement>('[data-slot="1"], [data-slot="3"]').forEach((b) => b.addEventListener('click', () => toast(el, '2 GEGEN 2 KOMMT BALD')));
+    el.querySelectorAll<HTMLElement>('[data-arena]').forEach((b) =>
+      b.addEventListener('click', () => {
+        this.sel.arena = b.dataset.arena!;
+        store.set('selection', this.sel);
+        el.querySelectorAll('[data-arena]').forEach((x) => x.classList.toggle('on', x === b));
+      }),
+    );
+    // peer-to-peer invitation codes (the master's FREUNDE EINLADEN)
+    const codeBox = (label: string, value: string, editable: boolean, id: string) =>
+      `<label for="${id}">${label}</label><textarea id="${id}" ${editable ? '' : 'readonly'} spellcheck="false">${value}</textarea>`;
+    const copyBtn = (sheet: HTMLElement, id: string) => {
+      const b = document.createElement('button');
+      b.className = 'v2-pill';
+      b.textContent = 'CODE KOPIEREN';
+      b.addEventListener('click', () => {
+        const ta = sheet.querySelector<HTMLTextAreaElement>('#' + id)!;
+        navigator.clipboard?.writeText(ta.value).then(
+          () => (b.textContent = 'KOPIERT'),
+          () => {
+            ta.select();
+            b.textContent = 'MARKIERT – JETZT KOPIEREN';
+          },
+        );
+      });
+      return b;
+    };
+    const rtcHost = async () => {
+      if (typeof RTCPeerConnection === 'undefined') return say('Dieser Browser kann keine Peer-to-Peer-Verbindung. Nutze den Raum-Code.', true);
+      const rtc = new RtcTransport();
+      const sheet = lobbySheet(el, '<div>Erstelle Einladung …</div>');
+      const body = sheet.querySelector<HTMLElement>('.v2-rtc-body')!;
+      try {
+        const invite = await rtc.createInvite();
+        body.innerHTML = `${codeBox('1. Schick diesen Einladungs-Code an deinen Freund', invite, false, 'inv')}<div class="v2-join copy"></div>${codeBox('2. Füge den Antwort-Code deines Freundes ein', '', true, 'rep')}<div class="v2-join"><button class="v2-pill" data-connect>VERBINDEN</button></div>`;
+        body.querySelector('.copy')!.appendChild(copyBtn(sheet, 'inv'));
+        rtc.onOpen = () => (sheet.remove(), go(rtc, true));
+        body.querySelector('[data-connect]')!.addEventListener('click', async () => {
+          try {
+            await rtc.acceptReply(body.querySelector<HTMLTextAreaElement>('#rep')!.value);
+            say('Verbinde …');
+          } catch {
+            say('Dieser Antwort-Code ist ungültig. Bitte nochmal kopieren lassen.', true);
+          }
+        });
+      } catch (e) {
+        say(`Einladung konnte nicht erstellt werden: ${(e as Error).message}`, true);
+      }
+    };
+    const rtcJoin = () => {
+      if (typeof RTCPeerConnection === 'undefined') return say('Dieser Browser kann keine Peer-to-Peer-Verbindung. Nutze den Raum-Code.', true);
+      const sheet = lobbySheet(el, `${codeBox('1. Füge den Einladungs-Code deines Freundes ein', '', true, 'inv')}<div class="v2-join"><button class="v2-pill" data-next>ANTWORT ERSTELLEN</button></div>`);
+      const body = sheet.querySelector<HTMLElement>('.v2-rtc-body')!;
+      body.querySelector('[data-next]')!.addEventListener('click', async () => {
+        const rtc = new RtcTransport();
+        try {
+          const reply = await rtc.acceptInvite(body.querySelector<HTMLTextAreaElement>('#inv')!.value);
+          body.innerHTML = `${codeBox('2. Schick diesen Antwort-Code zurück. Das Match startet, sobald ihr verbunden seid.', reply, false, 'rep')}<div class="v2-join copy"></div>`;
+          body.querySelector('.copy')!.appendChild(copyBtn(sheet, 'rep'));
+          rtc.onOpen = () => (sheet.remove(), go(rtc, false));
+          say('Warte, bis der Host verbindet …');
+        } catch {
+          say('Dieser Einladungs-Code ist ungültig. Bitte nochmal kopieren lassen.', true);
+        }
+      });
+    };
+    el.querySelectorAll('[data-act="rtc-host"]').forEach((b) => b.addEventListener('click', () => void rtcHost()));
+    act('rtc-join', rtcJoin);
+    el.querySelector('[data-back]')?.addEventListener('click', () => {
+      leave();
       this.showHome();
     });
   }

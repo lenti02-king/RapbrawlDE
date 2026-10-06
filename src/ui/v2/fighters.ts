@@ -91,6 +91,7 @@ export function fightersHtml(roster: RosterEntry[], cur: FighterInfo, tab: numbe
     ${stat(0, 'ANGRIFF', I.p_l, I.p_v, I.pbar, 'fill_p')}${stat(1, 'TEMPO', I.s_l, I.s_v, I.sbar, 'fill_s')}${stat(2, 'LEBEN', I.d_l, I.d_v, I.dbar, 'fill_d')}
     ${t('FÄHIGKEITEN', [I.abil[0], I.abil[1], I.abil[2] + 70, I.abil[3]], 0, 0, { cls: 'v2-marker', fs: 36 })}
     ${card(0)}${card(1)}${card(2)}
+    <button class="v2-hit v2-chip" data-custom aria-label="Anpassen" style="--x:830;--y:872;--w:180;--h:44"><span>ANPASSEN</span></button>
     ${button(A, 'select', 'select', cur.fav ? 'Favorit' : 'Auswählen', (ox, oy) => t(cur.fav ? '★ FAVORIT' : 'AUSWÄHLEN', zone([S[0] - 30, S[1], S[2] + 40, S[3]]), ox, oy, { cls: 'v2-brush', fs: cur.fav ? 70 : 64, align: 'center' }), cur.fav ? '' : 'v2-main', `--mask:url(${src(A, 'select')})`)}`;
   return screenHtml(back, front);
 }

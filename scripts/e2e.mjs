@@ -32,9 +32,9 @@ const sim = (page) =>
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.setDefaultTimeout(120000); // software GL: ~1 s per frame at 720p, screenshots wait for one
   watchErrors(page, errors);
-  await page.goto(base + '/?touch=0&q=low');
+  await page.goto(base + '/?touch=0&q=low&ui=v1');
   await page.evaluate(() => localStorage.clear());
-  await page.goto(base + '/?touch=0&q=low');
+  await page.goto(base + '/?touch=0&q=low&ui=v1');
   await page.waitForSelector('.splash');
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${out}/d01_title.png` });
@@ -202,9 +202,9 @@ const sim = (page) =>
   const page = await ctx.newPage();
   page.setDefaultTimeout(120000);
   watchErrors(page, errors);
-  await page.goto(base + '/?q=low');
+  await page.goto(base + '/?q=low&ui=v1');
   await page.evaluate(() => localStorage.clear());
-  await page.goto(base + '/?q=low');
+  await page.goto(base + '/?q=low&ui=v1');
   await page.waitForSelector('.splash');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/m01_title.png` });
@@ -293,6 +293,43 @@ const sim = (page) =>
   check(await page.isVisible('.rotate-hint'), 'portrait phone shows rotate hint');
   await page.screenshot({ path: `${out}/m06_portrait.png` });
   await ctx.close();
+}
+
+// ------------------------------------------------ design v2 flow (default, D42)
+{
+  const errors = [];
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.setDefaultTimeout(120000);
+  watchErrors(page, errors);
+  await page.goto(base + '/?touch=0&q=low');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(base + '/?touch=0&q=low');
+  await page.waitForSelector('.splash');
+  check(await page.evaluate(() => document.documentElement.dataset.design === 'v2'), 'design v2 is the default');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.v2-home .v2-stage.ready');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/v01_home.png` });
+  await page.click('.v2-home [data-act="fight"]');
+  await page.waitForSelector('.v2-select');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/v02_select.png` });
+  check((await page.locator('.v2-select [data-f]').count()) >= 4, 'v2 fighter select lists the whole roster (incl. Manuellsen, Lacazette)');
+  await page.click('.v2-select [data-ready]');
+  await page.waitForSelector('.v2-arena [data-ok]');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/v03_arena.png` });
+  await page.click('.v2-arena [data-ok]');
+  await page.waitForSelector('.v2-vs [data-act="ready"]', { timeout: 60000 });
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: `${out}/v04_vs.png` });
+  await page.click('.v2-vs [data-act="ready"]');
+  await page.waitForSelector('.v2-loading');
+  await page.screenshot({ path: `${out}/v05_loading.png` });
+  await page.waitForFunction(() => window.__rb.mode === 'cpu' && window.__rb.runner?.state, null, { timeout: 120000 });
+  check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena), 'v2 flow: the arena picked on the VS screen is built');
+  check(errors.length === 0, `no page errors in the v2 flow (${errors.slice(0, 3).join(' | ')})`);
+  await page.close();
 }
 
 // ------------------------------------------------------- performance probe

@@ -138,25 +138,6 @@ def split_plate(wide, out_dir, side, W):
     return res
 
 
-def wings(plate, side=SIDE, src_w=None):
-    """Ultra-wide extension: the master's outer strips mirrored, blurred and darkened toward the screen edge (an
-    ambient continuation instead of invented scenery; the UI never reaches it)."""
-    H, W = plate.shape[:2]
-    src_w = src_w or side
-    out = np.zeros((H, W + 2 * side, 3), np.uint8)
-    out[:, side:side + W] = plate
-    t = np.linspace(0.0, 1.0, side, dtype=np.float32)  # 0 at the screen edge -> 1 at the master's edge
-    k = (0.18 + 0.72 * t ** 1.5)[None, :, None]
-    # the outermost columns (outside the UI) stretched outward: an ambient continuation of the scene's light
-    left = cv2.GaussianBlur(cv2.resize(plate[:, :src_w][:, ::-1], (side, H), interpolation=cv2.INTER_LINEAR), (0, 0), 10).astype(np.float32)
-    right = cv2.GaussianBlur(cv2.resize(plate[:, W - src_w:][:, ::-1], (side, H), interpolation=cv2.INTER_LINEAR), (0, 0), 10).astype(np.float32)
-    out[:, :side] = (left * k).astype(np.uint8)
-    out[:, side + W:] = (right * k[:, ::-1]).astype(np.uint8)
-    for x in (side, side + W):  # soften the joint
-        out[:, x - 6:x + 6] = cv2.GaussianBlur(out[:, x - 12:x + 12], (0, 0), 2)[:, 6:18]
-    return out
-
-
 def wings_lama(screen, plate, bg, masks, elements, side=SIDE, bars=None):
     """Wide-screen wings: the scene outpainted by LaMa from a UI-free copy of the plate (UI near the edges would
     otherwise be continued as smeared panels), darkened toward the outer screen edge. `bars`: (y0, y1) row bands of

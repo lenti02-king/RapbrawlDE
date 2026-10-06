@@ -276,3 +276,50 @@ elements looked shifted / too big or small, tile pictures were cut wrongly.
   page (markup + CSS, ~1.6 MB) plus `rapbrawl.js` (the bundle) as a supporting file: `single-file.mjs --split`, used by
   `artifact-check.mjs`. The planned 1K texture copies for the menu figures were dropped in the process (not needed:
   on phones the game view is released while the menus are open).
+
+## D42 — Design v2, slower specials, reworked abilities, cartoon cutout fighters (2026-10-06)
+PO (session 10): new master set for the whole app (home, character select, arenas, VS, loading, fighters, customize,
+friends lobby; 1672x941 each), "save the current design and switch back easily if the new one is bad", the design
+must sit IN the scene with depth (not pasted on), German text; specials felt 2-4x too fast; Diamanten-Regen, Blunt
+and the croc were hard to read; two new fighters (Manuellsen, Lacazette) exactly as drawn in cartoon references.
+- **Design switch**: v1 stays in the code and is tagged `design-v1` (commit c0e46a0). `src/ui/design.ts`: `?ui=v1|v2`
+  (remembered per device) and EINSTELLUNGEN → DESIGN (NEU / KLASSISCH). Screens dispatch at their entry functions
+  (`showHome`, `showFighters`, `showOnlineLobby`, `charSelectHtml`, `showcaseHtml`, `loadingHtml`); screens without a
+  v2 master (deck, profile, settings, results, shop, leaderboard) keep their v1 look in both designs.
+- **v2 screens** (`src/ui/v2/`, art from `tools/ui-extract/v2x.py` + `v2_<screen>.py`): unlike D38 the plate is the
+  master itself with only what changes removed — baked English text (smooth fills on dark plates, row-colour fills on
+  the yellow buttons), badges, bar fills, the illustrated placeholder figures (GrabCut silhouettes, filled by a banded
+  row-continuation that keeps ropes/stands straight, or LaMa on banners) — so every panel sprite lies on its own
+  pixels and nothing looks pasted on. Wings for wide phones: LaMa outpainting of a UI-free copy, darkened outward.
+  Depth at runtime: flickering glows on the plate's own light sources (detected at extraction), sweeping beams, floor
+  haze, embers, and the live 3D fighters between plate and UI with stage-coloured rim lights. Layout: the 1672x941
+  stage height-fits and centres (tall screens width-fit) — nothing interactive is ever cropped; bottom UI lifts above
+  the home indicator. Masters' placeholders that would mislead are replaced honestly: no fake friends in the lobby,
+  2V2 / outfits / colours say KOMMT BALD, currencies are the local placeholder economy.
+- **Menu fighters stand tall** (`render/anims/showcase.ts`): upright showcase poses instead of the side-view fight
+  stance that looked "crippled" in the 3/4 menu view; POSE in Kämpfer anpassen switches back to the fight stance.
+- **Cinematics at half speed**: `RULES.CINE_RATE = 2` sim frames per cinematic frame (`s.cine.sub`); the render
+  samples fractional cinematic frames, so the authored clips play twice as long and stay smooth. Deterministic.
+- **Diamanten-Regen**: the chain flashes (move frames 2-24), then the shower is placed over the OPPONENT (new
+  projectile options: `target` = spawn over the opponent within reach, `armAt` = harmless warning phase (30 frames,
+  sparkling ring + light shaft: walk/dash out), `hits`/`every` = three hits 12 frames apart, `noClash`). Overhead: only a
+  standing block holds.
+- **Blunt für dich**: a command grab now (`grabLike`, unblockable, jump/keep away; a whiff is punishable; grabLike
+  counts as a throw in throw-vs-throw / strike-vs-throw resolution). Cinematic (160 frames x2): the victim is laid flat
+  and rolled into a giant translucent joint (still visible inside), lick, the flame runs along it, three drags — each
+  burns (hits), ember flares — then it swells and pops, the victim tumbles out coughing.
+- **Croc**: bigger croc (1.45-1.6x) in the run and the cinematic, three calm shots instead of six cuts.
+- **Manuellsen + Lacazette as 2D cutouts** (`render/cutout.ts`, `tools/characters/cutout.py`): the PO's references are
+  cut into 12 puppet pieces (GrabCut-matted; parts hidden behind other pieces inpainted so nothing tears). A hidden
+  procedural skeleton with the art's proportions runs the existing animation sets (Manuellsen = Bonez's boxing set,
+  Lacazette = Jazeek's street set, front-view guard stances); each piece takes its bone's on-screen angle while its
+  position follows the drawing. The art is never mirrored (facing left mirrors only the motion and swaps which arm
+  leads), so the design is exactly the PO's. No cards/abilities yet (empty deck allowed for fighters without cards).
+  Chosen over a 3D rebuild: any 3D model changes the drawn style, which the PO ruled out.
+- **v2 flow**: home → character select → arena pick (each player, random draw) → VS screen (both fighters live in 3D,
+  their decks, the drawn arena, which can still be changed there) → loading → match. Kämpfer → ANPASSEN opens the
+  customize screen (fighter presets = roster, POSE toggle, LOOK SPEICHERN = favourite). Gegen Freunde opens the v2
+  lobby (room code, join code, invitation copy/paste = the existing WebRTC/BroadcastChannel transport, lag test).
+- **Tests**: `npm run e2e` keeps walking the v1 flows (`?ui=v1`, regression for the classic design) and adds the v2
+  flow (home → select → arena → VS → match); `scripts/netplay.mjs` runs the online handshake through the v1 screens
+  (the transport underneath is shared).

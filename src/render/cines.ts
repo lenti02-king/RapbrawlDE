@@ -990,6 +990,9 @@ export const CAR_RIDE: CineDef = {
 const BL = JAZEEK_POSES.BLUNT;
 const JOINT_LEN = 2.05;
 const FILTER = 0.16;
+// radii: wide enough for Bonez' shoulders (~0.6 m across) to stay inside the paper
+const R_TIP = 0.35;
+const R_FIL = 0.27;
 /** Joint pose over time (attacker-local): filter end x, axis height, tilt (rad, lit end up). */
 function jointAt(f: number): { x0: number; y: number; tilt: number } {
   if (f < 46) return { x0: 0.46, y: 1.12, tilt: 0 };
@@ -998,6 +1001,7 @@ function jointAt(f: number): { x0: number; y: number; tilt: number } {
 }
 /** Victim hips along the joint: head toward the filter (Jazeek's mouth), feet at the lit end. */
 const HIPS_ON_AXIS = FILTER + 0.13 + 0.8;
+const AXIS_FIX = 0.2;
 const rollHands = (k: number): PoseDef => ({
   x: 0.02,
   aim: { shL: [0.75, -0.35, -0.35 + k * 0.25], elL: [0.9, -0.1, 0.1 + k * 0.3], shR: [0.75, -0.35, 0.35 - k * 0.25], elR: [0.9, -0.1, -0.1 - k * 0.3], face: 0.4 },
@@ -1052,24 +1056,27 @@ function bluntDef(set: AnimSet): Clip {
   const START = 0.75;
   const endX = -(2.6 - START) + 0.05;
   // victim-local x is toward Jazeek: attacker-local hips x = START - x
+  // wrapped like a mummy: arms at the sides, legs together, so nothing pokes out of the paper (tube radius ~0.24);
+  // the struggle at every drag is a small kick + the whole body jolting inside the roll
   const inJoint = (f: number, wiggle = 0): PoseDef => {
     const J = jointAt(f);
     const hx = J.x0 + HIPS_ON_AXIS * Math.cos(J.tilt);
     const hy = J.y + HIPS_ON_AXIS * Math.sin(J.tilt);
     return compose(r.lying, {
       x: START - hx,
-      y: hy - pivot,
-      rot: -90 - (J.tilt * 180) / Math.PI,
+      // + AXIS_FIX: the rotated body's centre line sat ~0.2 m under the axis (measured: scripts/blunt-measure.mjs)
+      y: hy - pivot + AXIS_FIX + wiggle * 0.025,
+      rot: -90 - (J.tilt * 180) / Math.PI + wiggle * 3,
       j: {
-        shL: [70, 0, 40 + wiggle * 30],
-        elL: [0, 0, 60 + wiggle * 40],
-        shR: [-70, 0, 40 - wiggle * 30],
-        elR: [0, 0, 60 - wiggle * 40],
-        thL: [8, 0, 6 + wiggle * 40],
-        knL: [0, 0, -14 - Math.abs(wiggle) * 60],
-        thR: [-8, 0, 6 - wiggle * 40],
-        knR: [0, 0, -14 - Math.abs(wiggle) * 50],
-        head: [0, wiggle * 20, -12],
+        shL: [8, 0, 4 + wiggle * 8],
+        elL: [0, 0, 10 + Math.abs(wiggle) * 14],
+        shR: [-8, 0, 4 - wiggle * 8],
+        elR: [0, 0, 10 + Math.abs(wiggle) * 14],
+        thL: [3, 0, 4 + wiggle * 12],
+        knL: [0, 0, -6 - Math.abs(wiggle) * 18],
+        thR: [-3, 0, 4 - wiggle * 12],
+        knR: [0, 0, -6 - Math.abs(wiggle) * 14],
+        head: [0, wiggle * 16, -8],
       },
     });
   };
@@ -1146,21 +1153,21 @@ function bluntProps(): CineProps {
   sheet.position.x = JOINT_LEN / 2;
   pivot.add(sheet);
   const filter = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.205, 0.205, FILTER, 28, 1, true),
+    new THREE.CylinderGeometry(R_FIL, R_FIL, FILTER, 28, 1, true),
     new THREE.MeshStandardMaterial({ color: 0xd8b26e, roughness: 0.8, side: THREE.DoubleSide }),
   );
   filter.rotation.z = Math.PI / 2;
   filter.position.x = FILTER / 2;
   pivot.add(filter);
-  const twist = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.32, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.9, side: THREE.DoubleSide }));
+  const twist = new THREE.Mesh(new THREE.ConeGeometry(R_TIP, 0.36, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.9, side: THREE.DoubleSide }));
   twist.rotation.z = -Math.PI / 2;
-  twist.position.x = JOINT_LEN + 0.15;
+  twist.position.x = JOINT_LEN + 0.17;
   pivot.add(twist);
-  const ember = new THREE.Mesh(new THREE.CircleGeometry(0.27, 28), new THREE.MeshBasicMaterial({ color: 0xff6a1a }));
+  const ember = new THREE.Mesh(new THREE.CircleGeometry(R_TIP, 28), new THREE.MeshBasicMaterial({ color: 0xff6a1a }));
   ember.rotation.y = Math.PI / 2;
   ember.position.x = JOINT_LEN + 0.005;
   pivot.add(ember);
-  const ash = new THREE.Mesh(new THREE.CylinderGeometry(0.265, 0.27, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 1 }));
+  const ash = new THREE.Mesh(new THREE.CylinderGeometry(R_TIP - 0.005, R_TIP, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 1 }));
   ash.rotation.z = Math.PI / 2;
   ash.position.x = JOINT_LEN - 0.02;
   pivot.add(ash);
@@ -1177,7 +1184,7 @@ function bluntProps(): CineProps {
     if (Math.abs(th - wrap) < 0.01) return;
     wrap = th;
     tube.geometry.dispose();
-    const g = new THREE.CylinderGeometry(0.27, 0.205, JOINT_LEN - FILTER, 40, 1, true, Math.PI - th / 2, th);
+    const g = new THREE.CylinderGeometry(R_TIP, R_FIL, JOINT_LEN - FILTER, 40, 1, true, Math.PI - th / 2, th);
     g.rotateZ(-Math.PI / 2);
     g.translate(FILTER + (JOINT_LEN - FILTER) / 2, 0, 0);
     tube.geometry = g;
@@ -1198,7 +1205,7 @@ function bluntProps(): CineProps {
         const unfold = ramp(f, 14, 22);
         sheet.visible = f < 26;
         sheet.scale.set(1, Math.max(0.01, unfold), 1);
-        sheet.position.y = -0.27;
+        sheet.position.y = -R_TIP;
         const w = ramp(f, 22, 44);
         tube.visible = f >= 22;
         if (tube.visible) setWrap(w);
@@ -1217,8 +1224,10 @@ function bluntProps(): CineProps {
         (ember.material as THREE.MeshBasicMaterial).color.setHSL(0.06, 1, 0.45 + 0.2 * flare + 0.05 * pulse);
         glow.scale.setScalar(0.5 + 0.9 * flare + 0.1 * pulse);
         (glow.material as THREE.SpriteMaterial).opacity = lit ? 0.75 : 0;
-        ash.scale.set(1 + ramp(f, 66, 126) * 3, 1, 1);
-        ash.position.x = JOINT_LEN - 0.02 - ramp(f, 66, 126) * 0.08;
+        // the ash grows back along the axis (the cylinder's height is its local y, which runs along the joint)
+        const burnt = ramp(f, 66, 126);
+        ash.scale.set(1, 1 + burnt * 3, 1);
+        ash.position.x = JOINT_LEN - 0.02 - burnt * 0.09;
         light.intensity = lit ? 2 + 6 * flare : 0;
         light.position.copy(c.world(J.x0 + JOINT_LEN * Math.cos(J.tilt), J.y + JOINT_LEN * Math.sin(J.tilt), 0.3));
         // the lighter flame runs along the joint 60-66

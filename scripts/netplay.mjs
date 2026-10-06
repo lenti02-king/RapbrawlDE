@@ -12,7 +12,7 @@ const [A, B] = [await ctx.newPage(), await ctx.newPage()];
 const errors = [];
 for (const p of [A, B]) p.on('pageerror', (e) => errors.push(e.message));
 const toLobby = async (p) => {
-  await p.goto(base + '/?touch=0&q=low&netsilence=60');
+  await p.goto(base + '/?touch=0&q=low&ui=v1&netsilence=60');
   await p.waitForSelector('.splash');
   await p.click('.splash button');
   await p.waitForSelector('.main-menu');

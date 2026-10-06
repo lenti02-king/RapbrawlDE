@@ -516,8 +516,8 @@ export function makeDiamondRain(): THREE.Object3D {
   const mats = model
     ? [0, 1, 2].map((i) => {
         const m = (model.material as THREE.MeshStandardMaterial).clone();
-        m.emissive = new THREE.Color([0x5fd8ff, 0x2f9fff, 0xbff6ff][i]);
-        m.emissiveIntensity = 0.75;
+        m.emissive = new THREE.Color([0xcfefff, 0x9fd8ff, 0xffffff][i]);
+        m.emissiveIntensity = 0.4;
         m.transparent = true;
         return m;
       })
@@ -525,7 +525,8 @@ export function makeDiamondRain(): THREE.Object3D {
         (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x6fe0ff, emissiveIntensity: 0.9, transparent: true, opacity: 0.96 }),
       );
   g.userData.glb = !!model;
-  for (let i = 0; i < 44; i++) {
+  // many small cut stones (not a few big chunks: those read as ice), each with its own sparkle
+  for (let i = 0; i < 76; i++) {
     const d = new THREE.Mesh(geo, mats[i % mats.length]);
     d.userData = {
       dia: true,
@@ -533,15 +534,18 @@ export function makeDiamondRain(): THREE.Object3D {
       z: (((i * 53) % 11) / 10 - 0.5) * 0.8,
       off: ((i * 29) % 41) / 41,
       spin: 4 + (i % 5),
-      size: (0.9 + ((i * 7) % 5) * 0.15) * (model ? 1.9 : 1.25),
+      size: (0.8 + ((i * 7) % 5) * 0.12) * (model ? 1.05 : 0.75),
     };
     d.castShadow = false;
     g.add(d);
   }
-  for (let i = 0; i < 9; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTexture(), color: 0xe8fdff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    sp.position.set((i / 8 - 0.5) * 1.1, 0, 0.35);
-    sp.scale.set(0.7, 0.7, 1);
+  // star glints in white and the stones' rainbow 'fire'
+  for (let i = 0; i < 16; i++) {
+    const sp = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: glintTexture(), color: [0xffffff, 0xbff6ff, 0xffd6f6, 0xfff3c4][i % 4], transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    sp.position.set((i / 15 - 0.5) * 1.1, 0, 0.35);
+    sp.scale.set(0.42, 0.42, 1);
     sp.userData = { glint: true, off: i * 0.37 };
     g.add(sp);
   }

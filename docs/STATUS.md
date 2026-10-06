@@ -1,12 +1,25 @@
 # Project status
 
-_Last updated: 2026-10-06 (session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-06 (session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, version 18 = session 9d, page + rapbrawl.js): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, page + rapbrawl.js; see the latest session for the version): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 10 — design v2, slower specials, reworked abilities, two cartoon fighters (D42)
+| Area | Status | Evidence |
+|---|---|---|
+| Old design saved: commit c0e46a0 in the branch history (local tag `design-v1`; pushing tags is refused by the git proxy) + switch in the game (EINSTELLUNGEN → DESIGN, `?ui=v1\|v2`) | VERIFIED (switch in screenshots) | `src/ui/design.ts` |
+| v2 home, character select, arenas/modes, VS, loading, Kämpfer, Kämpfer anpassen, Freunde-Lobby from the PO masters, German text, depth effects, live 3D fighters | VERIFIED (Chromium 1672x941, 932x430, 844x390; WebKitGTK 932x468 DPR 3 for home + select) | `node scripts/v2shot.mjs "showHome()" artifacts/v2/home`, `node scripts/webkit.mjs` |
+| Menu fighters stand upright (showcase pose), POSE toggle | VERIFIED (screenshots) | `node scripts/posegrid.mjs` |
+| Specials / Signature cinematics at half speed (sim + render) | VERIFIED (tests 81/81, captures) | `RULES.CINE_RATE` |
+| Diamanten-Regen: chain flash, warning ring at the opponent, 3 hits from above, dodge/block | VERIFIED (tests); visuals see `node scripts/rainshot.mjs` | tests/fighters.test.ts |
+| Blunt für dich as a grab + giant-joint cinematic (roll in, 3 drags, pop) | VERIFIED (tests + frame captures) | `node scripts/cine.mjs blunt` |
+| Croc bigger, calmer camera | BUILT (capture `node scripts/cine.mjs croc`) | |
+| Manuellsen + Lacazette as 2D cutouts from the PO's drawings, movement + normals, no cards | VERIFIED (lab + match screenshots); feel UNVERIFIED (PO test) | `python3 tools/characters/cutout.py`, `?quick=manuellsen,lacazette` |
+| WebKit engine check available here (WebKitGTK MiniBrowser via WebDriver) | VERIFIED tool; iOS Safari itself still UNVERIFIED | `node scripts/webkit.mjs` |
 
 ## Session 9d — iPhone test by the PO: crashes, layout on short screens
 | Area | Status | Evidence |
@@ -211,6 +224,8 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
 - **Assets**: accessories/outfits and mode tiles — prompts in `docs/ASSET_PROMPTS.md` (croc, car, props now delivered by the PO and in the game).
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
+- **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release; their abilities/cards once the PO decides the style works.
+- **Design v2 masters** contain generic AI art (the lobby's example friends, preset figures): the game shows its own fighters there; the masters' crown logo and RB belt are the PO's brand.
 - **Blunt für dich**: a real person (Jazeek) rolling and smoking a joint — affects the USK rating (drug use depicted) and is a reputation question for the artist; decide before release (option: a neutral "Zigarre"/vape or a fictional herb).
 - **Arena paintings**: the PO's two images contain real brands/businesses (festival logo, bar and kiosk names); the game uses retouched copies with fictional names (FESTIVAL-BÜHNE, PIK ASS, KIOSK 069, WEINECK). Check the image source/licence of the paintings themselves.
 - **Crowd look**: built from primitives in the game-art style; for a richer look, a few rigged stylized crowd models (prompt on request) could replace them.
