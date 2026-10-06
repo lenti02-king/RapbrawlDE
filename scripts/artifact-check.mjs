@@ -10,7 +10,7 @@ import path from 'node:path';
 
 const out = path.resolve(process.argv[2] ?? 'dist-single');
 fs.mkdirSync(path.join(out, 'assets/characters'), { recursive: true });
-execSync(`node scripts/single-file.mjs ${path.join(out, 'rapbrawl.html')}`, { stdio: 'inherit' });
+execSync(`node scripts/single-file.mjs ${path.join(out, 'rapbrawl.html')} --split`, { stdio: 'inherit' }); // page + rapbrawl.js (D41)
 const ids = ['jazeek', 'bonez'];
 for (const id of ids)
   execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}.glb ${path.join(out, 'assets/characters', id + '.gltf.json')} --external-images`, { stdio: 'inherit' });

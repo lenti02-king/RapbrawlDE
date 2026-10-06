@@ -11,7 +11,7 @@ import { buildCharacter } from '../../render/characters';
 import type { CharacterRig } from '../../render/glbRig';
 import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
-import { isPhone, useSmallTextures } from '../../render/textureBudget';
+import { isPhone } from '../../render/textureBudget';
 
 export interface FigureSpec {
   id: string;
@@ -149,7 +149,6 @@ export class MenuFigures {
     for (const f of this.figs) this.scene.remove(f.group, f.rim);
     this.figs = specs.map((spec, i) => {
       const rig = buildCharacter(spec.id, 0);
-      useSmallTextures(rig.root); // ~200 px tall in the menu: 1K copies of the model's textures
       const group = new THREE.Group();
       group.add(rig.root, contactShadow());
       const rim = new THREE.DirectionalLight(spec.rim, 3.2);

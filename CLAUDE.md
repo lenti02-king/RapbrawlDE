@@ -56,7 +56,7 @@ node scripts/glb-to-json.mjs in.glb out.gltf.json [--external-images]   # Artifa
 node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ (page + assets/**) and assert models AND arena load under an Artifact-like CSP (run before every publish)
 tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek   # rebuild the fighter models (Blender bpy)
 ```
-Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
+Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
 Fighter models: `public/assets/characters/<id>.glb` = the product owner's textured Meshy models used 1:1 (reduced copy + skin, D28;

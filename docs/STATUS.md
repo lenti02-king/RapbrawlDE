@@ -4,7 +4,7 @@ _Last updated: 2026-10-06 (session 9d: iPhone crash + layout fixes; session 9c: 
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, version 13 = session 9c): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, version 18 = session 9d, page + rapbrawl.js): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
@@ -17,6 +17,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Mode tiles show their subject (zoom/focus), description text keeps word spaces | VERIFIED (screenshots) | same |
 | Classic screens: no logo behind titles, Profil/Karten/Einstellungen fit or scroll, settings two columns | VERIFIED (screenshots 750x300) | `node scripts/screens.mjs out 750 300` |
 | Fight camera leaves room for HUD bars and card hand on touch layouts | VERIFIED (screenshots 750x300, 844x390) | `Q=low node scripts/hudshot.mjs out.png 844 390 1` |
+| Checks: unit 80/80, e2e 25/25 + perf probe, phone flow fight → menu (view released) → fight; Artifact payload under CSP (split page) | VERIFIED | `npm test`, `npm run e2e`, `node scripts/artifact-check.mjs` |
 
 ## Session 9c — PO props, "Blunt für dich", Festival + Bahnhofsviertel arenas (overnight)
 | Area | Status | Evidence |

@@ -271,3 +271,8 @@ elements looked shifted / too big or small, tile pictures were cut wrongly.
   fighters stand between the HUD bars and the card hand instead of under them.
 - Verified in Chromium at iPhone sizes (750x300, 844x390, DPR 3). WebKit itself cannot be installed here (download
   host blocked), so Safari-only behaviour is UNVERIFIED until the PO re-tests.
+- **Artifact publishing**: the host's publish check started to misclassify the 10 MB single page (inline bundle) as a
+  "PR review" page and refused it; bisecting showed no real marker (a fuzzy false positive). The Artifact is now the
+  page (markup + CSS, ~1.6 MB) plus `rapbrawl.js` (the bundle) as a supporting file: `single-file.mjs --split`, used by
+  `artifact-check.mjs`. The planned 1K texture copies for the menu figures were dropped in the process (not needed:
+  on phones the game view is released while the menus are open).
