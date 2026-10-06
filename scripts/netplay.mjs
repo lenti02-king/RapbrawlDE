@@ -29,7 +29,14 @@ await A.click('[data-bhost]');
 const code = await A.inputValue('#room-code');
 await B.fill('#room-code', code);
 await B.click('[data-bjoin]');
-await Promise.all([A, B].map((p) => p.waitForFunction(() => window.__rb?.mode === 'online' && window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 }))).catch(async (e) => { for (const p of [A, B]) console.log('STATE', await p.evaluate(() => JSON.stringify({ mode: window.__rb?.mode, phase: window.__rb?.runner?.state.phase, screen: document.querySelector('.screen')?.className, txt: document.querySelector('.screen')?.innerText.slice(0, 300) }))); console.log('ERRORS', errors); throw e; });
+await Promise.all([A, B].map((p) => p.waitForFunction(() => window.__rb?.mode === 'online', null, { timeout: 120000 })));
+// round 1 opens with the fighter showcase (D39): a fresh Light press of either player skips it (goes through rollback)
+for (let k = 0; k < 120; k++) {
+  if (await A.evaluate(() => window.__rb.runner.state.phase === 'fight')) break;
+  await A.evaluate(() => window.__rb.debugHoldP1(16, 2));
+  await A.waitForTimeout(1000);
+}
+await Promise.all([A, B].map((p) => p.waitForFunction(() => window.__rb?.mode === 'online' && window.__rb.runner.state.phase === 'fight', null, { timeout: 120000 }))).catch(async (e) => { for (const p of [A, B]) console.log('STATE', await p.evaluate(() => JSON.stringify({ mode: window.__rb?.mode, phase: window.__rb?.runner?.state.phase, screen: document.querySelector('.screen')?.className, txt: document.querySelector('.screen')?.innerText.slice(0, 300) }))); console.log('ERRORS', errors); throw e; });
 console.log('both peers in fight, room', code, 'lag', lag, 'ms');
 // inputs: A walks in and attacks, B attacks back
 const IN = { LEFT: 1, RIGHT: 2, LIGHT: 16, HEAVY: 32 };
