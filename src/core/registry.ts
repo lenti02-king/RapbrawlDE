@@ -40,6 +40,8 @@ export const MAX_SIGNATURES = 1;
 /** Returns null if the loadout is legal, otherwise a human-readable (German) reason. */
 export function validateLoadout(fighterId: string, loadout: string[]): string | null {
   const def = getFighter(fighterId);
+  // fighters without cards yet (D42 test fighters) play with an empty deck
+  if (!def.cards.length) return loadout.length ? 'Dieser Kämpfer hat noch keine Karten' : null;
   if (loadout.length !== LOADOUT_SLOTS) return `Wähle 2 Specials und 1 Signature`;
   if (new Set(loadout).size !== loadout.length) return 'Karte doppelt';
   for (let i = 0; i < loadout.length; i++) {

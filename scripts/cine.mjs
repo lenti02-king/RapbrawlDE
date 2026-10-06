@@ -49,11 +49,11 @@ const snap = async (name) => {
   // let the render loop blend poses/camera/dim: wait for a number of rendered frames (SwiftShader is slow)
   await page.evaluate(() => new Promise((res) => { let n = 0; const f = () => (++n >= 10 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }));
   const f = `${out}/${name}.png`;
-  await page.screenshot({ path: f });
+  await page.screenshot({ path: f, timeout: 180000 });
   files.push(f);
 };
 if (blunt && process.env.MOVE !== '0') {
-  for (const mf of [4, 10, 14]) {
+  for (const mf of [4, 10]) {
     await stepUntil((mf) => window.__rb.runner.state.fighters[0].mf >= mf, 200, mf);
     await snap(`m${String(mf).padStart(2, '0')}`);
   }

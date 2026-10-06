@@ -7,6 +7,7 @@ import { UNITS_PER_METER } from '../core/math';
 import { type CharacterRig, GlbRig, hasModel } from './glbRig';
 import { type HumanoidSpec, type Palette, Rig } from './rig';
 import { BONEZ_VISUAL, JAZEEK_VISUAL } from './stylized';
+import { CutoutRig, isCutout } from './cutout';
 import { addPart, taperedCapsule } from './toon';
 
 export interface CharacterVisual {
@@ -261,6 +262,7 @@ export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
 
 /** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. */
 export function buildCharacter(id: string, paletteIndex: number): CharacterRig {
+  if (isCutout(id)) return new CutoutRig(id, getFighter(id).height / UNITS_PER_METER);
   if (hasModel(id)) {
     let h = 1.8;
     try {

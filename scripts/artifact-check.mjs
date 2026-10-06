@@ -51,7 +51,7 @@ if (big.length) {
 const CSP =
   "default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
   "font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; media-src 'self' data: blob:; worker-src 'self' blob:";
-const types = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png' };
+const types = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const server = http.createServer((req, res) => {
   const file = path.join(out, decodeURIComponent(new URL(req.url, 'http://x').pathname));
   // like the Artifact host: .glb is not served
@@ -126,6 +126,12 @@ console.log('model/arena files fetched:', [...fetched].sort().join(' '));
 const notJson = ids.filter((id) => ![...fetched].some((f) => f.endsWith(`/${id}.gltf.json`)));
 if (notJson.length) {
   console.error('FAIL: did not load the .gltf.json of', notJson.join(', '));
+  process.exit(1);
+}
+// the D42 cutout fighters (parts.json + piece images)
+const cutMissing = ['manuellsen', 'lacazette'].filter((id) => !models.includes(id));
+if (cutMissing.length) {
+  console.error('FAIL: cutout fighters missing under the Artifact CSP:', cutMissing.join(', '));
   process.exit(1);
 }
 if (!arenaOk) {

@@ -22,6 +22,7 @@ import { ROSTER } from './content';
 import { runLab } from './lab';
 import { loadCharacterModels } from './render/glbRig';
 import { loadPropModels, PROP_IDS } from './render/propModels';
+import { isCutout, loadCutouts } from './render/cutout';
 import { loadingHtml, mountLoading, setLoading } from './ui/menu/loading';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -60,9 +61,10 @@ const progress = () => (bootTarget = 10 + ((modelsDone + propsDone) / (modelIds.
 const props = loadPropModels('assets/props', (d) => ((propsDone = d), progress())).catch(() => []);
 void props.then((ok) => ((window as unknown as { __props: string[] }).__props = ok)); // read by scripts/artifact-check.mjs
 const models = Promise.all([
-  loadCharacterModels(modelIds, 'assets/characters', overrides, (d) => ((modelsDone = d), progress())).catch(() => [] as string[]),
+  loadCharacterModels(modelIds.filter((id) => !isCutout(id)), 'assets/characters', overrides, (d) => ((modelsDone = d), progress())).catch(() => [] as string[]),
   props,
-]).then(([ok]) => ok);
+  loadCutouts('assets/characters').catch(() => [] as string[]),
+]).then(([ok, , cut]) => [...ok, ...cut]);
 const timeout = new Promise((res) => setTimeout(res, 60000));
 void Promise.race([models, timeout]).then(() => {
   started = true;

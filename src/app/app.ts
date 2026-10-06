@@ -150,7 +150,7 @@ function rankOf(p: Profile): { name: string; next: string } {
 }
 
 /** Hometowns on the character-select ribbon (from the PO's master design). */
-const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg' };
+const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
 /** Stored menu mode (older saves used 'online' for the friend room code). */
@@ -1328,7 +1328,7 @@ export class App {
     const st = all[ROSTER.indexOf(id)] ?? fighterStats(id);
     const p = this.profileData;
     const games = p.byFighter[id]?.m ?? 0;
-    const CLS: Record<string, number> = { jazeek: 2, bonez: 1 };
+    const CLS: Record<string, number> = { jazeek: 2, bonez: 1, manuellsen: 1, lacazette: 3 };
     const roster: RosterEntry[] = ROSTER.map((fid) => ({ id: fid, name: getFighter(fid).name.toUpperCase(), img: portrait(fid, 'card'), cls: CLS[fid] ?? 1, fav: this.favorite === fid }));
     const deck = this.presetDeck(id);
     const el = this.open(

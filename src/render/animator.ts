@@ -1,4 +1,5 @@
 // Turns simulation state into poses. Pure presentation: reads GameState, never writes it.
+import { CUTOUT_GUARD, CUTOUT_LOOSE, cutoutStance } from './anims/cutoutStances';
 import type { Reaction } from '../core/defs';
 import { UNITS_PER_METER } from '../core/math';
 import { getFighter, getMove } from '../core/registry';
@@ -13,7 +14,15 @@ import { compose, lerpPose, stabilizeHead, toArr } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
 
-export const ANIM_SETS: Record<string, AnimSet> = { volt: VOLT_ANIMS, brick: BRICK_ANIMS, jazeek: JAZEEK_ANIMS, bonez: BONEZ_ANIMS };
+export const ANIM_SETS: Record<string, AnimSet> = {
+  volt: VOLT_ANIMS,
+  brick: BRICK_ANIMS,
+  jazeek: JAZEEK_ANIMS,
+  bonez: BONEZ_ANIMS,
+  // D42 cutout test fighters: the boxer moves like Bonez, the street kid like Jazeek (same move keys)
+  manuellsen: { ...BONEZ_ANIMS, id: 'manuellsen', stance: cutoutStance(BONEZ_ANIMS.stance, CUTOUT_GUARD) },
+  lacazette: { ...JAZEEK_ANIMS, id: 'lacazette', stance: cutoutStance(JAZEEK_ANIMS.stance, CUTOUT_LOOSE) },
+};
 
 const DEG = Math.PI / 180;
 /** Poses borrowed from another fighter's set (throws, cinematics) assume that fighter's hip
