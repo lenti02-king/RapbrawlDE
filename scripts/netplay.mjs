@@ -16,8 +16,8 @@ const toLobby = async (p) => {
   await p.waitForSelector('.splash');
   await p.click('.splash button');
   await p.waitForSelector('.main-menu');
-  // new flow (session 8): ONLINE mode tile -> fighter select (P1 only) -> lobby
-  await p.click('[data-act="online"]');
+  // flow (session 9b): FREUNDE tile (room code; ONLINE = random opponents, coming soon) -> fighter select (P1 only) -> lobby
+  await p.click('[data-act="friend"]');
   await p.waitForSelector('.st-select');
   await p.click('[data-ready]');
   await p.waitForSelector('.online-grid');
