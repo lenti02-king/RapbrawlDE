@@ -80,7 +80,7 @@ export function layoutStage(root: HTMLElement, stage: HTMLElement, safe: Box = [
   const fit = (b: Box) => Math.min(aw / (b[2] - b[0]), ah / (b[3] - b[1]));
   // short, wide screens (a phone in landscape inside a browser/viewer): a smaller safe rect without the decorative
   // header (logo) when that makes everything noticeably bigger (D41)
-  if (short && fit(short) > fit(safe) * 1.04) safe = short;
+  if (short && (ah < 520 || aw / ah > 2.05) && fit(short) > fit(safe) * 1.04) safe = short;
   root.classList.toggle('mm-short', safe === short);
   const sw = safe[2] - safe[0];
   const sh = safe[3] - safe[1];

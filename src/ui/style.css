@@ -36,6 +36,10 @@
 
 html {
   font-size: clamp(10.5px, min(2.15vh, 1.25vw), 17px);
+  /* iOS Safari inflates text in landscape unless told not to: the reference-pixel layouts then overflow their boxes
+     and look shifted / too big on iPhones (D41) */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 /* short phone screens (landscape inside a browser / the claude.ai viewer, ~300 px tall): a slightly smaller base so the
    classic screens fit, and their content areas scroll instead of being cut off (D41) */

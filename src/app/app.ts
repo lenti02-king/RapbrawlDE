@@ -700,7 +700,7 @@ export class App {
     const rp = store.get('rp', 0);
     const tier = tierOf(rp);
     const items: ShowcaseItem[] = [
-      { id: 'quick', name: 'SCHNELLKAMPF', district: 'GEGEN DIE CPU', desc: 'Kämpfer und Arena wählen, rein in den Ring. Perfekt zum Aufwärmen und für eine schnelle Runde.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.quick, focus: '50% 96%', zoom: 1.75 },
+      { id: 'quick', name: 'SCHNELLKAMPF', district: 'GEGEN DIE CPU', desc: 'Kämpfer und Arena wählen, rein in den Ring. Perfekt zum Aufwärmen und für eine schnelle Runde.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.quick, focus: '50% 100%', zoom: 2.9 },
       { id: 'ranked', name: 'RANKED', district: `LIGA ${tier.name}`, desc: `Gewertete Kämpfe gegen immer stärkere CPU-Gegner. Siege bringen RP, Niederlagen kosten welche. ${tier.next}.`, rows: [['LIGA', tier.name], ['PUNKTE', `${rp} RP`], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.ranked, focus: '50% 50%' },
       { id: 'friend', name: 'FREUNDE', district: 'ONLINE PER RAUM-CODE', desc: 'Raum erstellen oder beitreten, Code teilen – dann seid ihr verbunden und kämpft online gegeneinander.', rows: [['TEMPO', 'LIVE'], ['HYPE', 'MAXIMAL'], ['SPIELER', '1 GEGEN 1 ONLINE']], img: MODE_IMG.friend, focus: '32% 92%', zoom: 1.4 },
       { id: 'local', name: '2 SPIELER', district: 'EIN GERÄT', desc: 'Zu zweit an einem Gerät: Touch geteilt, Tastatur oder zwei Gamepads.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN 1 LOKAL']], img: MODE_IMG.local, focus: '50% 40%' },
