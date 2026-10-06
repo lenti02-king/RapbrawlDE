@@ -81,6 +81,21 @@ await page.waitForFunction(() => window.__rb, null, { timeout: 120000 });
 await page.evaluate(() => window.__rb.showFighters(0));
 await page.waitForTimeout(3000);
 await page.screenshot({ path: path.join(out, 'artifact-check.png') });
+// design v2 (D42): the home plate + sprites (assets/ui2/**) must load
+await page.evaluate(() => window.__rb.showHome());
+const v2 = await page
+  .waitForFunction(
+    () => {
+      const imgs = [...document.querySelectorAll('.v2-home img')];
+      return imgs.length > 5 && imgs.every((i) => i.complete) ? imgs.filter((i) => !i.naturalWidth).map((i) => i.getAttribute('src')) : null;
+    },
+    null,
+    { timeout: 60000 },
+  )
+  .then((h) => h.jsonValue())
+  .catch(() => ['(timeout)']);
+await page.waitForTimeout(1500);
+await page.screenshot({ path: path.join(out, 'artifact-check-v2.png') });
 // the arena (geometry + baked textures) must load too
 await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training`);
 const arenaOk = await page
@@ -126,6 +141,11 @@ console.log('model/arena files fetched:', [...fetched].sort().join(' '));
 const notJson = ids.filter((id) => ![...fetched].some((f) => f.endsWith(`/${id}.gltf.json`)));
 if (notJson.length) {
   console.error('FAIL: did not load the .gltf.json of', notJson.join(', '));
+  process.exit(1);
+}
+console.log('design v2 images that failed under CSP:', v2.length ? v2.join(', ') : '(none)');
+if (v2.length) {
+  console.error('FAIL: design v2 art did not load under the Artifact CSP');
   process.exit(1);
 }
 // the D42 cutout fighters (parts.json + piece images)

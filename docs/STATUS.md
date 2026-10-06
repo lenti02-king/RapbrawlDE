@@ -12,14 +12,17 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Area | Status | Evidence |
 |---|---|---|
 | Old design saved: commit c0e46a0 in the branch history (local tag `design-v1`; pushing tags is refused by the git proxy) + switch in the game (EINSTELLUNGEN → DESIGN, `?ui=v1\|v2`) | VERIFIED (switch in screenshots) | `src/ui/design.ts` |
-| v2 home, character select, arenas/modes, VS, loading, Kämpfer, Kämpfer anpassen, Freunde-Lobby from the PO masters, German text, depth effects, live 3D fighters | VERIFIED (Chromium 1672x941, 932x430, 844x390; WebKitGTK 932x468 DPR 3 for home + select) | `node scripts/v2shot.mjs "showHome()" artifacts/v2/home`, `node scripts/webkit.mjs` |
+| v2 home, character select, arenas/modes, VS, loading, Kämpfer, Kämpfer anpassen, Freunde-Lobby from the PO masters, German text, depth effects, live 3D fighters | VERIFIED (Chromium 1672x941 all eight; 932x430 / 844x390 home, select, arenas, VS, lobby; WebKitGTK 932x468 DPR 3 for home + select) | `node scripts/v2shot.mjs "showHome()" artifacts/v2/home` (also `showFightersV2()`, `showCustomV2('bonez')`, `showLobbyV2()`), `node scripts/webkit.mjs` |
+| v2 flow home → select → arena → VS → match (e2e), v1 flows still pass with `?ui=v1` | see checks row | `npm run e2e` |
 | Menu fighters stand upright (showcase pose), POSE toggle | VERIFIED (screenshots) | `node scripts/posegrid.mjs` |
 | Specials / Signature cinematics at half speed (sim + render) | VERIFIED (tests 81/81, captures) | `RULES.CINE_RATE` |
 | Diamanten-Regen: chain flash, warning ring at the opponent, 3 hits from above, dodge/block | VERIFIED (tests); visuals see `node scripts/rainshot.mjs` | tests/fighters.test.ts |
-| Blunt für dich as a grab + giant-joint cinematic (roll in, 3 drags, pop) | VERIFIED (tests + frame captures) | `node scripts/cine.mjs blunt` |
-| Croc bigger, calmer camera | BUILT (capture `node scripts/cine.mjs croc`) | |
+| Blunt für dich as a grab + giant-joint cinematic (roll in, 3 drags, pop); victim measured onto the joint axis, arms/legs inside the paper | VERIFIED (tests + frame captures; geometry probe) | `node scripts/cine.mjs blunt`, `node scripts/blunt-measure.mjs 72,78` |
+| Croc bigger, calmer camera (three wide shots: run, bite + drag, toss) | VERIFIED (capture) | `node scripts/cine.mjs croc` |
 | Manuellsen + Lacazette as 2D cutouts from the PO's drawings, movement + normals, no cards | VERIFIED (lab + match screenshots); feel UNVERIFIED (PO test) | `python3 tools/characters/cutout.py`, `?quick=manuellsen,lacazette` |
 | WebKit engine check available here (WebKitGTK MiniBrowser via WebDriver) | VERIFIED tool; iOS Safari itself still UNVERIFIED | `node scripts/webkit.mjs` |
+| Screens without a v2 master (fight HUD, deck/Karten, Profil, Einstellungen, Ergebnis, Shop, Bestenliste) keep their v1 look in both designs | as before (D37/D38) | masters needed from the PO |
+| Arena screen big backgrounds: in-game renders at 1672x941 for all six arenas (an arena without one falls back to its thumbnail) | VERIFIED (screenshots) | `BIG=1 node scripts/arena-thumbs.mjs festival,bahnhof` |
 
 ## Session 9d — iPhone test by the PO: crashes, layout on short screens
 | Area | Status | Evidence |
@@ -232,6 +235,8 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - Hosting decision for signaling/matchmaking + TURN.
 
 ## Next objectives (suggested order)
+0. PO review of design v2 on the iPhone (Artifact): screen by screen; switch back with EINSTELLUNGEN → DESIGN → KLASSISCH. Masters for the fight HUD and the remaining screens if they should follow v2.
+0b. Manuellsen + Lacazette: PO check of the cutout look/motion, then their abilities.
 1. Human playtest on a real phone (APK / Artifact) → tune touch layout, hitstop, damage, meter, charge rate, fatality minigame timing.
 1b. Online "Gegen Freunde" (room code) flow polish (PO: later); outfits/accessories once the PO's assets exist.
 2. Integrate delivered art (card art via `ui/icons.ts` replacement, portraits, GLB characters mapped onto the joint/pose system).

@@ -153,7 +153,7 @@ function rankOf(p: Profile): { name: string; next: string } {
 
 /** Hometowns on the character-select ribbon (from the PO's master design). */
 const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
-const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club']);
+const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club', 'courtyard']);
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
 /** Stored menu mode (older saves used 'online' for the friend room code). */

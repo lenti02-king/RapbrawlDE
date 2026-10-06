@@ -307,7 +307,7 @@ const sim = (page) =>
   await page.waitForSelector('.splash');
   check(await page.evaluate(() => document.documentElement.dataset.design === 'v2'), 'design v2 is the default');
   await page.keyboard.press('Enter');
-  await page.waitForSelector('.v2-home .v2-stage.ready');
+  await page.waitForSelector('.v2-home.ready');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/v01_home.png` });
   await page.click('.v2-home [data-act="fight"]');

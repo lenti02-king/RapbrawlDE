@@ -61,6 +61,7 @@ node scripts/webkit.mjs "/?ui=v2" out.png 932 430 30000 "window.__rb.showHome()"
 python3 tools/characters/cutout.py manuellsen|lacazette   # 2D cutout fighters from the PO's cartoon references (D42)
 node scripts/rainshot.mjs           # Diamanten-Regen capture sheet -> artifacts/rain
 node scripts/posegrid.mjs jazeek out.png '<PoseDef json>' ...   # menu pose iteration (POSE=stance|showcase, YAW=deg)
+node scripts/blunt-measure.mjs 72,78   # Blunt cinematic geometry probe: victim joints vs. the joint axis (no screenshots)
 BIG=1 node scripts/arena-thumbs.mjs festival,bahnhof,podcast   # full-screen arena renders for the v2 arena screen
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).

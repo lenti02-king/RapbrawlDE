@@ -1163,15 +1163,18 @@ function bluntProps(): CineProps {
   twist.rotation.z = -Math.PI / 2;
   twist.position.x = JOINT_LEN + 0.17;
   pivot.add(twist);
-  const ember = new THREE.Mesh(new THREE.CircleGeometry(R_TIP, 28), new THREE.MeshBasicMaterial({ color: 0xff6a1a }));
+  const ember = new THREE.Mesh(new THREE.CircleGeometry(R_TIP + 0.008, 28), new THREE.MeshBasicMaterial({ color: 0xff6a1a, side: THREE.DoubleSide }));
   ember.rotation.y = Math.PI / 2;
   ember.position.x = JOINT_LEN + 0.005;
   pivot.add(ember);
-  const ash = new THREE.Mesh(new THREE.CylinderGeometry(R_TIP - 0.005, R_TIP, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 1 }));
+  // slightly wider than the paper so the two surfaces never z-fight
+  const ash = new THREE.Mesh(new THREE.CylinderGeometry(R_TIP + 0.008, R_TIP + 0.008, 0.06, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0x77736f, roughness: 1, side: THREE.DoubleSide }));
   ash.rotation.z = Math.PI / 2;
   ash.position.x = JOINT_LEN - 0.02;
   pivot.add(ash);
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff7a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  // the ember's glow reads like bloom: drawn over the paper and the ash
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff7a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
+  glow.renderOrder = 10;
   glow.position.x = JOINT_LEN + 0.05;
   pivot.add(glow);
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xffc24a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -1227,7 +1230,8 @@ function bluntProps(): CineProps {
         // the ash grows back along the axis (the cylinder's height is its local y, which runs along the joint)
         const burnt = ramp(f, 66, 126);
         ash.scale.set(1, 1 + burnt * 3, 1);
-        ash.position.x = JOINT_LEN - 0.02 - burnt * 0.09;
+        // its outer cap stays just behind the ember disc, so the glowing tip is never covered
+        ash.position.x = JOINT_LEN - 0.006 - (0.06 * (1 + burnt * 3)) / 2;
         light.intensity = lit ? 2 + 6 * flare : 0;
         light.position.copy(c.world(J.x0 + JOINT_LEN * Math.cos(J.tilt), J.y + JOINT_LEN * Math.sin(J.tilt), 0.3));
         // the lighter flame runs along the joint 60-66
