@@ -10,6 +10,7 @@ import { toArr, type PoseDef } from '../render/pose';
 import { JOINTS } from '../render/rig';
 import { heartGeometry, heartMaterial, makeCrocRunner, makePalm, makeSpotlight, makeSunset, noteTexture, smokeTexture } from '../render/props';
 import { makeDiamondRain, makeTunerCar } from '../render/specials';
+import { crocRunnerModel, palmModel, propModel, tunerCarModel } from '../render/propModels';
 
 /**
  * Card art props: what the ability looks like (wave, spotlight, notes, hearts, diamonds, croc, smoke, wrecking ball,
@@ -50,6 +51,23 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
         }
       return { group: g };
     }
+    case 'jaz_blunt': {
+      // the PO's joint, oversized for the card, with a curling smoke trail
+      const joint = propModel('joint');
+      if (joint) {
+        joint.scale.setScalar(3.2);
+        joint.rotation.set(0.2, -0.4, 0.5);
+        add(joint, 0.85, 1.25, 0.4);
+      }
+      const tex = smokeTexture();
+      for (let i = 0; i < 7; i++) {
+        const sp = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: i % 2 ? 0xdfe6d6 : 0xc9d8bf, transparent: true, opacity: 0.8, depthWrite: false })), 1.1 + Math.sin(i * 1.1) * 0.25, 1.5 + i * 0.22, 0.3);
+        sp.scale.setScalar(0.35 + i * 0.07);
+      }
+      const ember = add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), additive(0xff7a2a, 1)), 1.1, 1.38, 0.5);
+      void ember;
+      return { group: g, wide: 1.2, shiftX: 0.4 };
+    }
     case 'jaz_heart': {
       const geo = heartGeometry();
       for (let i = 0; i < 7; i++) {
@@ -73,11 +91,12 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
     }
     case 'bon_croc': {
       // the little croc scurrying toward the opponent, jaws open
-      const croc = makeCrocRunner();
+      const model = crocRunnerModel();
+      const croc = model ?? makeCrocRunner();
       croc.setOpacity(1);
-      croc.setOpen(40);
+      croc.setOpen(model ? 28 : 40);
       croc.waddle(0.9, 1);
-      croc.group.scale.setScalar(1.15);
+      croc.group.scale.setScalar(model ? 1.05 : 1.15);
       croc.group.rotation.set(0, -0.35, 0);
       add(croc.group, 0.75, 0, 0.35);
       return { group: g, wide: 1.3, shiftX: 0.55 };
@@ -91,9 +110,16 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       return { group: g, wide: 1.2, shiftX: 0.4 };
     }
     case 'bon_abriss': {
-      const ball = add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 20), new THREE.MeshStandardMaterial({ color: 0x2b2140, metalness: 0.7, roughness: 0.35 })), 1.25, 1.2, -0.2);
-      ball.castShadow = true;
-      for (let i = 0; i < 6; i++) add(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.02, 6, 12), new THREE.MeshStandardMaterial({ color: 0x9a94b0, metalness: 0.8, roughness: 0.3 })), 1.25 + i * 0.03, 1.7 + i * 0.13, -0.2).rotation.y = i % 2 ? Math.PI / 2 : 0;
+      const model = propModel('ball');
+      if (model) {
+        // the PO's wrecking ball, swinging in on its chain (origin at the top of the chain)
+        model.rotation.z = 0.35;
+        add(model, 1.6, 2.9, -0.3);
+      } else {
+        const ball = add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 20), new THREE.MeshStandardMaterial({ color: 0x2b2140, metalness: 0.7, roughness: 0.35 })), 1.25, 1.2, -0.2);
+        ball.castShadow = true;
+        for (let i = 0; i < 6; i++) add(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.02, 6, 12), new THREE.MeshStandardMaterial({ color: 0x9a94b0, metalness: 0.8, roughness: 0.3 })), 1.25 + i * 0.03, 1.7 + i * 0.13, -0.2).rotation.y = i % 2 ? Math.PI / 2 : 0;
+      }
       for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.05), additive(0xff6a3d, 0.85)), 0.55 - i * 0.12, 1.0 + i * 0.18, 0.1);
       return { group: g, wide: 1.25, shiftX: 0.45 };
     }
@@ -112,13 +138,13 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
     case 'bon_palm': {
       const sun = add(makeSunset(3.2), 0.4, 1.4, -2.2);
       void sun;
-      add(makePalm(2.8, 0.4), -0.9, 0, -1.4);
-      add(makePalm(3.2, -0.3), 1.4, 0, -1.6);
+      add(palmModel(2.8, 0.4) ?? makePalm(2.8, 0.4), -0.9, 0, -1.4);
+      add(palmModel(3.2, -0.3) ?? makePalm(3.2, -0.3), 1.4, 0, -1.6);
       return { group: g, wide: 1.2 };
     }
     case 'bon_car': {
-      const car = makeTunerCar();
-      car.scale.setScalar(0.7);
+      const car = tunerCarModel() ?? makeTunerCar();
+      car.scale.setScalar(car.userData.wheels.length ? 0.7 : 0.6);
       car.rotation.y = -0.5;
       add(car, 0.9, 0, -0.9);
       return { group: g, wide: 1.35, shiftX: 0.45 };

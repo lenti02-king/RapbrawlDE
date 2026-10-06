@@ -81,6 +81,44 @@ describe('Jazeek', () => {
   });
 });
 
+describe('Jazeek: Blunt für dich', () => {
+  const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_abriss', 'bon_palm']] as [string[], string[]] };
+
+  it('rolls and lights first: the smoke cloud only leaves on frame 46', () => {
+    const s = newMatch(BL);
+    place(s, 2.5);
+    s.fighters[0].meter = 200;
+    const evs = run(s, 1, IN.S1).concat(run(s, 44));
+    expect(ofType(evs, 'projectile')).toHaveLength(0);
+    evs.push(...run(s, 3));
+    expect(ofType(evs, 'projectile').map((p) => p.kind)).toEqual(['bluntsmoke']);
+  });
+
+  it('the cloud reaches a standing opponent and starts the smoke cinematic (150 damage in total)', () => {
+    const s = newMatch(BL);
+    place(s, 2.5);
+    s.fighters[0].meter = 200;
+    const evs = run(s, 1, IN.S1).concat(run(s, 100));
+    expect(ofType(evs, 'cineStart').map((c) => c.id)).toEqual(['jaz_blunt']);
+    evs.push(...run(s, 170));
+    expect(ofType(evs, 'cineEnd')).toHaveLength(1);
+    // (+1 when the cloud lands on the beat: Beat-Drop)
+    const dmg = 1050 - s.fighters[1].health;
+    expect(dmg).toBeGreaterThanOrEqual(10 + 25 + 25 + 15 + 15 + 20 + 40);
+    expect(dmg).toBeLessThanOrEqual(151);
+  });
+
+  it('is blockable and costs two Hype bars', () => {
+    const s = newMatch(BL);
+    place(s, 2.5);
+    s.fighters[0].meter = 200;
+    const evs = run(s, 1, IN.S1).concat(run(s, 100, 0, IN.BLOCK));
+    expect(s.fighters[0].meter).toBeLessThan(100);
+    expect(ofType(evs, 'block')).toHaveLength(1);
+    expect(ofType(evs, 'cineStart')).toHaveLength(0);
+  });
+});
+
 describe('Bonez MC', () => {
   it('Krokodil-Attacke: the croc runs at the opponent, grabs them and starts the croc cinematic (100 damage)', () => {
     const s = newMatch(JB);

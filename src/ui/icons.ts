@@ -30,6 +30,12 @@ const CARD_ICONS: Record<string, string> = {
     `<path d="M14 24h8l10-9v34l-10-9h-8z" fill="#ffffff" ${S}/>
      <path d="M40 22c4 3 4 17 0 20M46 16c8 6 8 26 0 32M52 11c11 9 11 33 0 42" fill="none" stroke="#6ff7ff" stroke-width="4" stroke-linecap="round"/>`,
   ),
+  jaz_blunt: svg(
+    `<path d="M8 44l34-14 6 4-34 14z" fill="#f3efe2" ${S}/>
+     <path d="M42 30l6 4" stroke="#14183a" stroke-width="3.5"/>
+     <circle cx="47" cy="32" r="3.2" fill="#ff7a2a" stroke="#14183a" stroke-width="2"/>
+     <path d="M48 26c-4-4 4-7 0-11s4-7 1-10M55 28c-3-3 3-6 0-9" fill="none" stroke="#c9d8bf" stroke-width="3.5" stroke-linecap="round"/>`,
+  ),
   jaz_spot: svg(
     `<path d="M26 6h12l12 46H14z" fill="#fff6c8" ${S}/>
      <ellipse cx="32" cy="52" rx="20" ry="6" fill="#ffe36b" ${S}/>

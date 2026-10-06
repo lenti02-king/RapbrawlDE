@@ -9,6 +9,9 @@ import { getMove } from '../core/registry';
 import type { GameState, ProjectileState } from '../core/state';
 import type { FighterAnimator } from './animator';
 import { HeartPool, makeCroc, makeCrocRunner, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
+import { showcaseOf } from '../core/sim';
+import { HandProp } from './handProps';
+import { crocAsHead, crocRunnerModel, hasProp, materialsOf, propMesh, propModel, setOpacity, tunerCarModel } from './propModels';
 import type { CharacterRig } from './glbRig';
 import type { VFX } from './vfx';
 
@@ -21,7 +24,20 @@ export class SpecialFX {
   readonly group = new THREE.Group();
   readonly notes = new SpritePool(noteTexture(), 40, THREE.AdditiveBlending);
   readonly hearts = new HeartPool(24);
+  /** Soft smoke puffs (Blunt für dich: wisps from the tip, the exhale, the cloud around the victim). */
+  readonly smoke = new SpritePool(smokeTexture(), 70);
+  /** Sound hook (set by installCinematics): frame-exact sounds inside moves. */
+  sound: ((k: 'lighter' | 'inhale' | 'cough' | 'smoke') => void) | null = null;
+  /** Jazeek's joint (the PO's model) in his right hand, its glowing tip and the lighter flame. */
+  private joints: HandProp[] = [];
+  private tip: THREE.Sprite[] = [];
+  private flame: THREE.Sprite[] = [];
+  private lastMf = [-1, -1];
   private winCroc: Croc;
+  /** The PO's wrecking ball per fighter (Abrissbirne), created on first use. */
+  private balls: (THREE.Object3D | null)[] = [null, null];
+  /** Jazeek's gold mic (the PO's model) in his right hand while he sings. */
+  private mics: HandProp[] = [];
   private spots = [makeSpotlight(0xfff0c8), makeSpotlight(0xfff0c8)];
   private glint: THREE.Sprite;
   private acc = 0;
@@ -29,8 +45,20 @@ export class SpecialFX {
   teethOverride = [false, false];
 
   constructor(private vfx: VFX) {
-    this.group.add(this.notes.group, this.hearts.group);
-    this.winCroc = makeCroc({ top: 0x1f5a2c, side: 0x2c7a38, belly: 0xb9b07a });
+    this.group.add(this.notes.group, this.hearts.group, this.smoke.group);
+    for (let i = 0; i < 2; i++) {
+      const mk = (color: number, size: number) => {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTexture(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+        sp.scale.setScalar(size);
+        sp.visible = false;
+        sp.renderOrder = 41;
+        this.group.add(sp);
+        return sp;
+      };
+      this.tip.push(mk(0xff7a2a, 0.07));
+      this.flame.push(mk(0xffc24a, 0.12));
+    }
+    this.winCroc = crocAsHead(1) ?? makeCroc({ top: 0x1f5a2c, side: 0x2c7a38, belly: 0xb9b07a });
     this.winCroc.setOpacity(0);
     this.group.add(this.winCroc.group);
     for (const sp of this.spots) {
@@ -97,6 +125,7 @@ export class SpecialFX {
   update(s: GameState, dt: number, time: number, anims: FighterAnimator[], rigs: CharacterRig[]): void {
     this.notes.update(dt);
     this.hearts.update(dt);
+    this.smoke.update(dt);
     this.acc += dt;
     const emitTick = this.acc > 1 / 30;
     if (emitTick) this.acc = 0;
@@ -107,6 +136,85 @@ export class SpecialFX {
       if (!anim || !rig) return;
       const x = anim.vx;
       const inMove = (k: string) => f.state === 'move' && f.move === k;
+
+      // --- Jazeek: the gold mic in his right hand whenever he sings (Stimmwelle, intro emote, Signature, win, finisher)
+      if (f.def === 'jazeek' && hasProp('mic')) {
+        const mic = this.mics[i] ?? (this.mics[i] = new HandProp('mic', this.group));
+        const sc = showcaseOf(s);
+        const cineF = s.cine && s.cine.owner === i && s.cine.id === 'jaz_heart' ? s.cine.frame : -1;
+        const fatalF = s.fatal && s.fatal.owner === i ? s.fatal.frame : -1;
+        const on =
+          (inMove('jaz_wave') && f.mf >= 4 && f.mf <= 34) ||
+          (sc?.who === i && sc.f >= 4 && sc.f <= 46) ||
+          (f.state === 'win' && s.roundWinner === i) ||
+          (s.freeze > 0 && s.freezeOwner === i) ||
+          (cineF >= 0 && (cineF < 64 || cineF >= 136)) ||
+          fatalF >= 344;
+        mic.place(rig, 'haR', on);
+      }
+
+      // --- Jazeek: Blunt für dich — the joint appears while he rolls, the lighter flame at 30-38, a glowing tip and
+      // smoke wisps once it is lit, the exhale toward the opponent at 46 (the cloud itself is the projectile)
+      if (f.def === 'jazeek') {
+        const blunt = inMove('jaz_blunt') ? f.mf : -1;
+        const cineF = s.cine && s.cine.owner === i && s.cine.id === 'jaz_blunt' ? s.cine.frame : -1;
+        const show = (blunt >= 8 && blunt <= 62) || cineF >= 0;
+        const jp = this.joints[i] ?? (this.joints[i] = new HandProp('joint', this.group));
+        jp.place(rig, 'haR', show && jp.ok);
+        const lit = (blunt >= 34 && blunt <= 62) || cineF >= 0;
+        const tipPos = show ? jp.obj.localToWorld(new THREE.Vector3(0.085, 0, 0)) : null;
+        this.tip[i].visible = !!tipPos && lit;
+        if (tipPos && lit) {
+          this.tip[i].position.copy(tipPos);
+          this.tip[i].scale.setScalar(0.06 + 0.025 * (0.5 + 0.5 * Math.sin(time * 9)));
+          if (emitTick && Math.random() < 0.35)
+            this.smoke.spawn(tipPos.clone().add(new THREE.Vector3(0, 0.03, 0.02)), new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.32, 0.02), 0xd6dccf, 0.08, 1.4, 4, (Math.random() - 0.5) * 1.5);
+        }
+        const flameOn = !!tipPos && blunt >= 30 && blunt <= 38;
+        this.flame[i].visible = flameOn;
+        if (flameOn && tipPos) {
+          this.flame[i].position.copy(tipPos).add(new THREE.Vector3(0, -0.03, 0.03));
+          this.flame[i].scale.set(0.07 + Math.random() * 0.02, 0.13 + Math.random() * 0.04, 1);
+        }
+        // frame-exact sounds + the exhale stream (once per sim frame)
+        if (blunt >= 0 && blunt !== this.lastMf[i]) {
+          if (blunt === 30) this.sound?.('lighter');
+          if (blunt === 38) this.sound?.('inhale');
+          if (blunt === 46) this.sound?.('smoke');
+          if (blunt >= 46 && blunt <= 56) {
+            const mouth = rig.joints.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(f.facing * 0.14, 0.02, 0.05));
+            for (let k = 0; k < 2; k++)
+              this.smoke.spawn(mouth.clone(), new THREE.Vector3(f.facing * (1.6 + Math.random()), (Math.random() - 0.3) * 0.3, (Math.random() - 0.5) * 0.3), k ? 0xc8d6c0 : 0xe4e8de, 0.14, 0.9, 3.5, (Math.random() - 0.5) * 2);
+          }
+        }
+        this.lastMf[i] = blunt;
+      }
+
+      // --- Bonez: Abrissbirne — the PO's wrecking ball swings in on its chain from the background, straight into the
+      // opponent on the hit frames 18-21 (pendulum about a pivot above them; the hitbox stays the sim's)
+      if (inMove('bon_abriss') && f.mf < 42) {
+        let ball = this.balls[i];
+        if (!ball && hasProp('ball')) {
+          const pivot = new THREE.Group();
+          const m = propModel('ball', true)!;
+          m.scale.setScalar(1.4); // chain + ball 2.1 m
+          pivot.add(m);
+          pivot.userData.mats = materialsOf(m);
+          this.group.add(pivot);
+          ball = this.balls[i] = pivot;
+        }
+        if (ball) {
+          const mf = f.mf;
+          const k = (a: number, b: number) => Math.min(1, Math.max(0, (mf - a) / (b - a)));
+          // + = back into the scene; 0 = hanging straight down at the opponent's head
+          const th = mf < 18 ? 1.25 * (1 - k(4, 18) * k(4, 18)) : mf < 24 ? -0.5 * ease(k(18, 24)) : -0.5 + 0.35 * ease(k(24, 36));
+          ball.visible = true;
+          ball.position.set(x + f.facing * 1.1, 3.6, 0);
+          ball.rotation.set(th, 0, 0);
+          setOpacity(ball.userData.mats as THREE.Material[], Math.min(k(1, 6), 1 - k(32, 41)));
+          if (mf === 18 && f.hitstop === 0 && emitTick) this.vfx.sparks(x + f.facing * 1.1, 1.5, 12, new THREE.Color(0xffd36b), 6, f.facing, 2);
+        }
+      } else if (this.balls[i]) this.balls[i]!.visible = false;
 
       // --- Bonez: gold teeth while grinning
       if (rig.props.teeth) {
@@ -204,11 +312,25 @@ export class SpecialFX {
       }
       return g;
     }
+    if (kind === 'bluntsmoke') {
+      // a thick, slowly churning cloud of soft smoke sprites (greenish grey)
+      const g = new THREE.Group();
+      const tex = smokeTexture();
+      for (let i = 0; i < 14; i++) {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: [0xdfe6d6, 0xc9d8bf, 0xeef0e8][i % 3], transparent: true, depthWrite: false }));
+        const a = (i / 14) * Math.PI * 2;
+        sp.userData = { a, r: 0.12 + ((i * 7) % 5) * 0.06, y: ((i * 5) % 7) / 7 - 0.5, size: 0.5 + ((i * 3) % 4) * 0.12, seed: i * 1.3 };
+        g.add(sp);
+      }
+      return g;
+    }
     if (kind === 'diamonds') return makeDiamondRain();
-    if (kind === 'car') return makeTunerCar();
+    if (kind === 'car') return tunerCarModel() ?? makeTunerCar();
     if (kind === 'crocrun') {
-      const c = makeCrocRunner();
+      const model = crocRunnerModel();
+      const c = model ?? makeCrocRunner();
       c.group.userData.croc = c;
+      c.group.userData.glb = !!model;
       return c.group;
     }
     return null;
@@ -243,7 +365,7 @@ export class SpecialFX {
         c.position.set(d.lane, Math.max(-0.98, y), d.z);
         c.rotation.set(time * d.spin, time * d.spin * 1.3, 0.3);
         const sc = d.size * a * (y < -0.95 ? 0.7 : 1);
-        c.scale.set(sc, sc * 1.4, sc);
+        c.scale.set(sc, sc * (m.userData.glb ? 1 : 1.4), sc);
       });
       if (p.age % 3 === 0) this.vfx.sparks(p.x / U + (Math.random() - 0.5) * 1.2, 0.05, 3, new THREE.Color(0xbff6ff), 3, 0, 2);
       if (p.age % 2 === 0) this.vfx.emit(p.x / U + (Math.random() - 0.5) * 1.3, 2.4, 0.1, 0, -4, 0, new THREE.Color(0xe8fdff), 0.5, 0.06, 0, 0.5, 0, 0);
@@ -263,10 +385,28 @@ export class SpecialFX {
       if (p.age % 2 === 0) this.vfx.emit(p.x / U - p.dir * 1.15, 0.35, 0.2, -p.dir * 2, 0.5, 0, new THREE.Color(0xff8a3d), 0.35, 0.12, 0, 0.2, 0, 0);
       return true;
     }
+    if (p.kind === 'bluntsmoke') {
+      const life = 46;
+      const grow = ease(p.age / 10);
+      const fade = 1 - ease((p.age - (life - 12)) / 12);
+      m.position.set(p.x / U, p.y / U, 0.2);
+      m.children.forEach((c) => {
+        const sp = c as THREE.Sprite;
+        const d = sp.userData as { a: number; r: number; y: number; size: number; seed: number };
+        const a = d.a + time * 1.6 * (d.seed % 2 ? 1 : -1);
+        sp.position.set(Math.cos(a) * d.r * (0.6 + grow), d.y * 0.55 * (0.6 + grow) + Math.sin(time * 2 + d.seed) * 0.04, Math.sin(a) * d.r * 0.5);
+        const sz = d.size * (0.35 + 0.65 * grow);
+        sp.scale.set(sz, sz, 1);
+        (sp.material as THREE.SpriteMaterial).opacity = 0.8 * fade;
+        (sp.material as THREE.SpriteMaterial).rotation = time * 0.6 + d.seed;
+      });
+      return true;
+    }
     if (p.kind === 'crocrun') {
       // Bonez' little crocodile: pops out of the ground dust, then scurries low along the floor snapping its jaws
       const c = m.userData.croc as ReturnType<typeof makeCrocRunner>;
-      const pop = 1.3 * (0.7 + 0.3 * ease(p.age / 5)); // a bit larger than in the cinematic: it runs past the card hand
+      // the procedural croc runs a bit larger than in the cinematic (it passes the card hand); the PO's model is 1.5 m
+      const pop = (m.userData.glb ? 1.0 : 1.3) * (0.7 + 0.3 * ease(p.age / 5));
       m.position.set(p.x / U, 0, 0.12);
       m.scale.set(p.dir * pop, pop, pop);
       c.setOpacity(Math.min(1, p.age / 3 + 0.2));
@@ -335,13 +475,24 @@ function glintTexture(): THREE.CanvasTexture {
 /** Diamond shower: falling, spinning diamonds over a 1.3 m wide zone, plus glints. Local origin = projectile center. */
 export function makeDiamondRain(): THREE.Object3D {
   const g = new THREE.Group();
-  const geo = new THREE.OctahedronGeometry(0.19, 0);
-  const mats = [0xe8fdff, 0x9ff4ff, 0x7fe8ff, 0xffffff].map(
-    (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x4fd8ff, emissiveIntensity: 0.55, transparent: true, opacity: 0.95 }),
-  );
+  // the PO's diamond model when loaded (0.27 m wide, scaled up 1.4x to the procedural size), else octahedra
+  const model = propMesh('diamond');
+  const geo = model?.geometry ?? new THREE.OctahedronGeometry(0.19, 0);
+  const mats = model
+    ? [0, 1].map((i) => {
+        const m = (model.material as THREE.MeshStandardMaterial).clone();
+        m.emissive = new THREE.Color(i ? 0x2f9fff : 0x5fd8ff);
+        m.emissiveIntensity = 0.35;
+        m.transparent = true;
+        return m;
+      })
+    : [0xe8fdff, 0x9ff4ff, 0x7fe8ff, 0xffffff].map(
+        (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x4fd8ff, emissiveIntensity: 0.55, transparent: true, opacity: 0.95 }),
+      );
+  g.userData.glb = !!model;
   for (let i = 0; i < 26; i++) {
     const d = new THREE.Mesh(geo, mats[i % mats.length]);
-    d.userData = { lane: ((i * 37) % 13) / 12 * 1.3 - 0.65, z: (((i * 53) % 9) / 8 - 0.5) * 0.7, off: ((i * 29) % 17) / 17, spin: 4 + (i % 5), size: 0.8 + ((i * 7) % 5) * 0.12 };
+    d.userData = { lane: ((i * 37) % 13) / 12 * 1.3 - 0.65, z: (((i * 53) % 9) / 8 - 0.5) * 0.7, off: ((i * 29) % 17) / 17, spin: 4 + (i % 5), size: (0.8 + ((i * 7) % 5) * 0.12) * (model ? 1.4 : 1) };
     d.castShadow = false;
     g.add(d);
   }

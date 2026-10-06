@@ -11,6 +11,7 @@ import type { AnimSet } from './anims/types';
 import type { CineDef, CineProps, FxCtx, PropCtx } from './cinematics';
 import { compose, sampleDef, smoothClip, type Clip, type EaseName, type PoseDef } from './pose';
 import { makeCroc } from './props';
+import { crocAsHead } from './propModels';
 
 export const FATALITY_FRAMES = 400;
 /** Mocking last words (shown by the HUD at the end of the fatality). */
@@ -473,7 +474,7 @@ function bonVictim(set: AnimSet): Clip {
 
 function bonProps(): CineProps {
   const group = new THREE.Group();
-  const croc = makeCroc({ top: 0x2f7d3a, side: 0x47a64a, belly: 0xe6d79a });
+  const croc = crocAsHead(1) ?? makeCroc({ top: 0x2f7d3a, side: 0x47a64a, belly: 0xe6d79a });
   group.add(croc.group);
   const glow = new THREE.PointLight(0x7cff5a, 0, 7, 1.6);
   return {

@@ -21,6 +21,7 @@ import { App } from './app/app';
 import { ROSTER } from './content';
 import { runLab } from './lab';
 import { loadCharacterModels } from './render/glbRig';
+import { loadPropModels, PROP_IDS } from './render/propModels';
 import { loadingHtml, mountLoading, setLoading } from './ui/menu/loading';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -52,7 +53,15 @@ const bootTick = window.setInterval(() => {
 let app: App | null = null;
 let started = false;
 const modelIds = [...ROSTER, 'volt', 'brick'];
-const models = loadCharacterModels(modelIds, 'assets/characters', overrides, (done) => (bootTarget = 10 + (done / modelIds.length) * 80)).catch(() => [] as string[]);
+let modelsDone = 0;
+let propsDone = 0;
+const progress = () => (bootTarget = 10 + ((modelsDone + propsDone) / (modelIds.length + PROP_IDS.length)) * 80);
+// the PO's prop models (croc, car, mic, ...) load alongside; every user falls back to its procedural prop without them
+const props = loadPropModels('assets/props', (d) => ((propsDone = d), progress())).catch(() => []);
+const models = Promise.all([
+  loadCharacterModels(modelIds, 'assets/characters', overrides, (d) => ((modelsDone = d), progress())).catch(() => [] as string[]),
+  props,
+]).then(([ok]) => ok);
 const timeout = new Promise((res) => setTimeout(res, 60000));
 void Promise.race([models, timeout]).then(() => {
   started = true;

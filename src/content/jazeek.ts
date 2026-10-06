@@ -206,6 +206,40 @@ const moves: MoveDef[] = [
       },
     },
   },
+  // Blunt für dich (PO, after his song "Ich roll ein Blunt für dich"): rolls a joint, lights it, takes a drag and blows a
+  // thick cloud at the opponent (slow projectile from frame 46). A grounded hit starts the cinematic 'jaz_blunt'
+  // (dazed in the smoke, a slow-motion flow combo, a spinning kick out of the cloud). Long wind-up: punishable.
+  {
+    key: 'jaz_blunt',
+    name: 'Blunt für dich',
+    kind: 'special',
+    total: 62,
+    hits: [],
+    projectile: {
+      frame: 46,
+      def: {
+        kind: 'bluntsmoke',
+        x: m(0.45),
+        y: m(1.45),
+        speed: mps(3.2),
+        half: { w: m(0.5), h: m(0.45) },
+        life: 46,
+        hit: hit(1, 1, {
+          damage: 10,
+          chip: 4,
+          strength: 1,
+          hitstun: 30,
+          blockstun: 12,
+          hitstop: 4,
+          pushBlock: 900,
+          cinematic: 'jaz_blunt',
+          boxes: [],
+          meterOnHit: 0,
+          meterOnBlock: 0,
+        }),
+      },
+    },
+  },
   // Diamanten-Regen: "make it rain" — a shower of diamonds falls over a zone in front of him (overhead from above)
   {
     key: 'jaz_rain',
@@ -391,6 +425,18 @@ export const JAZEEK: FighterDef = {
       aiRange: [1.4, 2.8],
     },
     {
+      id: 'jaz_blunt',
+      name: 'Blunt für dich',
+      category: 'offense',
+      cost: 200,
+      move: 'jaz_blunt',
+      role: 'Rauchwolke – benebelt, dann Show',
+      description:
+        'Er rollt in Ruhe einen Blunt, zündet ihn an und pustet dem Gegner eine dicke Wolke ins Gesicht. Erwischt sie ihn, folgt eine benebelte Show-Kombo in Zeitlupe. Langer Anlauf – bestrafbar.',
+      ai: 'range',
+      aiRange: [1.2, 3.2],
+    },
+    {
       id: 'jaz_spot',
       name: 'Spotlight-Dash',
       category: 'mobility',
@@ -432,6 +478,20 @@ export const JAZEEK: FighterDef = {
     },
   ],
   cinematics: {
+    jaz_blunt: {
+      id: 'jaz_blunt',
+      frames: 150,
+      startDx: m(1.6),
+      hits: [
+        { frame: 52, damage: 25, strength: 1 },
+        { frame: 66, damage: 25, strength: 2 },
+        { frame: 80, damage: 15, strength: 1 },
+        { frame: 86, damage: 15, strength: 1 },
+        { frame: 92, damage: 20, strength: 1 },
+        { frame: 114, damage: 40, strength: 3 },
+      ],
+      endDx: m(3.4),
+    },
     jaz_heart: {
       id: 'jaz_heart',
       frames: 150,
@@ -446,5 +506,5 @@ export const JAZEEK: FighterDef = {
       endDx: m(2.1),
     },
   },
-  defaultLoadout: ['jaz_wave', 'jaz_mvp', 'jaz_heart'],
+  defaultLoadout: ['jaz_blunt', 'jaz_mvp', 'jaz_heart'],
 };

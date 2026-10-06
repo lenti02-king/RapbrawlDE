@@ -1,6 +1,9 @@
 // Visual lab: renders rigs in chosen poses for screenshot-based verification.
 // /?lab=poses&a=jazeek&b=bonez&pose=stance|crouch|hitHigh|...&zoom=2
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { HandProp } from './render/handProps';
+import type { PropId } from './render/propModels';
 import { Arena } from './render/arena';
 import { CourtyardArena } from './render/arenas/courtyard';
 import { PodcastArena } from './render/arenas/podcast';
@@ -18,6 +21,10 @@ export function runLab(canvas: HTMLCanvasElement): void {
     const renderer = new THREE.WebGLRenderer({ canvas });
     const arena = new CourtyardArena(new THREE.Scene(), renderer, 'high');
     (window as unknown as { __bake: string }).__bake = JSON.stringify(arena.bakeScene());
+    return;
+  }
+  if (new URLSearchParams(location.search).get('lab') === 'props') {
+    propsLab(canvas);
     return;
   }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -113,6 +120,11 @@ export function runLab(canvas: HTMLCanvasElement): void {
   };
   const moveData = (id: string) => getFighter(id).moves;
   (window as unknown as { __lab: unknown }).__lab = { scene, cam, rigs, setPose, reach, moveData };
+  // hand prop test: &hp=mic|joint&hph=haR&hpo=x,y,z&hpr=x,y,z (grip in hand-local axes, see render/handProps.ts)
+  const hpId = params.get('hp') as PropId | null;
+  const hp = hpId ? new HandProp(hpId, scene) : null;
+  const num3 = (v: string | null) => (v ? (v.split(',').map(Number) as [number, number, number]) : undefined);
+  const hpGrip = params.get('hpo') || params.get('hpr') ? { pos: num3(params.get('hpo')) ?? [0, 0, 0], rot: num3(params.get('hpr')) ?? [0, 0, 0] } : undefined;
   const post = new PostFX(renderer, scene, cam, params.get('q') === 'low' ? 'low' : 'high');
   post.applyLook((arena as { look?: Look }).look);
   post.setSize(window.innerWidth, window.innerHeight);
@@ -120,7 +132,75 @@ export function runLab(canvas: HTMLCanvasElement): void {
   const loop = () => {
     const t = (performance.now() - t0) / 1000;
     arena.update(t, 0.5 + 0.5 * Math.sin(t * 9.4));
+    hp?.place(rigs[Number(params.get('who') ?? 0)], (params.get('hph') as 'haL' | 'haR') ?? 'haR', true, hpGrip);
     post.render(scene, cam);
+    requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+/** /?lab=props&view=front|side|top: every prop of public/assets/props in a row next to a 1.8 m reference column, on a
+ *  1 m grid (+X = right/forward, camera looks down -Z), for checking orientation and size of the PO's models. */
+function propsLab(canvas: HTMLCanvasElement): void {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x30304a);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 2.2));
+  const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+  sun.position.set(3, 6, 5);
+  scene.add(sun);
+  const grid = new THREE.GridHelper(40, 40, 0xffffff, 0x777799);
+  scene.add(grid);
+  const params = new URLSearchParams(location.search);
+  const ids = (params.get('ids') ?? 'joint,heart,mic,diamond,ball,croc,car,palm').split(',');
+  const ref = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.8, 16), new THREE.MeshStandardMaterial({ color: 0xff4f7b }));
+  ref.position.set(-1.5, 0.9, 0);
+  scene.add(ref);
+  const zoom = Number(params.get('zoom') ?? 1);
+  const loader = new GLTFLoader();
+  let x = 0;
+  const gap = Number(params.get('gap') ?? 0.6);
+  const placed: THREE.Object3D[] = [];
+  const done = Promise.all(
+    ids.map((id) => loader.loadAsync(`assets/props/${id}.glb`).then((g) => ({ id, g }))),
+  ).then((list) => {
+    for (const { g } of list) {
+      const jaw = g.scene.getObjectByName('jaw');
+      if (jaw) jaw.rotation.z = (-Number(params.get('jaw') ?? 0) * Math.PI) / 180;
+      const box = new THREE.Box3().setFromObject(g.scene);
+      g.scene.position.x = x - box.min.x;
+      x += box.max.x - box.min.x + gap;
+      scene.add(g.scene);
+      placed.push(g.scene);
+    }
+  });
+  const cam = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.05, 200);
+  const view = params.get('view') ?? 'front';
+  const fit = () => {
+    // frame the props (and the reference column only when ref=1)
+    const box = new THREE.Box3();
+    for (const o of placed) box.expandByObject(o);
+    if (params.get('ref') === '1') box.expandByObject(ref);
+    ref.visible = params.get('ref') !== '0';
+    const c = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const d = (Math.max(size.x, size.y, size.z * 0.5) * 2.2) / zoom + 0.05;
+    if (view === 'top') cam.position.set(c.x, c.y + d, c.z + 0.001);
+    else if (view === 'side') cam.position.set(c.x + d, c.y + d * 0.15, c.z);
+    else cam.position.set(c.x, c.y + d * 0.15, c.z + d);
+    cam.near = d / 100;
+    cam.updateProjectionMatrix();
+    cam.lookAt(c);
+  };
+  void done.then(() => {
+    fit();
+    (window as unknown as { __propsReady: boolean }).__propsReady = true;
+  });
+  const loop = () => {
+    renderer.render(scene, cam);
     requestAnimationFrame(loop);
   };
   loop();

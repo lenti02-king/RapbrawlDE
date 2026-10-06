@@ -872,6 +872,46 @@ export class AudioEngine {
     this.tone(t, 'sine', 130, 45, 0.7, 0.18);
   }
 
+  /** Lighter: wheel click, spark, a soft gas hiss. */
+  lighter(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.noiseHit(t, 'highpass', 4200, 0.8, 0.35, 0.03);
+    this.noiseHit(t + 0.05, 'bandpass', 3000, 2, 0.18, 0.05);
+    this.noiseHit(t + 0.08, 'bandpass', 1800, 0.7, 0.06, 0.5);
+  }
+
+  /** A deep drag: rising filtered breath. */
+  inhale(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    const ctx = this.ctx;
+    const n = ctx.createBufferSource();
+    n.buffer = this.noise;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(500, t);
+    bp.frequency.exponentialRampToValueAtTime(1800, t + 0.55);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.16 * this.sfxVol, t + 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+    n.connect(bp).connect(g).connect(this.sfx);
+    n.start(t, Math.random() * 0.5);
+    n.stop(t + 0.65);
+  }
+
+  /** Coughing in the smoke: three short noisy bursts. */
+  cough(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    for (let i = 0; i < 3; i++) {
+      this.noiseHit(t + i * 0.16, 'bandpass', 700 + i * 90, 1.4, 0.3 - i * 0.06, 0.09);
+      this.tone(t + i * 0.16, 'sawtooth', 160, 110, 0.05, 0.07);
+    }
+  }
+
   smoke(): void {
     if (!this.ctx) return;
     const t = this.now();

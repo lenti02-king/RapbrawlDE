@@ -93,6 +93,30 @@ const sing: PoseDef = {
   },
 };
 
+// Blunt für dich (the special and its cinematic share these): right hand = the joint
+const BLUNT = {
+  roll: (k: number): PoseDef => ({
+    j: {
+      spine: [0, 0, -6],
+      chest: [0, -8, -8],
+      neck: [0, 0, -8],
+      head: [0, 0, -22],
+      shL: [30, 0, 52 + k * 4],
+      elL: [0, 0, 108 - k * 6],
+      haL: [0, 0, k ? 24 : -8],
+      shR: [-30, 0, 52 + (1 - k) * 4],
+      elR: [0, 0, 108 - (1 - k) * 6],
+      haR: [0, 0, k ? -8 : 24],
+    },
+  }),
+  lick: { j: { chest: [0, -8, 2], head: [0, 0, -6], shL: [30, 0, 64], elL: [0, 0, 128], shR: [-30, 0, 64], elR: [0, 0, 128] } } as PoseDef,
+  light: { j: { chest: [0, -14, 4], neck: [0, -4, -4], head: [0, -4, -10], shR: [-26, 0, 54], elR: [0, 0, 140], shL: [30, 0, 58], elL: [0, 0, 136], haL: [0, 0, 30] } } as PoseDef,
+  drag: { y: 0.02, j: { chest: [0, -16, 14], spine: [0, -4, 6], head: [0, -6, 8], shR: [-26, 0, 54], elR: [0, 0, 142], shL: [20, 0, 22], elL: [0, 0, 40] } } as PoseDef,
+  hold: { y: 0.03, j: { chest: [0, -16, 18], spine: [0, -4, 10], head: [0, -8, 20], shR: [-30, 0, 34], elR: [0, 0, 96], shL: [20, 0, 20], elL: [0, 0, 36] } } as PoseDef,
+  blow: { x: 0.04, y: -0.01, j: { spine: [0, 0, -10], chest: [0, -6, -10], neck: [0, 0, -4], head: [0, 0, -2], shR: [-34, 0, 26], elR: [0, 0, 70], shL: [24, 0, 22], elL: [0, 0, 50] } } as PoseDef,
+  chill: { j: { chest: [0, -10, 4], head: [0, -6, 6], shR: [-30, 0, 30], elR: [0, 0, 100], shL: [20, 0, 18], elL: [0, 0, 30] } } as PoseDef,
+};
+
 // clinch for the slams: both arms wrapped round the opponent's waist
 const CLINCH: PoseDef = {
   x: 0.08,
@@ -407,6 +431,27 @@ const moves: Record<string, Clip> = {
     ],
     S,
   ),
+  // Blunt für dich: roll (hands together, head down), lick, light it (cupped hand at the mouth), deep drag, lean back,
+  // then blow the cloud forward (projectile at f46)
+  jaz_blunt: new Clip(
+    [
+      { f: 1, p: {} },
+      { f: 6, p: BLUNT.roll(0), e: 'out' },
+      { f: 10, p: BLUNT.roll(1) },
+      { f: 14, p: BLUNT.roll(0) },
+      { f: 18, p: BLUNT.roll(1) },
+      { f: 22, p: BLUNT.lick, e: 'inOut' },
+      { f: 26, p: BLUNT.roll(0) },
+      { f: 31, p: BLUNT.light, e: 'inOut' },
+      { f: 37, p: BLUNT.light },
+      { f: 41, p: BLUNT.drag, e: 'out' },
+      { f: 45, p: BLUNT.hold, e: 'inOut' },
+      { f: 47, p: BLUNT.blow, e: 'snap' },
+      { f: 55, p: compose(BLUNT.blow, { j: { chest: [0, -8, -12] } }) },
+      { f: 62, p: BLUNT.chill, e: 'inOut' },
+    ],
+    S,
+  ),
   jaz_wave: new Clip(
     [
       { f: 1, p: {} },
@@ -603,4 +648,4 @@ export const JAZEEK_ANIMS: AnimSet = {
 };
 
 /** Key poses reused by the Herzbrecher cinematic. */
-export const JAZEEK_POSES = { jab, cross, backhand, hookR, hookL, kickHigh, sing };
+export const JAZEEK_POSES = { jab, cross, backhand, hookR, hookL, kickHigh, sing, BLUNT };

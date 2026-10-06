@@ -17,7 +17,7 @@ import type { CharacterRig } from './glbRig';
 import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
-import { CAR_RIDE, CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { BLUNT_SESSION, CAR_RIDE, CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
 import { emoteCamera, emoteFor, emoteFx, emoteTeeth } from './emotes';
 import { FATALITIES } from './fatalities';
 
@@ -390,6 +390,7 @@ export const CINEMATICS: Record<string, CineDef> = {
   bon_palm: PALMEN_BASSDROP,
   bon_croc: CROC_ATTACK,
   bon_car: CAR_RIDE,
+  jaz_blunt: BLUNT_SESSION,
   ...FATALITIES,
 };
 
@@ -678,4 +679,5 @@ export function installCinematics(view: GameView, audio: AudioEngine): void {
   // build props (and their lights) up front: no hitch or shader recompile on the first signature
   for (const [id, def] of Object.entries(CINEMATICS)) if (def.props) rt.propsFor(id, def);
   view.hooks.cinematic = (_v, s, _dt, alpha) => rt.update(s, alpha);
+  view.fx.sound = (k) => audio[k]();
 }
