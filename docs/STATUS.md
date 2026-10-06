@@ -4,7 +4,7 @@ _Last updated: 2026-10-06 (session 9c: the PO's prop models at real size, Jazeek
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, republished in session 9c): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, version 13 = session 9c): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
