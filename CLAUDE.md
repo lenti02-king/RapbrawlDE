@@ -20,7 +20,7 @@ npm run e2e            # Playwright E2E against BASE_URL (default localhost:5173
 node scripts/play.mjs basic|super   # scripted gameplay screenshots -> artifacts/
 node scripts/shot.mjs "/?lab=poses&pose=crouch" out.png   # pose lab screenshot
 node scripts/moves.mjs jazeek|bonez # every move at first active frame + hitbox overlay -> contact sheet
-node scripts/cine.mjs jazeek|bonez|croc|car [f1,f2,..]  # frame-accurate cinematic capture (croc/car = Bonez' grabbing specials)
+node scripts/cine.mjs jazeek|bonez|croc|car|blunt [f1,f2,..]  # frame-accurate cinematic capture (croc/car = Bonez' grabbing specials, blunt = Jazeek's)
 node scripts/introshot.mjs [f1,f2,..]   # round-1 fighter showcase (emote, face close-up, name) at intro frames -> artifacts/intro
 node scripts/specials.mjs           # special-move VFX/props sheet (voice wave, spotlight, croc, smoke, grin)
 node scripts/ui.mjs                 # menu flow + HUD screenshots, desktop and phone landscape -> artifacts/ui
@@ -43,7 +43,10 @@ node scripts/loadshot.mjs | selectshot.mjs | shopshot.mjs [out]   # captures of 
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
-node scripts/arena-shot.mjs artifacts/arena/x high   # in-game arena shots at close/mid/wide fighter distance
+node scripts/arena-shot.mjs artifacts/arena/x high ["&arena=festival|bahnhof"]   # in-game arena shots at close/mid/wide fighter distance
+python3 tools/arena/plates.py festival|bahnhof   # PO painting (tools/arena/ref/, git-ignored) -> backdrop plate + floor tile + meta, real names replaced
+node scripts/crowdshot.mjs "style=hipster|rocker&t=1.1&n=1&zoom=1.6" out.png   # crowd close-up from ?lab=crowd
+python3 tools/meshy/props.py [id ..]   # PO prop models (.cache/props, release modelle-2) -> public/assets/props/<id>.glb at real size; check in ?lab=props&ids=..
 node scripts/filmstrip.mjs jazeek walkF,jaz_5L,hit,"seq:F*12.l*2._*20" [every] [q]   # in-game frame strips (GIF=1 CROP=full for an animated GIF)
 node scripts/posesheet.mjs bonez "move:bon_5H:1-35:2"   # authored clip frames straight from the lab (no sim/blending)
 node scripts/reach.mjs jazeek|bonez   # fist/foot position at the first active frame vs. the sim hitbox (run after editing strikes)
@@ -56,7 +59,8 @@ Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS nu
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
 Fighter models: `public/assets/characters/<id>.glb` = the product owner's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
-Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=courtyard|club|toon` for the old ones.
+Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.
+Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.ts`, procedural fallback); hand-held ones via `render/handProps.ts` (grips per prop).
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
 UI (D38): the PO's master screenshots are the source — art is cut from their pixels (`tools/ui-extract/`), text is native German; screens in `src/ui/menu/` (mainMenu, loading, charSelect, arenaSelect, shop; shared `kit.ts/.css`; generated `*Art.ts`; sprites in `src/ui/img/<screen>/`). Older screens: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).

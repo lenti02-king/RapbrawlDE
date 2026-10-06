@@ -1,6 +1,7 @@
 // Frame-accurate capture of a signature cinematic: pauses the sim and steps to chosen
 // cinematic frames. Usage: node scripts/cine.mjs jazeek|bonez|volt|brick|croc [f1,f2,..]
-// (croc = Bonez' Krokodil-Attacke, car = Tiefergelegt: specials put in slot 1; projectiles that start a cinematic on hit)
+// (croc = Bonez' Krokodil-Attacke, car = Tiefergelegt, blunt = Jazeek's Blunt für dich: specials put in slot 1; projectiles
+// that start a cinematic on hit; blunt also shoots the rolling/lighting/blowing move frames)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -12,21 +13,23 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-const croc = who === 'croc' || who === 'car';
+const blunt = who === 'blunt';
+const croc = who === 'croc' || who === 'car' || blunt;
 const quick = who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez';
 await page.goto(`${base}/?quick=${quick}&mode=cpu`);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
-const idx = who === 'brick' || who === 'bonez' || croc ? 1 : 0;
+const idx = who === 'brick' || who === 'bonez' || (croc && !blunt) ? 1 : 0;
 await page.evaluate(([idx, croc, who]) => {
   const r = window.__rb.runner;
   r.paused = true;
   r.sources[0].poll = () => 0;
   r.sources[1].poll = () => 0;
   const s = r.state;
-  s.fighters[0].x = croc ? -16000 : -6000;
-  s.fighters[1].x = croc ? 16000 : 6000;
+  const half = who === 'blunt' ? 12000 : croc ? 16000 : 6000;
+  s.fighters[0].x = -half;
+  s.fighters[1].x = half;
   s.fighters[idx].meter = 300;
-  if (croc) s.fighters[idx].loadout[0] = who === 'car' ? 'bon_car' : 'bon_croc';
+  if (croc) s.fighters[idx].loadout[0] = who === 'car' ? 'bon_car' : who === 'blunt' ? 'jaz_blunt' : 'bon_croc';
   const src = r.sources[idx];
   // tap the signature button (every other frame) until the super flash starts
   let n = 0;
@@ -49,6 +52,12 @@ const snap = async (name) => {
   await page.screenshot({ path: f });
   files.push(f);
 };
+if (blunt) {
+  for (const mf of [6, 14, 22, 31, 36, 42, 48, 56]) {
+    await stepUntil((mf) => window.__rb.runner.state.fighters[0].mf >= mf, 200, mf);
+    await snap(`m${String(mf).padStart(2, '0')}`);
+  }
+}
 if (croc) {
   await stepUntil(() => window.__rb.runner.state.projectiles.length > 0);
   await snap('00_croc_out');
@@ -67,6 +76,7 @@ const FRAMES = {
   bonez: [10, 24, 32, 52, 70, 76, 92, 108, 116, 119, 126, 150],
   croc: [4, 9, 14, 24, 35, 50, 57, 64, 72, 80, 86, 89, 92, 97, 104],
   car: [3, 8, 20, 32, 44, 50, 56, 70, 84, 88, 92, 98, 104, 112, 118],
+  blunt: [4, 16, 27, 36, 52, 60, 66, 72, 80, 86, 92, 104, 114, 122, 136, 146],
 };
 const frames = (process.argv[3] ? process.argv[3].split(',').map(Number) : null) ?? FRAMES[who];
 for (const f of frames) {

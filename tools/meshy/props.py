@@ -6,7 +6,7 @@ anpassen"), game orientation (glTF +X = forward/long axis where it matters), a s
 smaller textures (resampled from the original JPEG bytes, no repainting).
 
 Usage: python3 tools/meshy/props.py [id ...]   ->  public/assets/props/<id>.glb
-Fetch: tools/meshy/fetch-props.sh (release assets -> .cache/props/)
+Sources: the PO's release assets (GitHub release `modelle-2`), saved as .cache/props/<id>.glb (not in git)
 """
 from __future__ import annotations
 

@@ -1,5 +1,6 @@
 // Builds the Artifact payload (single-file page + models as .gltf.json) and loads it under an Artifact-like CSP
-// (relative fetches only: no data:/blob: in connect-src). Fails if the fighter models do not load there.
+// (relative fetches only: no data:/blob: in connect-src). Fails if the fighter models, the PO's props or the arenas
+// (podcast, festival, Bahnhofsviertel) do not load there.
 // Usage: node scripts/artifact-check.mjs [outDir]   (no dev server needed)
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
@@ -15,8 +16,20 @@ for (const id of ids)
   execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}.glb ${path.join(out, 'assets/characters', id + '.gltf.json')} --external-images`, { stdio: 'inherit' });
 // the Vite build copies public/ (incl. .glb and the gitignored test models); the Artifact gets none of that
 fs.rmSync(path.join(out, 'test-models'), { recursive: true, force: true });
-for (const dir of ['assets/characters', 'assets/arena/podcast'])
+for (const dir of ['assets/characters', 'assets/arena/podcast', 'assets/props'])
   if (fs.existsSync(path.join(out, dir))) for (const f of fs.readdirSync(path.join(out, dir))) if (f.endsWith('.glb')) fs.rmSync(path.join(out, dir, f));
+// the PO's props: .gltf.json with the textures as separate images (each file well under the limit)
+const propDir = path.join(out, 'assets/props');
+fs.mkdirSync(propDir, { recursive: true });
+const propIds = fs.readdirSync('public/assets/props').filter((f) => f.endsWith('.glb')).map((f) => f.replace(/\.glb$/, ''));
+for (const id of propIds)
+  execSync(`node scripts/glb-to-json.mjs public/assets/props/${id}.glb ${path.join(propDir, id + '.gltf.json')} --external-images`, { stdio: 'inherit' });
+// painted arenas: plates + floor + meta as they are (the Vite build already copied them; make sure)
+for (const a of ['festival', 'bahnhof']) {
+  const d = path.join(out, 'assets/arena', a);
+  fs.mkdirSync(d, { recursive: true });
+  for (const f of fs.readdirSync(`public/assets/arena/${a}`)) fs.copyFileSync(`public/assets/arena/${a}/${f}`, path.join(d, f));
+}
 // podcast arena: geometry as .gltf.json, baked textures and meta as they are
 const arenaDir = path.join(out, 'assets/arena/podcast');
 fs.mkdirSync(arenaDir, { recursive: true });
@@ -25,7 +38,7 @@ for (const f of fs.readdirSync('public/assets/arena/podcast')) {
   else fs.copyFileSync(path.join('public/assets/arena/podcast', f), path.join(arenaDir, f));
 }
 const big = [];
-for (const dir of ['assets/characters', 'assets/arena/podcast', '.'])
+for (const dir of ['assets/characters', 'assets/arena/podcast', 'assets/props', 'assets/arena/festival', 'assets/arena/bahnhof', '.'])
   for (const f of fs.readdirSync(path.join(out, dir))) {
     const st = fs.statSync(path.join(out, dir, f));
     if (st.isFile() && st.size > 15e6) big.push(`${dir}/${f} ${(st.size / 1e6).toFixed(1)} MB`);
@@ -62,6 +75,8 @@ page.on('response', (r) => r.ok() && /\.(gltf\.json|jpg)$/.test(r.url()) && fetc
 await page.goto(`http://localhost:${port}/rapbrawl.html?q=low`);
 await page.waitForFunction(() => window.__models, null, { timeout: 120000 });
 const models = await page.evaluate(() => window.__models);
+await page.waitForFunction(() => window.__props, null, { timeout: 120000 });
+const props = await page.evaluate(() => window.__props);
 await page.waitForFunction(() => window.__rb, null, { timeout: 120000 });
 await page.evaluate(() => window.__rb.showFighters(0));
 await page.waitForTimeout(3000);
@@ -81,12 +96,32 @@ const arenaOk = await page
   .then(() => true)
   .catch(() => false);
 await page.screenshot({ path: path.join(out, 'artifact-check-arena.png') });
+// the painted arenas: backdrop plate + floor textures
+const painted = {};
+for (const a of ['festival', 'bahnhof']) {
+  await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training&arena=${a}`);
+  painted[a] = await page
+    .waitForFunction(
+      () => {
+        let n = 0;
+        window.__rb?.view?.arena?.group?.traverse((o) => (n += o.isMesh && o.material?.map?.image ? 1 : 0));
+        return n >= 2;
+      },
+      null,
+      { timeout: 240000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  await page.screenshot({ path: path.join(out, `artifact-check-${a}.png`) });
+}
 await browser.close();
 server.close();
 const missing = ids.filter((id) => !models.includes(id));
 console.log('models loaded under CSP:', models.join(', ') || '(none)');
 if (errors.length) console.log('console errors:', errors);
 console.log('podcast arena loaded under CSP:', arenaOk);
+console.log('props loaded under CSP:', props.join(', ') || '(none)');
+console.log('painted arenas loaded under CSP:', JSON.stringify(painted));
 console.log('model/arena files fetched:', [...fetched].sort().join(' '));
 const notJson = ids.filter((id) => ![...fetched].some((f) => f.endsWith(`/${id}.gltf.json`)));
 if (notJson.length) {
@@ -95,6 +130,15 @@ if (notJson.length) {
 }
 if (!arenaOk) {
   console.error('FAIL: podcast arena did not load under the Artifact CSP');
+  process.exit(1);
+}
+const missingProps = propIds.filter((id) => !props.includes(id));
+if (missingProps.length) {
+  console.error('FAIL: props missing under the Artifact CSP:', missingProps.join(', '));
+  process.exit(1);
+}
+if (!painted.festival || !painted.bahnhof) {
+  console.error('FAIL: painted arenas did not load under the Artifact CSP', JSON.stringify(painted));
   process.exit(1);
 }
 if (missing.length) {

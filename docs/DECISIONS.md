@@ -222,3 +222,31 @@ the real shop. Shared helpers: `src/ui/menu/kit.ts` + `kit.css`.
 - **Smoother cinematics** (PO): cinematic, fatality and emote clips use `smoothClip` — keys without an explicit ease
   follow a cubic Hermite spline through their neighbours instead of stopping at every key; camera keys inside a shot do
   the same (continuous dolly speed). Explicit eases (snap, hold, ...) keep their exact timing.
+
+## D40 — The PO's prop models, "Blunt für dich", painted arenas with 3D crowds (2026-10-06)
+- **PO props** (GitHub release `modelle-2`: joint, broken heart, wrecking ball, diamond, gold mic, croc, speaker palm,
+  tuner car; Meshy exports, all normalised to ~1.9 m with 8K textures): `tools/meshy/props.py` makes the game copy —
+  real-world size per prop (PO: "die Grösse der Props anpassen"; joint 17 cm, mic 30 cm, croc 1.5 m, car 2.7 m, palm
+  5 m, …), game orientation (+X forward), origin where it stands or swings, decimated (600–40k tris) and textures
+  resampled from the original JPEG bytes (no repainting). Parts that must move are split off in the same pass: the
+  croc's lower jaw (node `jaw`, hinge at the mouth corner) and the two heart halves (`left`/`right`). Runtime:
+  `render/propModels.ts` loads them at boot next to the fighters; every user falls back to the procedural prop when a
+  file is missing. Props held in a hand (`render/handProps.ts`) are placed from the hand bone's world matrix each frame
+  (not parented: bone/model scales would shrink them), with per-prop grips found in the lab (`?lab=props`, `?hp=`).
+- **Blunt für dich** (PO: Jazeek rolls and lights a joint after his song, blows the smoke at the opponent, then a cool
+  combo): a 62-frame special (roll, lick, light with a lighter flame, drag, blow) firing a slow smoke cloud; a grounded
+  hit starts a 150-frame cinematic (victim coughs and staggers in the cloud, smoke ring, backfist, sweep, three beat
+  hits, spinning kick out of the cloud, last drag). Long wind-up, punishable, damage like the other specials.
+  Rating/reputation note for the PO: a real person shown smoking a joint is a USK and image question (decision open).
+- **Painted arenas** (PO paintings "Splash Festival" and "Bahnhofsviertel"): instead of rebuilding the scenes in 3D, the
+  painting is the backdrop on a large plane far behind the fight (real perspective parallax against the 3D floor;
+  mirrored texture edges for wide phones), cut at its ground line and alpha-faded into a 3D floor built from a tile of
+  its own ground (sand / wet cobbles + a blurred, fresnel-faded reflector on medium/high). Real names in the paintings
+  are replaced (third-party marks rule, `tools/arena/plates.py`): the festival's logo → RAPBRAWL badge, the arena is
+  called "Festival-Bühne"; PIK DAME / YOK YOK / MOSELECK → PIK ASS / KIOSK 069 / WEINECK (native neon lettering). The
+  reference paintings stay out of git (`tools/arena/ref/`, ignored).
+- **3D crowds** (PO: festival hipsters partying + moshpit, rocker gangs in the Bahnhofsviertel, stylized like the props):
+  `render/crowd.ts` builds chunky game-art people from primitives (faces, two-segment arms/legs, hats, beards, glasses,
+  open vests, phones/cups/beer) with baked shading, one InstancedMesh per part (~25 draw calls per crowd). Behaviours
+  run on the music beat and react to hits/hype; the festival has two circle pits. Chosen over Meshy-generated crowd
+  members (cost, no rig, draw calls) — a later upgrade path if the PO wants a richer look.

@@ -86,7 +86,7 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/d05c_loading.png` });
   await page.waitForFunction(() => window.__rb.mode === 'cpu', null, { timeout: 60000 });
   // vs CPU: the player's pick and the CPU's pick are drawn; the drawn arena must be the one that is built
-  check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena && ['podcast', 'toon', 'club', 'courtyard'].includes(window.__rb.sel.arena)), 'drawn arena is used for the match');
+  check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena && ['festival', 'bahnhof', 'podcast', 'toon', 'club', 'courtyard'].includes(window.__rb.sel.arena)), 'drawn arena is used for the match');
   let s = await sim(page);
   check(JSON.stringify(s.f[0].loadout) === JSON.stringify(['bon_croc', 'bon_smoke', 'bon_palm']), `chosen deck reaches the match (${s.f[0].loadout})`);
   check(await page.evaluate(() => window.__vsSeen), 'VS intro is shown at match start');
