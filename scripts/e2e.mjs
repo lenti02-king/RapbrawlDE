@@ -30,6 +30,7 @@ const sim = (page) =>
 {
   const errors = [];
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.setDefaultTimeout(120000); // software GL: ~1 s per frame at 720p, screenshots wait for one
   watchErrors(page, errors);
   await page.goto(base + '/?touch=0&q=low');
   await page.evaluate(() => localStorage.clear());
@@ -198,6 +199,7 @@ const sim = (page) =>
   // DPR 1 keeps software rendering fast enough; CSS layout is identical to the real device.
   const ctx = await browser.newContext({ ...devices['iPhone 13 landscape'], deviceScaleFactor: 1 });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(120000);
   watchErrors(page, errors);
   await page.goto(base + '/?q=low');
   await page.evaluate(() => localStorage.clear());
@@ -288,6 +290,7 @@ const sim = (page) =>
 // ------------------------------------------------------- performance probe
 {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.setDefaultTimeout(120000); // software GL: ~1 s per frame at 720p, screenshots wait for one
   await page.goto(base + '/?quick=jazeek,bonez&q=low');
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
   const perf = await page.evaluate(
