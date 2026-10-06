@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HandProp } from './render/handProps';
+import { Crowd, type Behaviour, type CrowdStyle } from './render/crowd';
 import type { PropId } from './render/propModels';
 import { Arena } from './render/arena';
 import { CourtyardArena } from './render/arenas/courtyard';
@@ -25,6 +26,10 @@ export function runLab(canvas: HTMLCanvasElement): void {
   }
   if (new URLSearchParams(location.search).get('lab') === 'props') {
     propsLab(canvas);
+    return;
+  }
+  if (new URLSearchParams(location.search).get('lab') === 'crowd') {
+    crowdLab(canvas);
     return;
   }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -204,4 +209,50 @@ function propsLab(canvas: HTMLCanvasElement): void {
     requestAnimationFrame(loop);
   };
   loop();
+}
+
+/** Crowd close-ups: /?lab=crowd&style=hipster|rocker&beh=jump,cheer,..&t=1.3&n=2 (one column per behaviour, n rows). */
+function crowdLab(canvas: HTMLCanvasElement): void {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  const params = new URLSearchParams(location.search);
+  const style = (params.get('style') ?? 'hipster') as CrowdStyle;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(style === 'hipster' ? 0x8a6a8a : 0x1a1d30);
+  scene.add(new THREE.HemisphereLight(0xffe6cc, 0x6a4a3a, 0.9));
+  const sun = new THREE.DirectionalLight(0xffc890, 1.8);
+  sun.position.set(-3, 5, 6);
+  scene.add(sun);
+  const rim = new THREE.DirectionalLight(0x6ad8ff, 1.0);
+  rim.position.set(4, 4, -6);
+  scene.add(rim);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 1 }));
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+  const all: Behaviour[] = style === 'hipster' ? ['jump', 'cheer', 'film', 'pump', 'clap', 'sway', 'mosh'] : ['crossed', 'nod', 'drink', 'point', 'nod', 'crossed'];
+  const behs = (params.get('beh')?.split(',') as Behaviour[] | undefined) ?? all;
+  const rows = Number(params.get('n') ?? 2);
+  const spots = behs.flatMap((b, i) => Array.from({ length: rows }, (_, r) => ({ x: (i - (behs.length - 1) / 2) * 1.1, z: -r * 1.4, behaviour: b, yaw: -Math.atan2(-((i - (behs.length - 1) / 2) * 1.1) * 0.15, 1) })));
+  const crowd = new Crowd(style, spots, Number(params.get('seed') ?? 5), 'high');
+  scene.add(crowd.group);
+  const ref = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.8, 8), new THREE.MeshStandardMaterial({ color: 0xff4f7b }));
+  ref.position.set(((behs.length + 1) / 2) * 1.1, 0.9, 0);
+  scene.add(ref);
+  const zoom = Number(params.get('zoom') ?? 1);
+  const cam = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.05, 200);
+  const d = ((behs.length * 1.1 + 1) * 1.9) / zoom;
+  cam.position.set(Number(params.get('cx') ?? 0), 1.3 + Number(params.get('cy') ?? 0), d);
+  cam.lookAt(Number(params.get('cx') ?? 0), 1.0 + Number(params.get('cy') ?? 0), -0.5);
+  const fixed = params.get('t');
+  const t0 = performance.now();
+  const loop = () => {
+    const t = fixed != null ? Number(fixed) : (performance.now() - t0) / 1000;
+    crowd.update(t, t * 1.5, Number(params.get('hype') ?? 0.5), 1 / 60);
+    renderer.render(scene, cam);
+    requestAnimationFrame(loop);
+  };
+  loop();
+  (window as unknown as { __crowdReady: boolean }).__crowdReady = true;
 }

@@ -10,6 +10,7 @@ import { Arena } from './arena';
 import { CourtyardArena } from './arenas/courtyard';
 import { PodcastArena } from './arenas/podcast';
 import { HinterhofArena, type ArenaLike } from './arenas/hinterhof';
+import { PaintedArena } from './arenas/painted';
 import { detectQuality, type Look, PostFX, type Quality } from './post';
 import { CameraDirector, type CamShot } from './camera';
 import { buildCharacter, CHARACTER_VISUALS } from './characters';
@@ -100,6 +101,7 @@ export class GameView {
     if (arenaId === 'club') this.arena = new Arena(this.scene);
     else if (arenaId === 'toon') this.arena = new HinterhofArena(this.scene);
     else if (arenaId === 'podcast') this.arena = new PodcastArena(this.scene, this.renderer, this.quality);
+    else if (arenaId === 'festival' || arenaId === 'bahnhof') this.arena = new PaintedArena(this.scene, arenaId, this.quality);
     else {
       const a = new CourtyardArena(this.scene, this.renderer, this.quality);
       a.setShadowQuality(this.quality === 'high' ? 2048 : 1024);

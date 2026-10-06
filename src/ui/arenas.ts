@@ -4,6 +4,8 @@ import PODCAST from './img/arena-podcast.jpg?inline';
 import TOON from './img/arena-toon.jpg?inline';
 import CLUB from './img/arena-club.jpg?inline';
 import COURT from './img/arena-courtyard.jpg?inline';
+import FESTIVAL from './img/arena-festival.jpg?inline';
+import BAHNHOF from './img/arena-bahnhof.jpg?inline';
 
 export interface ArenaInfo {
   id: string;
@@ -18,6 +20,26 @@ export interface ArenaInfo {
 }
 
 export const ARENAS: ArenaInfo[] = [
+  {
+    id: 'festival',
+    name: 'FESTIVAL-BÜHNE',
+    district: 'OPEN AIR · BAGGERSEE',
+    desc: 'Sonnenuntergang zwischen den alten Riesenbaggern: Main Stage, CO2-Kanonen, Lichtkegel – und vorne eskaliert der Moshpit.',
+    time: 'SONNENUNTERGANG',
+    mood: 'FESTIVAL',
+    crowd: 'MOSHPIT',
+    img: FESTIVAL,
+  },
+  {
+    id: 'bahnhof',
+    name: 'BAHNHOFSVIERTEL',
+    district: 'FRANKFURT · 069',
+    desc: 'Nasser Asphalt, Neon, Kiosk an der Ecke. Die Rockergang vor der Bar schaut ganz genau zu, wer hier steht.',
+    time: 'NACHT',
+    mood: 'GEFÄHRLICH',
+    crowd: 'ROCKER',
+    img: BAHNHOF,
+  },
   {
     id: 'podcast',
     name: 'BLOCK BEATS STUDIO',
