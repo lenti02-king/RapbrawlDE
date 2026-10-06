@@ -13,14 +13,15 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 |---|---|---|
 | Old design saved: commit c0e46a0 in the branch history (local tag `design-v1`; pushing tags is refused by the git proxy) + switch in the game (EINSTELLUNGEN → DESIGN, `?ui=v1\|v2`) | VERIFIED (switch in screenshots) | `src/ui/design.ts` |
 | v2 home, character select, arenas/modes, VS, loading, Kämpfer, Kämpfer anpassen, Freunde-Lobby from the PO masters, German text, depth effects, live 3D fighters | VERIFIED (Chromium 1672x941 all eight; 932x430 / 844x390 home, select, arenas, VS, lobby; WebKitGTK 932x468 DPR 3 for home + select) | `node scripts/v2shot.mjs "showHome()" artifacts/v2/home` (also `showFightersV2()`, `showCustomV2('bonez')`, `showLobbyV2()`), `node scripts/webkit.mjs` |
-| v2 flow home → select → arena → VS → match (e2e), v1 flows still pass with `?ui=v1` | see checks row | `npm run e2e` |
+| v2 flow home → select → arena → VS → match (e2e), v1 flows still pass with `?ui=v1` | VERIFIED (e2e 29/29) | `npm run e2e` |
 | Menu fighters stand upright (showcase pose), POSE toggle | VERIFIED (screenshots) | `node scripts/posegrid.mjs` |
 | Specials / Signature cinematics at half speed (sim + render) | VERIFIED (tests 81/81, captures) | `RULES.CINE_RATE` |
-| Diamanten-Regen: chain flash, warning ring at the opponent, 3 hits from above, dodge/block | VERIFIED (tests); visuals see `node scripts/rainshot.mjs` | tests/fighters.test.ts |
+| Diamanten-Regen: chain flash, warning ring + light shaft at the opponent, then a shower of many small sparkling diamonds, 3 hits from above, dodge/block | VERIFIED (tests + capture sheet) | tests/fighters.test.ts, `node scripts/rainshot.mjs` |
 | Blunt für dich as a grab + giant-joint cinematic (roll in, 3 drags, pop); victim measured onto the joint axis, arms/legs inside the paper | VERIFIED (tests + frame captures; geometry probe) | `node scripts/cine.mjs blunt`, `node scripts/blunt-measure.mjs 72,78` |
 | Croc bigger, calmer camera (three wide shots: run, bite + drag, toss) | VERIFIED (capture) | `node scripts/cine.mjs croc` |
 | Manuellsen + Lacazette as 2D cutouts from the PO's drawings, movement + normals, no cards | VERIFIED (lab + match screenshots); feel UNVERIFIED (PO test) | `python3 tools/characters/cutout.py`, `?quick=manuellsen,lacazette` |
-| WebKit engine check available here (WebKitGTK MiniBrowser via WebDriver) | VERIFIED tool; iOS Safari itself still UNVERIFIED | `node scripts/webkit.mjs` |
+| WebKit engine check (WebKitGTK MiniBrowser via WebDriver): home, select, Kämpfer anpassen, Lobby render fully at 932x392 DPR 3 | VERIFIED here; iOS Safari itself still UNVERIFIED | `node scripts/webkit.mjs` (AFTER=7000 lets the entrance animations finish) |
+| Checks: unit 81/81, typecheck, e2e 29/29 (desktop + phone v1 flows, v2 flow) + perf probe, netplay 60 ms (22 rollbacks, 0 checksum mismatches), Artifact payload under CSP incl. v2 art + cutout fighters; Artifact published as **version 19** (page + rapbrawl.js + `assets/ui2/**` + the two cutout fighters) | VERIFIED | `npm test`, `npm run e2e`, `node scripts/netplay.mjs 60`, `node scripts/artifact-check.mjs` |
 | Screens without a v2 master (fight HUD, deck/Karten, Profil, Einstellungen, Ergebnis, Shop, Bestenliste) keep their v1 look in both designs | as before (D37/D38) | masters needed from the PO |
 | Arena screen big backgrounds: in-game renders at 1672x941 for all six arenas (an arena without one falls back to its thumbnail) | VERIFIED (screenshots) | `BIG=1 node scripts/arena-thumbs.mjs festival,bahnhof` |
 

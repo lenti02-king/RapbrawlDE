@@ -1167,6 +1167,11 @@ function bluntProps(): CineProps {
   ember.rotation.y = Math.PI / 2;
   ember.position.x = JOINT_LEN + 0.005;
   pivot.add(ember);
+  // the burning rim: a short glowing band at the very tip (reads from the side, where the end disc is edge-on)
+  const emberBand = new THREE.Mesh(new THREE.CylinderGeometry(R_TIP + 0.012, R_TIP + 0.012, 0.09, 28, 1, true), new THREE.MeshBasicMaterial({ color: 0xff5a10, side: THREE.DoubleSide, toneMapped: false }));
+  emberBand.rotation.z = Math.PI / 2;
+  emberBand.position.x = JOINT_LEN - 0.04;
+  pivot.add(emberBand);
   // slightly wider than the paper so the two surfaces never z-fight
   const ash = new THREE.Mesh(new THREE.CylinderGeometry(R_TIP + 0.008, R_TIP + 0.008, 0.06, 28, 1, true), new THREE.MeshStandardMaterial({ color: 0x77736f, roughness: 1, side: THREE.DoubleSide }));
   ash.rotation.z = Math.PI / 2;
@@ -1177,6 +1182,11 @@ function bluntProps(): CineProps {
   glow.renderOrder = 10;
   glow.position.x = JOINT_LEN + 0.05;
   pivot.add(glow);
+  // the hot core: normal blending, so it stays a saturated orange over the pale paper (additive alone washes to beige)
+  const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff4a0a, transparent: true, depthWrite: false, depthTest: false }));
+  core.renderOrder = 11;
+  core.position.x = JOINT_LEN + 0.02;
+  pivot.add(core);
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xffc24a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   pivot.add(flame);
   const light = new THREE.PointLight(0xff7a2a, 0, 4, 2);
@@ -1220,18 +1230,22 @@ function bluntProps(): CineProps {
         pivot.scale.set(1, swell, swell);
         // lit from 66: ember + glow; flares at every drag
         const lit = f >= 66;
-        ember.visible = ash.visible = glow.visible = lit;
+        ember.visible = ash.visible = glow.visible = emberBand.visible = core.visible = lit;
         let flare = 0;
         for (const h of [78, 96, 114]) flare = Math.max(flare, ramp(f, h - 8, h) * (1 - ramp(f, h, h + 6)));
         const pulse = 0.5 + 0.5 * Math.sin(c.time * 7);
         (ember.material as THREE.MeshBasicMaterial).color.setHSL(0.06, 1, 0.45 + 0.2 * flare + 0.05 * pulse);
+        // saturated (tone mapping turns a light orange into beige): deep red-orange, a little hotter on every drag
+        (emberBand.material as THREE.MeshBasicMaterial).color.setHSL(0.025 + 0.025 * flare, 1, 0.42 + 0.08 * flare + 0.04 * pulse);
         glow.scale.setScalar(0.5 + 0.9 * flare + 0.1 * pulse);
+        core.scale.setScalar(0.42 + 0.3 * flare + 0.05 * pulse);
+        (core.material as THREE.SpriteMaterial).opacity = 0.8 + 0.2 * flare;
         (glow.material as THREE.SpriteMaterial).opacity = lit ? 0.75 : 0;
         // the ash grows back along the axis (the cylinder's height is its local y, which runs along the joint)
         const burnt = ramp(f, 66, 126);
         ash.scale.set(1, 1 + burnt * 3, 1);
-        // its outer cap stays just behind the ember disc, so the glowing tip is never covered
-        ash.position.x = JOINT_LEN - 0.006 - (0.06 * (1 + burnt * 3)) / 2;
+        // the ash sits right behind the glowing rim
+        ash.position.x = JOINT_LEN - 0.086 - (0.06 * (1 + burnt * 3)) / 2;
         light.intensity = lit ? 2 + 6 * flare : 0;
         light.position.copy(c.world(J.x0 + JOINT_LEN * Math.cos(J.tilt), J.y + JOINT_LEN * Math.sin(J.tilt), 0.3));
         // the lighter flame runs along the joint 60-66

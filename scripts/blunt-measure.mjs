@@ -37,6 +37,16 @@ for (const F of frames) {
     const P = (o) => { const p = o.getWorldPosition(o.position.clone()); p.applyMatrix4(inv); return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]; };
     const out = { cf: window.__rb.runner.state.cine?.frame, ascale: a.scale.toArray().map((x) => +x.toFixed(2)) };
     for (const j of ['head', 'neck', 'chest', 'hips', 'knL', 'ftL', 'ftR', 'haL', 'haR']) out[j] = P(d.joints[j]);
+    // the ember glow sprite (orange, additive): is it in the scene and visible?
+    const glows = [];
+    v.scene.traverse((o) => {
+      if (o.isSprite && o.material.color.getHex() === 0xff7a2a) {
+        let vis = true;
+        for (let q = o; q; q = q.parent) vis = vis && q.visible;
+        glows.push({ vis, op: +o.material.opacity.toFixed(2), sc: +o.scale.x.toFixed(2), at: P(o), dt: o.material.depthTest, ro: o.renderOrder });
+      }
+    });
+    out.glows = glows;
     out.atkHead = P(v.rigs[0].joints.head);
     out.atkHaR = P(v.rigs[0].joints.haR);
     return out;
