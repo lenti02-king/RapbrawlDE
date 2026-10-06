@@ -40,6 +40,8 @@ python3 tools/ui-extract/main_menu.py   # cut the PO master screenshot into menu
 node scripts/menushot.mjs [out]      # main menu at 2000x1125 + phones in landscape; compare: python3 tools/ui-extract/compare.py
 python3 tools/ui-extract/loading.py|char_select.py|arena_select.py|shop.py   # the other master screens (same pipeline)
 node scripts/loadshot.mjs | selectshot.mjs | shopshot.mjs [out]   # captures of those screens (2000x1125 + phones)
+node scripts/flowshot.mjs out 750 300 && node scripts/screens.mjs out 750 300   # iPhone in a browser/viewer (~750x300): menu flow + classic screens (D41)
+python3 tools/ui-extract/skin_backdrop.py   # stadium backdrop without the baked logo for the classic screens
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
@@ -56,7 +58,7 @@ tools/characters/fetch-data.sh && python3 tools/characters/build.py bonez|jazeek
 ```
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — republish by publishing the single-file output again.
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
-Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
+Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
 Fighter models: `public/assets/characters/<id>.glb` = the product owner's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.

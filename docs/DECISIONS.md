@@ -250,3 +250,24 @@ the real shop. Shared helpers: `src/ui/menu/kit.ts` + `kit.css`.
   open vests, phones/cups/beer) with baked shading, one InstancedMesh per part (~25 draw calls per crowd). Behaviours
   run on the music beat and react to hits/hype; the festival has two circle pits. Chosen over Meshy-generated crowd
   members (cost, no rig, draw calls) — a later upgrade path if the PO wants a richer look.
+
+## D41 — iPhone: memory budget and short-screen layouts (2026-10-06)
+PO test on an iPhone (claude.ai Artifact in Safari): the game aborted repeatedly; menus did not fill the screen,
+elements looked shifted / too big or small, tile pictures were cut wrongly.
+- **Memory** (iOS Safari kills a tab that holds too much): phones get a texture budget (`render/textureBudget.ts`):
+  character colour maps 4K → 2K, detail maps → 1K, props → 1K/512, applied once at load (estimated texture memory in a
+  fight ~400 → ~140 MB). The menu's live 3D figures share ONE WebGL context across all screens (was a new context
+  per screen, re-uploading both fighters) with 1K texture copies; that context is released when a match starts. The
+  game view's context is freed explicitly (`forceContextLoss`) and, on phones, dropped while the menus are open
+  (rebuilt behind the loading screen). Phone render scale 1.5x (1.25x on low).
+- **Text inflation**: `-webkit-text-size-adjust: 100%` — iOS Safari enlarges text in landscape otherwise, which breaks
+  the reference-pixel layouts (text overflowing its boxes = "verschoben / zu groß").
+- **Short, wide screens** (a phone in landscape inside a browser or the Artifact viewer is ~750x300): master screens
+  may use a second safe rect without the decorative logo (`layoutStage(..., short)`, only below 520 px height or
+  wider than 2.05:1), so character select and the arena/mode windows are ~1/3 bigger and fill the screen. Classic
+  screens: backdrop without the baked logo (`tools/ui-extract/skin_backdrop.py`), smaller rem below 360 px height,
+  scrollable content, two-column settings. Mode tiles zoom toward their subject (`ShowcaseItem.focus/zoom`).
+- **Fight camera** on touch layouts (`CameraDirector.hudSafe`): a minimum visible height and a lower aim, so the
+  fighters stand between the HUD bars and the card hand instead of under them.
+- Verified in Chromium at iPhone sizes (750x300, 844x390, DPR 3). WebKit itself cannot be installed here (download
+  host blocked), so Safari-only behaviour is UNVERIFIED until the PO re-tests.

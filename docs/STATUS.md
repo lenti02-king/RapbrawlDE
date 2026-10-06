@@ -1,12 +1,22 @@
 # Project status
 
-_Last updated: 2026-10-06 (session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-06 (session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, version 13 = session 9c): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 9d — iPhone test by the PO: crashes, layout on short screens
+| Area | Status | Evidence |
+|---|---|---|
+| Crashes on iPhone: GPU memory budget (2K/1K textures on phones, one shared menu GL context, game context released in menus, 1.5x render scale) | BUILT; texture memory measured in phone emulation ~400 → ~140 MB; on-device UNVERIFIED (PO re-test) | D41 |
+| iOS landscape text inflation off (`text-size-adjust`) | BUILT; Safari-only, UNVERIFIED here | D41 |
+| Character select + arena/mode windows fill short, wide screens (logo cropped, ~1/3 bigger) | VERIFIED (Chromium 750x300, 844x390; desktop unchanged) | `node scripts/flowshot.mjs out 750 300` |
+| Mode tiles show their subject (zoom/focus), description text keeps word spaces | VERIFIED (screenshots) | same |
+| Classic screens: no logo behind titles, Profil/Karten/Einstellungen fit or scroll, settings two columns | VERIFIED (screenshots 750x300) | `node scripts/screens.mjs out 750 300` |
+| Fight camera leaves room for HUD bars and card hand on touch layouts | VERIFIED (screenshots 750x300, 844x390) | `Q=low node scripts/hudshot.mjs out.png 844 390 1` |
 
 ## Session 9c — PO props, "Blunt für dich", Festival + Bahnhofsviertel arenas (overnight)
 | Area | Status | Evidence |
