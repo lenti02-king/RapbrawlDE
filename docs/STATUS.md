@@ -4,7 +4,7 @@ _Last updated: 2026-10-06 (session 9c: the PO's prop models at real size, Jazeek
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
-- Private claude.ai Artifact (owner-only until shared, version 11 = session 8): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
+- Private claude.ai Artifact (owner-only until shared, republished in session 9c): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
 
@@ -19,6 +19,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Arenas Festival-Bühne + Bahnhofsviertel: PO painting as backdrop (real names replaced), 3D floor (sand / wet cobbles with reflection), lights, beams/CO2/dust resp. neon flicker/drizzle/steam | VERIFIED (screenshots close/mid/wide) | `node scripts/arena-shot.mjs artifacts/arena/x high "&arena=festival"` |
 | 3D crowds: festival hipsters (jump, cheer, film, fist pump, clap, sway, two circle pits), rocker gangs with bikes (arms crossed, nod, drink beer, point); react to hits and the beat | VERIFIED (lab close-ups + in-game shots); motion feel UNVERIFIED on a device | `node scripts/crowdshot.mjs`, `?lab=crowd` |
 | Car cinematic end position = sim end distance (4.2 m; was 5.0 in the render → visible jump) | FIXED | |
+| Checks: unit tests 80/80; e2e 25/25 functional checks (desktop + phone; the scripts now skip the round-1 showcase and wait for the KO → fatality window → results flow); netplay 60 ms (FREUNDE room code, 24 rollbacks, 0 checksum mismatches); Artifact payload loads models, all 8 props and all arenas under an Artifact-like CSP | VERIFIED | `npm test`, `npm run e2e`, `node scripts/netplay.mjs 60`, `node scripts/artifact-check.mjs` |
 
 ## Session 9b — PO review: whole app in the master design, fight intro, charge, fatality minigame, staged specials, blood
 | Area | Status | Evidence |
