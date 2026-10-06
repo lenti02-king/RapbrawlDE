@@ -614,7 +614,8 @@ function crocProps(): CineProps {
   const model = crocRunnerModel();
   const croc = model ?? makeCrocRunner({ top: 0x3a8f41, side: 0x55b84a, belly: 0xf0e2a8 });
   group.add(croc.group);
-  const SC = model ? 1.0 : 1.15;
+  // bigger than in the fight (D42, PO: the croc was hard to make out): a clear, chunky silhouette in every shot
+  const SC = model ? 1.45 : 1.6;
   const SNOUT = (model ? model.snout : 0.8) * SC; // origin -> snout tip
   croc.group.scale.setScalar(SC);
   let last = -1;
@@ -692,22 +693,17 @@ export const CROC_ATTACK: CineDef = {
     [76, 110],
   ],
   camera: [
-    // low close-up on the bite
-    { f: 0, pos: [1.0, 0.55, 2.7], target: [1.75, 0.45, 0], fov: 40, cut: true },
-    { f: 12, pos: [0.9, 0.6, 3.0], target: [1.7, 0.4, 0], fov: 40 },
-    // wide profile: Bonez, croc and the dragged victim
-    { f: 16, pos: [1.05, 0.95, 4.7], target: [1.1, 0.65, 0], fov: 40, cut: true },
-    { f: 46, pos: [0.95, 0.9, 4.3], target: [1.0, 0.6, 0], fov: 40 },
-    // death roll at floor level
-    { f: 48, pos: [0.85, 0.7, 3.0], target: [1.5, 0.3, 0], fov: 40, cut: true },
-    { f: 76, pos: [0.95, 0.62, 2.6], target: [1.5, 0.3, 0], fov: 38 },
-    // Bonez laughs
-    { f: 78, pos: [0.8, 1.7, 1.4], target: [0.0, 1.74, 0], fov: 28, cut: true },
-    { f: 84, pos: [0.75, 1.72, 1.3], target: [0.02, 1.76, 0], fov: 27 },
-    // the toss and slam, wide
-    { f: 85, pos: [1.2, 1.15, 5.2], target: [1.4, 0.9, 0], fov: 44, cut: true },
-    { f: 96, pos: [1.25, 1.15, 5.4], target: [1.5, 0.8, 0], fov: 42 },
-    { f: 110, pos: [1.1, 1.2, 5.6], target: [1.3, 0.8, 0], fov: 40 },
+    // D42: three calm shots instead of six cuts. (1) low close-up on the bite
+    { f: 0, pos: [1.0, 0.6, 3.0], target: [1.75, 0.45, 0], fov: 40, cut: true },
+    { f: 15, pos: [0.95, 0.65, 3.3], target: [1.7, 0.45, 0], fov: 40 },
+    // (2) one wide profile for the drag and the death roll: Bonez, the croc and the victim all in frame
+    { f: 16, pos: [1.1, 1.05, 5.2], target: [1.15, 0.7, 0], fov: 40, cut: true },
+    { f: 50, pos: [1.05, 0.95, 4.6], target: [1.15, 0.6, 0], fov: 40 },
+    { f: 82, pos: [1.0, 0.95, 4.3], target: [1.2, 0.6, 0], fov: 40 },
+    // (3) the toss and slam, wide
+    { f: 84, pos: [1.2, 1.2, 5.4], target: [1.4, 0.9, 0], fov: 44, cut: true },
+    { f: 96, pos: [1.25, 1.15, 5.6], target: [1.5, 0.8, 0], fov: 42 },
+    { f: 110, pos: [1.1, 1.2, 5.8], target: [1.3, 0.8, 0], fov: 40 },
   ],
   atk: CROC_ATK,
   def: crocDef,
@@ -985,113 +981,277 @@ export const CAR_RIDE: CineDef = {
   ],
 };
 
-// =================================================================== JAZEEK — BLUNT FÜR DICH (special)
-// The cloud caught them. (1) dazed and coughing in the smoke while Jazeek takes a drag and blows a smoke ring at them,
-// (2) a slow-motion flow: spinning backfist, low sweep, three hits on the beat while they float, (3) a spinning high
-// kick out of the cloud, a last drag, smoke out. Victim-local x is toward Jazeek; startDx 1.6, endDx 3.4.
+// =================================================================== JAZEEK — BLUNT FÜR DICH (special, D42)
+// The grab caught them. (1) He lifts them and lays them flat in front of him, a giant rolling paper unfolds underneath
+// and he rolls them in (they stay visible through the paper), twists the end, licks the edge. (2) Lifts the giant
+// joint to his mouth, a lighter flame runs along it and lights the far end. (3) Three deep drags: the ember flares,
+// each drag burns (sim hits 78/96/114), the victim kicks inside, he blows thick smoke. (4) The joint swells and
+// POPS (134): paper scraps and smoke everywhere, the victim tumbles out, coughing. startDx 0.75, endDx 2.6.
 const BL = JAZEEK_POSES.BLUNT;
-const jM2 = JAZEEK_ANIMS.moves;
-const sweep: PoseDef = {
-  x: 0.72,
-  y: -0.34,
-  aim: { thR: [1, -0.18, 0.12], knR: [1, -0.2, 0.12] },
-  j: { spine: [0, 10, -22], chest: [0, 14, -10], thL: [6, 20, 96], knL: [0, 0, -128], shL: [30, 0, 30], elL: [0, 0, 40], shR: [-30, 0, 70], elR: [0, 0, 30] },
-};
+const JOINT_LEN = 2.05;
+const FILTER = 0.16;
+/** Joint pose over time (attacker-local): filter end x, axis height, tilt (rad, lit end up). */
+function jointAt(f: number): { x0: number; y: number; tilt: number } {
+  if (f < 46) return { x0: 0.46, y: 1.12, tilt: 0 };
+  const k = EASE.inOut(ramp(f, 46, 60));
+  return { x0: lerp(0.46, 0.17, k), y: lerp(1.12, 1.56, k), tilt: lerp(0, 0.07, k) };
+}
+/** Victim hips along the joint: head toward the filter (Jazeek's mouth), feet at the lit end. */
+const HIPS_ON_AXIS = FILTER + 0.13 + 0.8;
+const rollHands = (k: number): PoseDef => ({
+  x: 0.02,
+  aim: { shL: [0.75, -0.35, -0.35 + k * 0.25], elL: [0.9, -0.1, 0.1 + k * 0.3], shR: [0.75, -0.35, 0.35 - k * 0.25], elR: [0.9, -0.1, -0.1 - k * 0.3], face: 0.4 },
+  j: { spine: [0, 0, -10], chest: [0, -6, -12], head: [0, 0, -16] },
+});
+// holding the giant joint at the mouth: right hand at the filter, left hand supporting it further out
+const holdJoint = (drag: number): PoseDef => ({
+  y: 0.02 * drag,
+  aim: { shR: [0.45, -0.25, 0.55], elR: [0.15, 0.95, -0.2], shL: [0.8, -0.2, -0.2], elL: [0.95, 0.15, 0.1], face: 0.9 },
+  j: { chest: [0, -6 - 10 * drag, 6 + 10 * drag], spine: [0, -2, 2 + 6 * drag], head: [0, -2, 2 + 6 * drag] },
+});
 const BLUNT_ATK = smoothClip(
   [
-    { f: 0, p: BL.chill },
-    { f: 12, p: BL.drag, e: 'inOut' },
-    { f: 21, p: BL.hold, e: 'inOut' },
-    { f: 27, p: BL.blow, e: 'snap' },
-    { f: 36, p: BL.chill },
-    // stage 2: glide in, spinning backfist, sweep, three on the beat
-    { f: 46, p: compose(BL.chill, { x: 0.45 }) },
-    { f: 49, p: { x: 0.6, j: { chest: [0, 50, 0], spine: [0, 20, 0], shL: [40, 0, 60], elL: [0, 0, 120] } }, e: 'in' },
-    { f: 52, p: compose(J.backhand, { x: 0.72 }), e: 'snap' },
-    { f: 58, p: { x: 0.7 } },
-    { f: 62, p: compose(sweep, { y: -0.2, aim: {} }) },
-    { f: 66, p: sweep, e: 'snap' },
-    { f: 72, p: { x: 0.72, y: -0.05 }, e: 'out' },
-    { f: 80, p: compose(J.jab, { x: 0.82 }), e: 'snap' },
-    { f: 83, p: { x: 0.82 } },
-    { f: 86, p: compose(J.cross, { x: 0.86 }), e: 'snap' },
-    { f: 89, p: { x: 0.86 } },
-    { f: 92, p: compose(J.hookL, { x: 0.9 }), e: 'snap' },
-    { f: 97, p: { x: 0.9, y: -0.04 } },
-    // stage 3: spin into the high kick, land, last drag, smoke out
-    { f: 106, p: { x: 0.92, yaw: -200, j: { shL: [40, 0, 70], elL: [0, 0, 20], shR: [-40, 0, 70], elR: [0, 0, 20] } }, e: 'in' },
-    { f: 114, p: compose(J.kickHigh, { x: 0.98, yaw: -360 }), e: 'snap' },
-    { f: 121, p: compose(J.kickHigh, { x: 0.98, yaw: -360 }) },
-    { f: 128, p: { x: 0.9, yaw: -360 }, e: 'inOut' },
-    { f: 129, p: { x: 0.9 }, e: 'hold' },
-    { f: 135, p: compose(BL.drag, { x: 0.9 }), e: 'inOut' },
-    { f: 141, p: compose(BL.blow, { x: 0.9 }), e: 'snap' },
-    { f: 150, p: compose(BL.chill, { x: 0.85 }) },
+    { f: 0, p: compose(BL.chill, { x: 0.05 }) },
+    // grab and lift
+    { f: 4, p: { x: 0.12, aim: { shL: [0.85, -0.2, -0.3], elL: [0.9, 0.2, -0.1], shR: [0.85, -0.2, 0.3], elR: [0.9, 0.2, 0.1], face: 0.6 }, j: { spine: [0, -4, -8], chest: [0, -6, -10] } }, e: 'snap' },
+    { f: 12, p: { y: 0.04, x: 0.1, aim: { shL: [0.6, 0.6, -0.3], elL: [0.7, 0.6, -0.1], shR: [0.6, 0.6, 0.3], elR: [0.7, 0.6, 0.1], face: 0.5 }, j: { spine: [0, -2, 6], chest: [0, -4, 8] } }, e: 'out' },
+    // roll: hands work the paper back and forth
+    { f: 20, p: rollHands(0), e: 'inOut' },
+    { f: 26, p: rollHands(1), e: 'inOut' },
+    { f: 32, p: rollHands(0), e: 'inOut' },
+    { f: 38, p: rollHands(1), e: 'inOut' },
+    { f: 44, p: rollHands(0.5), e: 'inOut' },
+    // lick the edge
+    { f: 50, p: compose(BL.lick, { x: 0.04 }), e: 'inOut' },
+    // lift to the mouth, light it
+    { f: 60, p: holdJoint(0), e: 'inOut' },
+    { f: 66, p: compose(holdJoint(0), { aim: { shL: [0.7, 0.1, -0.5], elL: [0.9, 0.3, 0.1] } }), e: 'out' },
+    { f: 72, p: holdJoint(0) },
+    // three drags (hits 78 / 96 / 114) and the exhales
+    { f: 78, p: holdJoint(1), e: 'inOut' },
+    { f: 84, p: compose(holdJoint(0), BL.blow), e: 'snap' },
+    { f: 90, p: holdJoint(0.2) },
+    { f: 96, p: holdJoint(1), e: 'inOut' },
+    { f: 102, p: compose(holdJoint(0), BL.blow), e: 'snap' },
+    { f: 108, p: holdJoint(0.2) },
+    { f: 114, p: compose(holdJoint(1), { y: 0.05, j: { chest: [0, -18, 22] } }), e: 'inOut' },
+    { f: 122, p: compose(holdJoint(0), BL.blow, { x: 0.02 }), e: 'snap' },
+    // it swells... and pops in his hands
+    { f: 130, p: compose(holdJoint(0.3), { x: -0.03 }) },
+    { f: 134, p: compose(BL.chill, { x: -0.12, y: 0.02, j: { head: [0, 20, -10], chest: [0, 6, -14] } }), e: 'snap' },
+    { f: 146, p: BL.chill, e: 'inOut' },
+    { f: 160, p: BL.chill },
   ],
   jStance,
 );
-void jM2;
 
 function bluntDef(set: AnimSet): Clip {
   const r = victimReactions(set);
   const st = set.stance;
-  const endX = -(3.4 - 1.6) + 0.05;
-  // coughing: bent over, a hand at the mouth, swaying
-  const cough = (k: number): PoseDef =>
-    compose(st, {
-      x: k * 0.02,
-      rot: k * 4,
-      j: { spine: [0, k * 6, -16], chest: [0, k * 8, -12], neck: [0, 0, -10], head: [0, k * 14, -14 + k * 6], shL: [10, 0, 70], elL: [0, 0, 130], shR: [-30, 0, 20], elR: [0, 0, 50] },
+  const pivot = set.pivot ?? 0.9;
+  const START = 0.75;
+  const endX = -(2.6 - START) + 0.05;
+  // victim-local x is toward Jazeek: attacker-local hips x = START - x
+  const inJoint = (f: number, wiggle = 0): PoseDef => {
+    const J = jointAt(f);
+    const hx = J.x0 + HIPS_ON_AXIS * Math.cos(J.tilt);
+    const hy = J.y + HIPS_ON_AXIS * Math.sin(J.tilt);
+    return compose(r.lying, {
+      x: START - hx,
+      y: hy - pivot,
+      rot: -90 - (J.tilt * 180) / Math.PI,
+      j: {
+        shL: [70, 0, 40 + wiggle * 30],
+        elL: [0, 0, 60 + wiggle * 40],
+        shR: [-70, 0, 40 - wiggle * 30],
+        elR: [0, 0, 60 - wiggle * 40],
+        thL: [8, 0, 6 + wiggle * 40],
+        knL: [0, 0, -14 - Math.abs(wiggle) * 60],
+        thR: [-8, 0, 6 - wiggle * 40],
+        knR: [0, 0, -14 - Math.abs(wiggle) * 50],
+        head: [0, wiggle * 20, -12],
+      },
     });
-  const dizzy = (k: number): PoseDef =>
-    compose(st, { rot: k * 5, j: { head: [0, 16 * k, 18], neck: [0, 8 * k, 8], shL: [40, 0, -10], elL: [0, 0, 20], shR: [-40, 0, -14], elR: [0, 0, 24], spine: [0, 0, 6] } });
-  return smoothClip(
-    [
-      { f: 0, p: cough(0) },
-      { f: 8, p: cough(1) },
-      { f: 16, p: cough(-1) },
-      { f: 24, p: dizzy(1) },
-      { f: 28, p: compose(r.hitHigh, { x: -0.04 }), e: 'snap' },
-      { f: 36, p: dizzy(-1) },
-      { f: 44, p: dizzy(1) },
-      { f: 52, p: compose(r.hitHigh, { x: -0.06, j: { head: [0, 36, 24] } }), e: 'snap' },
-      { f: 58, p: dizzy(-1) },
-      { f: 62, p: dizzy(0) },
-      // swept: up and floating in slow motion
-      { f: 66, p: compose(r.juggle, { x: -0.06, y: 0.35, rot: 50 }), e: 'snap' },
-      { f: 76, p: compose(r.juggle, { x: -0.08, y: 0.72, rot: 78 }), e: 'out' },
-      { f: 80, p: compose(r.juggle, { x: -0.12, y: 0.78, rot: 84, j: { head: [0, -24, 30] } }), e: 'snap' },
-      { f: 86, p: compose(r.juggle, { x: -0.16, y: 0.82, rot: 92, j: { head: [0, 24, 30] } }), e: 'snap' },
-      { f: 92, p: compose(r.juggle, { x: -0.22, y: 0.86, rot: 100 }), e: 'snap' },
-      { f: 104, p: compose(r.juggle, { x: -0.24, y: 0.9, rot: 108 }) },
-      // the kick sends them out of the cloud
-      { f: 114, p: compose(r.juggle, { x: -0.45, y: 1.05, rot: 150 }), e: 'snap' },
-      { f: 124, p: compose(r.juggle, { x: -1.3, y: 0.85, rot: 330 }), e: 'out' },
-      { f: 130, p: compose(r.lying, { x: -1.6, rot: 450, s: { sq: 0.16 } }), e: 'in' },
-      { f: 136, p: compose(r.juggle, { x: -1.7, y: 0.25, rot: 540 }), e: 'out' },
-      { f: 142, p: compose(r.lying, { x: endX, rot: 810 }), e: 'in' },
-      { f: 150, p: compose(r.lying, { x: endX, rot: 810 }) },
-    ],
-    st,
+  };
+  const keys: { f: number; p: PoseDef; e?: 'snap' | 'in' | 'out' | 'inOut' | 'hold' }[] = [
+    { f: 0, p: compose(r.hitHigh, { x: 0.02 }) },
+    { f: 4, p: compose(r.hitHigh, { x: 0.06, y: 0.06 }), e: 'snap' },
+    // lifted and laid flat in front of him
+    { f: 12, p: compose(r.juggle, { x: START - 1.2, y: 1.12 - pivot + 0.15, rot: -60 }), e: 'out' },
+    { f: 16, p: inJoint(16), e: 'inOut' },
+  ];
+  // struggling while being rolled, then calm inside, kicking at every drag
+  for (let f = 20; f <= 44; f += 6) keys.push({ f, p: inJoint(f, f % 12 ? 0.5 : -0.5) });
+  keys.push({ f: 50, p: inJoint(50, 0) }, { f: 60, p: inJoint(60, 0.2) }, { f: 72, p: inJoint(72, 0) });
+  for (const h of [78, 96, 114]) {
+    keys.push({ f: h - 2, p: inJoint(h - 2, 0) });
+    keys.push({ f: h, p: inJoint(h, 1), e: 'snap' });
+    keys.push({ f: h + 3, p: inJoint(h + 3, -1), e: 'snap' });
+    keys.push({ f: h + 7, p: inJoint(h + 7, 0.4) });
+  }
+  keys.push({ f: 128, p: inJoint(128, 0.6) }, { f: 132, p: inJoint(132, -0.6) });
+  // POP: out of the joint, tumbling away, landing on the back
+  keys.push(
+    { f: 134, p: compose(r.juggle, { x: START - 1.6, y: 1.8 - pivot, rot: -200 }), e: 'snap' },
+    { f: 142, p: compose(r.juggle, { x: (START - 1.6 + endX) / 2, y: 1.2 - pivot, rot: -330 }), e: 'out' },
+    { f: 148, p: compose(r.lying, { x: endX, rot: 90, s: { sq: 0.16 } }), e: 'in' },
+    { f: 160, p: compose(r.lying, { x: endX, rot: 90, j: { head: [0, 10, -4] } }) },
   );
+  return smoothClip(keys, st);
+}
+
+let paperTex: THREE.Texture | null = null;
+/** Rolling paper: off-white with fibres and a faint watermark band (no brand). */
+function paperTexture(): THREE.Texture {
+  if (paperTex) return paperTex;
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#f3efe4';
+  g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 900; i++) {
+    g.strokeStyle = `rgba(${170 + Math.random() * 40},${160 + Math.random() * 40},${140 + Math.random() * 30},${0.08 + Math.random() * 0.12})`;
+    g.lineWidth = 0.5 + Math.random();
+    const x = Math.random() * 512;
+    const y = Math.random() * 256;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (Math.random() - 0.5) * 30, y + (Math.random() - 0.5) * 6);
+    g.stroke();
+  }
+  // the glued edge seam and a soft crease (shows the roll turning)
+  g.fillStyle = 'rgba(205,190,150,0.55)';
+  g.fillRect(0, 118, 512, 10);
+  g.fillStyle = 'rgba(255,255,255,0.5)';
+  g.fillRect(0, 40, 512, 4);
+  paperTex = new THREE.CanvasTexture(c);
+  paperTex.colorSpace = THREE.SRGBColorSpace;
+  paperTex.wrapS = paperTex.wrapT = THREE.RepeatWrapping;
+  return paperTex;
 }
 
 function bluntProps(): CineProps {
   const group = new THREE.Group();
+  // the joint: a pivot at the filter end, axis along +x; paper tube + filter + twisted tip / ember
+  const pivot = new THREE.Group();
+  group.add(pivot);
+  const paperMat = new THREE.MeshStandardMaterial({ map: paperTexture(), roughness: 0.92, metalness: 0, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false });
+  const tube = new THREE.Mesh(new THREE.BufferGeometry(), paperMat);
+  tube.renderOrder = 3;
+  pivot.add(tube);
+  // flat sheet under the victim before the roll
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(JOINT_LEN, 1.45), paperMat);
+  sheet.rotation.x = -Math.PI / 2;
+  sheet.position.x = JOINT_LEN / 2;
+  pivot.add(sheet);
+  const filter = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.205, 0.205, FILTER, 28, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0xd8b26e, roughness: 0.8, side: THREE.DoubleSide }),
+  );
+  filter.rotation.z = Math.PI / 2;
+  filter.position.x = FILTER / 2;
+  pivot.add(filter);
+  const twist = new THREE.Mesh(new THREE.ConeGeometry(0.27, 0.32, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.9, side: THREE.DoubleSide }));
+  twist.rotation.z = -Math.PI / 2;
+  twist.position.x = JOINT_LEN + 0.15;
+  pivot.add(twist);
+  const ember = new THREE.Mesh(new THREE.CircleGeometry(0.27, 28), new THREE.MeshBasicMaterial({ color: 0xff6a1a }));
+  ember.rotation.y = Math.PI / 2;
+  ember.position.x = JOINT_LEN + 0.005;
+  pivot.add(ember);
+  const ash = new THREE.Mesh(new THREE.CylinderGeometry(0.265, 0.27, 0.06, 28), new THREE.MeshStandardMaterial({ color: 0x8d8a86, roughness: 1 }));
+  ash.rotation.z = Math.PI / 2;
+  ash.position.x = JOINT_LEN - 0.02;
+  pivot.add(ash);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff7a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.position.x = JOINT_LEN + 0.05;
+  pivot.add(glow);
+  const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xffc24a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  pivot.add(flame);
+  const light = new THREE.PointLight(0xff7a2a, 0, 4, 2);
+  let wrap = -1;
   let last = -1;
+  const setWrap = (t: number) => {
+    const th = Math.max(0.02, Math.min(1, t)) * Math.PI * 2;
+    if (Math.abs(th - wrap) < 0.01) return;
+    wrap = th;
+    tube.geometry.dispose();
+    const g = new THREE.CylinderGeometry(0.27, 0.205, JOINT_LEN - FILTER, 40, 1, true, Math.PI - th / 2, th);
+    g.rotateZ(-Math.PI / 2);
+    g.translate(FILTER + (JOINT_LEN - FILTER) / 2, 0, 0);
+    tube.geometry = g;
+  };
   return {
     group,
+    lights: [light],
     update(f: number, c: PropCtx) {
+      const J = jointAt(f);
+      const popped = f >= 134;
+      pivot.visible = f >= 14 && !popped;
+      if (!pivot.visible) {
+        light.intensity = 0;
+      } else {
+        pivot.position.set(J.x0, J.y, 0);
+        pivot.rotation.z = J.tilt;
+        // sheet unfolds under them (14-22), wraps up (22-44); the finished roll keeps turning a little while rolled
+        const unfold = ramp(f, 14, 22);
+        sheet.visible = f < 26;
+        sheet.scale.set(1, Math.max(0.01, unfold), 1);
+        sheet.position.y = -0.27;
+        const w = ramp(f, 22, 44);
+        tube.visible = f >= 22;
+        if (tube.visible) setWrap(w);
+        tube.rotation.x = f < 46 ? f * 0.35 : 0;
+        filter.visible = f >= 44;
+        twist.visible = f >= 44 && f < 66;
+        // swelling before the pop
+        const swell = 1 + 0.18 * ramp(f, 126, 133) + 0.04 * Math.sin(c.time * 40) * ramp(f, 126, 133);
+        pivot.scale.set(1, swell, swell);
+        // lit from 66: ember + glow; flares at every drag
+        const lit = f >= 66;
+        ember.visible = ash.visible = glow.visible = lit;
+        let flare = 0;
+        for (const h of [78, 96, 114]) flare = Math.max(flare, ramp(f, h - 8, h) * (1 - ramp(f, h, h + 6)));
+        const pulse = 0.5 + 0.5 * Math.sin(c.time * 7);
+        (ember.material as THREE.MeshBasicMaterial).color.setHSL(0.06, 1, 0.45 + 0.2 * flare + 0.05 * pulse);
+        glow.scale.setScalar(0.5 + 0.9 * flare + 0.1 * pulse);
+        (glow.material as THREE.SpriteMaterial).opacity = lit ? 0.75 : 0;
+        ash.scale.set(1 + ramp(f, 66, 126) * 3, 1, 1);
+        ash.position.x = JOINT_LEN - 0.02 - ramp(f, 66, 126) * 0.08;
+        light.intensity = lit ? 2 + 6 * flare : 0;
+        light.position.copy(c.world(J.x0 + JOINT_LEN * Math.cos(J.tilt), J.y + JOINT_LEN * Math.sin(J.tilt), 0.3));
+        // the lighter flame runs along the joint 60-66
+        const run = ramp(f, 58, 66);
+        flame.visible = f >= 58 && f < 68;
+        flame.position.set(0.5 + run * (JOINT_LEN - 0.45), 0.25 * (1 - run), 0.05);
+        flame.scale.set(0.22 + Math.random() * 0.06, 0.32 + Math.random() * 0.08, 1);
+      }
       const fi = Math.floor(f);
       if (fi < last) last = -1;
       if (fi === last) return;
-      const [dx, dy] = c.defLocal;
       for (let k = last + 1; k <= fi; k++) {
-        // the cloud hangs round their head in stage 1 and thins out while they float
-        const dense = k < 46 ? 1 : k < 110 ? 0.35 : 0;
-        if (dense > 0 && k % (dense > 0.5 ? 2 : 5) === 0) {
-          const p = c.world(dx + (Math.random() - 0.5) * 0.5, 1.35 + dy + (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4);
-          c.view.fx.smoke.spawn(p, new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.15 + Math.random() * 0.2, 0), k % 3 ? 0xd9e2cf : 0xc7d6bc, 0.45 + Math.random() * 0.3, 1.2, 1.2, (Math.random() - 0.5));
+        // smoke curling up from the lit end; thick exhale clouds after every drag
+        if (k >= 66 && k < 134 && k % 3 === 0) {
+          const tip = c.world(J.x0 + JOINT_LEN + 0.05, J.y + 0.12, 0);
+          c.view.fx.smoke.spawn(tip, new THREE.Vector3((Math.random() - 0.5) * 0.2, 0.45 + Math.random() * 0.2, (Math.random() - 0.5) * 0.1), k % 2 ? 0xd9dfd2 : 0xc6cfc0, 0.18, 1.6, 2.6, (Math.random() - 0.5));
+        }
+        for (const h of [84, 102, 122])
+          if (k >= h && k < h + 6) {
+            const mouth = c.world(0.25, 1.6, 0.05);
+            for (let i = 0; i < 3; i++)
+              c.view.fx.smoke.spawn(mouth.clone(), new THREE.Vector3(c.facing * (1.2 + Math.random() * 1.6), (Math.random() - 0.2) * 0.5, (Math.random() - 0.5) * 0.6), i % 2 ? 0xe4e8de : 0xcfd8c8, 0.3, 1.5, 3.2, (Math.random() - 0.5) * 2);
+          }
+        if (k === 134) {
+          // POP: paper scraps and a cloud
+          const mid = c.world(J.x0 + JOINT_LEN * 0.55, J.y, 0);
+          c.view.vfx.sparks(mid.x, mid.y, 40, C(0xf4f0e6), 7, 0, 3);
+          for (let i = 0; i < 18; i++)
+            c.view.fx.smoke.spawn(mid.clone().add(new THREE.Vector3((Math.random() - 0.5) * 1.6, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.4)), new THREE.Vector3((Math.random() - 0.5) * 2.4, Math.random() * 1.2, (Math.random() - 0.5) * 0.8), i % 2 ? 0xe9ede4 : 0xcfd8c8, 0.5, 1.4, 1.6, (Math.random() - 0.5));
+        }
+        if (k >= 146 && k % 7 === 0) {
+          // coughing on the floor
+          c.view.fx.smoke.spawn(c.world(2.6 - 0.2, 0.45, 0.1), new THREE.Vector3(0, 0.3, 0.05), 0xd9dfd2, 0.2, 1, 1.6, 0.4);
         }
       }
       last = fi;
@@ -1099,95 +1259,79 @@ function bluntProps(): CineProps {
   };
 }
 
+let glowTex: THREE.Texture | null = null;
+function smokeGlow(): THREE.Texture {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.5)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  glowTex = new THREE.CanvasTexture(c);
+  return glowTex;
+}
+
 export const BLUNT_SESSION: CineDef = {
-  frames: 150,
-  startDx: 1.6,
+  frames: 160,
+  startDx: 0.75,
   camera: [
-    { f: 0, pos: [0.8, 1.35, 3.4], target: [0.85, 1.25, 0], fov: 36, cut: true },
-    { f: 11, pos: [0.82, 1.4, 3.1], target: [0.85, 1.28, 0], fov: 36 },
-    // the drag, close
-    { f: 12, pos: [0.75, 1.62, 1.35], target: [0.05, 1.6, 0], fov: 28, cut: true },
-    { f: 25, pos: [0.7, 1.64, 1.25], target: [0.06, 1.6, 0], fov: 27 },
-    // the smoke ring hits them (knees up, the ring and the cloud round the head in frame)
-    { f: 26, pos: [0.75, 1.5, 3.1], target: [1.5, 1.42, 0], fov: 34, cut: true },
-    { f: 43, pos: [0.85, 1.52, 2.8], target: [1.55, 1.45, 0], fov: 33 },
-    { f: 44, pos: [0.9, 1.2, 4.4], target: [0.95, 1.1, 0], fov: 38, cut: true },
-    { f: 64, pos: [1.0, 1.15, 4.0], target: [1.0, 1.05, 0], fov: 38 },
-    // slow-motion orbit round the floating combo
-    { f: 66, pos: [0.35, 0.8, 3.3], target: [1.3, 1.3, 0], fov: 46, cut: true },
-    { f: 98, pos: [1.95, 0.9, 3.1], target: [1.4, 1.4, 0], fov: 44 },
-    { f: 100, pos: [1.2, 1.1, 5.2], target: [1.4, 1.0, 0], fov: 42, cut: true },
-    { f: 128, pos: [1.1, 1.0, 5.6], target: [1.7, 0.8, 0], fov: 42 },
-    // last drag
-    { f: 130, pos: [1.6, 1.62, 1.45], target: [0.85, 1.6, 0], fov: 28, cut: true },
-    { f: 150, pos: [1.55, 1.64, 1.32], target: [0.86, 1.6, 0], fov: 27 },
+    // the grab
+    { f: 0, pos: [0.35, 1.35, 3.6], target: [0.45, 1.2, 0], fov: 36, cut: true },
+    { f: 12, pos: [0.5, 1.45, 3.4], target: [0.7, 1.15, 0], fov: 36 },
+    // rolling: from the front and a little above, the whole roll in frame
+    { f: 14, pos: [1.25, 2.15, 3.3], target: [1.3, 1.1, 0], fov: 40, cut: true },
+    { f: 44, pos: [1.45, 2.05, 2.9], target: [1.35, 1.1, 0], fov: 40 },
+    // the lick, close
+    { f: 46, pos: [0.95, 1.6, 1.6], target: [0.35, 1.45, 0], fov: 32, cut: true },
+    { f: 56, pos: [0.9, 1.62, 1.5], target: [0.3, 1.5, 0], fov: 32 },
+    // the flame runs along it to the far end
+    { f: 58, pos: [1.8, 1.9, 2.4], target: [1.6, 1.5, 0], fov: 36, cut: true },
+    { f: 70, pos: [2.4, 1.75, 2.0], target: [2.1, 1.55, 0], fov: 34 },
+    // smoking: the whole picture, slowly pushing in; the victim visible inside
+    { f: 72, pos: [1.15, 1.55, 4.3], target: [1.15, 1.42, 0], fov: 36, cut: true },
+    { f: 126, pos: [1.15, 1.55, 3.7], target: [1.15, 1.45, 0], fov: 36 },
+    // the pop, wide
+    { f: 130, pos: [1.5, 1.35, 5.2], target: [1.6, 1.15, 0], fov: 40, cut: true },
+    { f: 160, pos: [1.7, 1.25, 5.6], target: [1.8, 0.9, 0], fov: 40 },
   ],
   atk: BLUNT_ATK,
   def: bluntDef,
   props: bluntProps,
-  dim: (f) => (f < 66 ? 0.5 : f < 100 ? 0.68 : 0.4),
+  dim: (f) => (f < 72 ? 0.5 : f < 130 ? 0.55 : 0.35),
   fx: [
-    { f: 1, run: (c) => (c.audio.crowdSwell(0.3), c.audio.cough()) },
-    ...[16, 36].map((f) => ({ f, run: (c: FxCtx) => c.audio.cough() })),
-    { f: 12, run: (c) => c.audio.inhale() },
-    {
-      f: 27,
-      run: (c) => {
-        c.audio.smoke();
-        const head = c.def.clone().add(new THREE.Vector3(0, 0.6, 0.2));
-        c.view.vfx.ring(head.x, head.y, 1.1, C(0xe8eee0), 0.5);
-        c.view.vfx.ring(head.x, head.y, 0.7, C(0xc8d8c0), 0.35);
-        c.view.director.shake(0.15);
-      },
-    },
-    { f: 52, run: (c) => (hitFx(c, 1, 0x7cf08f), c.view.fx.noteBurst(c.def.x, c.def.y + 0.7, 3, -c.facing)) },
-    {
-      f: 66,
-      run: (c) => {
-        hitFx(c, 2, 0x7cf08f);
-        c.audio.whoosh(2);
-        c.view.vfx.dust(c.def.x, 0.02, 8, 0.8);
-      },
-    },
-    ...[80, 86, 92].map((f, i) => ({
+    { f: 1, run: (c) => (c.audio.whoosh(2), c.view.director.shake(0.2)) },
+    { f: 14, run: (c) => c.audio.whoosh(1) },
+    ...[22, 30, 38].map((f) => ({ f, run: (c: FxCtx) => c.audio.whoosh(0) })),
+    { f: 50, run: (c) => c.audio.snap() },
+    { f: 58, run: (c) => c.audio.lighter() },
+    { f: 66, run: (c) => (c.audio.smoke(), c.view.director.shake(0.15)) },
+    ...[78, 96, 114].map((f, i) => ({
       f,
       run: (c: FxCtx) => {
-        hitFx(c, 1, [0x6ff7ff, 0xff6fd8, 0xffe066][i]);
-        c.view.fx.noteBurst(c.def.x, c.def.y + 0.5, 4, -c.facing, 2);
-        c.audio.chime();
+        c.audio.inhale();
+        const tip = c.def;
+        hitFx(c, i === 2 ? 2 : 1, 0xff8a2a);
+        c.view.vfx.sparks(tip.x, tip.y + 0.2, 16, C(0xffa040), 5, -c.facing, 2);
+        c.view.director.shake(0.25 + i * 0.1);
       },
     })),
-    { f: 106, run: (c) => c.audio.whoosh(3) },
+    ...[84, 102, 122].map((f) => ({ f, run: (c: FxCtx) => (c.audio.smoke(), c.audio.crowdSwell(0.25)) })),
+    { f: 128, run: (c) => c.audio.riser() },
     {
-      f: 114,
+      f: 134,
       run: (c) => {
-        hitFx(c, 3, 0x7cf08f);
+        c.audio.boom();
         c.view.toon.impactFrame(0.06);
-        c.view.toon.blood(c.def.x, c.def.y + 0.6, 6, -c.facing, 3);
-        for (let i = 0; i < 10; i++)
-          c.view.fx.smoke.spawn(c.def.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.5 + Math.random() * 0.6, 0.1)), new THREE.Vector3(-c.facing * (1 + Math.random() * 2), Math.random(), 0), 0xdfe6d6, 0.5, 0.9, 1.5, 1);
-        c.view.director.shake(0.7);
+        c.view.director.shake(0.8);
         c.view.director.punch(4);
-        c.audio.crowdSwell(0.6);
+        c.audio.crowdSwell(0.7);
       },
     },
-    {
-      f: 130,
-      run: (c) => {
-        c.audio.slam();
-        c.view.toon.puff(c.def.x, 0, 10, 1.2, C(0xe9dfd0), 0.26, 0.7);
-        c.view.director.shake(0.5);
-      },
-    },
-    { f: 135, run: (c) => c.audio.inhale() },
-    {
-      f: 141,
-      run: (c) => {
-        c.audio.smoke();
-        const m = c.atk.clone().add(new THREE.Vector3(c.facing * 0.2, 0.75, 0.1));
-        for (let i = 0; i < 8; i++)
-          c.view.fx.smoke.spawn(m.clone(), new THREE.Vector3(c.facing * (0.6 + Math.random()), 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4), 0xe4e8de, 0.25, 1.4, 3, (Math.random() - 0.5) * 2);
-      },
-    },
+    { f: 148, run: (c) => (c.audio.slam(), c.view.toon.puff(c.def.x, 0, 10, 1.2, C(0xe9dfd0), 0.26, 0.7)) },
+    ...[150, 156].map((f) => ({ f, run: (c: FxCtx) => c.audio.cough() })),
   ],
 };

@@ -374,7 +374,7 @@ describe('specials', () => {
     s.fighters[0].meter = 300;
     const hp = s.fighters[1].health;
     const evs = run(s, 1, IN.S3);
-    evs.push(...run(s, 260));
+    evs.push(...run(s, 260 * RULES.CINE_RATE));
     expect(ofType(evs, 'superFlash')).toHaveLength(1);
     expect(ofType(evs, 'cineStart')).toHaveLength(1);
     expect(ofType(evs, 'cineHit')).toHaveLength(5);
@@ -400,7 +400,7 @@ describe('specials', () => {
     place(s, 1.2);
     s.fighters[1].meter = 300;
     const evs = run(s, 1, 0, IN.S3);
-    evs.push(...run(s, 260));
+    evs.push(...run(s, 260 * RULES.CINE_RATE));
     expect(ofType(evs, 'cineStart')).toHaveLength(1);
     expect(ofType(evs, 'cineEnd')).toHaveLength(1);
     expect(s.fighters[0].health).toBe(1000 - (10 + 30 + 30 + 200));

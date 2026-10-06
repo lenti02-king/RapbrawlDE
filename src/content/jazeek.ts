@@ -206,66 +206,66 @@ const moves: MoveDef[] = [
       },
     },
   },
-  // Blunt für dich (PO, after his song "Ich roll ein Blunt für dich"): rolls a joint, lights it, takes a drag and blows a
-  // thick cloud at the opponent (slow projectile from frame 46). A grounded hit starts the cinematic 'jaz_blunt'
-  // (dazed in the smoke, a slow-motion flow combo, a spinning kick out of the cloud). Long wind-up: punishable.
+  // Blunt für dich (PO, D42): a short lunge and a grab (frames 12-15, unblockable, only on a grounded, non-stunned
+  // opponent: jump or keep away). A catch starts the cinematic 'jaz_blunt': he rolls the opponent into a giant joint,
+  // lights it and takes three drags (each one burns: damage), then they pop out of the joint, coughing. A whiff
+  // leaves him open for a long time.
   {
     key: 'jaz_blunt',
     name: 'Blunt für dich',
     kind: 'special',
-    total: 62,
-    hits: [],
-    projectile: {
-      frame: 46,
-      def: {
-        kind: 'bluntsmoke',
-        x: m(0.45),
-        y: m(1.45),
-        speed: mps(3.2),
-        half: { w: m(0.5), h: m(0.45) },
-        life: 46,
-        hit: hit(1, 1, {
-          damage: 10,
-          chip: 4,
-          strength: 1,
-          hitstun: 30,
-          blockstun: 12,
-          hitstop: 4,
-          pushBlock: 900,
-          cinematic: 'jaz_blunt',
-          boxes: [],
-          meterOnHit: 0,
-          meterOnBlock: 0,
-        }),
-      },
-    },
+    total: 46,
+    velocity: [
+      { frame: 4, vx: mps(4.2) },
+      { frame: 12, vx: 0 },
+    ],
+    hits: [
+      hit(12, 15, {
+        damage: 10,
+        strength: 2,
+        level: 'unblockable',
+        boxes: [box(0.15, 1.0, 0.4, 1.7)],
+        cinematic: 'jaz_blunt',
+        grabLike: true,
+        meterOnHit: 0,
+        meterOnBlock: 0,
+      }),
+    ],
   },
-  // Diamanten-Regen: "make it rain" — a shower of diamonds falls over a zone in front of him (overhead from above)
+  // Diamanten-Regen (D42, PO): his diamond chain flashes (frames 1-21), then a shower of diamonds falls over the
+  // OPPONENT's spot. A sparkling ring on the floor warns first (30 frames, harmless: walk or dash out of it), then three
+  // hits from above (overhead: only a standing block holds), 12 frames apart, small pushback so a caught opponent
+  // stays in the shower. Ignores other projectiles (it falls from above).
   {
     key: 'jaz_rain',
     name: 'Diamanten-Regen',
     kind: 'special',
-    total: 44,
+    total: 50,
     hits: [],
     projectile: {
-      frame: 14,
+      frame: 22,
       def: {
         kind: 'diamonds',
-        x: m(2.0),
-        y: m(1.0),
-        speed: mps(1.2),
-        half: { w: m(0.65), h: m(1.0) },
-        life: 36,
+        x: 0,
+        y: m(0.9),
+        speed: 0,
+        half: { w: m(0.55), h: m(0.9) },
+        life: 74,
+        target: { max: m(4.6) },
+        armAt: 30,
+        hits: 3,
+        every: 12,
+        noClash: true,
         hit: hit(1, 1, {
-          damage: 72,
-          chip: 12,
-          strength: 2,
+          damage: 24,
+          chip: 4,
+          strength: 1,
           level: 'overhead',
-          hitstun: 22,
-          blockstun: 16,
-          hitstop: 10,
-          pushHit: 900,
-          pushBlock: 1100,
+          hitstun: 16,
+          blockstun: 14,
+          hitstop: 6,
+          pushHit: 120,
+          pushBlock: 300,
           boxes: [],
           meterOnHit: 0,
           meterOnBlock: 0,
@@ -419,10 +419,11 @@ export const JAZEEK: FighterDef = {
       category: 'zoning',
       cost: 200,
       move: 'jaz_rain',
-      role: 'Zone von oben, hält auf Abstand',
-      description: 'Make it rain: ein Schauer aus Diamanten prasselt auf die Zone vor ihm. Trifft von oben – nur stehend blockbar.',
+      role: 'Diamantenschauer über dem Gegner',
+      description:
+        'Make it rain: Seine Diamantkette blitzt auf, dann prasselt ein Diamantenschauer genau dort herab, wo der Gegner steht. Ein Funkelkreis warnt vorher – rausgehen oder stehend blocken.',
       ai: 'range',
-      aiRange: [1.4, 2.8],
+      aiRange: [1.4, 4.4],
     },
     {
       id: 'jaz_blunt',
@@ -430,11 +431,11 @@ export const JAZEEK: FighterDef = {
       category: 'offense',
       cost: 200,
       move: 'jaz_blunt',
-      role: 'Rauchwolke – benebelt, dann Show',
+      role: 'Griff – Gegner wird zum Joint',
       description:
-        'Er rollt in Ruhe einen Blunt, zündet ihn an und pustet dem Gegner eine dicke Wolke ins Gesicht. Erwischt sie ihn, folgt eine benebelte Show-Kombo in Zeitlupe. Langer Anlauf – bestrafbar.',
+        'Er packt den Gegner, rollt ihn in einen riesigen Joint, zündet ihn an und zieht dreimal kräftig – jeder Zug brennt. Dann ploppt der Gegner hustend wieder raus. Nicht blockbar, aber ausweichbar (springen, Abstand). Daneben gegriffen: lange offen.',
       ai: 'range',
-      aiRange: [1.2, 3.2],
+      aiRange: [0.3, 1.1],
     },
     {
       id: 'jaz_spot',
@@ -480,17 +481,16 @@ export const JAZEEK: FighterDef = {
   cinematics: {
     jaz_blunt: {
       id: 'jaz_blunt',
-      frames: 150,
-      startDx: m(1.6),
+      frames: 160,
+      startDx: m(0.75),
+      // three drags (each burns) and the pop out of the joint
       hits: [
-        { frame: 52, damage: 25, strength: 1 },
-        { frame: 66, damage: 25, strength: 2 },
-        { frame: 80, damage: 15, strength: 1 },
-        { frame: 86, damage: 15, strength: 1 },
-        { frame: 92, damage: 20, strength: 1 },
-        { frame: 114, damage: 40, strength: 3 },
+        { frame: 78, damage: 28, strength: 1 },
+        { frame: 96, damage: 28, strength: 1 },
+        { frame: 114, damage: 28, strength: 2 },
+        { frame: 134, damage: 30, strength: 3 },
       ],
-      endDx: m(3.4),
+      endDx: m(2.6),
     },
     jaz_heart: {
       id: 'jaz_heart',

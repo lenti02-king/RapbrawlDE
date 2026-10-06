@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { step } from '../src/core/sim';
+import { RULES, step } from '../src/core/sim';
 import { validateLoadout } from '../src/core/registry';
 import { IN, newMatch, ofType, place, run, script } from './helpers';
 
@@ -28,17 +28,38 @@ describe('Jazeek', () => {
     expect(s.fighters[1].x - x0).toBeGreaterThan(5000); // pushed > 0.5 m
   });
 
-  it('Diamanten-Regen: a zone 1.4-2.6 m ahead, hits from above (crouch-block fails, stand-block works), misses up close', () => {
-    const go = (dist: number, p2: number) => {
+  it('Diamanten-Regen: falls over the opponent (any range up to 4.6 m), three hits from above, crouch-block fails, stand-block works', () => {
+    const go = (dist: number, p2: number, frames = 110) => {
       const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
       place(s, dist);
       s.fighters[0].meter = 200;
-      return run(s, 1, IN.S1, p2).concat(run(s, 60, 0, p2));
+      const hp = s.fighters[1].health;
+      const evs = run(s, 1, IN.S1, p2).concat(run(s, frames, 0, p2));
+      return { evs, dmg: hp - s.fighters[1].health };
     };
-    expect(ofType(go(2.0, 0), 'hit')[0]?.move).toBe('jaz_rain');
-    expect(ofType(go(2.0, IN.BLOCK | IN.DOWN), 'hit')).toHaveLength(1);
-    expect(ofType(go(2.0, IN.BLOCK), 'block')).toHaveLength(1);
-    expect(ofType(go(0.8, 0), 'hit')).toHaveLength(0);
+    for (const d of [1.0, 2.5, 4.0]) {
+      const r = go(d, 0);
+      expect(ofType(r.evs, 'hit').map((h) => h.move)).toEqual(['jaz_rain', 'jaz_rain', 'jaz_rain']);
+      expect(r.dmg).toBeGreaterThanOrEqual(60);
+    }
+    expect(ofType(go(2.0, IN.BLOCK | IN.DOWN).evs, 'hit').length).toBeGreaterThan(0);
+    expect(ofType(go(2.0, IN.BLOCK).evs, 'block')).toHaveLength(3);
+    expect(ofType(go(2.0, IN.BLOCK).evs, 'hit')).toHaveLength(0);
+  });
+
+  it('Diamanten-Regen warns first: nothing hits during the sparkle ring, walking out of it dodges the shower', () => {
+    const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    place(s, 2.0);
+    s.fighters[0].meter = 200;
+    const early = run(s, 1, IN.S1).concat(run(s, 46));
+    expect(ofType(early, 'projectile').map((p) => p.kind)).toEqual(['diamonds']);
+    expect(ofType(early, 'hit')).toHaveLength(0);
+    // Bonez (P2, facing left) walks back out of the zone when the ring appears
+    const s2 = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    place(s2, 2.0);
+    s2.fighters[0].meter = 200;
+    const evs = run(s2, 1, IN.S1).concat(run(s2, 22), run(s2, 90, 0, IN.RIGHT));
+    expect(ofType(evs, 'hit')).toHaveLength(0);
   });
 
   it('Spotlight-Dash passes through the opponent and switches sides', () => {
@@ -74,7 +95,7 @@ describe('Jazeek', () => {
     s.fighters[0].meter = 300;
     const hp = s.fighters[1].health;
     const evs = run(s, 1, IN.S3);
-    evs.push(...run(s, 260));
+    evs.push(...run(s, 260 * RULES.CINE_RATE));
     expect(ofType(evs, 'cineStart')).toHaveLength(1);
     expect(ofType(evs, 'cineEnd')).toHaveLength(1);
     expect(hp - s.fighters[1].health).toBe(40 + 30 + 30 + 35 + 40 + 150);
@@ -84,38 +105,40 @@ describe('Jazeek', () => {
 describe('Jazeek: Blunt für dich', () => {
   const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_abriss', 'bon_palm']] as [string[], string[]] };
 
-  it('rolls and lights first: the smoke cloud only leaves on frame 46', () => {
+  it('grabs a standing opponent close by and rolls them into the joint: three drags + the pop (124 damage)', () => {
     const s = newMatch(BL);
-    place(s, 2.5);
+    place(s, 1.2);
     s.fighters[0].meter = 200;
-    const evs = run(s, 1, IN.S1).concat(run(s, 44));
-    expect(ofType(evs, 'projectile')).toHaveLength(0);
-    evs.push(...run(s, 3));
-    expect(ofType(evs, 'projectile').map((p) => p.kind)).toEqual(['bluntsmoke']);
-  });
-
-  it('the cloud reaches a standing opponent and starts the smoke cinematic (150 damage in total)', () => {
-    const s = newMatch(BL);
-    place(s, 2.5);
-    s.fighters[0].meter = 200;
-    const evs = run(s, 1, IN.S1).concat(run(s, 100));
+    const hp = s.fighters[1].health;
+    const evs = run(s, 1, IN.S1).concat(run(s, 20));
     expect(ofType(evs, 'cineStart').map((c) => c.id)).toEqual(['jaz_blunt']);
-    evs.push(...run(s, 170));
+    evs.push(...run(s, 170 * RULES.CINE_RATE));
+    expect(ofType(evs, 'cineHit')).toHaveLength(4);
     expect(ofType(evs, 'cineEnd')).toHaveLength(1);
-    // (+1 when the cloud lands on the beat: Beat-Drop)
-    const dmg = 1050 - s.fighters[1].health;
-    expect(dmg).toBeGreaterThanOrEqual(10 + 25 + 25 + 15 + 15 + 20 + 40);
-    expect(dmg).toBeLessThanOrEqual(151);
+    const dmg = hp - s.fighters[1].health;
+    expect(dmg).toBeGreaterThanOrEqual(10 + 28 * 3 + 30 - 2);
+    expect(dmg).toBeLessThanOrEqual(10 + 28 * 3 + 30 + 2);
   });
 
-  it('is blockable and costs two Hype bars', () => {
+  it('cannot be blocked, but a jump or distance escapes it (and the whiff is punishable)', () => {
+    const go = (dist: number, p2: number, pre = 0) => {
+      const s = newMatch(BL);
+      place(s, dist);
+      s.fighters[0].meter = 200;
+      if (pre) run(s, pre, 0, p2);
+      return run(s, 1, IN.S1, p2).concat(run(s, 30, 0, p2));
+    };
+    expect(ofType(go(1.2, IN.BLOCK), 'cineStart')).toHaveLength(1);
+    expect(ofType(go(2.6, 0), 'cineStart')).toHaveLength(0);
+    expect(ofType(go(1.2, IN.UP, 2), 'cineStart')).toHaveLength(0);
+  });
+
+  it('costs two Hype bars', () => {
     const s = newMatch(BL);
-    place(s, 2.5);
+    place(s, 2.6);
     s.fighters[0].meter = 200;
-    const evs = run(s, 1, IN.S1).concat(run(s, 100, 0, IN.BLOCK));
+    run(s, 1, IN.S1);
     expect(s.fighters[0].meter).toBeLessThan(100);
-    expect(ofType(evs, 'block')).toHaveLength(1);
-    expect(ofType(evs, 'cineStart')).toHaveLength(0);
   });
 });
 
@@ -128,7 +151,7 @@ describe('Bonez MC', () => {
     evs.push(...run(s, 60));
     expect(ofType(evs, 'projectile').some((p) => p.kind === 'crocrun')).toBe(true);
     expect(ofType(evs, 'cineStart').map((c) => c.id)).toContain('bon_croc');
-    evs.push(...run(s, 130));
+    evs.push(...run(s, 130 * RULES.CINE_RATE));
     expect(ofType(evs, 'cineEnd')).toHaveLength(1);
     expect(1000 - s.fighters[0].health).toBe(20 + 25 + 30 + 45);
     expect(s.fighters[0].state === 'knockdown' || s.fighters[0].state === 'wakeup' || s.fighters[0].state === 'idle').toBe(true);
@@ -185,7 +208,7 @@ describe('Bonez MC', () => {
       place(s, 1.4);
       s.fighters[1].meter = 300;
       const evs = run(s, 1, p1, IN.S3);
-      evs.push(...run(s, 240, p1, 0));
+      evs.push(...run(s, 240 * RULES.CINE_RATE, p1, 0));
       return { s, evs };
     };
     const crouch = go(IN.BLOCK | IN.DOWN);
@@ -201,7 +224,7 @@ describe('Bonez MC', () => {
       const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
       place(s, 4.5);
       s.fighters[1].meter = 200;
-      const evs = run(s, 1, p1, IN.S1).concat(run(s, 220, p1, 0));
+      const evs = run(s, 1, p1, IN.S1).concat(run(s, 220 * RULES.CINE_RATE, p1, 0));
       return { s, evs };
     };
     const open = go(0);
@@ -226,7 +249,7 @@ describe('Bonez MC', () => {
     s.fighters[1].x += shift;
     s.camX += shift;
     s.fighters[1].meter = 200;
-    const evs = run(s, 1, 0, IN.S1).concat(run(s, 220));
+    const evs = run(s, 1, 0, IN.S1).concat(run(s, 220 * RULES.CINE_RATE));
     expect(ofType(evs, 'hit').some((h) => h.move === 'bon_car')).toBe(true);
     expect(ofType(evs, 'cineEnd')).toHaveLength(1);
   });

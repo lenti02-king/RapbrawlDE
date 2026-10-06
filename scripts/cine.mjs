@@ -14,7 +14,7 @@ const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 const blunt = who === 'blunt';
-const croc = who === 'croc' || who === 'car' || blunt;
+const croc = who === 'croc' || who === 'car' || blunt; // card specials (button S1)
 const quick = who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez';
 await page.goto(`${base}/?quick=${quick}&mode=cpu`);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
@@ -25,7 +25,7 @@ await page.evaluate(([idx, croc, who]) => {
   r.sources[0].poll = () => 0;
   r.sources[1].poll = () => 0;
   const s = r.state;
-  const half = who === 'blunt' ? 12000 : croc ? 16000 : 6000;
+  const half = who === 'blunt' ? 5000 : croc ? 16000 : 6000; // the Blunt is a grab (D42)
   s.fighters[0].x = -half;
   s.fighters[1].x = half;
   s.fighters[idx].meter = 300;
@@ -53,12 +53,14 @@ const snap = async (name) => {
   files.push(f);
 };
 if (blunt && process.env.MOVE !== '0') {
-  for (const mf of [6, 14, 22, 31, 36, 42, 48, 56]) {
+  for (const mf of [4, 10, 14]) {
     await stepUntil((mf) => window.__rb.runner.state.fighters[0].mf >= mf, 200, mf);
     await snap(`m${String(mf).padStart(2, '0')}`);
   }
 }
-if (croc) {
+if (blunt) {
+  // the grab connects on frame 12
+} else if (croc) {
   await stepUntil(() => window.__rb.runner.state.projectiles.length > 0);
   await snap('00_croc_out');
   await stepUntil(() => window.__rb.runner.state.projectiles[0]?.age >= 8 || !!window.__rb.runner.state.cine);
@@ -76,11 +78,11 @@ const FRAMES = {
   bonez: [10, 24, 32, 52, 70, 76, 92, 108, 116, 119, 126, 150],
   croc: [4, 9, 14, 24, 35, 50, 57, 64, 72, 80, 86, 89, 92, 97, 104],
   car: [3, 8, 20, 32, 44, 50, 56, 70, 84, 88, 92, 98, 104, 112, 118],
-  blunt: [4, 16, 27, 36, 52, 60, 66, 72, 80, 86, 92, 104, 114, 122, 136, 146],
+  blunt: [4, 12, 18, 26, 34, 44, 50, 58, 64, 70, 78, 84, 96, 114, 122, 130, 134, 140, 148, 158],
 };
 const frames = (process.argv[3] ? process.argv[3].split(',').map(Number) : null) ?? FRAMES[who];
 for (const f of frames) {
-  await stepUntil((f) => (window.__rb.runner.state.cine?.frame ?? 999) >= f, 300, f);
+  await stepUntil((f) => (window.__rb.runner.state.cine?.frame ?? 999) >= f, 600, f);
   await snap(String(f).padStart(3, '0'));
 }
 await stepUntil(() => !window.__rb.runner.state.cine);

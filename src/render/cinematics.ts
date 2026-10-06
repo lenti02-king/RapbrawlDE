@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import type { AudioEngine } from '../audio/audio';
 import { UNITS_PER_METER } from '../core/math';
-import { showcaseOf } from '../core/sim';
+import { RULES, showcaseOf } from '../core/sim';
 import type { GameState } from '../core/state';
 import { BRICK_ANIMS } from './anims/brick';
 import { reactions, BRICK_STANCE } from './anims/stances';
@@ -503,7 +503,9 @@ class CinematicRuntime {
     const atkF = s.fighters[owner];
     const facing = atkF.facing;
     const ax = atkF.x / U;
-    const f = Math.min(def.frames, cine.frame + alpha);
+    // card cinematics run at RULES.CINE_RATE sim frames per cinematic frame: smooth fractional frame for the poses
+    const sub = s.cine ? (s.cine.sub + alpha) / RULES.CINE_RATE : alpha;
+    const f = Math.min(def.frames, cine.frame + sub);
 
     // poses
     const atkAnim = v.anims[owner];

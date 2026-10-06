@@ -5,6 +5,8 @@
 // place (no re-render), so the tile roulette can animate.
 import { AS_ART, AS_BOXES } from './arenaSelectArt';
 import { esc, fitTexts, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
+import { design } from '../design';
+import { mountShowcaseV2, showcaseHtmlV2, showcaseSelectV2, type TopBar } from '../v2/arena';
 
 export interface ShowcaseItem {
   id: string;
@@ -14,6 +16,8 @@ export interface ShowcaseItem {
   /** Three info rows (the plate has a sun, a flame and a crowd icon in front of them). */
   rows: [string, string][];
   img: string;
+  /** Full-screen picture for design v2 (a big render of the arena); falls back to `img`. */
+  big?: string;
   /** Tile crop of a wide picture: the point to keep (CSS position, e.g. '50% 90%' when the subject sits low) and a
    *  zoom toward it (the nearly square tiles otherwise show the picture's full height, mostly sky for some modes). */
   focus?: string;
@@ -38,7 +42,8 @@ const SAFE_SHORT: Box = [40, 290, 1962, 1088];
 const box = (b: readonly number[]) => b as unknown as Box;
 const ROW_H = 40;
 
-export function showcaseHtml(items: ShowcaseItem[], cur: ShowcaseItem, o: ShowcaseOpts): string {
+export function showcaseHtml(items: ShowcaseItem[], cur: ShowcaseItem, o: ShowcaseOpts & { bar?: TopBar | null }): string {
+  if (design() === 'v2') return showcaseHtmlV2(items, cur, o);
   const bg = AS_ART.bg;
   const pv = AS_ART.preview;
   const [pw0, pw1, pw2, pw3] = B.previewWindow;
@@ -113,6 +118,7 @@ function setText(root: HTMLElement, sel: string, t: string): void {
 
 /** Show `it` as the current item (preview, info panel, selected tile frame) without re-rendering. */
 export function showcaseSelect(root: HTMLElement, it: ShowcaseItem): void {
+  if (root.classList.contains('v2')) return showcaseSelectV2(root, it);
   root.querySelectorAll<HTMLElement>('.as-tile').forEach((t) => t.classList.toggle('on', t.dataset.item === it.id));
   const pv = root.querySelector<HTMLImageElement>('.as-preview');
   if (pv) pv.src = it.img || AS_ART.locked.src;
@@ -129,13 +135,14 @@ export function showcaseSelect(root: HTMLElement, it: ShowcaseItem): void {
 }
 
 export function setShowcaseChip(root: HTMLElement, label: string, on: boolean): void {
-  const c = root.querySelector<HTMLElement>('.as-chip');
+  const c = root.querySelector<HTMLElement>('.as-chip, .v2-chip');
   if (!c) return;
   c.querySelector('span')!.textContent = label;
   c.classList.toggle('on', on);
 }
 
 export function mountShowcase(root: HTMLElement): () => void {
+  if (root.querySelector('.v2-stage')) return mountShowcaseV2(root);
   root.classList.add('mm', 'as');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
   return keepLaidOut(root, () => layoutStage(root, stage, SAFE, AS_ART.bg, SAFE_SHORT));

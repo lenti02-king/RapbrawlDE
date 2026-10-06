@@ -12,6 +12,7 @@ import type { CharacterRig } from '../../render/glbRig';
 import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
 import { isPhone } from '../../render/textureBudget';
+import { showcasePose } from '../../render/anims/showcase';
 
 export interface FigureSpec {
   id: string;
@@ -22,6 +23,10 @@ export interface FigureSpec {
   rim: number;
   /** Turn toward the camera (rad); default 0.55. */
   turn?: number;
+  /** Second rim light from the other side (stage lights), optional. */
+  rim2?: number;
+  /** Upright hero pose for showcase screens instead of the fight stance (D42). */
+  showcase?: boolean;
 }
 
 interface Fig {
@@ -29,6 +34,7 @@ interface Fig {
   rig: CharacterRig;
   group: THREE.Group;
   rim: THREE.DirectionalLight;
+  rim2: THREE.DirectionalLight | null;
   base: Float32Array;
   pose: Float32Array;
   seed: number;
@@ -146,7 +152,10 @@ export class MenuFigures {
   }
 
   set(specs: FigureSpec[]): void {
-    for (const f of this.figs) this.scene.remove(f.group, f.rim);
+    for (const f of this.figs) {
+      this.scene.remove(f.group, f.rim);
+      if (f.rim2) this.scene.remove(f.rim2);
+    }
     this.figs = specs.map((spec, i) => {
       const rig = buildCharacter(spec.id, 0);
       const group = new THREE.Group();
@@ -155,15 +164,23 @@ export class MenuFigures {
       rim.position.set(-spec.facing * 3, 2.5, -3);
       rim.target = rig.root;
       this.scene.add(group, rim);
+      let rim2: THREE.DirectionalLight | null = null;
+      if (spec.rim2 !== undefined) {
+        rim2 = new THREE.DirectionalLight(spec.rim2, 2.6);
+        rim2.position.set(spec.facing * 3, 2.2, -2.6);
+        rim2.target = rig.root;
+        this.scene.add(rim2);
+      }
       const set = ANIM_SETS[spec.id];
-      const base = toArr((set?.stance ?? {}) as PoseDef);
+      const stance = (set?.stance ?? {}) as PoseDef;
+      const base = toArr(spec.showcase ? showcasePose(spec.id, stance) : stance);
       let height = 1.8;
       try {
         height = getFighter(spec.id).height / UNITS_PER_METER;
       } catch {
         /* non-fighter visual */
       }
-      return { spec, rig, group, rim, base, pose: new Float32Array(base.length), seed: i * 1.7 + spec.id.length, height };
+      return { spec, rig, group, rim, rim2, base, pose: new Float32Array(base.length), seed: i * 1.7 + spec.id.length, height };
     });
     if (!this.raf) this.loop();
   }
@@ -225,6 +242,7 @@ export class MenuFigures {
     this.raf = 0;
     for (const f of this.figs) {
       this.scene.remove(f.group, f.rim);
+      if (f.rim2) this.scene.remove(f.rim2);
       f.group.traverse((o) => {
         const m = (o as THREE.Mesh).material;
         if (m) for (const x of Array.isArray(m) ? m : [m]) x.dispose(); // the rig's own material clones

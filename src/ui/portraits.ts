@@ -2,6 +2,7 @@
 // offscreen WebGL context (transparent background, studio lighting with a gold and a violet rim).
 //   bust  — HUD/avatar head shot          card — select-screen 3/4 body
 //   hero  — tall full-body key art         art:<cardId> — the fighter at the card move's first active frame
+import { showcasePose } from '../render/anims/showcase';
 import * as THREE from 'three';
 import { getCard, getFighter, getMove } from '../core/registry';
 import { ANIM_SETS } from '../render/animator';
@@ -157,7 +158,7 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
 export type PortraitKind = 'card' | 'bust' | 'hero' | `art:${string}`;
 const cache = new Map<string, string>();
 
-const SIZE: Record<string, [number, number]> = { bust: [192, 192], card: [320, 400], hero: [560, 800], art: [384, 512] };
+const SIZE: Record<string, [number, number]> = { bust: [256, 256], card: [320, 400], hero: [560, 800], art: [384, 512] };
 
 function frameBox(rig: ReturnType<typeof buildCharacter>): THREE.Box3 {
   const box = new THREE.Box3();
@@ -209,7 +210,8 @@ export function renderPortraits(ids: string[], kinds: PortraitKind[] = ['card', 
       rigs.set(id, rig);
     }
     const set = ANIM_SETS[id];
-    let pose = toArr((set?.stance ?? {}) as PoseDef);
+    // menus show the fighters standing tall (D42), the art cards keep the move's pose
+    let pose = toArr(showcasePose(id, (set?.stance ?? {}) as PoseDef));
     if (kind.startsWith('art:')) {
       const card = getCard(id, kind.slice(4));
       const clip = set?.moves[card.move];

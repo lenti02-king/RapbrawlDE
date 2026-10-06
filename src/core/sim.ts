@@ -22,6 +22,8 @@ import {
 
 /** Tunable global rules. */
 export const RULES = {
+  /** Sim frames per cinematic frame: card cinematics play at half speed (PO: they felt 2-4x too fast, D42). */
+  CINE_RATE: 2,
   BUFFER: 8,
   DASH_TAP_WINDOW: 12,
   DASH_REQ_WINDOW: 6,
@@ -1084,16 +1086,20 @@ function updateCamera(s: GameState): void {
 
 function spawnProjectile(s: GameState, f: FighterState, mv: MoveDef, ev: SimEvent[]): void {
   const pd = mv.projectile!.def;
+  const o = s.fighters[1 - f.idx];
   const p: ProjectileState = {
     id: s.nextProjId++,
     owner: f.idx,
     move: mv.key,
     kind: pd.kind,
-    x: f.x + f.facing * pd.x,
-    y: f.y + pd.y,
+    // targeted (rain from above): over the opponent, within reach; else in front of the owner
+    x: pd.target ? clamp(o.x, f.x - pd.target.max, f.x + pd.target.max) : f.x + f.facing * pd.x,
+    y: pd.target ? pd.y : f.y + pd.y,
     dir: f.facing,
     age: 0,
     alive: true,
+    hitsLeft: pd.hits ?? 1,
+    cool: 0,
   };
   s.projectiles.push(p);
   ev.push({ t: 'projectile', p: f.idx, id: p.id, kind: p.kind });
@@ -1108,6 +1114,7 @@ function updateProjectiles(s: GameState, ev: SimEvent[]): void {
     if (!p.alive) continue;
     const pd = projDef(s, p);
     p.age++;
+    if (p.cool > 0) p.cool--;
     let dir = p.dir;
     if (pd.returnAfter !== undefined && p.age > pd.returnAfter) {
       dir = -p.dir;
@@ -1244,15 +1251,16 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
   // validate throws now (whiffed throws simply don't count)
   hits = hits.filter((c) => !(c.hit.throw || c.hit.grabLike) || throwable(c.def));
   if (hits.length === 2) {
-    const ta = !!hits[0].hit.throw;
-    const tb = !!hits[1].hit.throw;
+    // command grabs (grabLike) count as throws here: two grabs on the same frame tech, a strike beats a grab
+    const ta = !!(hits[0].hit.throw || hits[0].hit.grabLike);
+    const tb = !!(hits[1].hit.throw || hits[1].hit.grabLike);
     if (ta && tb) {
       // throw vs throw: both tech
       for (const c of hits) c.atk.hitMask |= 1 << c.k;
       techBoth(a, b, ev);
       return;
     }
-    if (ta !== tb) hits = hits.filter((c) => !c.hit.throw); // strike beats throw
+    if (ta !== tb) hits = hits.filter((c) => !(c.hit.throw || c.hit.grabLike)); // strike beats throw
     else if (canDuel(s, hits)) {
       for (const c of hits) c.atk.hitMask |= 1 << c.k;
       startDuel(s, ev);
@@ -1271,21 +1279,23 @@ function collide(s: GameState, ev: SimEvent[], frozen: boolean[]): void {
   // already started by a strike this frame wins over projectiles.
   const phits: ProjectileState[] = [];
   for (const p of s.projectiles) {
-    if (s.cine || !p.alive || projDef(s, p).barrier) continue;
+    if (s.cine || !p.alive || projDef(s, p).barrier || p.cool > 0 || p.age < (projDef(s, p).armAt ?? 0)) continue;
     const target = s.fighters[1 - p.owner];
     const pb = projectileBox(s, p);
     if (hurtboxes(target).some((hb) => overlaps(pb, hb))) phits.push(p);
   }
   const ptrade = phits.some((p) => phits.some((q) => q.owner !== p.owner));
   for (const p of phits) {
-    p.alive = false;
     const pd = projDef(s, p);
+    p.hitsLeft--;
+    p.cool = pd.every ?? 0;
+    p.alive = p.hitsLeft > 0;
     const h = ptrade && pd.hit.cinematic ? { ...pd.hit, cinematic: undefined } : pd.hit;
     applyHit(s, s.fighters[p.owner], s.fighters[1 - p.owner], h, p.x, p.y, p, ev);
-    ev.push({ t: 'projectileEnd', id: p.id, x: p.x, y: p.y });
+    if (!p.alive) ev.push({ t: 'projectileEnd', id: p.id, x: p.x, y: p.y });
   }
   // projectile clash
-  const alive = s.projectiles.filter((p) => p.alive);
+  const alive = s.projectiles.filter((p) => p.alive && !projDef(s, p).noClash && p.age >= (projDef(s, p).armAt ?? 0));
   for (let i = 0; i < alive.length; i++)
     for (let j = i + 1; j < alive.length; j++) {
       const p = alive[i];
@@ -1646,7 +1656,7 @@ function startCinematic(s: GameState, atk: FighterState, def: FighterState, id: 
   const limit = RULES.STAGE_HALF - room;
   if (atk.facing > 0) atk.x = Math.min(atk.x, limit);
   else atk.x = Math.max(atk.x, -limit);
-  s.cine = { id, owner: atk.idx, frame: 0, scale: comboScale(def.combo) };
+  s.cine = { id, owner: atk.idx, frame: 0, sub: 0, scale: comboScale(def.combo) };
   setState(atk, 'cineAtk');
   setState(def, 'cineDef');
   for (const f of [atk, def]) {
@@ -1668,6 +1678,8 @@ function stepCinematic(s: GameState, ev: SimEvent[]): void {
   const atk = s.fighters[c.owner];
   const def = s.fighters[1 - c.owner];
   const cd = getFighter(atk.def).cinematics[c.id];
+  if (++c.sub < RULES.CINE_RATE) return;
+  c.sub = 0;
   c.frame++;
   atk.sf++;
   def.sf++;

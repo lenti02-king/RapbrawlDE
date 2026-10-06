@@ -1,6 +1,7 @@
 // Visual lab: renders rigs in chosen poses for screenshot-based verification.
 // /?lab=poses&a=jazeek&b=bonez&pose=stance|crouch|hitHigh|...&zoom=2
 import * as THREE from 'three';
+import { showcasePose } from './render/anims/showcase';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HandProp } from './render/handProps';
 import { Crowd, type Behaviour, type CrowdStyle } from './render/crowd';
@@ -14,7 +15,7 @@ import { ANIM_SETS, motionOf } from './render/animator';
 import { getFighter } from './core/registry';
 import type { AnimSet } from './render/anims/types';
 import { buildCharacter } from './render/characters';
-import { Clip, sampleDef, stabilizeHead, toArr, type PoseDef } from './render/pose';
+import { Clip, compose, sampleDef, stabilizeHead, toArr, type PoseDef } from './render/pose';
 
 export function runLab(canvas: HTMLCanvasElement): void {
   if (new URLSearchParams(location.search).get('lab') === 'bake-export') {
@@ -60,6 +61,9 @@ export function runLab(canvas: HTMLCanvasElement): void {
     if (kind === 'move' && set.moves[key]) return sampleDef(set.moves[key], Number(fr ?? 1));
     if (kind === 'walkF' || kind === 'walkB') return sampleDef(M[kind], Number(key ?? 0));
     if (kind === 'motion' && M[key]) return sampleDef(M[key], Number(fr ?? 0));
+    const pj = params.get('pj'); // pose override as JSON (PoseDef), layered on top: fast pose iteration
+    if (pj) return compose(spec === 'showcase' ? showcasePose(set.id, set.stance) : set.stance, JSON.parse(pj) as PoseDef);
+    if (spec === 'showcase') return showcasePose(set.id, set.stance);
     return spec === 'stance' ? set.stance : ((set.r as Record<string, PoseDef>)[spec] ?? set.stance);
   };
   const rigs: ReturnType<typeof buildCharacter>[] = [];

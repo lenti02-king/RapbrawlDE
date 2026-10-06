@@ -418,37 +418,33 @@ const normals: Record<string, Clip> = {
 
 const moves: Record<string, Clip> = {
   ...normals,
-  // Diamanten-Regen (total 44, rain spawns on 14): hand into the pocket, then "make it rain" up high, eyes on the shower
+  // Diamanten-Regen (total 50, the shower is called on 22): right hand grabs the chain and holds it up to the light
+  // (it flashes 2-24), chin up, then flicks the hand high "make it rain" and points at the spot where it will fall
   jaz_rain: new Clip(
     [
       { f: 1, p: {} },
-      { f: 8, p: { y: -0.06, s: { sq: 0.06 }, aim: { shR: [0.1, -1, 0.35], elR: [0.4, -0.6, 0.6] }, j: { chest: [0, -6, -6], spine: [0, 0, -6], head: [0, 0, -6] } }, e: 'out' },
-      { f: 13, p: { y: 0.04, s: { sq: -0.08, aR: 0.08 }, aim: { shR: [0.55, 1, 0.25], elR: [0.6, 1, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 16, 10], spine: [0, 6, 8], head: [0, -10, 22], thR: [-8, 18, -6], knR: [0, 0, -8] } }, e: 'snap' },
-      { f: 18, p: { y: 0.03, s: { sq: -0.06 }, aim: { shR: [0.65, 1, 0.2], elR: [0.9, 0.8, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 14, 10], spine: [0, 6, 8], haR: [0, 0, -40], head: [0, -10, 20] } } },
-      { f: 24, p: { y: 0.02, aim: { shR: [0.6, 1, 0.25], elR: [0.8, 0.9, 0.2], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 14, 10], spine: [0, 6, 8], haR: [0, 0, 20], head: [0, -6, 18] } } },
-      { f: 32, p: { aim: { shR: [0.6, 1, 0.25], elR: [0.9, 0.7, 0.2] }, j: { chest: [0, 8, 6], haR: [0, 0, -30], head: [0, -6, 12] } } },
-      { f: 44, p: {}, e: 'inOut' },
+      { f: 6, p: { y: 0.01, aim: { shR: [0.25, -0.55, 0.8], elR: [-0.2, 0.7, 0.7], face: 0.2 }, j: { chest: [0, 10, 8], spine: [0, 4, 4], head: [0, 6, -6], haR: [0, 0, 30] } }, e: 'out' },
+      { f: 12, p: { y: 0.02, aim: { shR: [0.3, -0.45, 0.85], elR: [-0.1, 0.85, 0.5], face: 0.1 }, j: { chest: [0, 14, 12], spine: [0, 6, 6], head: [0, 10, -12], haR: [0, 0, 40] } } },
+      { f: 18, p: { y: -0.05, s: { sq: 0.05 }, aim: { shR: [0.2, -0.9, 0.4], elR: [0.5, -0.4, 0.7] }, j: { chest: [0, -4, -6], spine: [0, 0, -4], head: [0, 0, -4] } }, e: 'in' },
+      { f: 22, p: { y: 0.05, s: { sq: -0.1, aR: 0.1 }, aim: { shR: [0.55, 1, 0.25], elR: [0.7, 1, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2] }, j: { chest: [0, 16, 12], spine: [0, 6, 8], head: [0, -10, 22], haR: [0, 0, -40], thR: [-8, 18, -6], knR: [0, 0, -8] } }, e: 'snap' },
+      { f: 30, p: { y: 0.03, aim: { shR: [0.95, 0.35, 0.2], elR: [1, 0.2, 0.1], shL: [0.4, -0.6, -0.4], elL: [0.8, 0.5, 0.2], face: 0.8 }, j: { chest: [0, 10, 6], spine: [0, 4, 4], haR: [0, 0, 10], head: [0, -4, 6] } }, e: 'out' },
+      { f: 40, p: { aim: { shR: [0.9, 0.3, 0.25], elR: [0.95, 0.2, 0.15], face: 0.8 }, j: { chest: [0, 8, 6], haR: [0, 0, 10], head: [0, -4, 6] } } },
+      { f: 50, p: {}, e: 'inOut' },
     ],
     S,
   ),
-  // Blunt für dich: roll (hands together, head down), lick, light it (cupped hand at the mouth), deep drag, lean back,
-  // then blow the cloud forward (projectile at f46)
+  // Blunt für dich (D42): a quick lunge with both hands out for the collar (grab 12-15); on a whiff he grabs air,
+  // stumbles a step and shakes it off (long recovery)
   jaz_blunt: new Clip(
     [
       { f: 1, p: {} },
-      { f: 6, p: BLUNT.roll(0), e: 'out' },
-      { f: 10, p: BLUNT.roll(1) },
-      { f: 14, p: BLUNT.roll(0) },
-      { f: 18, p: BLUNT.roll(1) },
-      { f: 22, p: BLUNT.lick, e: 'inOut' },
-      { f: 26, p: BLUNT.roll(0) },
-      { f: 31, p: BLUNT.light, e: 'inOut' },
-      { f: 37, p: BLUNT.light },
-      { f: 41, p: BLUNT.drag, e: 'out' },
-      { f: 45, p: BLUNT.hold, e: 'inOut' },
-      { f: 47, p: BLUNT.blow, e: 'snap' },
-      { f: 55, p: compose(BLUNT.blow, { j: { chest: [0, -8, -12] } }) },
-      { f: 62, p: BLUNT.chill, e: 'inOut' },
+      { f: 4, p: { x: -0.03, y: -0.04, s: { sq: 0.06 }, j: { chest: [0, -8, -4], spine: [0, 0, -4], shL: [20, 0, 40], elL: [0, 0, 90], shR: [-20, 0, 40], elR: [0, 0, 90] } }, e: 'out' },
+      { f: 10, p: { x: 0.1, aim: { shL: [0.9, -0.05, -0.3], elL: [1, 0.15, -0.1], shR: [0.9, -0.05, 0.3], elR: [1, 0.15, 0.1], face: 0.7 }, j: { spine: [0, -4, -12], chest: [0, -6, -12], thL: [6, 20, 40], knL: [0, 0, -40] } }, e: 'snap' },
+      { f: 15, p: { x: 0.14, aim: { shL: [0.95, 0.05, -0.25], elL: [1, 0.2, -0.05], shR: [0.95, 0.05, 0.25], elR: [1, 0.2, 0.05], face: 0.7 }, j: { spine: [0, -4, -14], chest: [0, -6, -14], thL: [6, 20, 44], knL: [0, 0, -46] } } },
+      { f: 22, p: { x: 0.18, y: -0.05, aim: { shL: [0.7, -0.6, -0.3], elL: [0.6, -0.5, 0.1], shR: [0.7, -0.6, 0.3], elR: [0.6, -0.5, -0.1], face: 0.3 }, j: { spine: [0, 0, -20], chest: [0, 0, -16], head: [0, 0, -10] } }, e: 'out' },
+      { f: 32, p: { x: 0.12, j: { head: [0, 18, 6], chest: [0, 8, 2] } }, e: 'inOut' },
+      { f: 38, p: { x: 0.1, j: { head: [0, -18, 6], chest: [0, -8, 2] } }, e: 'inOut' },
+      { f: 46, p: {}, e: 'inOut' },
     ],
     S,
   ),

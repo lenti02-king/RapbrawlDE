@@ -86,6 +86,15 @@ export interface ProjectileDef {
   returnAfter?: number;
   /** Barrier: never hits fighters; destroys enemy projectiles it touches and survives. */
   barrier?: boolean;
+  /** Spawns over the opponent (x = their position, at most `max` from the owner) instead of in front of the owner. */
+  target?: { max: number };
+  /** Harmless warning phase: no hits and no clashes before this age (a telegraph the opponent can walk out of). */
+  armAt?: number;
+  /** Multi-hit: number of hits (default 1) and frames between them; the projectile stays until all are used. */
+  hits?: number;
+  every?: number;
+  /** Ignores enemy projectiles (falls from above). */
+  noClash?: boolean;
 }
 
 export interface CounterDef {

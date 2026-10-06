@@ -32,6 +32,8 @@ export class SpecialFX {
   private joints: HandProp[] = [];
   private tip: THREE.Sprite[] = [];
   private flame: THREE.Sprite[] = [];
+  /** Diamanten-Regen: Jazeek's chain flashes (big star glint + small ones along the chain). */
+  private chain: THREE.Sprite[][] = [];
   private lastMf = [-1, -1];
   private winCroc: Croc;
   /** The PO's wrecking ball per fighter (Abrissbirne), created on first use. */
@@ -57,6 +59,7 @@ export class SpecialFX {
       };
       this.tip.push(mk(0xff7a2a, 0.07));
       this.flame.push(mk(0xffc24a, 0.12));
+      this.chain.push([mk(0xe8fdff, 0.5), mk(0x9ff0ff, 0.22), mk(0xffffff, 0.18), mk(0xbff6ff, 0.2)]);
     }
     this.winCroc = crocAsHead(1) ?? makeCroc({ top: 0x1f5a2c, side: 0x2c7a38, belly: 0xb9b07a });
     this.winCroc.setOpacity(0);
@@ -153,41 +156,35 @@ export class SpecialFX {
         mic.place(rig, 'haR', on);
       }
 
-      // --- Jazeek: Blunt für dich — the joint appears while he rolls, the lighter flame at 30-38, a glowing tip and
-      // smoke wisps once it is lit, the exhale toward the opponent at 46 (the cloud itself is the projectile)
+      // --- Jazeek: Diamanten-Regen — the diamond chain flashes (frames 2-24), star glints run along it
       if (f.def === 'jazeek') {
-        const blunt = inMove('jaz_blunt') ? f.mf : -1;
-        const cineF = s.cine && s.cine.owner === i && s.cine.id === 'jaz_blunt' ? s.cine.frame : -1;
-        const show = (blunt >= 8 && blunt <= 62) || cineF >= 0;
-        const jp = this.joints[i] ?? (this.joints[i] = new HandProp('joint', this.group));
-        jp.place(rig, 'haR', show && jp.ok);
-        const lit = (blunt >= 34 && blunt <= 62) || cineF >= 0;
-        const tipPos = show ? jp.obj.localToWorld(new THREE.Vector3(0.085, 0, 0)) : null;
-        this.tip[i].visible = !!tipPos && lit;
-        if (tipPos && lit) {
-          this.tip[i].position.copy(tipPos);
-          this.tip[i].scale.setScalar(0.06 + 0.025 * (0.5 + 0.5 * Math.sin(time * 9)));
-          if (emitTick && Math.random() < 0.35)
-            this.smoke.spawn(tipPos.clone().add(new THREE.Vector3(0, 0.03, 0.02)), new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.32, 0.02), 0xd6dccf, 0.08, 1.4, 4, (Math.random() - 0.5) * 1.5);
-        }
-        const flameOn = !!tipPos && blunt >= 30 && blunt <= 38;
-        this.flame[i].visible = flameOn;
-        if (flameOn && tipPos) {
-          this.flame[i].position.copy(tipPos).add(new THREE.Vector3(0, -0.03, 0.03));
-          this.flame[i].scale.set(0.07 + Math.random() * 0.02, 0.13 + Math.random() * 0.04, 1);
-        }
-        // frame-exact sounds + the exhale stream (once per sim frame)
-        if (blunt >= 0 && blunt !== this.lastMf[i]) {
-          if (blunt === 30) this.sound?.('lighter');
-          if (blunt === 38) this.sound?.('inhale');
-          if (blunt === 46) this.sound?.('smoke');
-          if (blunt >= 46 && blunt <= 56) {
-            const mouth = rig.joints.head.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(f.facing * 0.14, 0.02, 0.05));
-            for (let k = 0; k < 2; k++)
-              this.smoke.spawn(mouth.clone(), new THREE.Vector3(f.facing * (1.6 + Math.random()), (Math.random() - 0.3) * 0.3, (Math.random() - 0.5) * 0.3), k ? 0xc8d6c0 : 0xe4e8de, 0.14, 0.9, 3.5, (Math.random() - 0.5) * 2);
-          }
-        }
-        this.lastMf[i] = blunt;
+        const rf = inMove('jaz_rain') ? f.mf : -1;
+        const on = rf >= 2 && rf <= 26;
+        const chest = on ? rig.joints.chest.getWorldPosition(new THREE.Vector3()) : null;
+        const neck = on ? rig.joints.neck.getWorldPosition(new THREE.Vector3()) : null;
+        this.chain[i].forEach((g, k) => {
+          g.visible = on;
+          if (!on || !chest || !neck) return;
+          // the pendant sits a bit below the collar bone, in front of the chest
+          const t = k === 0 ? 0.55 : 0.2 + k * 0.22;
+          g.position.copy(neck).lerp(chest, t).add(new THREE.Vector3(f.facing * (0.1 + (k ? (k - 2) * 0.05 : 0)), -0.06, 0.16));
+          const blink = Math.max(0, Math.sin(time * (k ? 22 : 15) + k * 1.9));
+          const env = ramp(rf, 2, 6) * (1 - ramp(rf, 22, 27));
+          const big = k === 0 ? 0.35 + 0.55 * blink + (rf >= 16 && rf <= 22 ? 0.6 : 0) : 0.12 + 0.16 * blink;
+          g.scale.setScalar(big * env);
+          g.material.rotation = time * (k ? 3 : 1.2);
+        });
+        if (on && chest && emitTick && rf >= 6 && Math.random() < 0.7)
+          this.vfx.sparks(chest.x + f.facing * 0.12, chest.y + 0.08, 3, new THREE.Color(0xc8f8ff), 1.6, f.facing, 1.5);
+      }
+
+      // --- Jazeek: Blunt für dich is a grab now (D42): the giant joint is the cinematic's own prop (cines.ts); the
+      // hand joint, its tip and the lighter flame stay hidden
+      if (f.def === 'jazeek') {
+        this.joints[i]?.place(rig, 'haR', false);
+        this.tip[i].visible = false;
+        this.flame[i].visible = false;
+        this.lastMf[i] = -1;
       }
 
       // --- Bonez: Abrissbirne — the PO's wrecking ball swings in on its chain from the background, straight into the
@@ -350,25 +347,63 @@ export class SpecialFX {
       return true;
     }
     if (p.kind === 'diamonds') {
-      // a shower of diamonds over the zone; they land, bounce off and sparkle
-      const life = 36;
-      const a = Math.min(ease(p.age / 5), 1 - ease((p.age - (life - 8)) / 8));
-      m.position.set(p.x / U, p.y / U, 0.1);
+      // Diamanten-Regen: a sparkling warning ring on the floor under the opponent (harmless), a light shaft from above
+      // with diamonds gathering high up; then the shower: dense, big, spinning diamonds hammer the zone, bounce and glint
+      const pd = getMove(s.fighters[p.owner].def, p.move).projectile!.def;
+      const arm = pd.armAt ?? 0;
+      const life = pd.life;
+      const warn = p.age < arm;
+      const tw = ramp(p.age, 0, 6);
+      const out = 1 - ramp(p.age, life - 10, life);
+      const fall = warn ? 0 : ramp(p.age, arm, arm + 4) * out;
+      m.position.set(p.x / U, p.y / U, 0.05);
+      const floor = -p.y / U + 0.02;
+      const ud = m.userData as { ring: THREE.Mesh; shaft: THREE.Mesh; glow: THREE.Mesh };
+      // warning ring: pulses faster as the shower approaches, then flares and stays as a glowing pool while it rains
+      const k = warn ? p.age / Math.max(1, arm) : 1;
+      ud.ring.position.y = floor;
+      const pulse = 0.5 + 0.5 * Math.sin(time * (8 + 22 * k));
+      const rs = warn ? 0.85 + 0.25 * (1 - k) + 0.05 * pulse : 1.05 + 0.04 * Math.sin(time * 30);
+      ud.ring.scale.set(rs, rs, rs);
+      (ud.ring.material as THREE.MeshBasicMaterial).opacity = (warn ? tw * (0.45 + 0.45 * pulse) : 0.9) * out;
+      ud.glow.position.y = floor + 0.01;
+      (ud.glow.material as THREE.MeshBasicMaterial).opacity = (warn ? 0.25 * tw * k : 0.55) * out;
+      // light shaft from above
+      ud.shaft.position.y = floor + 1.9;
+      (ud.shaft.material as THREE.MeshBasicMaterial).opacity = (warn ? 0.1 + 0.18 * k : 0.32) * tw * out;
       m.children.forEach((c) => {
-        const d = c.userData as { lane: number; z: number; off: number; spin: number; size: number; glint?: boolean };
+        const d = c.userData as { lane: number; z: number; off: number; spin: number; size: number; glint?: boolean; dia?: boolean };
         if (d.glint) {
-          (c as THREE.Sprite).material.opacity = a * (0.5 + 0.5 * Math.sin(time * 20 + d.off * 9));
+          (c as THREE.Sprite).material.opacity = (warn ? 0.6 * tw : 1) * out * (0.4 + 0.6 * Math.abs(Math.sin(time * 14 + d.off * 9)));
+          c.position.y = warn ? 1.9 + d.off * 0.6 : floor + 0.15 + ((d.off * 7) % 1) * 1.6;
           return;
         }
-        const t = ((p.age + d.off * 30) / 14) % 1;
-        const y = 1.9 - t * 2.9;
-        c.position.set(d.lane, Math.max(-0.98, y), d.z);
+        if (!d.dia) return;
+        if (warn) {
+          // gathering high up: small, slowly spinning, twinkling
+          c.position.set(d.lane * 0.8, 2.05 + d.off * 0.5, d.z * 0.6);
+          c.rotation.set(time * d.spin * 0.4, time * d.spin * 0.6, 0.3);
+          const sc = d.size * 0.45 * tw * k;
+          c.scale.set(sc, sc, sc);
+          return;
+        }
+        // falling: each diamond loops top -> floor, bounces once, then the next fall starts from the top
+        const period = 16;
+        const t = ((p.age - arm + d.off * period) / period) % 1;
+        const top = 2.2;
+        const y = top - t * t * (top - floor) * 1.15;
+        const landed = y <= floor + 0.06;
+        c.position.set(d.lane, landed ? floor + 0.06 + Math.sin((t - 0.87) * 30) * 0.05 : y, d.z);
         c.rotation.set(time * d.spin, time * d.spin * 1.3, 0.3);
-        const sc = d.size * a * (y < -0.95 ? 0.7 : 1);
+        const sc = d.size * fall;
         c.scale.set(sc, sc * (m.userData.glb ? 1 : 1.4), sc);
       });
-      if (p.age % 3 === 0) this.vfx.sparks(p.x / U + (Math.random() - 0.5) * 1.2, 0.05, 3, new THREE.Color(0xbff6ff), 3, 0, 2);
-      if (p.age % 2 === 0) this.vfx.emit(p.x / U + (Math.random() - 0.5) * 1.3, 2.4, 0.1, 0, -4, 0, new THREE.Color(0xe8fdff), 0.5, 0.06, 0, 0.5, 0, 0);
+      if (warn) {
+        if (p.age % 3 === 0) this.vfx.sparks(p.x / U + (Math.random() - 0.5) * 1.0, 0.04, 2, new THREE.Color(0xbff6ff), 1.4, 0, 1.5);
+      } else if (fall > 0.1) {
+        if (p.age % 2 === 0) this.vfx.sparks(p.x / U + (Math.random() - 0.5) * 1.1, 0.06, 4, new THREE.Color(0xe8fdff), 3.5, 0, 2.2);
+        this.vfx.emit(p.x / U + (Math.random() - 0.5) * 1.1, 2.4, 0.1, 0, -6, 0, new THREE.Color(0xe8fdff), 0.4, 0.07, 0, 0.45, 0, 0);
+      }
       return true;
     }
     if (p.kind === 'car') {
@@ -406,7 +441,7 @@ export class SpecialFX {
       // Bonez' little crocodile: pops out of the ground dust, then scurries low along the floor snapping its jaws
       const c = m.userData.croc as ReturnType<typeof makeCrocRunner>;
       // the procedural croc runs a bit larger than in the cinematic (it passes the card hand); the PO's model is 1.5 m
-      const pop = (m.userData.glb ? 1.0 : 1.3) * (0.7 + 0.3 * ease(p.age / 5));
+      const pop = (m.userData.glb ? 1.3 : 1.45) * (0.7 + 0.3 * ease(p.age / 5)); // D42: bigger, readable on a phone
       m.position.set(p.x / U, 0, 0.12);
       m.scale.set(p.dir * pop, pop, pop);
       c.setOpacity(Math.min(1, p.age / 3 + 0.2));
@@ -475,34 +510,62 @@ function glintTexture(): THREE.CanvasTexture {
 /** Diamond shower: falling, spinning diamonds over a 1.3 m wide zone, plus glints. Local origin = projectile center. */
 export function makeDiamondRain(): THREE.Object3D {
   const g = new THREE.Group();
-  // the PO's diamond model when loaded (0.27 m wide, scaled up 1.4x to the procedural size), else octahedra
+  // the PO's diamond model when loaded (0.27 m wide), else octahedra; big and bright enough to read on a phone
   const model = propMesh('diamond');
   const geo = model?.geometry ?? new THREE.OctahedronGeometry(0.19, 0);
   const mats = model
-    ? [0, 1].map((i) => {
+    ? [0, 1, 2].map((i) => {
         const m = (model.material as THREE.MeshStandardMaterial).clone();
-        m.emissive = new THREE.Color(i ? 0x2f9fff : 0x5fd8ff);
-        m.emissiveIntensity = 0.35;
+        m.emissive = new THREE.Color([0x5fd8ff, 0x2f9fff, 0xbff6ff][i]);
+        m.emissiveIntensity = 0.75;
         m.transparent = true;
         return m;
       })
     : [0xe8fdff, 0x9ff4ff, 0x7fe8ff, 0xffffff].map(
-        (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x4fd8ff, emissiveIntensity: 0.55, transparent: true, opacity: 0.95 }),
+        (c) => new THREE.MeshStandardMaterial({ color: c, metalness: 0.3, roughness: 0.05, emissive: 0x6fe0ff, emissiveIntensity: 0.9, transparent: true, opacity: 0.96 }),
       );
   g.userData.glb = !!model;
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 44; i++) {
     const d = new THREE.Mesh(geo, mats[i % mats.length]);
-    d.userData = { lane: ((i * 37) % 13) / 12 * 1.3 - 0.65, z: (((i * 53) % 9) / 8 - 0.5) * 0.7, off: ((i * 29) % 17) / 17, spin: 4 + (i % 5), size: (0.8 + ((i * 7) % 5) * 0.12) * (model ? 1.4 : 1) };
+    d.userData = {
+      dia: true,
+      lane: (((i * 37) % 23) / 22) * 1.1 - 0.55,
+      z: (((i * 53) % 11) / 10 - 0.5) * 0.8,
+      off: ((i * 29) % 41) / 41,
+      spin: 4 + (i % 5),
+      size: (0.9 + ((i * 7) % 5) * 0.15) * (model ? 1.9 : 1.25),
+    };
     d.castShadow = false;
     g.add(d);
   }
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 9; i++) {
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTexture(), color: 0xe8fdff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    sp.position.set((i / 5 - 0.5) * 1.2, -0.2 + ((i * 3) % 5) * 0.35, 0.3);
-    sp.scale.set(0.6, 0.6, 1);
+    sp.position.set((i / 8 - 0.5) * 1.1, 0, 0.35);
+    sp.scale.set(0.7, 0.7, 1);
     sp.userData = { glint: true, off: i * 0.37 };
     g.add(sp);
   }
+  // warning ring on the floor (a bright rim + inner sparkle band) and a soft pool of light
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x9ff4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 48), ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.renderOrder = 5;
+  const glow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.6, 40),
+    new THREE.MeshBasicMaterial({ color: 0x5fd8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+  );
+  glow.rotation.x = -Math.PI / 2;
+  glow.renderOrder = 4;
+  // light shaft: an open cone from above, additive
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.25, 0.62, 3.8, 32, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xcff8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+  );
+  shaft.renderOrder = 6;
+  g.add(ring, glow, shaft);
+  g.userData.ring = ring;
+  g.userData.glow = glow;
+  g.userData.shaft = shaft;
   return g;
 }
 

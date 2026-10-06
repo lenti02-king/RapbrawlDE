@@ -28,6 +28,11 @@ import { mountShop, shopHtml } from '../ui/menu/shop';
 import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
+import { design, setDesign, type Design } from '../ui/design';
+import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
+import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
+import { fightersHtml, mountFighters, type RosterEntry } from '../ui/v2/fighters';
+import type { TopBar } from '../ui/v2/arena';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
@@ -533,6 +538,7 @@ export class App {
    *  they are picked when a fight starts). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
+    if (design() === 'v2') return this.showHomeV2();
     const p = this.profileData;
     const lvl = levelOf(p);
     const rp = store.get('rp', 0);
@@ -619,6 +625,142 @@ export class App {
       }
     });
     obs.observe(this.ui, { childList: true });
+  }
+
+  /** Design v2 home (D42): the PO's second master; KÄMPFEN starts the chosen mode, MODI picks it. */
+  private showHomeV2(): void {
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const eco = economyOf(p);
+    const last = menuModeOf(store.get<string>('menuMode', 'quick'));
+    const MODE_NAME: Record<MenuMode, string> = { quick: 'SCHNELLKAMPF', ranked: 'RANKED', friend: 'FREUNDE ONLINE', local: '2 SPIELER', training: 'TRAINING', koop: 'KOOP' };
+    const model: HomeModel = {
+      name: this.playerName,
+      level: lvl.level,
+      xp: lvl.xp % 400,
+      xpMax: 400,
+      coins: eco.coins,
+      gems: eco.gems,
+      energy: '40/40',
+      pass: eco.pass,
+      mode: MODE_NAME[last],
+      fighter: this.favorite,
+      badges: { mail: store.get('newsSeen', 0) < NEWS_VERSION, fighters: store.get('rosterSeen', 0) < ROSTER.length },
+    };
+    const el = this.open(homeHtml(model), 'mm v2-home');
+    const soon = (what: string) => homeToast(el, `${what} – KOMMT BALD`);
+    const stop = mountHome(el, model, (a: HomeAction) => {
+      switch (a) {
+        case 'fight':
+          if (last === 'koop') return soon('KOOP');
+          stop();
+          return this.startMode(last);
+        case 'modes':
+          stop();
+          return this.showModes();
+        case 'profile':
+          stop();
+          return this.showProfile();
+        case 'settings':
+          stop();
+          return this.showSettings();
+        case 'fighters':
+          store.set('rosterSeen', ROSTER.length);
+          stop();
+          return this.showFighters(0);
+        case 'decks':
+          stop();
+          return this.showDeck(0, () => this.showHome());
+        case 'shop':
+          stop();
+          return this.showShop();
+        case 'news':
+          store.set('newsSeen', NEWS_VERSION);
+          return this.showNews(el);
+        case 'social':
+          store.set('menuMode', 'friend');
+          stop();
+          return this.startMode('friend');
+        case 'events':
+          return soon('EVENTS');
+        case 'pass':
+          return soon('BATTLE PASS');
+        case 'missions':
+          return soon('MISSIONEN');
+        case 'home':
+          return;
+      }
+    });
+    const obs = new MutationObserver(() => {
+      if (!el.isConnected) {
+        stop();
+        obs.disconnect();
+      }
+    });
+    obs.observe(this.ui, { childList: true });
+  }
+
+  /** Currencies for the v2 top bars (local placeholder economy). */
+  private get topBar(): TopBar {
+    const eco = economyOf(this.profileData);
+    return { coins: eco.coins, gems: eco.gems, energy: '40/40', mail: store.get('newsSeen', 0) < NEWS_VERSION };
+  }
+
+  /** v2 top bar buttons (currencies, mail, settings) on sub-screens; `leave` stops the screen first. */
+  private bindTopBar(el: HTMLElement, leave: () => void): void {
+    el.querySelectorAll<HTMLElement>('.v2-stage [data-act]').forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const a = b.dataset.act;
+        if (a === 'shop') {
+          leave();
+          this.showShop();
+        } else if (a === 'settings') {
+          leave();
+          this.showSettings();
+        } else if (a === 'news') {
+          store.set('newsSeen', NEWS_VERSION);
+          this.showNews(el);
+        }
+      }),
+    );
+  }
+
+  /** Design v2 VS screen between the arena pick and the loading screen: both fighters, both decks, the arena. */
+  private showVs(): void {
+    const m = this.flow.mode;
+    const p = this.profileData;
+    const open = this.arenaItems().filter((a) => !a.locked);
+    let idx = Math.max(0, open.findIndex((a) => a.id === this.sel.arena));
+    const deckOf = (i: number) =>
+      this.sel.loadouts[i].map((cid, k) => ({
+        name: getCard(this.sel.fighters[i], cid).name.toUpperCase(),
+        art: portrait(this.sel.fighters[i], `art:${cid}`),
+        sub: k === SIGNATURE_SLOT ? 'SIGNATURE' : 'SPEZIAL',
+      }));
+    const side = (i: number): VsSide => ({
+      id: this.sel.fighters[i],
+      name: i === 0 ? this.playerName : m === 'local' ? 'SPIELER 2' : m === 'online' ? 'ONLINE' : getFighter(this.sel.fighters[1]).name.toUpperCase(),
+      level: i === 0 ? `Lv. ${levelOf(p).level}` : m === 'cpu' ? `CPU · ${LEVEL_DE[this.sel.level]}` : m === 'training' ? 'DUMMY' : '',
+      bust: portrait(this.sel.fighters[i], 'bust'),
+      label: m === 'local' ? `SPIELER ${i + 1}` : i === 0 ? 'DU' : 'GEGNER',
+      deck: deckOf(i),
+    });
+    const arenaOf = (k: number) => ({ name: open[k].name, img: open[k].big ?? open[k].img });
+    const model = { sides: [side(0), side(1)] as [VsSide, VsSide], arena: arenaOf(idx), arenaIdx: idx, arenaCount: open.length };
+    const el = this.open(vsHtml(model), 'mm v2-vsscreen');
+    const stop = mountVs(el, model, (a) => {
+      if (a === 'ready') {
+        stop();
+        return this.launch();
+      }
+      if (a === 'arena-prev' || a === 'arena-next' || a === 'arena') {
+        idx = (idx + (a === 'arena-prev' ? -1 : 1) + open.length) % open.length;
+        this.sel.arena = open[idx].id;
+        store.set('selection', this.sel);
+        setVsArena(el, arenaOf(idx), idx);
+      }
+    });
   }
 
   /** Shop (PO master design): placeholder economy, nothing to buy yet, no real money. */
@@ -709,8 +851,9 @@ export class App {
     ];
     let cur = items.find((x) => x.id === menuModeOf(store.get<string>('menuMode', 'quick'))) ?? items[0];
     const lvl = () => `CPU-STÄRKE: ${LEVEL_DE[this.sel.level]}`;
-    const el = this.open(showcaseHtml(items, cur, { title: 'SPIELMODUS', okLabel: 'AUSWÄHLEN', chip: lvl() }), 'st-modes');
+    const el = this.open(showcaseHtml(items, cur, { title: 'SPIELMODUS', okLabel: 'AUSWÄHLEN', chip: lvl(), bar: this.topBar }), 'st-modes');
     const stop = mountShowcase(el);
+    this.bindTopBar(el, stop);
     const done = (fn: () => void) => {
       stop();
       fn();
@@ -748,6 +891,7 @@ export class App {
         ['PUBLIKUM', a.crowd],
       ],
       img: a.locked ? '' : a.img,
+      big: a.locked ? undefined : `assets/ui2/arenas/${a.id}.webp`,
       locked: a.locked,
       tag: a.id === fav ? 'FAVORIT' : undefined,
     }));
@@ -757,8 +901,9 @@ export class App {
   showArenas(): void {
     const items = this.arenaItems();
     let cur = items.find((x) => x.id === this.favArena) ?? items[0];
-    const el = this.open(showcaseHtml(items, cur, { title: 'ARENEN', okLabel: 'ALS FAVORIT' }), 'st-arena');
+    const el = this.open(showcaseHtml(items, cur, { title: 'ARENEN', okLabel: 'ALS FAVORIT', bar: this.topBar }), 'st-arena');
     const stop = mountShowcase(el);
+    this.bindTopBar(el, stop);
     el.querySelectorAll<HTMLElement>('[data-item]').forEach((b) =>
       b.addEventListener('click', () => {
         cur = items.find((x) => x.id === b.dataset.item) ?? cur;
@@ -833,13 +978,15 @@ export class App {
         hidden: m === 'online' && i === 1,
       };
     }) as [CsSide, CsSide];
-    const tiles: CsTile[] = ROSTER.slice(0, 2).map((fid) => ({
+    const v2 = design() === 'v2';
+    const tiles: CsTile[] = (v2 ? ROSTER : ROSTER.slice(0, 2)).map((fid) => ({
       id: fid,
       bust: portrait(fid, 'bust'),
       name: getFighter(fid).name,
       tags: [0, 1].filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1)),
     }));
-    const el = this.open(charSelectHtml(sides, tiles, picking), 'st-select');
+    const status = m === 'local' ? `SPIELER ${picking + 1} WÄHLT` : m === 'online' ? 'GEGNER WÄHLT ONLINE' : m === 'training' ? 'TRAININGSPARTNER' : 'GEGNER: CPU';
+    const el = this.open(charSelectHtml(sides, tiles, picking, { hint: 'TIPPEN ZUM WÄHLEN', status }), 'st-select');
     const stop = mountCharSelect(el, sides);
     const go = (fn: () => void) => () => {
       stop();
@@ -865,6 +1012,11 @@ export class App {
         this.showCharSelect(m === 'local' && picking === 0 ? 1 : picking);
       }),
     );
+    el.querySelector('[data-random]')?.addEventListener('click', () => {
+      const pool = ROSTER.filter((x) => x !== this.sel.fighters[picking]);
+      el.querySelector<HTMLElement>(`[data-f="${pool[Math.floor(Math.random() * pool.length)] ?? ROSTER[0]}"]`)?.click();
+    });
+    el.querySelectorAll('[data-locked]').forEach((b) => b.addEventListener('click', () => toast(el, 'NEUE KÄMPFER KOMMEN BALD')));
     el.querySelectorAll<HTMLElement>('[data-side]').forEach((b) =>
       b.addEventListener('click', () => {
         if (m === 'online') return;
@@ -892,8 +1044,9 @@ export class App {
     const curId = player === 0 ? this.favArena : this.sel.arena;
     let cur = items.find((x) => x.id === curId && !x.locked) ?? items[0];
     const title = m === 'local' ? `ARENA · SPIELER ${player + 1}` : 'ARENA-WAHL';
-    const el = this.open(showcaseHtml(items, cur, { title, okLabel: 'ARENA WÄHLEN' }), 'st-arena');
+    const el = this.open(showcaseHtml(items, cur, { title, okLabel: 'ARENA WÄHLEN', bar: this.topBar }), 'st-arena');
     const stop = mountShowcase(el);
+    this.bindTopBar(el, stop);
     el.querySelectorAll<HTMLElement>('[data-item]').forEach((b) =>
       b.addEventListener('click', () => {
         const it = items.find((x) => x.id === b.dataset.item);
@@ -926,7 +1079,8 @@ export class App {
       (e.currentTarget as HTMLButtonElement).disabled = true;
       const go = () => {
         stop();
-        this.launch();
+        if (design() === 'v2') this.showVs();
+        else this.launch();
       };
       if (cands.length < 2) return go();
       showcaseRoulette(el, cands.map((id) => items.find((x) => x.id === id)!), winner, go);
@@ -1013,6 +1167,8 @@ export class App {
     const el = this.open(
       `${this.header('EINSTELLUNGEN')}
        <div class="settings">
+         <div class="panel setrow"><div><div class="sname">DESIGN</div><div class="sdesc">Neues Design (Ring, Neon) oder das klassische. Jederzeit umschaltbar, nichts geht verloren.</div></div>
+           ${seg('design', design(), [['v2', 'NEU'], ['v1', 'KLASSISCH']])}</div>
          <div class="panel setrow"><div><div class="sname">GRAFIKQUALITÄT</div><div class="sdesc">Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.</div></div>
            ${seg('quality', q, [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']])}</div>
          <div class="panel setrow"><div><div class="sname">TOUCH-STEUERUNG</div><div class="sdesc">Virtueller Stick und Tasten auf dem Bildschirm.</div></div>
@@ -1028,6 +1184,10 @@ export class App {
       b.addEventListener('click', () => {
         const key = b.dataset.set!;
         const v = b.dataset.v!;
+        if (key === 'design') {
+          setDesign(v as Design);
+          return this.showSettings();
+        }
         store.set(key, v);
         if (key === 'quality') location.reload();
         else {
@@ -1086,6 +1246,7 @@ export class App {
   /** KÄMPFER: improve and customise your fighters (abilities, outfits, accessories) and choose the favourite that
    *  stands in the main menu. The fighter for a match is picked at match start (char select), not here. */
   showFighters(_player = 0, tab: 'skills' | 'outfit' | 'acc' | 'stats' = 'skills', view?: string): void {
+    if (design() === 'v2') return this.showFightersV2(view);
     const id = view && ROSTER.includes(view) ? view : this.favorite;
     const d = getFighter(id);
     const all = ROSTER.map((x) => fighterStats(x));
@@ -1156,6 +1317,55 @@ export class App {
       }),
     );
     el.querySelector('[data-back]')!.addEventListener('click', () => go(() => this.showHome()));
+  }
+
+  /** Design v2 roster (D42): roster cards, the fighter in 3D, class / level / stats / abilities, AUSWÄHLEN = favourite. */
+  private showFightersV2(view?: string, tab = 0): void {
+    const id = view && ROSTER.includes(view) ? view : this.favorite;
+    const d = getFighter(id);
+    const all = ROSTER.map((x) => fighterStats(x));
+    const max = (k: keyof ReturnType<typeof fighterStats>) => Math.max(...all.map((st) => st[k]));
+    const st = all[ROSTER.indexOf(id)] ?? fighterStats(id);
+    const p = this.profileData;
+    const games = p.byFighter[id]?.m ?? 0;
+    const CLS: Record<string, number> = { jazeek: 2, bonez: 1 };
+    const roster: RosterEntry[] = ROSTER.map((fid) => ({ id: fid, name: getFighter(fid).name.toUpperCase(), img: portrait(fid, 'card'), cls: CLS[fid] ?? 1, fav: this.favorite === fid }));
+    const deck = this.presetDeck(id);
+    const el = this.open(
+      fightersHtml(
+        roster,
+        {
+          id,
+          name: d.name.toUpperCase(),
+          cls: d.archetype.toUpperCase(),
+          level: Math.min(50, 1 + games),
+          levelMax: 50,
+          stats: [st.dmg / max('dmg'), st.speed / max('speed'), st.health / max('health')],
+          values: [Math.round((st.dmg / max('dmg')) * 900), Math.round((st.speed / max('speed')) * 900), Math.round((st.health / max('health')) * 900)],
+          cards: deck.map((cid) => ({ name: getCard(id, cid).name.toUpperCase(), art: portrait(id, `art:${cid}`) })),
+          fav: this.favorite === id,
+        },
+        tab,
+        this.topBar,
+      ),
+      'mm v2-fighterscreen',
+    );
+    const stop = mountFighters(el, id);
+    const go = (fn: () => void) => () => {
+      stop();
+      fn();
+    };
+    this.bindTopBar(el, stop);
+    el.querySelectorAll<HTMLElement>('[data-f]').forEach((b) => b.addEventListener('click', go(() => this.showFightersV2(b.dataset.f, tab))));
+    el.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.addEventListener('click', go(() => this.showFightersV2(id, Number(b.dataset.tab)))));
+    el.querySelectorAll('[data-locked]').forEach((b) => b.addEventListener('click', () => toast(el, 'NEUE KÄMPFER KOMMEN BALD')));
+    el.querySelector('[data-act="select"]')?.addEventListener('click', () => {
+      store.set('favFighter', id);
+      stop();
+      this.showFightersV2(id, tab);
+      toast(this.screen!, `${d.name.toUpperCase()} IST JETZT DEIN FAVORIT`);
+    });
+    el.querySelector('[data-back]')?.addEventListener('click', go(() => this.showHome()));
   }
 
   /** Deck presets: three saved decks per fighter; returns the active one (or the default deck). */

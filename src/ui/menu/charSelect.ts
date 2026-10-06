@@ -6,6 +6,8 @@
 import { CS_ART, CS_BOXES } from './charSelectArt';
 import { MenuFigures } from './figures';
 import { esc, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
+import { design } from '../design';
+import { mountSelectV2, selectHtmlV2, type SelectOpts } from '../v2/select';
 
 /** Feet (centre of the pedestal top) and figure height in reference px. */
 const FEET: [number, number][] = [
@@ -40,7 +42,8 @@ function sprite(id: 'back' | 'ready'): string {
   return `<img class="mm-art" alt="" draggable="false" src="${s.src}" style="${pos(0, 0, s.w, s.h)}">`;
 }
 
-export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking: number): string {
+export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking: number, v2?: SelectOpts): string {
+  if (design() === 'v2') return selectHtmlV2(sides, tiles, picking, v2 ?? { hint: 'TIPPEN ZUM WÄHLEN', status: 'WÄHLE DEINEN KÄMPFER' });
   const bg = CS_ART.bg;
   const fighter = (i: number) => {
     const s = sides[i];
@@ -90,6 +93,7 @@ export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking
 }
 
 export function mountCharSelect(root: HTMLElement, sides: [CsSide, CsSide]): () => void {
+  if (root.querySelector('.v2-stage')) return mountSelectV2(root, sides);
   root.classList.add('mm', 'cs');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
   const bg = CS_ART.bg;

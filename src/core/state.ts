@@ -115,6 +115,9 @@ export interface ProjectileState {
   dir: number;
   age: number;
   alive: boolean;
+  /** Hits left (multi-hit projectiles) and frames until the next one may land. */
+  hitsLeft: number;
+  cool: number;
 }
 
 /** finish = match point KO: the winner may perform a fatality (FERTIGMACHEN!). */
@@ -142,7 +145,8 @@ export interface GameState {
   /** Global "super flash" freeze frames and who caused it. */
   freeze: number;
   freezeOwner: number;
-  cine: { id: string; owner: number; frame: number; scale: number } | null;
+  /** Running card cinematic: `frame` counts cinematic frames, `sub` the sim frames inside one (RULES.CINE_RATE). */
+  cine: { id: string; owner: number; frame: number; sub: number; scale: number } | null;
   /** Remaining slow-motion frames (KO); fighters update every 3rd frame. */
   slowmo: number;
   /** Sim camera center (screen-edge walls follow it). */
