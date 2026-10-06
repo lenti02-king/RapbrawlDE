@@ -93,7 +93,18 @@ const sim = (page) =>
   const fullHp = s.f[1].hp;
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/d05_vs.png` });
+  // round 1 opens with the fighter showcase (D39); a fresh LIGHT press skips it — tap J until the fight starts
+  let skipped = false;
+  for (let k = 0; k < 160 && !skipped; k++) {
+    skipped = await page.evaluate(() => window.__rb.runner.state.phase === 'fight');
+    if (skipped) break;
+    await page.keyboard.down('KeyJ');
+    await page.waitForTimeout(80);
+    await page.keyboard.up('KeyJ');
+    await page.waitForTimeout(600);
+  }
   await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 });
+  check(true, 'fighter showcase skipped with J, fight starts');
   // real keyboard input: walk forward, then attack
   const x0 = (await sim(page)).f[0].x;
   await page.keyboard.down('KeyD');
