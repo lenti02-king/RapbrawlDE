@@ -664,6 +664,15 @@
   object-fit: cover;
   pointer-events: none;
 }
+.as-picbox {
+  overflow: hidden;
+  pointer-events: none;
+}
+.as-picbox > .as-pic {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 .as-frame {
   z-index: 1;
 }
@@ -697,6 +706,7 @@
   margin: 0;
   z-index: 2;
   font: 500 calc(var(--u) * 23) / 1.28 'Barlow', 'Barlow Condensed', sans-serif;
+  word-spacing: 0.08em; /* small sizes on phones: spaces must not collapse */
   color: #dfe7f2;
   overflow: hidden;
   display: -webkit-box;

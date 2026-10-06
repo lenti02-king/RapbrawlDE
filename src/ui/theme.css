@@ -991,6 +991,15 @@ body {
   margin-top: 1rem;
   max-width: 46rem;
 }
+/* wide phones in landscape: two columns, so all settings fit without scrolling and the screen is used (D41) */
+@media (min-aspect-ratio: 17/9) and (max-height: 520px) {
+  .settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+    margin-top: 0.6rem;
+    align-content: start;
+  }
+}
 .setrow {
   display: flex;
   align-items: center;

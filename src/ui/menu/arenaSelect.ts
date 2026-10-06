@@ -14,6 +14,10 @@ export interface ShowcaseItem {
   /** Three info rows (the plate has a sun, a flame and a crowd icon in front of them). */
   rows: [string, string][];
   img: string;
+  /** Tile crop of a wide picture: the point to keep (CSS position, e.g. '50% 90%' when the subject sits low) and a
+   *  zoom toward it (the nearly square tiles otherwise show the picture's full height, mostly sky for some modes). */
+  focus?: string;
+  zoom?: number;
   locked?: boolean;
   /** Small gold tag above the tile name (e.g. FAVORIT). */
   tag?: string;
@@ -29,6 +33,8 @@ export interface ShowcaseOpts {
 const B = AS_BOXES;
 /** Everything interactive or readable (reference px): kept on screen, as large as possible. */
 const SAFE: Box = [40, 20, 1962, 1088];
+/** Short, wide screens: from the title banner down (the logo above it may be cropped). */
+const SAFE_SHORT: Box = [40, 290, 1962, 1088];
 const box = (b: readonly number[]) => b as unknown as Box;
 const ROW_H = 40;
 
@@ -49,7 +55,9 @@ export function showcaseHtml(items: ShowcaseItem[], cur: ShowcaseItem, o: Showca
       const [x0, y0, x1, y1] = B.tiles[k];
       const on = a.id === cur.id;
       return `<button class="as-tile ${on ? 'on' : ''} ${a.locked ? 'locked' : ''}" data-item="${a.id}" aria-label="${esc(a.name)}" style="${pos(x0, y0, x1 - x0, y1 - y0)}">
-        <img class="as-pic" alt="" draggable="false" src="${a.img || AS_ART.locked.src}" style="${pos(tw[0], tw[1], tw[2] - tw[0], tw[3] - tw[1])}">
+        <span class="as-picbox" style="${pos(tw[0], tw[1], tw[2] - tw[0], tw[3] - tw[1])}"><img class="as-pic" alt="" draggable="false" src="${a.img || AS_ART.locked.src}" style="${
+          a.focus ? `object-position:${a.focus};transform-origin:${a.focus};transform:scale(${a.zoom ?? 1})` : ''
+        }"></span>
         <span class="as-shade" style="${pos(tw[0], tw[1], tw[2] - tw[0], tw[3] - tw[1])}"></span>
         ${a.locked ? `<span class="as-soon" style="${pos(tw[0], tw[1], tw[2] - tw[0], tw[3] - tw[1])}"><b>KOMMT BALD</b></span>` : ''}
         ${frame(false)}${frame(true)}
@@ -130,7 +138,7 @@ export function setShowcaseChip(root: HTMLElement, label: string, on: boolean): 
 export function mountShowcase(root: HTMLElement): () => void {
   root.classList.add('mm', 'as');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
-  return keepLaidOut(root, () => layoutStage(root, stage, SAFE, AS_ART.bg));
+  return keepLaidOut(root, () => layoutStage(root, stage, SAFE, AS_ART.bg, SAFE_SHORT));
 }
 
 /** Arena draw: the highlight (and the preview) jumps between the candidates, slowing down, and lands on `winner`. */

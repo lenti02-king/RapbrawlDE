@@ -14,6 +14,8 @@ const FEET: [number, number][] = [
 ];
 const FIG_H = 360;
 const SAFE: Box = [150, 10, 1850, 1086];
+/** Short, wide screens (iPhone in a browser): the logo above the roster grid may be cropped, everything else bigger. */
+const SAFE_SHORT: Box = [150, 285, 1850, 1086];
 
 export interface CsSide {
   id: string;
@@ -91,7 +93,7 @@ export function mountCharSelect(root: HTMLElement, sides: [CsSide, CsSide]): () 
   root.classList.add('mm', 'cs');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
   const bg = CS_ART.bg;
-  const stop = keepLaidOut(root, () => layoutStage(root, stage, SAFE, bg));
+  const stop = keepLaidOut(root, () => layoutStage(root, stage, SAFE, bg, SAFE_SHORT));
   const figs = new MenuFigures(root, null);
   figs.set(
     [0, 1]

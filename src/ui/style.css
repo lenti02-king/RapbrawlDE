@@ -37,6 +37,21 @@
 html {
   font-size: clamp(10.5px, min(2.15vh, 1.25vw), 17px);
 }
+/* short phone screens (landscape inside a browser / the claude.ai viewer, ~300 px tall): a slightly smaller base so the
+   classic screens fit, and their content areas scroll instead of being cut off (D41) */
+@media (max-height: 360px) {
+  html {
+    font-size: clamp(9px, 3.1vh, 10.5px);
+  }
+}
+@media (max-height: 460px) {
+  .screen.kp > :not(.header):not(.modal):not(canvas) {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+  }
+}
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

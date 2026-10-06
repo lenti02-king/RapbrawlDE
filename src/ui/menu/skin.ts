@@ -4,9 +4,11 @@
 // URLs are exposed as CSS variables; skin.css does the rest.
 import './skin.css';
 import { LB_ART } from './boardArt';
+// the stadium without its baked logo (tools/ui-extract/skin_backdrop.py): the logo sat behind every screen title (D41)
+import backdropClean from '../img/board/backdrop_clean.webp';
 
 const root = document.documentElement.style;
-root.setProperty('--kit-backdrop', `url(${LB_ART.backdrop.src})`);
+root.setProperty('--kit-backdrop', `url(${backdropClean})`);
 root.setProperty('--kit-panel', `url(${LB_ART.panel.src})`);
 root.setProperty('--kit-side', `url(${LB_ART.side.src})`);
 root.setProperty('--kit-btn', `url(${LB_ART.btn_blue.src})`);

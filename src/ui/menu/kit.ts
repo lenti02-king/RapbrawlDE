@@ -69,17 +69,22 @@ export interface Rect {
 /** Stage in the master's coordinate space (2000x1125), scaled as large as the `safe` rect (everything interactive)
  *  allows inside the usable screen (safe-area insets), the safe rect centred; then slid (not scaled) so the outpainted
  *  `plate` keeps covering the screen. Phones of any aspect are filled edge to edge; nothing interactive is cut off.
- *  Returns the scale (px per reference pixel). */
-export function layoutStage(root: HTMLElement, stage: HTMLElement, safe: Box = [0, 0, 2000, 1125], plate?: Rect): number {
+ *  `short`: an alternative safe rect for short, wide screens (header cropped). Returns the scale (px per reference px). */
+export function layoutStage(root: HTMLElement, stage: HTMLElement, safe: Box = [0, 0, 2000, 1125], plate?: Rect, short?: Box): number {
   const W = root.clientWidth;
   const H = root.clientHeight;
   if (!W || !H) return 0;
   const ins = safeInsets(root);
   const aw = W - ins.l - ins.r;
   const ah = H - ins.t - ins.b;
+  const fit = (b: Box) => Math.min(aw / (b[2] - b[0]), ah / (b[3] - b[1]));
+  // short, wide screens (a phone in landscape inside a browser/viewer): a smaller safe rect without the decorative
+  // header (logo) when that makes everything noticeably bigger (D41)
+  if (short && fit(short) > fit(safe) * 1.04) safe = short;
+  root.classList.toggle('mm-short', safe === short);
   const sw = safe[2] - safe[0];
   const sh = safe[3] - safe[1];
-  const s = Math.min(aw / sw, ah / sh);
+  const s = fit(safe);
   let tx = ins.l + aw / 2 - (safe[0] + sw / 2) * s;
   let ty = ins.t + ah / 2 - (safe[1] + sh / 2) * s;
   if (plate) {

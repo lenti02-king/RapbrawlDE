@@ -1,5 +1,5 @@
 // Captures of the classic screens in the master skin (Kämpfer, Karten, Profil, Einstellungen, Steuerung, Bestenliste,
-// Pause, Ergebnis) on a phone in landscape. Usage: node scripts/screens.mjs [outDir] [w] [h]  (dev server running)
+// Pause, Ergebnis, Deck, Online-Lobby) on a phone in landscape. Usage: node scripts/screens.mjs [outDir] [w] [h]  (dev server running)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 const base = process.env.BASE_URL ?? 'http://localhost:5173';
@@ -53,11 +53,32 @@ if (want('help')) {
   await shot('help');
   await home();
 }
+if (want('deck')) {
+  await page.evaluate(() => window.__rb.showDeck(0, () => window.__rb.showHome()));
+  await shot('deck');
+  await home();
+}
+if (want('online')) {
+  await page.evaluate(() => window.__rb.showOnlineLobby());
+  await shot('online');
+  await home();
+}
 if (want('pause')) {
   await page.goto(`${base}/?quick=jazeek,bonez&mode=cpu&q=low&touch=1`);
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 600000 });
   await page.evaluate(() => window.__rb.togglePause());
   await shot('pause');
+  if (want('results')) {
+    await page.evaluate(() => {
+      window.__rb.togglePause();
+      const s = window.__rb.runner.state;
+      s.fighters[0].roundsWon = 1;
+      s.fighters[1].health = 0;
+      window.__rb.runner.speed = 8;
+    });
+    await page.waitForSelector('.result-banner', { timeout: 600000 });
+    await shot('results');
+  }
 }
 await browser.close();
 if (errors.length) {

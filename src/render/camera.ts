@@ -22,6 +22,8 @@ export class CameraDirector {
   private override: CamShot | null = null;
   private overrideBlend = 0;
   private aspect = 16 / 9;
+  /** Touch layout (D41): keep the fighters between the HUD bars and the card hand on short, wide phone screens. */
+  hudSafe = false;
 
   constructor() {
     this.cam = new THREE.PerspectiveCamera(28, 16 / 9, 0.1, 220);
@@ -62,10 +64,16 @@ export class CameraDirector {
     const vfov = 28;
     const tanH = Math.tan(((vfov / 2) * Math.PI) / 180) * this.aspect;
     let dist = halfW / tanH;
+    // a minimum visible height: on a 2.2:1 phone the width-based fit alone frames the fighters head to toe, under
+    // the HUD bars and the card hand
+    const halfH = this.hudSafe ? 1.75 : 1.3;
+    dist = Math.max(dist, halfH / Math.tan(((vfov / 2) * Math.PI) / 180));
     dist = Math.min(18, Math.max(4.6, dist));
     const clampedMid = Math.max(-7.5 + halfW * 0.6, Math.min(7.5 - halfW * 0.6, mid));
-    const desiredPos = new THREE.Vector3(clampedMid, 1.3 + maxY * 0.35 + dist * 0.03, dist);
-    const desiredTarget = new THREE.Vector3(clampedMid, 1.12 + maxY * 0.45, 0);
+    // touch layout: aim a little lower so the feet stand above the cards and the heads stay clear of the bars
+    const lift = this.hudSafe ? -0.18 : 0;
+    const desiredPos = new THREE.Vector3(clampedMid, 1.3 + lift + maxY * 0.35 + dist * 0.03, dist);
+    const desiredTarget = new THREE.Vector3(clampedMid, 1.12 + lift + maxY * 0.45, 0);
     const k = 1 - Math.exp(-dt * 7);
     this.pos.lerp(desiredPos, k);
     this.target.lerp(desiredTarget, k);

@@ -388,6 +388,7 @@ export class App {
     this.runner = this.makeRunner(state, [new MergedSource(p1), p2 ?? new NullSource()]);
     this.stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
     this.hud.setup(state, 0, this.touchEnabled);
+    this.view.director.hudSafe = this.touchEnabled;
     this.hud.show(true);
     this.touch.setVisible(this.touchEnabled);
     this.training = mode === 'training' ? new TrainingMonitor(this.hud.trainingInfo) : null;
@@ -699,12 +700,12 @@ export class App {
     const rp = store.get('rp', 0);
     const tier = tierOf(rp);
     const items: ShowcaseItem[] = [
-      { id: 'quick', name: 'SCHNELLKAMPF', district: 'GEGEN DIE CPU', desc: 'Kämpfer und Arena wählen, rein in den Ring. Perfekt zum Aufwärmen und für eine schnelle Runde.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.quick },
-      { id: 'ranked', name: 'RANKED', district: `LIGA ${tier.name}`, desc: `Gewertete Kämpfe gegen immer stärkere CPU-Gegner. Siege bringen RP, Niederlagen kosten welche. ${tier.next}.`, rows: [['LIGA', tier.name], ['PUNKTE', `${rp} RP`], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.ranked },
-      { id: 'friend', name: 'FREUNDE', district: 'ONLINE PER RAUM-CODE', desc: 'Raum erstellen oder beitreten, Code teilen – dann seid ihr verbunden und kämpft online gegeneinander.', rows: [['TEMPO', 'LIVE'], ['HYPE', 'MAXIMAL'], ['SPIELER', '1 GEGEN 1 ONLINE']], img: MODE_IMG.friend },
-      { id: 'local', name: '2 SPIELER', district: 'EIN GERÄT', desc: 'Zu zweit an einem Gerät: Touch geteilt, Tastatur oder zwei Gamepads.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN 1 LOKAL']], img: MODE_IMG.local },
-      { id: 'training', name: 'TRAINING', district: 'FREIES TRAINING', desc: 'Kombos üben, Frame-Daten ansehen, Hitboxen einblenden. Der Dummy steht still oder blockt.', rows: [['TEMPO', 'DEIN TEMPO'], ['HYPE', 'UNENDLICH'], ['SPIELER', 'DU + DUMMY']], img: MODE_IMG.training },
-      { id: 'koop', name: 'STRASSEN-KOOP', district: 'KOMMT BALD', desc: 'Zu zweit durch die Straßen, Welle für Welle gegen ganze Gangs – Seite an Seite mit deinem Partner.', rows: [['TEMPO', 'BALD'], ['HYPE', 'BALD'], ['SPIELER', '2 IM TEAM']], img: MODE_IMG.koop, locked: true },
+      { id: 'quick', name: 'SCHNELLKAMPF', district: 'GEGEN DIE CPU', desc: 'Kämpfer und Arena wählen, rein in den Ring. Perfekt zum Aufwärmen und für eine schnelle Runde.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.quick, focus: '50% 96%', zoom: 1.75 },
+      { id: 'ranked', name: 'RANKED', district: `LIGA ${tier.name}`, desc: `Gewertete Kämpfe gegen immer stärkere CPU-Gegner. Siege bringen RP, Niederlagen kosten welche. ${tier.next}.`, rows: [['LIGA', tier.name], ['PUNKTE', `${rp} RP`], ['SPIELER', '1 GEGEN CPU']], img: MODE_IMG.ranked, focus: '50% 50%' },
+      { id: 'friend', name: 'FREUNDE', district: 'ONLINE PER RAUM-CODE', desc: 'Raum erstellen oder beitreten, Code teilen – dann seid ihr verbunden und kämpft online gegeneinander.', rows: [['TEMPO', 'LIVE'], ['HYPE', 'MAXIMAL'], ['SPIELER', '1 GEGEN 1 ONLINE']], img: MODE_IMG.friend, focus: '32% 92%', zoom: 1.4 },
+      { id: 'local', name: '2 SPIELER', district: 'EIN GERÄT', desc: 'Zu zweit an einem Gerät: Touch geteilt, Tastatur oder zwei Gamepads.', rows: [['TEMPO', 'SOFORT'], ['HYPE', 'HOCH'], ['SPIELER', '1 GEGEN 1 LOKAL']], img: MODE_IMG.local, focus: '50% 40%' },
+      { id: 'training', name: 'TRAINING', district: 'FREIES TRAINING', desc: 'Kombos üben, Frame-Daten ansehen, Hitboxen einblenden. Der Dummy steht still oder blockt.', rows: [['TEMPO', 'DEIN TEMPO'], ['HYPE', 'UNENDLICH'], ['SPIELER', 'DU + DUMMY']], img: MODE_IMG.training, focus: '40% 60%', zoom: 1.15 },
+      { id: 'koop', name: 'STRASSEN-KOOP', district: 'KOMMT BALD', desc: 'Zu zweit durch die Straßen, Welle für Welle gegen ganze Gangs – Seite an Seite mit deinem Partner.', rows: [['TEMPO', 'BALD'], ['HYPE', 'BALD'], ['SPIELER', '2 IM TEAM']], img: MODE_IMG.koop, focus: '40% 88%', zoom: 1.45, locked: true },
     ];
     let cur = items.find((x) => x.id === menuModeOf(store.get<string>('menuMode', 'quick'))) ?? items[0];
     const lvl = () => `CPU-STÄRKE: ${LEVEL_DE[this.sel.level]}`;
@@ -1539,6 +1540,7 @@ export class App {
     this.bots = [];
     this.stats = { maxCombo: [0, 0], damage: [0, 0], specials: [0, 0] };
     this.hud.setup(r.state, res.local, this.touchEnabled);
+    this.view.director.hudSafe = this.touchEnabled;
     this.hud.show(true);
     this.touch.setVisible(this.touchEnabled);
     this.training = null;
