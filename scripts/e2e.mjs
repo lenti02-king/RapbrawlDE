@@ -300,6 +300,12 @@ const sim = (page) =>
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.setDefaultTimeout(120000); // software GL: ~1 s per frame at 720p, screenshots wait for one
   await page.goto(base + '/?quick=jazeek,bonez&q=low');
+  await page.waitForFunction(() => window.__rb?.runner?.state, null, { timeout: 120000 });
+  for (let k = 0; k < 200; k++) {
+    if (await page.evaluate(() => window.__rb.runner.state.phase === 'fight')) break;
+    await page.keyboard.press('KeyJ'); // skip the round-1 showcase
+    await page.waitForTimeout(600);
+  }
   await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
   const perf = await page.evaluate(
     () =>
