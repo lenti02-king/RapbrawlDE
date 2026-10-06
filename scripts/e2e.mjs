@@ -164,10 +164,11 @@ const sim = (page) =>
     const s = window.__rb.runner.state;
     s.fighters[0].roundsWon = 1;
     s.fighters[1].health = 0;
-    window.__rb.runner.speed = 4;
+    window.__rb.runner.speed = 8;
   });
+  // KO slow-mo, the fatality window (FINISH_WINDOW, nobody plays the card), round over, match over (~600 sim frames)
   const resultsVisible = await page
-    .waitForSelector('.result-banner', { timeout: 150000 })
+    .waitForSelector('.result-banner', { timeout: 300000 })
     .then(() => true)
     .catch(() => false);
   check(resultsVisible, 'match end shows results screen');
@@ -224,6 +225,13 @@ const sim = (page) =>
   await page.evaluate(() => {
     window.__rb.runner.sources[1].poll = () => 0; // freeze CPU for deterministic checks
   });
+  // the round-1 showcase: tap the skip area until the fight starts (touch skip = a Light press)
+  for (let k = 0; k < 160; k++) {
+    if (await page.evaluate(() => window.__rb.runner.state.phase === 'fight')) break;
+    const skip = await page.$('.show-ui');
+    if (skip && (await skip.isVisible())) await skip.tap().catch(() => {});
+    await page.waitForTimeout(700);
+  }
   await page.waitForFunction(() => window.__rb.runner.state.phase === 'fight', null, { timeout: 60000 });
   check(await page.isVisible('.touch .act-light'), 'touch controls visible on a phone');
   check(await page.isVisible('.hand.tap .hcard.sig'), 'golden Signature card is visible as a touch button');
