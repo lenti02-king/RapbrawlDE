@@ -3,6 +3,7 @@
 // every user falls back to the procedural prop in props.ts when a model is missing (e.g. a host without the files).
 import * as THREE from 'three';
 import { fetchGltf } from './glbRig';
+import { limitTextures, texLimit } from './textureBudget';
 import type { Croc, CrocRunner } from './props';
 
 export const PROP_IDS = ['joint', 'heart', 'ball', 'diamond', 'mic', 'croc', 'palm', 'car'] as const;
@@ -17,6 +18,7 @@ export async function loadPropModels(base = 'assets/props', onProgress?: (done: 
       try {
         const g = await fetchGltf(`${base}/${id}`);
         if (g) {
+          limitTextures(g.scene, texLimit('prop')); // phones: 2K -> 1K (D41)
           g.scene.traverse((o) => {
             const m = o as THREE.Mesh;
             if (!m.isMesh) return;

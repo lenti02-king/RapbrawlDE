@@ -91,7 +91,9 @@ export class GameView {
   constructor(canvas: HTMLCanvasElement, arenaId = new URLSearchParams(location.search).get('arena') ?? 'podcast') {
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(coarse ? 1.75 : 2, window.devicePixelRatio || 1));
+    // phones render at 1.5x (1.25x on low): an iPhone's 3x screen would need ~4x the GPU memory for every target (D41)
+    const q = detectQuality();
+    this.renderer.setPixelRatio(Math.min(coarse ? (q === 'low' ? 1.25 : q === 'high' ? 2 : 1.5) : 2, window.devicePixelRatio || 1));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -689,7 +691,15 @@ export class GameView {
   }
 
   dispose(): void {
+    // free the GPU memory now (iOS keeps a dropped context's textures until GC otherwise)
+    this.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mats = m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+      for (const x of mats) x.dispose();
+    });
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 }
 

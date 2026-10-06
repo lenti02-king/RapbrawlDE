@@ -11,6 +11,7 @@ import { buildCharacter } from '../../render/characters';
 import type { CharacterRig } from '../../render/glbRig';
 import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
+import { isPhone, useSmallTextures } from '../../render/textureBudget';
 
 export interface FigureSpec {
   id: string;
@@ -80,9 +81,43 @@ export function waitingPose(base: Float32Array, t: number, seed: number, out: Fl
   out[J.elR * 3 + 2] -= hs * 2.5;
 }
 
+// One WebGL context for all menu screens (D41): a fresh context per screen re-uploaded both fighters every time and
+// iOS Safari killed the tab after a few screen changes. Released while a match runs (releaseMenuRenderer).
+let shared: THREE.WebGLRenderer | null = null;
+let sharedFailed = false;
+let owner: MenuFigures | null = null;
+
+function sharedRenderer(): THREE.WebGLRenderer | null {
+  if (shared || sharedFailed) return shared;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'mm-figures';
+  try {
+    shared = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  } catch {
+    sharedFailed = true; // no WebGL: menus still work, just without the live fighters
+    return null;
+  }
+  shared.setClearColor(0x000000, 0);
+  shared.toneMapping = THREE.ACESFilmicToneMapping;
+  shared.toneMappingExposure = 1.05;
+  shared.outputColorSpace = THREE.SRGBColorSpace;
+  shared.setScissorTest(true);
+  shared.autoClear = false;
+  return shared;
+}
+
+/** Free the menus' GL context (call when a match starts: only the game's context should hold textures then). */
+export function releaseMenuRenderer(): void {
+  if (!shared) return;
+  owner?.dispose();
+  shared.dispose();
+  shared.forceContextLoss();
+  shared.domElement.remove();
+  shared = null;
+}
+
 export class MenuFigures {
-  readonly canvas = document.createElement('canvas');
-  private renderer: THREE.WebGLRenderer | null = null;
+  private renderer: THREE.WebGLRenderer | null;
   private scene = new THREE.Scene();
   private cam = new THREE.PerspectiveCamera(18, 1, 0.1, 40);
   private figs: Fig[] = [];
@@ -93,21 +128,11 @@ export class MenuFigures {
     private root: HTMLElement,
     before: Element | null,
   ) {
-    this.canvas.className = 'mm-figures';
-    root.insertBefore(this.canvas, before);
-    try {
-      this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true, antialias: true });
-    } catch {
-      this.renderer = null; // no WebGL: menus still work, just without the live fighters
-      return;
-    }
-    const r = this.renderer;
-    r.setClearColor(0x000000, 0);
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
-    r.outputColorSpace = THREE.SRGBColorSpace;
-    r.setScissorTest(true);
-    r.autoClear = false;
+    this.renderer = sharedRenderer();
+    if (!this.renderer) return;
+    owner?.dispose();
+    owner = this;
+    root.insertBefore(this.renderer.domElement, before);
     this.scene.add(new THREE.HemisphereLight(0xe4e6ff, 0x2a2232, 1.05));
     const key = new THREE.DirectionalLight(0xfff1de, 2.4);
     key.position.set(2.5, 4, 5);
@@ -116,10 +141,15 @@ export class MenuFigures {
     this.scene.add(key, fill);
   }
 
+  get canvas(): HTMLCanvasElement | null {
+    return this.renderer?.domElement ?? null;
+  }
+
   set(specs: FigureSpec[]): void {
     for (const f of this.figs) this.scene.remove(f.group, f.rim);
     this.figs = specs.map((spec, i) => {
       const rig = buildCharacter(spec.id, 0);
+      useSmallTextures(rig.root); // ~200 px tall in the menu: 1K copies of the model's textures
       const group = new THREE.Group();
       group.add(rig.root, contactShadow());
       const rim = new THREE.DirectionalLight(spec.rim, 3.2);
@@ -152,7 +182,7 @@ export class MenuFigures {
     const W = Math.round(box.width);
     const H = Math.round(box.height);
     if (!W || !H) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(isPhone() ? 1.5 : 2, window.devicePixelRatio || 1); // phones: the canvas spans the screen
     if (r.getPixelRatio() !== dpr) r.setPixelRatio(dpr);
     const size = r.getSize(new THREE.Vector2());
     if (size.x !== W || size.y !== H) r.setSize(W, H, false);
@@ -194,11 +224,18 @@ export class MenuFigures {
   dispose(): void {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
-    if (this.renderer) {
-      this.renderer.dispose();
-      this.renderer.forceContextLoss();
-      this.renderer = null;
+    for (const f of this.figs) {
+      this.scene.remove(f.group, f.rim);
+      f.group.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        if (m) for (const x of Array.isArray(m) ? m : [m]) x.dispose(); // the rig's own material clones
+      });
     }
-    this.canvas.remove();
+    this.figs = [];
+    if (owner === this) {
+      owner = null;
+      this.renderer?.domElement.remove();
+    }
+    this.renderer = null;
   }
 }

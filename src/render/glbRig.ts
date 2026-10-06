@@ -4,6 +4,7 @@
 // (world-space delta), after aligning the model's rest pose (T/A-pose) to the reference rest pose
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
+import { limitTextures, texLimit } from './textureBudget';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { JOINTS, JOINT_INDEX, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
@@ -183,6 +184,7 @@ export async function loadCharacterModels(
           console.warn(`[models] ${id}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);
           return;
         }
+        limitTextures(gltf.scene, texLimit('character')); // phones: 4K -> 2K (D41)
         loaded.set(id, gltf.scene);
         ok.push(id);
       } catch (e) {

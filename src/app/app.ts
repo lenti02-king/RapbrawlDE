@@ -18,7 +18,8 @@ import { LINE } from '../ui/lines';
 import { ARENAS, arenaInfo } from '../ui/arenas';
 import { clearPortraits, portrait, renderPortraits } from '../ui/portraits';
 import { mainMenuHtml, mainMenuToast, mountMainMenu, type MainMenuModel } from '../ui/menu/mainMenu';
-import { MenuFigures } from '../ui/menu/figures';
+import { MenuFigures, releaseMenuRenderer } from '../ui/menu/figures';
+import { isPhone } from '../render/textureBudget';
 import { loadingHtml, mountLoading, setLoading, setLoadingLabel } from '../ui/menu/loading';
 import { charSelectHtml, mountCharSelect, type CsSide, type CsTile } from '../ui/menu/charSelect';
 import { mountShowcase, setShowcaseChip, showcaseHtml, showcaseRoulette, showcaseSelect, type ShowcaseItem } from '../ui/menu/arenaSelect';
@@ -202,11 +203,7 @@ export class App {
   /** Arenas are built with the view: a different arena disposes the old view and starts on a fresh canvas. */
   private ensureArena(): void {
     if (!this._view || this.viewArena === this.sel.arena) return;
-    this._view.dispose();
-    const fresh = this.canvas.cloneNode(false) as HTMLCanvasElement;
-    this.canvas.replaceWith(fresh);
-    this.canvas = fresh;
-    this._view = null;
+    this.dropView();
   }
   /** Mode chosen on the home screen (ranked = CPU ladder with rank points). */
   private flow: { mode: PlayMode | 'online'; ranked: boolean } = { mode: 'cpu', ranked: false };
@@ -325,6 +322,18 @@ export class App {
     this.canvas.classList.add('off');
     this.hud.show(false);
     this.touch.setVisible(false);
+    // phones: give the fight's GPU memory back while the menus (and their own 3D figures) are up; the view is rebuilt
+    // behind the loading screen when the next match starts (D41)
+    if (isPhone() && this._view) this.dropView();
+  }
+
+  private dropView(): void {
+    this._view?.dispose();
+    const fresh = this.canvas.cloneNode(false) as HTMLCanvasElement;
+    this.canvas.replaceWith(fresh);
+    this.canvas = fresh;
+    this._view = null;
+    this.viewArena = '';
   }
 
   /** Bot-vs-bot attract mode (dev/testing: ?quick=a,b&mode=demo). */
@@ -343,6 +352,7 @@ export class App {
   // ------------------------------------------------------------- matches
   startMatch(mode: PlayMode | 'online', splash = true): void {
     if (mode === 'online') return this.showOnlineLobby();
+    releaseMenuRenderer(); // phones: only the game's GL context holds textures during a fight (D41)
     // licensed Signature music, if the product owner dropped files into assets/music (else original stingers)
     for (const f of this.sel.fighters) void this.audio.loadSignatureTrack(f);
     this.leaveNet();
