@@ -63,17 +63,31 @@ node scripts/rainshot.mjs           # Diamanten-Regen capture sheet -> artifacts
 node scripts/posegrid.mjs jazeek out.png '<PoseDef json>' ...   # menu pose iteration (POSE=stance|showcase, YAW=deg)
 node scripts/blunt-measure.mjs 72,78   # Blunt cinematic geometry probe: victim joints vs. the joint axis (no screenshots)
 BIG=1 node scripts/arena-thumbs.mjs festival,bahnhof,podcast   # full-screen arena renders for the v2 arena screen
+python3 tools/meshy/reduce.py jazeek --dir meshy3 && python3 tools/meshy/skin.py jazeek --dir meshy3   # modelle-3 fighters (D43; landmarks tools/meshy/<id>_cr.py)
+python3 tools/meshy/grid.py model.glb artifacts/meshy3/jazeek_std   # ortho front/side renders with a grid (landmark placement)
+python3 tools/meshy/jointshot.py jazeek artifacts/meshy3/jazeek_std   # the skin.py skeleton drawn over those renders
+python3 tools/ui-extract/depth.py [screen ..]   # MiDaS depth per v2 plate -> public/assets/ui2/<screen>/depth.webp (living plates, D43)
+python3 tools/ui-extract/v2_fight_btn.py   # KÄMPFEN button re-cut with chains, FIGHT lettering removed by LaMa
+python3 tools/ui-extract/v2_ring.py && python3 tools/ui-extract/depth.py ring   # ring backdrop (loading master without logo) for the v2 profile/settings/deck
+node scripts/livingshot.mjs "showHome()" artifacts/s11/living   # living plate frames a moment apart + diff (motion check)
+Q=medium node scripts/cine.mjs sofa|gwagon|99|team|blunt [f1,f2,..]   # D43 signatures (Q = quality; long runs: BASE_URL=:5174 NO_HMR server)
+node scripts/v2match.mjs artifacts/v2b/match 932x430   # v2 fight HUD, pause and results over the arena
+node scripts/v2shot.mjs "showProfile()" artifacts/v2b/profile "1672x941,932x430"   # v2 ring screens (also showSettings(), showDeck(0, ()=>0))
 ```
+Long capture queues: a second dev server without HMR (`NO_HMR=1 npx vite --port 5174`, restart it after edits) keeps
+source edits from reloading a running capture; the HMR server on 5173 reloads open pages on every edit.
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
-Fighter models: `public/assets/characters/<id>.glb` = the product owner's textured Meshy models used 1:1 (reduced copy + skin, D28;
+Fighter models (D43): `public/assets/characters/<id>.glb` = the PO's modelle-3 models for all four fighters (Jazeek, Bonez, Manuellsen, Lacazette), cel look
+(`render/cel.ts`: MeshToonMaterial + ink outline; `?toon=0` = flat PBR), reach fit per move (`render/anims/reach.ts`). Older notes: the PO's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.
 Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.ts`, procedural fallback); hand-held ones via `render/handProps.ts` (grips per prop).
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
-Design (D42): two designs in the code — v2 (default, `src/ui/v2/`, PO's second master set) and v1 (D38 screens); `?ui=v1|v2` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`). Manuellsen + Lacazette are 2D cutouts (`render/cutout.ts`), art never mirrored.
+Design (D42): two designs in the code — v2 (default, `src/ui/v2/`, PO's second master set) and v1 (D38 screens); `?ui=v1|v2` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`).
+D43: v2 menus are living plates (`ui/v2/living.ts`, `?still` = static); profile/settings/deck/results/pause in v2 = `ui/v2/ring.ts` (+ `ring.css`), v2 HUD skin `ui/v2/hud2.css`; new abilities in `render/abilities11.ts`, cinematics `render/cines11.ts`, clips `render/anims/roster11.ts`.
 UI (D38): the PO's master screenshots are the source — art is cut from their pixels (`tools/ui-extract/`), text is native German; screens in `src/ui/menu/` (mainMenu, loading, charSelect, arenaSelect, shop; shared `kit.ts/.css`; generated `*Art.ts`; sprites in `src/ui/img/<screen>/`). Older screens: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
 Music: `public/assets/music/<fighter>.mp3` / `bgm.mp3` drop-ins (git-ignored, README there, D33/D37); default = original stingers + the procedural 90 BPM beat in `audio.ts` (the sim's beat clock is the truth, RULES.BEAT_FRAMES).
 Fight intro, charge, fatality minigame, grabbing projectiles, blood, smooth cinematic clips: D39 (`src/render/emotes.ts`, `smoothClip` in `render/pose.ts`, `ToonFX.blood`).

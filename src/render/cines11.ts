@@ -324,8 +324,10 @@ export const SOFA_SLAPS: CineDef = {
 // 70 shots from the window (sim hits 64-104 every 10, the last burst 116), a counter runs up to 70, then the line
 // "…DAS WAREN 70 SCHÜSSE AUS DEM G-WAGON" and the car pulls away. Lacazette watches, arms crossed. startDx 3.0.
 const LS = JAZEEK_ANIMS.stance;
-const CAR_X = 4.9;
-const CAR_Z = -0.55;
+// the car stops diagonally behind the victim: driver's side (window) toward them and the camera, nose to the front right
+const CAR_X = 5.7;
+const CAR_Z = -0.7;
+const CAR_YAW = -0.7;
 const SHOT0 = 58;
 const SHOT1 = 118;
 
@@ -374,6 +376,7 @@ function gwagonProps(): CineProps {
   group.add(car);
   const win = car.userData.window as THREE.Object3D;
   const wheels = car.userData.wheels as THREE.Object3D[];
+  const gun = car.userData.gun as THREE.Object3D;
   // muzzle flashes + tracers from the window toward the victim
   const flashMat = new THREE.SpriteMaterial({ map: starTexture(), color: 0xfff1b0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
   const flashes = Array.from({ length: 3 }, () => {
@@ -400,16 +403,19 @@ function gwagonProps(): CineProps {
     group,
     lights: [lamp],
     update(f: number, c: PropCtx) {
-      // car path: comes back in from the left lane, drifts round (nose into the background) and stops at CAR_X
+      // car path: roars in along the front lane, drifts (the tail swings out past the stop angle and settles) and stops
+      // diagonally at CAR_X with the open driver's window toward the victim; pulls away into the back right at the end
       const arrive = ramp(f, 0, 26);
       const leave = ramp(f, 140, 170);
-      const x = lerp(1.0, CAR_X, arrive) + leave * 5.5;
-      const z = lerp(0.9, CAR_Z, arrive) - leave * 4.5;
+      const x = lerp(0.2, CAR_X, arrive) + leave * 6;
+      const z = lerp(1.7, CAR_Z, arrive) - leave * 3.5;
       car.position.set(x, 0, z);
-      const yaw = lerp(0, Math.PI / 2, ramp(f, 4, 28)) - leave * 0.6;
+      const yaw = lerp(0, CAR_YAW - 0.45, ramp(f, 4, 20)) + 0.45 * ramp(f, 20, 32) + leave * 1.1;
       car.rotation.y = yaw;
-      const roll = f < 30 ? Math.sin(lin(f, 4, 30) * Math.PI) * 0.06 : 0;
-      car.rotation.z = roll;
+      const roll = f < 32 ? Math.sin(lin(f, 4, 32) * Math.PI) * 0.07 : 0;
+      car.rotation.x = roll;
+      gun.visible = f >= SHOT0 - 8 && f < SHOT1 + 6;
+      gun.rotation.x = f >= SHOT0 && f < SHOT1 ? Math.sin(c.time * 60) * 0.12 : 0; // recoil
       const spin = f < 30 ? -c.time * 30 : f > 140 ? -c.time * 34 : 0;
       for (const w of wheels) w.rotation.z = spin;
       // shots
@@ -445,7 +451,7 @@ function gwagonProps(): CineProps {
         counter.length = 0;
         if (n >= 0 && f < 140) {
           const s = textSprite(String(n), { width: 1.4, color: n >= 70 ? '#ffd23c' : '#ffffff', font: '"Rubik Wet Paint", "Anton", sans-serif' });
-          s.position.set(CAR_X - 0.6, 2.75, 0.3);
+          s.position.set(CAR_X - 0.4, 2.9, 0.2);
           group.add(s);
           counter.push(s);
         }
@@ -464,7 +470,7 @@ function gwagonProps(): CineProps {
       if (line) {
         const k = pop(lin(f, 120, 126)) * (1 - lin(f, 160, 168));
         line.visible = f >= 120 && f < 168;
-        line.position.set(2.4, 2.6, 0.8);
+        line.position.set(2.9, 2.7, 0.8);
         line.scale.set(4.6 * k, 4.6 * k * 0.33, 1);
         line.material.opacity = Math.min(1, k * 1.2);
       }
@@ -497,23 +503,24 @@ export const SEVENTY_SHOTS: CineDef = {
   frames: 170,
   startDx: 3.0,
   camera: [
-    // the drift: wide, low
-    { f: 0, pos: [2.6, 0.9, 6.6], target: [3.4, 0.9, 0], fov: 42, cut: true },
-    { f: 30, pos: [3.0, 1.0, 6.0], target: [3.8, 1.0, 0], fov: 42 },
-    // over the victim's shoulder toward the driver's window
-    { f: 32, pos: [1.9, 1.7, 1.4], target: [4.6, 1.45, -0.6], fov: 36, cut: true },
-    { f: 56, pos: [2.1, 1.65, 1.2], target: [4.6, 1.5, -0.6], fov: 34 },
-    // the hail: 3/4 front, car and victim
-    { f: 58, pos: [3.6, 1.4, 4.4], target: [3.6, 1.35, 0], fov: 40, cut: true },
-    { f: 86, pos: [3.4, 1.35, 3.9], target: [3.6, 1.35, 0], fov: 38 },
-    { f: 88, pos: [5.2, 1.6, 2.2], target: [3.2, 1.3, 0], fov: 36, cut: true },
-    { f: 114, pos: [5.0, 1.55, 2.0], target: [3.2, 1.3, 0], fov: 34 },
+    // the drift: wide and low, the car slides in from the front lane
+    { f: 0, pos: [2.8, 0.8, 7.4], target: [3.6, 0.9, 0], fov: 46, cut: true },
+    { f: 30, pos: [3.4, 0.95, 6.8], target: [4.4, 1.0, -0.3], fov: 44 },
+    // over the victim's shoulder: the driver's side, the window rolls down, the gun comes out
+    { f: 32, pos: [1.55, 1.8, 2.6], target: [4.9, 1.45, -0.4], fov: 40, cut: true },
+    { f: 56, pos: [1.7, 1.75, 2.4], target: [4.9, 1.45, -0.4], fov: 38 },
+    // the hail: 3/4 front on both, the flashes at the window
+    { f: 58, pos: [3.4, 1.45, 5.2], target: [4.2, 1.35, -0.2], fov: 42, cut: true },
+    { f: 86, pos: [3.3, 1.4, 4.7], target: [4.2, 1.35, -0.2], fov: 40 },
+    // low from the victim's other side: tracers past the camera, the car behind
+    { f: 88, pos: [1.7, 0.75, 3.0], target: [4.4, 1.45, -0.3], fov: 40, cut: true },
+    { f: 114, pos: [1.85, 0.8, 2.8], target: [4.4, 1.45, -0.3], fov: 38 },
     // the line: wide on everything
-    { f: 116, pos: [2.4, 1.8, 7.6], target: [2.4, 1.5, 0], fov: 44, cut: true },
-    { f: 150, pos: [2.4, 1.75, 7.0], target: [2.4, 1.45, 0], fov: 44 },
-    // Lacazette, cool
-    { f: 152, pos: [0.9, 1.65, 2.2], target: [0.1, 1.6, 0], fov: 30, cut: true },
-    { f: 170, pos: [0.8, 1.65, 2.0], target: [0.1, 1.62, 0], fov: 28 },
+    { f: 116, pos: [2.9, 1.9, 8.4], target: [2.9, 1.5, 0], fov: 46, cut: true },
+    { f: 150, pos: [2.9, 1.85, 7.8], target: [2.9, 1.45, 0], fov: 46 },
+    // Lacazette, cool: glasses down, 3/4 front
+    { f: 152, pos: [2.1, 1.6, 2.7], target: [0.2, 1.55, 0], fov: 32, cut: true },
+    { f: 170, pos: [1.9, 1.62, 2.4], target: [0.2, 1.57, 0], fov: 30 },
   ],
   atk: GW_ATK,
   def: gwagonDef,
@@ -997,7 +1004,7 @@ function teamProps(): CineProps {
   phone.add(ph, screen, rec);
   group.add(phone);
   const signs = signTrack(group, [
-    { f: 50, word: 'HANDYVERBOT!', fill: '#ff4f6a', w: 1.6, pos: [1.05, 1.95, 0.5], len: 20 },
+    { f: 50, word: 'HANDYVERBOT!', fill: '#ff4f6a', w: 1.25, pos: [1.2, 1.72, 0.2], len: 20 },
     { f: 130, word: 'BOOM!', fill: '#ffd23c', w: 1.5, pos: [1.6, 2.0, 0.6], len: 18 },
   ]);
   const title = { s: null as THREE.Sprite | null };

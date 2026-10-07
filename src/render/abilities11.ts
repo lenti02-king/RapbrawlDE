@@ -16,6 +16,7 @@ import { smokeTexture } from './props';
 const U = UNITS_PER_METER;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ramp = (f: number, a: number, b: number) => clamp01((f - a) / Math.max(1e-6, b - a));
+const pop = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2));
 
 // ------------------------------------------------------------------ comic text
 /** Canvas text sprite (brush or block lettering with ink outline); width in metres, height from the text. */
@@ -53,6 +54,57 @@ export function textSprite(text: string, o: { width: number; color?: string; str
   s.renderOrder = 20;
   s.scale.set(o.width, (o.width * c.height) / c.width, 1);
   return s;
+}
+
+/** Comic speech bubble (white, ink outline, a tail at the bottom pointing to the speaker), `w` metres wide. */
+export function bubbleSprite(text: string, w = 1.7, tail: 'left' | 'right' = 'left'): THREE.Sprite {
+  const c = document.createElement('canvas');
+  const lines = text.split('\n');
+  c.width = 1024;
+  const lh = 118;
+  const bodyH = lh * lines.length + 70;
+  c.height = bodyH + 110;
+  const g = c.getContext('2d')!;
+  const r = 70;
+  const x0 = 24;
+  const y0 = 24;
+  const x1 = c.width - 24;
+  const y1 = y0 + bodyH;
+  const tx = tail === 'left' ? 230 : c.width - 230;
+  const dir = tail === 'left' ? -1 : 1;
+  g.beginPath();
+  g.moveTo(x0 + r, y0);
+  g.arcTo(x1, y0, x1, y1, r);
+  g.arcTo(x1, y1, x0, y1, r);
+  g.lineTo(tx + 60, y1);
+  g.lineTo(tx + dir * 90, y1 + 95); // the tail
+  g.lineTo(tx - 50, y1);
+  g.arcTo(x0, y1, x0, y0, r);
+  g.arcTo(x0, y0, x1, y0, r);
+  g.closePath();
+  g.fillStyle = '#ffffff';
+  g.fill();
+  g.lineJoin = 'round';
+  g.lineWidth = 18;
+  g.strokeStyle = '#0b0910';
+  g.stroke();
+  const font = '"Permanent Marker", "Anton", sans-serif';
+  let size = 100;
+  g.font = `400 ${size}px ${font}`;
+  const widest = Math.max(...lines.map((l) => g.measureText(l).width));
+  size = Math.min(104, Math.floor((size * 900) / Math.max(1, widest)));
+  g.font = `400 ${size}px ${font}`;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#0b0910';
+  lines.forEach((l, i) => g.fillText(l, 512, y0 + 35 + lh * i + lh / 2));
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false, depthTest: false }));
+  sp.renderOrder = 20;
+  sp.userData.aspect = c.height / c.width;
+  sp.scale.set(w, w * sp.userData.aspect, 1);
+  return sp;
 }
 
 /** Comic "sound" burst (star with a word), e.g. BATSCH! — returns a sprite sized `w` metres. */
@@ -123,51 +175,87 @@ export function makeOffroader(): THREE.Group {
   const body = new THREE.Group();
   body.name = 'body';
   root.add(body);
-  const paint = new THREE.MeshToonMaterial({ color: 0x15161b });
-  const trim = new THREE.MeshToonMaterial({ color: 0x9aa0a8 });
-  const glass = new THREE.MeshToonMaterial({ color: 0x1d2a36, emissive: 0x0a1018 });
-  const tyre = new THREE.MeshToonMaterial({ color: 0x0b0b0d });
-  const rim = new THREE.MeshToonMaterial({ color: 0x2b2d33 });
+  // gunmetal reads as black paint under the toon ramp while keeping its form (pure black was a flat silhouette)
+  const paint = new THREE.MeshToonMaterial({ color: 0x2c3039 });
+  const paintDark = new THREE.MeshToonMaterial({ color: 0x1a1c22 });
+  const chrome = new THREE.MeshToonMaterial({ color: 0xd2d7df, emissive: 0x2a2e36 });
+  const glass = new THREE.MeshToonMaterial({ color: 0x2a4258, emissive: 0x0c1622 });
+  const tyre = new THREE.MeshToonMaterial({ color: 0x101012 });
   const lamp = new THREE.MeshBasicMaterial({ color: 0xfff4cf });
+  const amber = new THREE.MeshBasicMaterial({ color: 0xffa62a });
   const tail = new THREE.MeshBasicMaterial({ color: 0xff2440 });
+  const gloss = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
   const ink = new THREE.MeshBasicMaterial({ color: 0x050407, side: THREE.BackSide });
-  const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z = 0, r = 0.06) => {
+  const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z = 0, r = 0.06, parent: THREE.Object3D = body) => {
     const geo = new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w, h, d) * 0.45));
     const mesh = new THREE.Mesh(geo, m);
     mesh.position.set(x, y, z);
-    body.add(mesh);
+    parent.add(mesh);
     const shell = new THREE.Mesh(geo, ink);
     shell.scale.setScalar(1.025);
     mesh.add(shell);
     return mesh;
   };
+  // cartoon gloss: thin bright strips on the upper edges and a slanted glint on the glass
+  const strip = (w: number, h: number, x: number, y: number, z: number, ry = 0, rz = 0, mat: THREE.Material = gloss) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    m.position.set(x, y, z);
+    m.rotation.set(0, ry, rz);
+    body.add(m);
+    return m;
+  };
   box(3.3, 0.78, 1.5, paint, 0, 0.82); // lower body
   box(2.2, 0.74, 1.42, paint, -0.4, 1.56, 0, 0.05); // the upright cabin
+  box(2.3, 0.06, 1.3, paintDark, -0.4, 1.96, 0, 0.02); // roof rails
   box(0.05, 0.5, 1.2, glass, 0.71, 1.6, 0, 0.02); // windscreen (upright, it is a box)
   for (const z of [0.72, -0.72]) {
-    box(0.62, 0.42, 0.04, glass, 0.25, 1.62, z, 0.02); // front side windows
-    box(0.62, 0.42, 0.04, glass, -0.5, 1.62, z, 0.02);
+    const sd = Math.sign(z);
+    box(0.5, 0.42, 0.04, glass, -0.5, 1.62, z, 0.02);
     box(0.5, 0.42, 0.04, glass, -1.2, 1.62, z, 0.02);
-    box(3.0, 0.07, 0.03, trim, 0, 1.05, z * 1.035, 0.02); // side trim line
-    box(1.4, 0.06, 0.18, trim, -0.1, 0.42, z * 1.05, 0.02); // running board
+    if (z < 0) box(0.62, 0.42, 0.04, glass, 0.25, 1.62, z, 0.02); // the passenger side stays closed
+    box(3.0, 0.07, 0.03, chrome, 0, 1.05, z * 1.035, 0.02); // side trim line
+    box(1.5, 0.07, 0.2, chrome, -0.1, 0.42, z * 1.05, 0.02); // running board
+    // flared wheel arches
+    for (const x of [1.08, -1.08]) box(0.98, 0.16, 0.1, paintDark, x, 0.9, z * 1.03, 0.04);
+    // gloss along the shoulder line and the cabin, glints on the windows
+    strip(2.9, 0.035, 0.05, 1.16, z * 1.012, sd > 0 ? 0 : Math.PI);
+    strip(2.0, 0.03, -0.42, 1.88, z * 0.99, sd > 0 ? 0 : Math.PI);
+    for (const x of [-0.5, -1.2]) strip(0.08, 0.38, x + 0.08, 1.62, z * 1.035, sd > 0 ? 0 : Math.PI, 0.5);
   }
-  // round headlights + indicator pods on the wings (the classic box silhouette)
+  strip(3.0, 0.04, 0, 1.215, 0, 0, 0).rotation.set(-Math.PI / 2, 0, 0); // hood edge highlight seen from above
+  // the classic box face: round headlights with glow, indicator pods on the wings, slatted grille, chrome bumper
+  const glowMat = new THREE.SpriteMaterial({ map: starTexture(), color: 0xfff1c8, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false });
   for (const z of [0.5, -0.5]) {
     const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 20), lamp);
     hl.rotation.z = Math.PI / 2;
     hl.position.set(1.66, 0.98, z);
     body.add(hl);
-    box(0.16, 0.08, 0.12, trim, 1.42, 1.25, z * 1.18, 0.02);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.135, 0.022, 6, 20), chrome);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(1.68, 0.98, z);
+    body.add(ring);
+    const glow = new THREE.Sprite(glowMat);
+    glow.position.set(1.76, 0.98, z);
+    glow.scale.setScalar(0.55);
+    body.add(glow);
+    box(0.16, 0.08, 0.12, amber, 1.42, 1.25, z * 1.18, 0.02);
     const tl = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.22, 0.14), tail);
     tl.position.set(-1.66, 0.95, z * 1.05);
     body.add(tl);
   }
-  box(0.08, 0.32, 1.1, trim, 1.68, 0.72, 0, 0.03); // grille
-  // spare wheel on the tailgate
+  box(0.08, 0.34, 0.66, paintDark, 1.68, 0.86, 0, 0.03); // grille
+  for (let i = -2; i <= 2; i++) box(0.03, 0.3, 0.035, chrome, 1.72, 0.86, i * 0.12, 0.01);
+  box(0.14, 0.16, 1.56, chrome, 1.7, 0.5, 0, 0.05); // bumpers
+  box(0.14, 0.16, 1.56, chrome, -1.7, 0.5, 0, 0.05);
+  // spare wheel on the tailgate (with a cover)
   const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.22, 24), tyre);
   spare.rotation.z = Math.PI / 2;
   spare.position.set(-1.78, 1.08, 0);
   body.add(spare);
+  const cover = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.24, 24), chrome);
+  cover.rotation.z = Math.PI / 2;
+  cover.position.set(-1.79, 1.08, 0);
+  body.add(cover);
   const wheels: THREE.Object3D[] = [];
   for (const [x, z] of [
     [1.08, 0.74],
@@ -178,21 +266,44 @@ export function makeOffroader(): THREE.Group {
     const w = new THREE.Group();
     const t = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.32, 24), tyre);
     t.rotation.x = Math.PI / 2;
-    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.34, 6), rim);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.34, 20), chrome);
     r.rotation.x = Math.PI / 2;
     w.add(t, r);
+    // five spokes (dark) on the outer face so the spin reads
+    for (let k = 0; k < 5; k++) {
+      const sp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.02), tyre);
+      sp.position.set(Math.cos((k / 5) * Math.PI * 2) * 0.12, Math.sin((k / 5) * Math.PI * 2) * 0.12, 0.175 * Math.sign(z));
+      sp.rotation.z = (k / 5) * Math.PI * 2 + Math.PI / 2;
+      w.add(sp);
+    }
     w.position.set(x, 0.42, z);
     root.add(w);
     wheels.push(w);
   }
-  // the driver's window (left = +z when facing +x): an opening from which the shots come
+  // the driver's window (left = +z when facing +x) is open: dark inside, a gloved arm with a cartoon pistol pokes out
+  const hole = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.4), new THREE.MeshBasicMaterial({ color: 0x07080c }));
+  hole.position.set(0.25, 1.62, 0.715);
+  body.add(hole);
   const win = new THREE.Object3D();
   win.position.set(0.25, 1.62, 0.78);
   body.add(win);
+  const gun = new THREE.Group();
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.34, 10), paintDark);
+  sleeve.rotation.x = Math.PI / 2;
+  sleeve.position.z = 0.1;
+  const grip = box(0.07, 0.12, 0.05, tyre, 0, -0.04, 0.3, 0.015, gun);
+  const slide = box(0.06, 0.06, 0.24, tyre, 0, 0.03, 0.4, 0.015, gun);
+  void grip;
+  void slide;
+  gun.add(sleeve);
+  gun.position.copy(win.position).add(new THREE.Vector3(0, -0.05, -0.12));
+  gun.visible = false;
+  body.add(gun);
   root.userData.wheels = wheels;
   root.userData.window = win;
+  root.userData.gun = gun;
   root.traverse((o) => {
-    o.castShadow = true;
+    o.castShadow = !(o instanceof THREE.Sprite);
   });
   return root;
 }
@@ -330,12 +441,15 @@ export class AbilityFX11 {
 
   constructor(private vfx: { sparks: (x: number, y: number, n: number, c: THREE.Color, sp: number, dir: number, life?: number) => void; dust: (x: number, y: number, n: number, sp: number, c?: THREE.Color) => void }) {}
 
-  private bubble(i: number): THREE.Sprite {
-    let b = this.bubbles[i];
+  /** Speech bubble of fighter i; the tail points back to his head (right when the bubble is left of him). */
+  private bubble(i: number, facing: number): THREE.Sprite {
+    const k = i * 2 + (facing > 0 ? 0 : 1);
+    let b = this.bubbles[k];
     if (!b) {
-      b = textSprite('SAG WAS GEGEN MICH –\n5000 KURDEN STEHEN AUF!', { width: 2.4, color: '#ffffff', stroke: '#14101c', bg: undefined });
+      b = bubbleSprite('SAG WAS GEGEN MICH –\n5000 KURDEN STEHEN AUF!', 1.7, facing > 0 ? 'right' : 'left');
+      b.visible = false;
       this.group.add(b);
-      this.bubbles[i] = b;
+      this.bubbles[k] = b;
     }
     return b;
   }
@@ -362,15 +476,19 @@ export class AbilityFX11 {
       // 5000 Kurden: the call (speech bubble over Manuellsen while he is on the phone)
       if (f.def === 'manuellsen') {
         const on = inMove('manu_kurden') && f.mf >= 6 && f.mf <= 46;
-        const b = this.bubbles[i] ?? (on ? this.bubble(i) : null);
+        const other = this.bubbles[i * 2 + (f.facing > 0 ? 1 : 0)];
+        if (other) other.visible = false;
+        const b = on ? this.bubble(i, f.facing) : this.bubbles[i * 2 + (f.facing > 0 ? 0 : 1)];
         if (b) {
           b.visible = on;
           if (on) {
             const head = rig.joints.head.getWorldPosition(new THREE.Vector3());
             const k = ramp(f.mf, 6, 10) * (1 - ramp(f.mf, 40, 46));
-            b.position.set(head.x + f.facing * 0.4, head.y + 0.75, 0.6);
+            // beside his head, toward his back (the mob comes from there; the HUD keeps the top of the screen)
+            b.position.set(head.x - f.facing * 0.75, head.y + 0.42, 0.6);
             b.material.opacity = k;
-            b.scale.set(2.4 * (0.8 + 0.2 * k), 2.4 * (0.8 + 0.2 * k) * 0.33, 1);
+            const w = 1.7 * (0.75 + 0.25 * pop(k));
+            b.scale.set(w, w * (b.userData.aspect as number), 1);
           }
         }
         // Beton: grey concrete tint while armoured, stone dust from the joints, a crack ring on the floor

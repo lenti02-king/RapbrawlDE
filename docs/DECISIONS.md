@@ -323,3 +323,43 @@ and the croc were hard to read; two new fighters (Manuellsen, Lacazette) exactly
 - **Tests**: `npm run e2e` keeps walking the v1 flows (`?ui=v1`, regression for the classic design) and adds the v2
   flow (home → select → arena → VS → match); `scripts/netplay.mjs` runs the online handshake through the v1 screens
   (the transport underneath is shared).
+
+## D43 — modelle-3 roster, cel look, living menus, new abilities, v2 everywhere (2026-10-07)
+- **Fighters = the PO's modelle-3 models** (Jazeek, Bonez, Manuellsen, Lacazette; `.cache/meshy3/<id>_src.glb`, not in
+  git): reduced copies (`tools/meshy/reduce.py --dir meshy3`: 120k tris, metal/roughness map dropped = metal 0 /
+  roughness 1, JPEG q88, retouch boxes per model, e.g. Jazeek's GG print) + bone-heat skin (`tools/meshy/skin.py`,
+  landmarks in `tools/meshy/<id>_cr.py`, checked with `grid.py` / `jointshot.py`). The 2D cutouts of D42 are gone
+  (a real 3D model of each now exists, so the "drawn style" argument no longer holds). Jazeek's and Bonez's moves stay;
+  Manuellsen borrows Bonez's boxing normals, Lacazette Jazeek's street normals.
+- **Cel look** (`render/cel.ts`): MeshToonMaterial with a 4-band nearest ramp (dark first bands, so rim lights do not
+  wash the skin pale) + an ink outline = inverted hull sharing the skeleton, pushed along smoothed normals in view
+  space x depth (constant on-screen width, ~1 draw call per mesh more). `?toon=0` = PBR with roughness 1 / metal 0.
+- **Reach fit** (`render/anims/reach.ts`): the new proportions made some strikes fall short of their hitboxes; a
+  per-move root lunge around the active frames (`REACH_FIX`) keeps fists/feet on the boxes without touching the sim.
+- **Living menus**: MiDaS depth per v2 plate (`tools/ui-extract/depth.py`) drives a WebGL plate in the menus' shared
+  context (`ui/v2/living.ts`): slow depth parallax, crowd hopping on the 90 BPM beat, flickering lights, haze, camera
+  flashes; logos/UI regions stay rigid; the 3D figures share the parallax. `?still` = the old static plate.
+- **KÄMPFEN button**: re-cut from the master with its chains, the baked FIGHT lettering removed by LaMa
+  (`tools/ui-extract/v2_fight_btn.py`), German lettering in Rubik Wet Paint (black brush with drips).
+- **New abilities** (all deterministic sim content + tests in `tests/abilities.test.ts`; presentation in
+  `render/abilities11.ts`, `render/cines11.ts`, clips in `render/anims/roster11.ts`):
+  - Manuellsen: *5000 Kurden* (phone call, a crew mob runs across: projectile, 3 hits, blockable), *Beton*
+    (armour 3 hits, heavy right hand), signature *Sofa-Backpfeifen* (grab; a black sofa pops up, he seats the
+    opponent and slaps three times with straight arms, BATSCH BATSCH BATSCH, the last tips the sofa over).
+  - Lacazette: *Kalter Blick* (sunglasses down, a fast glint at head height: crouching dodges it), *Daunenweste*
+    (armoured shoulder charge), signature *70 Schüsse* (a generic black off-roader without badges crosses the
+    stage; on hit it drifts in diagonally, driver's window toward the opponent, cartoon shots and a counter to 70,
+    then the line "…DAS WAREN 70 SCHÜSSE AUS DEM G-WAGON"). Shooting is shown as toy-like flashes/pops (USK).
+  - Jazeek: signature *Ninetynine* (chain whip; the 99 pendant grows into a giant iced 99, slams, splits into two
+    orbiting nines, rejoins, flying kick through it, NINETYNINE banner) replaces Herzbrecher as his deck signature.
+  - Bonez: signature *Ohne mein Team* (palms rise as before, the opponent starts filming: HANDYVERBOT slap, four
+    crew members storm in and pile on, line up behind him, one big right hand) replaces Palmen-Bassdrop in the deck.
+    Herzbrecher and Palmen-Bassdrop stay in the code (cinematics, cards hidden from the default decks).
+  - Blunt für dich reworked: grab, he carries the opponent on his hands into a cartoon cloud with whirling hands,
+    the opponent vanishes and the PO's joint comes out, he smokes it (each drag hurts), on the last exhale the
+    opponent flies out of the cloud. Cinematics can hide the victim (`CineDef.hide`) and add extra actors.
+- **Design v2 for the screens without a master** (`ui/v2/ring.ts`): profile, settings and deck stand in the ring
+  of the loading master with its logo removed (`tools/ui-extract/v2_ring.py`, living plate, live favourite fighter
+  between the panels); results and pause lie over the running arena (the winner celebrates in the match itself;
+  a second GL context during a match would cost iPhone memory, D41). The fight HUD keeps the PO's HUD master art and
+  takes the v2 type and effects (`ui/v2/hud2.css`).
