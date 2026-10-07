@@ -234,6 +234,12 @@ const _qf = new THREE.Quaternion();
 const _qk = new THREE.Quaternion();
 const _qd = new THREE.Quaternion();
 const _qp = new THREE.Quaternion();
+const _qc = new THREE.Quaternion();
+const _qe = new THREE.Quaternion();
+const _Y = new THREE.Vector3(0, 1, 0);
+const _ds = new THREE.Vector3();
+const _de = new THREE.Vector3();
+const smooth01 = (x: number) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 /** A mirrored rig (facing left: root scale.x < 0) decomposes into world quaternions conjugated by the mirror; a local
  *  rotation computed from them must be conjugated back: (x, y, z, w) -> (x, -y, -z, w). */
 function unmirror(b: THREE.Object3D, q: THREE.Quaternion): THREE.Quaternion {
@@ -279,6 +285,11 @@ export class GlbRig implements CharacterRig {
   private legs: { up: THREE.Bone; low: THREE.Bone; foot: THREE.Bone; toe: THREE.Bone | null; ankleRest: number; toeRest: number }[] = [];
   /** Set per frame by the view: the fighter stands (idle, walk, guard, crouch, blockstun) - hovering feet go down. */
   plant = false;
+  /** S13 human shoulders: the clavicle bones (unmapped by the pose system) follow the upper arm like a real shoulder
+   *  girdle - they lift when the arm rises past the horizontal (scapulohumeral rhythm) and slide forward on a reach. */
+  private clav = new Map<THREE.Bone, 'L' | 'R'>();
+  /** Toe length per leg (m, model space) for the toe roll. */
+  private toeLen: number[] = [];
 
   constructor(
     id: string,
@@ -464,6 +475,15 @@ export class GlbRig implements CharacterRig {
       const toe = bones.get(`${side}ToeBase`) ?? null;
       if (up && low && foot) this.legs.push({ up, low, foot, toe, ankleRest: rootY(foot), toeRest: toe ? rootY(toe) : rootY(foot) });
     }
+    for (const side of ['Left', 'Right'] as const) {
+      const c = bones.get(`${side}Shoulder`);
+      if (c && !this.byBone.has(c)) this.clav.set(c, side === 'Left' ? 'L' : 'R');
+    }
+    for (const L of this.legs) {
+      const a = L.foot.getWorldPosition(new THREE.Vector3());
+      const t = L.toe?.getWorldPosition(new THREE.Vector3());
+      this.toeLen.push(t ? a.distanceTo(t) * 0.42 : 0);
+    }
     const arm = ARM_SCALE[id] ?? 1;
     if (arm !== 1)
       for (const n of ['LeftArm', 'RightArm']) {
@@ -517,6 +537,8 @@ export class GlbRig implements CharacterRig {
           if (fb.fold) bone.quaternion.multiply(_q.setFromAxisAngle(_Z, fb.fold * c));
           bone.quaternion.multiply(_q.setFromAxisAngle(_X, fb.ang * c));
         } else bone.quaternion.copy(this.restLocal.get(bone)!);
+        const side = this.clav.get(bone);
+        if (side) this.driveClavicle(bone, side, parentQ);
         wq.copy(parentQ).multiply(bone.quaternion);
       }
     }
@@ -535,6 +557,7 @@ export class GlbRig implements CharacterRig {
       }
     }
     if (this.plant) this.plantFeet();
+    this.rollToes();
     // cartoon stretch: elbow/wrist (knee/ankle) move away from their parent along the bone, the skin follows
     for (const [jn, ch] of LIMB_STRETCH) {
       const b = this.joints[jn];
@@ -545,6 +568,65 @@ export class GlbRig implements CharacterRig {
     }
     const [w, h] = squashScale(p[S_SQ]);
     this.root.scale.set(facing * w, h, w);
+  }
+
+  /** Shoulder girdle (S13): lift and forward slide of the clavicle from the reference arm direction in chest space.
+   *  The upper arm keeps its world orientation (it is retargeted in world space), so only the shoulder joint moves:
+   *  raised arms pull the shoulders up, a reach brings the shoulder forward (a few cm more reach on punches). */
+  private driveClavicle(bone: THREE.Bone, side: 'L' | 'R', parentQ: THREE.Quaternion): void {
+    const ref = this.ref;
+    const sh = ref.joints[side === 'L' ? 'shL' : 'shR'];
+    const el = ref.joints[side === 'L' ? 'elL' : 'elR'];
+    sh.getWorldPosition(_ds);
+    el.getWorldPosition(_de);
+    _de.sub(_ds).normalize();
+    ref.joints.chest.getWorldQuaternion(_qc);
+    _de.applyQuaternion(_qe.copy(_qc).invert()); // arm direction in chest space (x forward, y up)
+    const fromDown = Math.acos(Math.max(-1, Math.min(1, -_de.y))); // 0 hanging, pi straight up
+    const lift = smooth01((fromDown - 1.05) / 2.0) * 0.5; // up to ~29 deg overhead, nothing below ~60 deg
+    const reach = Math.max(-0.5, Math.min(1, _de.x * 1.2)) * 0.26 * (1 - 0.6 * smooth01((fromDown - 1.6) / 1.2)); // ~15 deg fwd
+    const s = side === 'L' ? 1 : -1; // L tip at -z: +x rotation lifts it, -y rotation brings it forward
+    _qe.setFromAxisAngle(_X, s * lift).premultiply(_q.setFromAxisAngle(_Y, -s * reach));
+    // chest-space delta -> root space, applied on the clavicle's world rotation
+    _qe.premultiply(_qc).multiply(_q.copy(_qc).invert());
+    _q2.copy(parentQ).multiply(bone.quaternion);
+    _q2.premultiply(_qe);
+    bone.quaternion.copy(_q.copy(parentQ).invert().multiply(_q2));
+  }
+
+  /** Toe roll (S13): with the heel up, the toes bend at the ball of the foot and stay on the floor instead of pushing
+   *  into it (the foot is a rigid plank otherwise). */
+  private rollToes(): void {
+    if (!this.legs.length) return;
+    this.root.updateMatrixWorld(true);
+    const floor = this.root.getWorldPosition(_v2).y;
+    const sy = Math.abs(this.root.matrixWorld.elements[5]) || 1;
+    this.legs.forEach((L, i) => {
+      if (!L.toe || !this.toeLen[i]) return;
+      L.toe.getWorldPosition(_pa);
+      if (_pa.y - floor > 0.07 * sy) return; // ball of the foot off the floor (kicks, jumps): as authored
+      const len = this.toeLen[i] * sy;
+      // the toe points along the foot: ankle -> ball direction continued
+      L.foot.getWorldPosition(_pk);
+      _u.subVectors(_pa, _pk).normalize();
+      _tg.copy(_pa).addScaledVector(_u, len);
+      const below = floor + 0.004 - _tg.y;
+      if (below <= 0) return;
+      // bend up just enough to put the tip on the floor (at most ~60 deg)
+      _w.copy(_tg);
+      _w.y = floor + 0.004;
+      _n.subVectors(_w, _pa);
+      const h = Math.sqrt(Math.max(0, len * len - (_n.y * _n.y)));
+      const flat = Math.hypot(_n.x, _n.z) || 1;
+      _w.set(_pa.x + (_n.x / flat) * h, floor + 0.004, _pa.z + (_n.z / flat) * h);
+      _w.sub(_pa).normalize();
+      const ang = _u.angleTo(_w);
+      if (ang < 0.01) return;
+      _qd.setFromUnitVectors(_u, _w);
+      if (ang > 1.05) _qd.slerp(_qp.identity(), 1 - 1.05 / ang);
+      rotateWorld(L.toe, _qd);
+      L.toe.updateMatrixWorld(true);
+    });
   }
 
   /** Two-bone leg IK: a foot whose lowest point (ankle or toe) floats above its rest height is lowered onto the

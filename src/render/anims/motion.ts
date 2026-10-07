@@ -33,14 +33,17 @@ export interface StrikeSpec {
 export function strike(spec: StrikeSpec, stance: PoseDef): Clip {
   const { startup, active, total } = spec;
   const base = spec.base ?? {};
-  const windAt = Math.max(2, Math.min(startup - 1, spec.windAt ?? Math.round(startup * 0.6)));
+  // the delivery (wind-up peak -> contact) gets at least ~45 % of the startup, up to 5 frames (S13): a big arc squeezed
+  // into 3 frames moved the fists up to 0.9 m per frame - a teleport, not a strike
+  const minDeliver = Math.min(5, Math.floor(startup * 0.45));
+  const windAt = Math.max(2, Math.min(startup - 1, startup - minDeliver, spec.windAt ?? Math.round(startup * 0.6)));
   const lastActive = startup + active - 1;
   const followAt = Math.min(total - 2, spec.followAt ?? lastActive + 3);
   const settleAt = Math.max(followAt + 1, total - Math.max(3, Math.round((total - followAt) * 0.4)));
   const keys: Key[] = [{ f: 1, p: base }];
   if (spec.pre && spec.pre.f > 1 && spec.pre.f < windAt) keys.push({ f: spec.pre.f, p: compose(base, spec.pre.p), e: 'inOut' });
   keys.push({ f: windAt, p: compose(base, spec.wind), e: spec.windEase ?? 'out' });
-  keys.push({ f: startup, p: compose(base, spec.hit), e: 'snap' });
+  keys.push({ f: startup, p: compose(base, spec.hit), e: 'strike' });
   if (lastActive > startup) keys.push({ f: lastActive, p: compose(base, spec.hold ?? spec.hit), e: 'out' });
   if (followAt > lastActive) keys.push({ f: followAt, p: compose(base, spec.follow ?? spec.hold ?? spec.hit), e: 'out' });
   if (settleAt < total) keys.push({ f: settleAt, p: compose(base, spec.settle ?? {}), e: 'inOut' });

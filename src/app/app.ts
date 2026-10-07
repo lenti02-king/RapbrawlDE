@@ -287,6 +287,8 @@ export class App {
       const mode = (params.get('mode') as Mode | 'demo') ?? 'cpu';
       if (mode === 'demo') this.startDemo();
       else this.startMatch(mode === 'menu' ? 'cpu' : mode, false);
+      // &hold=1: start paused on frame 0 (scripts/animprobe.mjs steps it with debugAdvance: reproducible replays)
+      if (params.get('hold')) this.debugHold = true;
     } else {
       this.enterMenu();
       this.showTitle();
@@ -356,7 +358,8 @@ export class App {
   /** Bot-vs-bot attract mode (dev/testing: ?quick=a,b&mode=demo). */
   private startDemo(): void {
     this.mode = 'cpu';
-    const seed = (Math.random() * 1e9) | 0;
+    // &seed=N replays the same bot match (scripts/animprobe.mjs)
+    const seed = Number(new URLSearchParams(location.search).get('seed')) || (Math.random() * 1e9) | 0;
     const state = createMatch(defaultConfig({ fighters: [...this.sel.fighters], seed }));
     this.bots = [new Bot(BOT_LEVELS.hard, seed), new Bot(BOT_LEVELS.hard, seed + 1)];
     for (const b of this.bots) b.demo = true;

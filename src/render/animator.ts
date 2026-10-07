@@ -11,9 +11,10 @@ import { JAZEEK_ANIMS } from './anims/jazeek';
 import { BONEZ_ANIMS } from './anims/bonez';
 import { withReach } from './anims/reach';
 import { BON_MOVES, JAZ_MOVES, LACA_MOVES, MANU_MOVES } from './anims/roster11';
-import { compose, lerpPose, type PoseDef, stabilizeHead, toArr } from './pose';
+import * as THREE from 'three';
+import { compose, lerpPose, poseJointQ, type PoseDef, stabilizeHead, toArr, writeJointQ } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
-import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
+import { JOINTS, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
 
 /** Manuellsen's high boxing guard (D43): fists at the chin, forearms up, chin tucked. */
 const MANU_GUARD: PoseDef = {
@@ -102,7 +103,173 @@ export function motionOf(set: AnimSet): MotionClips {
 /** Optional external override (used by cinematics). Return true if it wrote `out`. */
 export type PoseOverride = (s: GameState, idx: number, out: Float32Array) => boolean;
 
-const ease = (t: number) => 1 - (1 - t) * (1 - t);
+const wrap180 = (d: number) => d - 360 * Math.round(d / 360);
+const RAD = Math.PI / 180;
+const NJ = JOINTS.length;
+const _q1 = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _q3 = new THREE.Quaternion();
+const _ax = new THREE.Vector3();
+
+/** Quintic offset decay (Bollo 2016) for one scalar: offset x0, offset velocity v0 (per frame), blend length T. */
+function quintic(co: Float32Array, k: number, x0: number, v0: number, T: number): number {
+  const sg = x0 < 0 ? -1 : 1;
+  x0 *= sg;
+  v0 *= sg;
+  if (v0 > 0) v0 = 0; // moving away from the target: do not extrapolate further away
+  if (v0 < 0) T = Math.min(T, (-5 * x0) / v0); // arrive without overshoot
+  T = Math.max(1, T);
+  const a0 = Math.max(0, (-8 * v0 * T - 20 * x0) / (T * T));
+  const T2 = T * T;
+  co[k] = (-(a0 * T2 + 6 * v0 * T + 12 * x0) / (2 * T2 * T2 * T)) * sg;
+  co[k + 1] = ((3 * a0 * T2 + 16 * v0 * T + 30 * x0) / (2 * T2 * T2)) * sg;
+  co[k + 2] = (-(3 * a0 * T2 + 12 * v0 * T + 20 * x0) / (2 * T2 * T)) * sg;
+  co[k + 3] = a0 * 0.5 * sg;
+  co[k + 4] = v0 * sg;
+  co[k + 5] = x0 * sg;
+  return T;
+}
+const poly = (co: Float32Array, k: number, t: number) => {
+  const t2 = t * t;
+  return co[k] * t2 * t2 * t + co[k + 1] * t2 * t2 + co[k + 2] * t2 * t + co[k + 3] * t2 + co[k + 4] * t + co[k + 5];
+};
+
+/**
+ * Inertialized transitions (S13, PO: "sehr flüssig, keine Glitches"). Instead of cross-fading from a frozen snapshot
+ * (the pose stops dead, then slides linearly: a visible snap on both ends), the new animation plays at once and the
+ * difference to the pose on screen - offset AND its velocity - decays to zero along a quintic (Bollo 2016): motion
+ * keeps its momentum through the switch, no velocity jump, no overshoot. Joints decay as a rotation about one fixed
+ * axis (quaternion offset), so a turn never unwinds the long way round; root and deformation channels as scalars.
+ */
+class Inertializer {
+  private co = new Float32Array(POSE_LEN * 6);
+  private T = new Float32Array(POSE_LEN);
+  private axis = new Float32Array(NJ * 3);
+  private t = 0;
+  active = false;
+
+  /** source = pose on screen, vel = per-frame velocity of its scalar channels, angVel = per-joint angular velocity
+   *  (deg/frame, axis * rate), target = the new animation's pose now. */
+  start(source: Float32Array, vel: Float32Array, angVel: Float32Array, target: Float32Array, blend: number): void {
+    for (let j = 0; j < NJ; j++) {
+      poseJointQ(source, j, _q1);
+      poseJointQ(target, j, _q2);
+      _q3.copy(_q1).multiply(_q2.invert()); // offset: source = offset * target
+      if (_q3.w < 0) _q3.set(-_q3.x, -_q3.y, -_q3.z, -_q3.w);
+      const ang = (2 * Math.acos(Math.min(1, _q3.w))) / RAD;
+      if (ang < 0.05) {
+        this.T[j] = 0;
+        continue;
+      }
+      const sn = Math.sqrt(Math.max(1e-12, 1 - _q3.w * _q3.w));
+      const ax = _q3.x / sn;
+      const ay = _q3.y / sn;
+      const az = _q3.z / sn;
+      this.axis[j * 3] = ax;
+      this.axis[j * 3 + 1] = ay;
+      this.axis[j * 3 + 2] = az;
+      const v0 = angVel[j * 3] * ax + angVel[j * 3 + 1] * ay + angVel[j * 3 + 2] * az;
+      this.T[j] = quintic(this.co, j * 6, ang, v0, blend);
+    }
+    for (let i = NJ * 3; i < POSE_LEN; i++) {
+      let x0 = source[i] - target[i];
+      if (i === R_ROT || i === R_YAW) x0 = wrap180(x0);
+      if (Math.abs(x0) < 1e-5) {
+        this.T[i] = 0;
+        continue;
+      }
+      this.T[i] = quintic(this.co, i * 6, x0, vel[i], blend);
+    }
+    this.t = 0;
+    this.active = true;
+  }
+
+  /** Adds the decaying offset onto `out` (the new animation's pose), advancing by `frames`. */
+  apply(out: Float32Array, frames: number): void {
+    if (!this.active) return;
+    this.t += frames;
+    const t = this.t;
+    let live = false;
+    for (let j = 0; j < NJ; j++) {
+      if (t >= this.T[j]) continue;
+      live = true;
+      const ang = poly(this.co, j * 6, t);
+      _ax.set(this.axis[j * 3], this.axis[j * 3 + 1], this.axis[j * 3 + 2]);
+      _q1.setFromAxisAngle(_ax, ang * RAD);
+      poseJointQ(out, j, _q2);
+      _q1.multiply(_q2);
+      writeJointQ(_q1, out, j, out[j * 3], out[j * 3 + 1], out[j * 3 + 2]);
+    }
+    for (let i = NJ * 3; i < POSE_LEN; i++) {
+      if (t >= this.T[i]) continue;
+      live = true;
+      out[i] += poly(this.co, i * 6, t);
+    }
+    this.active = live;
+  }
+}
+
+/**
+ * Output smoothing (S13): a critically damped spring follows the animated pose (exact solution, any frame time).
+ * Joints follow as rotations (offset to the target as axis-angle, decayed with its angular velocity), root and
+ * deformation channels as scalars. omega = 2/frame: a one-frame jump arrives 59 % / 91 % / 98 % over three frames, so
+ * left-over single-frame pops (authored keys, clip ends) become motion while the lag stays under a frame.
+ */
+class PoseSpring {
+  private q = Array.from({ length: NJ }, () => new THREE.Quaternion());
+  private w = new Float32Array(NJ * 3); // angular velocity, rad per frame (axis * rate) in the offset space
+  private x = new Float32Array(POSE_LEN);
+  private v = new Float32Array(POSE_LEN);
+  private ready = false;
+
+  reset(p: Float32Array): void {
+    for (let j = 0; j < NJ; j++) poseJointQ(p, j, this.q[j]);
+    this.w.fill(0);
+    this.x.set(p);
+    this.v.fill(0);
+    this.ready = true;
+  }
+
+  /** Filters `target` into `out` (may alias), advancing `frames`. */
+  step(target: Float32Array, frames: number, omega: number, out: Float32Array): void {
+    if (!this.ready) this.reset(target);
+    const t = Math.max(0, frames);
+    const ex = Math.exp(-omega * t);
+    for (let j = 0; j < NJ; j++) {
+      const q = this.q[j];
+      poseJointQ(target, j, _q2);
+      // offset of the filtered rotation from the target, as an axis-angle vector (rad)
+      _q1.copy(q).multiply(_q3.copy(_q2).invert());
+      if (_q1.w < 0) _q1.set(-_q1.x, -_q1.y, -_q1.z, -_q1.w);
+      const ang = 2 * Math.acos(Math.min(1, _q1.w));
+      const sn = Math.sqrt(Math.max(1e-12, 1 - _q1.w * _q1.w));
+      const k = ang > 1e-6 ? ang / sn : 0;
+      const k3 = j * 3;
+      let mag = 0;
+      for (let c = 0; c < 3; c++) {
+        const e = (c === 0 ? _q1.x : c === 1 ? _q1.y : _q1.z) * k;
+        const v = this.w[k3 + c];
+        const e1 = (e + (v + omega * e) * t) * ex;
+        this.w[k3 + c] = (v - omega * (v + omega * e) * t) * ex;
+        _ax.setComponent(c, e1);
+        mag += e1 * e1;
+      }
+      mag = Math.sqrt(mag);
+      if (mag > 1e-7) q.setFromAxisAngle(_ax.multiplyScalar(1 / mag), mag).multiply(_q2);
+      else q.copy(_q2);
+      writeJointQ(q, out, j, target[k3], target[k3 + 1], target[k3 + 2]);
+    }
+    for (let i = NJ * 3; i < POSE_LEN; i++) {
+      let e = this.x[i] - target[i];
+      if (i === R_ROT || i === R_YAW) e = wrap180(e);
+      const v = this.v[i];
+      const e1 = (e + (v + omega * e) * t) * ex;
+      this.v[i] = (v - omega * (v + omega * e) * t) * ex;
+      this.x[i] = target[i] + e1;
+      out[i] = this.x[i];
+    }
+  }
+}
 
 /**
  * State -> pose. Each animation (state, move, reaction) is sampled exactly on the sim's frame clock; changes between
@@ -114,10 +281,15 @@ export class FighterAnimator {
   /** Final pose handed to the rig: `current` plus the head stabiliser (kept separate so fades start unmodified). */
   readonly final = new Float32Array(POSE_LEN);
   private target = new Float32Array(POSE_LEN);
-  private from = new Float32Array(POSE_LEN);
+  /** Pose on screen one frame ago and its per-frame velocity (inertialization needs the motion at the switch). */
+  private prev = new Float32Array(POSE_LEN);
+  private vel = new Float32Array(POSE_LEN);
+  private angVel = new Float32Array(NJ * 3);
+  private inert = new Inertializer();
+  private spring = new PoseSpring();
+  private lastFacing = 0;
+  private turnT = 99;
   private key = '';
-  private fadeT = 0;
-  private fadeDur = 0;
   private lastSf = 0;
   private walkPhase = 0;
   private lastX = 0;
@@ -367,26 +539,45 @@ export class FighterAnimator {
 
     if (!this.init) {
       this.current.set(out);
+      this.prev.set(out);
+      this.vel.fill(0);
+      this.angVel.fill(0);
       this.vx = x;
       this.vy = y;
       this.key = key;
-      this.fadeT = this.fadeDur = 0;
       this.init = true;
     } else {
+      const frames = Math.max(0, dt * 60);
       if (key !== this.key || restart) {
-        this.from.set(this.current);
         this.key = key;
-        this.fadeT = 0;
-        this.fadeDur = fade;
+        // blend length: the old fade length stretched (the quintic front-loads the change), and long enough for the
+        // body to travel - a crouch-to-stand in 2 frames read as a snap
+        const dy = Math.abs(this.current[R_Y] - out[R_Y]) + 0.5 * Math.abs(this.current[R_X] - out[R_X]);
+        const blend = Math.max(fade <= 1 ? 2.5 : fade * 1.8, Math.min(12, 3 + dy * 24));
+        this.inert.start(this.current, this.vel, this.angVel, out, blend);
       }
-      // keep big rotations (flips/spins) from unwinding the long way round
-      for (const ri of [R_ROT, R_YAW]) {
-        while (this.from[ri] - out[ri] > 180) this.from[ri] -= 360;
-        while (out[ri] - this.from[ri] > 180) this.from[ri] += 360;
+      this.current.set(out);
+      this.inert.apply(this.current, frames);
+      if (frames > 0) {
+        for (let i = NJ * 3; i < POSE_LEN; i++) {
+          const d = this.current[i] - this.prev[i];
+          this.vel[i] = (i === R_ROT || i === R_YAW ? wrap180(d) : d) / frames;
+        }
+        // joints: angular velocity (axis * deg per frame) from the rotation between the last two frames
+        for (let j = 0; j < NJ; j++) {
+          poseJointQ(this.current, j, _q1);
+          poseJointQ(this.prev, j, _q2);
+          _q1.multiply(_q2.invert());
+          if (_q1.w < 0) _q1.set(-_q1.x, -_q1.y, -_q1.z, -_q1.w);
+          const ang = (2 * Math.acos(Math.min(1, _q1.w))) / RAD / frames;
+          const sn = Math.sqrt(Math.max(1e-12, 1 - _q1.w * _q1.w));
+          const k = ang > 1e-4 ? ang / sn : 0;
+          this.angVel[j * 3] = _q1.x * k;
+          this.angVel[j * 3 + 1] = _q1.y * k;
+          this.angVel[j * 3 + 2] = _q1.z * k;
+        }
       }
-      this.fadeT += dt * 60;
-      const w = this.fadeDur > 0 ? ease(Math.min(1, this.fadeT / this.fadeDur)) : 1;
-      lerpPose(this.from, out, w, this.current);
+      this.prev.set(this.current);
     }
     this.lastSf = f.state === 'move' ? f.mf : f.sf;
     // position smoothing only for big jumps (throw/cinematic relocations)
@@ -395,7 +586,16 @@ export class FighterAnimator {
     this.vx += (x - this.vx) * pk;
     this.vy = y;
     this.lastX = x;
-    this.final.set(this.current);
+    // facing flips (crossed-up, warped behind): the rig mirrors at once; a yaw that unwinds from 180 makes it a turn
+    if (this.lastFacing && f.facing !== this.lastFacing) this.turnT = 0;
+    this.lastFacing = f.facing;
+    if (f.state === 'intro' && f.sf === 0) this.spring.reset(this.current);
+    this.spring.step(this.current, Math.max(0, dt * 60), 2, this.final);
+    if (this.turnT < 10) {
+      this.turnT += Math.max(0, dt * 60);
+      const k = Math.min(1, this.turnT / 10);
+      this.final[R_YAW] += -180 * (1 - k * k * (3 - 2 * k));
+    }
     const free = this.key.startsWith('move:') ? this.set.headFree?.[this.key.slice(5)] : undefined;
     stabilizeHead(this.final, free ?? headWeight(this.key));
     return this.final;

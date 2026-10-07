@@ -68,12 +68,18 @@ export class CameraDirector {
     // the HUD bars and the card hand
     const halfH = this.hudSafe ? 1.75 : 1.3;
     dist = Math.max(dist, halfH / Math.tan(((vfov / 2) * Math.PI) / 180));
+    // a jumping fighter keeps the head in the shot and the one on the floor keeps the feet (S13: high jumps cut the
+    // head off): the frame grows to span the floor and the highest head
+    const top = maxY + 2.15;
+    const bottom = this.hudSafe ? -0.3 : -0.1;
+    dist = Math.max(dist, (top - bottom) / 2 / Math.tan(((vfov / 2) * Math.PI) / 180));
     dist = Math.min(18, Math.max(4.6, dist));
     const clampedMid = Math.max(-7.5 + halfW * 0.6, Math.min(7.5 - halfW * 0.6, mid));
     // touch layout: aim a little lower so the feet stand above the cards and the heads stay clear of the bars
     const lift = this.hudSafe ? -0.18 : 0;
-    const desiredPos = new THREE.Vector3(clampedMid, 1.3 + lift + maxY * 0.35 + dist * 0.03, dist);
-    const desiredTarget = new THREE.Vector3(clampedMid, 1.12 + lift + maxY * 0.45, 0);
+    const aimY = Math.max(1.12 + lift + maxY * 0.45, (top + bottom) / 2);
+    const desiredPos = new THREE.Vector3(clampedMid, aimY + 0.18 + dist * 0.03, dist);
+    const desiredTarget = new THREE.Vector3(clampedMid, aimY, 0);
     const k = 1 - Math.exp(-dt * 7);
     this.pos.lerp(desiredPos, k);
     this.target.lerp(desiredTarget, k);

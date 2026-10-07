@@ -736,7 +736,8 @@ export class GameView {
       (rig as { plant?: boolean }).plant = !s.cine && f.y === 0 && anim.vy < 0.01 && PLANTED.has(f.state);
       rig.apply(pose, f.facing);
       let sx = 0;
-      if (f.hitstop > 0 && this.shakeT[i] > 0) sx = (s.frame % 2 ? 1 : -1) * 0.03 * Math.min(1, f.hitstop / 6);
+      // impact shake during hitstop: a decaying ~12 Hz sine (5 frames per swing at 60 fps) (S13: the old +-3 cm flip every frame read as a jitter)
+      if (f.hitstop > 0 && this.shakeT[i] > 0) sx = Math.sin(this.time * 75) * 0.016 * Math.min(1, f.hitstop / 8);
       rig.root.position.set(anim.vx + sx, anim.vy, i === 0 ? 0.04 : -0.04);
       this.flash[i] = Math.max(0, this.flash[i] - dt * 9);
       if (f.hitstop <= 0) this.shakeT[i] = Math.max(0, this.shakeT[i] - dt * 4);

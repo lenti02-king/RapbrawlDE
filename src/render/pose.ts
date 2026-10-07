@@ -208,8 +208,84 @@ export function stabilizeHead(p: Float32Array, w: number, pitch: [number, number
   p[hi + 2] = _e.z / RAD;
 }
 
+// ---- rotation-correct blending (S13). Poses store joint rotations as ZYX Euler triples; blending those linearly
+// sends a limb on a detour whenever two keys describe a big turn (or the same turn with a different triple): the
+// "arm swings out and back" glitches. Joints are blended as quaternions (shortest arc) instead, and written back as
+// the Euler triple closest to the linear blend, so the channels stay continuous for code that adds offsets to them.
+const _sa = new THREE.Quaternion();
+const _sb = new THREE.Quaternion();
+const _se = new THREE.Euler(0, 0, 0, 'ZYX');
+const nearAngle = (v: number, ref: number) => v + 360 * Math.round((ref - v) / 360);
+
+/** Joint `i`'s rotation from a pose array. */
+export function poseJointQ(p: Float32Array, i: number, out: THREE.Quaternion): THREE.Quaternion {
+  return out.setFromEuler(_se.set(p[i * 3] * RAD, p[i * 3 + 1] * RAD, p[i * 3 + 2] * RAD, 'ZYX'));
+}
+
+/** Writes rotation q into joint `i` of `out` as the Euler triple (deg) closest to (rx, ry, rz): +-360 wraps and the
+ *  equivalent ZYX solution (x+180, 180-y, z+180) are both considered. */
+export function writeJointQ(q: THREE.Quaternion, out: Float32Array, i: number, rx: number, ry: number, rz: number): void {
+  _se.setFromQuaternion(q, 'ZYX');
+  const x = _se.x / RAD;
+  const y = _se.y / RAD;
+  const z = _se.z / RAD;
+  const x1 = nearAngle(x, rx);
+  const y1 = nearAngle(y, ry);
+  const z1 = nearAngle(z, rz);
+  const x2 = nearAngle(x + 180, rx);
+  const y2 = nearAngle(180 - y, ry);
+  const z2 = nearAngle(z + 180, rz);
+  const d1 = Math.abs(x1 - rx) + Math.abs(y1 - ry) + Math.abs(z1 - rz);
+  const d2 = Math.abs(x2 - rx) + Math.abs(y2 - ry) + Math.abs(z2 - rz);
+  const k = i * 3;
+  if (d1 <= d2) {
+    out[k] = x1;
+    out[k + 1] = y1;
+    out[k + 2] = z1;
+  } else {
+    out[k] = x2;
+    out[k + 1] = y2;
+    out[k + 2] = z2;
+  }
+}
+
+/** Re-expresses every joint of `p` as the Euler triple closest to `ref` (same rotations; continuity for splines). */
+export function alignEuler(p: Float32Array, ref: Float32Array): void {
+  for (let i = 0; i < JOINTS.length; i++) {
+    const k = i * 3;
+    if (Math.abs(p[k] - ref[k]) + Math.abs(p[k + 1] - ref[k + 1]) + Math.abs(p[k + 2] - ref[k + 2]) < 90) continue;
+    poseJointQ(p, i, _sa);
+    writeJointQ(_sa, p, i, ref[k], ref[k + 1], ref[k + 2]);
+  }
+}
+
+/** Blend two poses: joints by quaternion slerp (shortest arc), root/deformation channels linearly. `out` may alias
+ *  `a` or `b`. */
 export function lerpPose(a: Float32Array, b: Float32Array, t: number, out: Float32Array): Float32Array {
-  for (let i = 0; i < POSE_LEN; i++) out[i] = a[i] + (b[i] - a[i]) * t;
+  for (let i = 0; i < JOINTS.length; i++) {
+    const k = i * 3;
+    const ax = a[k];
+    const ay = a[k + 1];
+    const az = a[k + 2];
+    const dx = b[k] - ax;
+    const dy = b[k + 1] - ay;
+    const dz = b[k + 2] - az;
+    const rx = ax + dx * t;
+    const ry = ay + dy * t;
+    const rz = az + dz * t;
+    // small differences: the linear blend is the slerp (and cheaper)
+    if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) < 24 || t <= 0 || t >= 1) {
+      out[k] = rx;
+      out[k + 1] = ry;
+      out[k + 2] = rz;
+      continue;
+    }
+    poseJointQ(a, i, _sa);
+    poseJointQ(b, i, _sb);
+    _sa.slerp(_sb, t);
+    writeJointQ(_sa, out, i, rx, ry, rz);
+  }
+  for (let i = JOINTS.length * 3; i < POSE_LEN; i++) out[i] = a[i] + (b[i] - a[i]) * t;
   return out;
 }
 
@@ -219,13 +295,18 @@ export function addPose(base: Float32Array, add: Float32Array, w: number, out: F
   return out;
 }
 
-export type EaseName = 'linear' | 'in' | 'out' | 'inOut' | 'snap' | 'hold';
+export type EaseName = 'linear' | 'in' | 'out' | 'inOut' | 'snap' | 'hold' | 'strike';
 export const EASE: Record<EaseName, (t: number) => number> = {
   linear: (t) => t,
   in: (t) => t * t,
   out: (t) => 1 - (1 - t) * (1 - t),
   inOut: (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2),
-  snap: (t) => 1 - Math.pow(1 - t, 4),
+  // fast start, soft arrival (S13: cubic instead of quartic - the quartic put ~70 % of a short segment into its first
+  // frame, which read as a teleport)
+  snap: (t) => 1 - Math.pow(1 - t, 3),
+  // a strike's delivery: accelerates into the contact (fastest on the last frames, like a real punch or kick) instead
+  // of jumping out of the wind-up
+  strike: (t) => t * t * (1.6 - 0.6 * t),
   hold: () => 0,
 };
 
@@ -249,6 +330,8 @@ export class Clip {
     const sorted = [...keys].sort((a, b) => a.f - b.f);
     this.frames = sorted.map((k) => k.f);
     this.poses = sorted.map((k) => toArr(base ? compose(base, k.p) : k.p));
+    // neighbouring keys in the closest Euler form: splines and blends between them never take a 360/flip detour
+    for (let i = 1; i < this.poses.length; i++) alignEuler(this.poses[i], this.poses[i - 1]);
     this.eases = sorted.map((k) => EASE[k.e ?? 'inOut']);
     if (smooth) {
       const seg = sorted.map((k, i) => i > 0 && !k.e);
