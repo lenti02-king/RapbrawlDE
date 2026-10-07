@@ -21,4 +21,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         SceneDelegateProxy.shared.scene(scene, continue: userActivity)
     }
+
+    // RAPBRAWL: back from the background or a call - re-activate the playback audio session (see AppDelegate)
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        AppDelegate.activateAudio()
+    }
 }

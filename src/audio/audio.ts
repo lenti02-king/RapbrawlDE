@@ -27,20 +27,49 @@ export class AudioEngine {
   muted = false;
 
   constructor() {
+    // iPhone (S12, "ich höre keinen Ton"): WebKit only lets audio start from touchend / click / keydown - a context
+    // created or resumed in pointerdown stays suspended for good. Every gesture retries until it runs.
     const unlock = () => this.unlock();
-    window.addEventListener('pointerdown', unlock, { once: false });
-    window.addEventListener('keydown', unlock, { once: false });
+    for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) window.addEventListener(ev, unlock, { passive: true });
+    // back from the background / a phone call: iOS leaves the context 'interrupted'
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this.resume();
+    });
+    // Safari 16.4+ / iOS WebView: play like a media app, not like a page (the ring/silent switch no longer mutes the
+    // game; the native app also sets AVAudioSession .playback, ios/App/App/AppDelegate.swift)
+    const nav = navigator as Navigator & { audioSession?: { type: string } };
+    try {
+      if (nav.audioSession) nav.audioSession.type = 'playback';
+    } catch {
+      /* not supported */
+    }
+  }
+
+  private resume(): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state === 'running') return;
+    void ctx.resume().catch(() => undefined);
+  }
+
+  /** Running audio context (false until a gesture has unlocked it). */
+  get running(): boolean {
+    return this.ctx?.state === 'running';
   }
 
   unlock(): void {
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') void this.ctx.resume();
+      if (this.ctx.state !== 'running') {
+        this.resume();
+        this.blip();
+      }
       return;
     }
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     const ctx = new AC({ latencyHint: 'interactive' });
     this.ctx = ctx;
+    this.resume();
+    this.blip();
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -14;
     comp.ratio.value = 4;
@@ -97,6 +126,20 @@ export class AudioEngine {
     crowd.start();
     if (this.musicOn) this.startScheduler();
     void this.loadBgm();
+  }
+
+  /** One silent sample started inside the gesture: older iOS versions only unlock the output this way. */
+  private blip(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    try {
+      const b = ctx.createBufferSource();
+      b.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      b.connect(ctx.destination);
+      b.start(0);
+    } catch {
+      /* closed context */
+    }
   }
 
   private impulse(seconds: number): AudioBuffer {

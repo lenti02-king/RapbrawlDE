@@ -1,4 +1,5 @@
 import UIKit
+import AVFoundation
 import Capacitor
 
 @UIApplicationMain
@@ -7,8 +8,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        AppDelegate.activateAudio()
         return true
+    }
+
+    // RAPBRAWL: the web view's audio follows the app's audio session. The default (ambient) is muted by the ring/silent
+    // switch, which is why the game had no sound at all on the tester's iPhone. Playback ignores the switch; mixing
+    // keeps the player's own music app running if they want it.
+    static func activateAudio() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            print("RAPBRAWL audio session: \(error)")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -26,7 +40,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // back from the background or a call: the session may have been deactivated
+        AppDelegate.activateAudio()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
