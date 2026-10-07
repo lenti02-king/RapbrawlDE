@@ -11,6 +11,7 @@ import './v2.css';
 import { esc, fitTexts, keepLaidOut, pos, safeInsets, text, type Box, type TextOpts } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { LivingPlate } from './living';
+import { isPhone } from '../../render/textureBudget';
 
 export const REF_W = 1672;
 export const REF_H = 941;
@@ -34,20 +35,20 @@ export function plateHtml(a: ScreenArt): string {
   return `<div class="v2-plate">${(['l', 'c', 'r'] as const)
     .map((k) => {
       const [x, y, w, h] = a.plate[k];
-      return `<img alt="" draggable="false" decoding="async" src="${a.dir}plate_${k}.webp" style="${pos(x, y, w, h)}">`;
+      return `<img alt="" draggable="false" decoding="sync" src="${a.dir}plate_${k}.webp" style="${pos(x, y, w, h)}">`;
     })
     .join('')}</div>`;
 }
 
 export function sprite(a: ScreenArt, id: string, cls = '', extra = ''): string {
   const [x, y, w, h] = a.art[id];
-  return `<img class="v2-art ${cls}" alt="" draggable="false" decoding="async" src="${src(a, id)}" style="${pos(x, y, w, h)}${extra}">`;
+  return `<img class="v2-art ${cls}" alt="" draggable="false" decoding="sync" src="${src(a, id)}" style="${pos(x, y, w, h)}${extra}">`;
 }
 
 /** Button whose face is an extracted sprite; `inner` gets the sprite's origin for relative children. */
 export function button(a: ScreenArt, id: string, act: string, label: string, inner: (ox: number, oy: number) => string = () => '', cls = '', style = ''): string {
   const [x, y, w, h] = a.art[id];
-  return `<button class="v2-btn ${cls}" data-act="${act}" aria-label="${esc(label)}" style="${pos(x, y, w, h)};${style}"><img class="v2-face" alt="" draggable="false" decoding="async" src="${src(
+  return `<button class="v2-btn ${cls}" data-act="${act}" aria-label="${esc(label)}" style="${pos(x, y, w, h)};${style}"><img class="v2-face" alt="" draggable="false" decoding="sync" src="${src(
     a,
     id,
   )}">${inner(x, y)}</button>`;
@@ -173,9 +174,14 @@ export function hazeHtml(b: Box, tint = '205 190 255', alpha = 0.55): string {
   return `<div class="v2-haze" style="${pos(b[0], b[1], b[2] - b[0], b[3] - b[1])};--c:${tint};--a:${alpha}"><b></b><b></b></div>`;
 }
 
+// One embers canvas for every screen (S12): a new full-screen 2D canvas per screen counted against iOS's canvas
+// memory cap until garbage collection (the cap is what blanked the living plates).
+let embersCanvas: HTMLCanvasElement | null = null;
+let activeEmbers: Embers | null = null;
+
 /** Floating embers / dust (one small 2D canvas over the whole screen, under the UI). */
 export class Embers {
-  readonly canvas = document.createElement('canvas');
+  readonly canvas = (embersCanvas ??= document.createElement('canvas'));
   private raf = 0;
   private parts: { x: number; y: number; vx: number; vy: number; r: number; a: number; hue: number; ph: number }[] = [];
   private last = performance.now();
@@ -187,6 +193,7 @@ export class Embers {
     this.canvas.className = 'v2-embers';
   }
   start(): void {
+    activeEmbers = this;
     const loop = (now: number) => {
       this.raf = requestAnimationFrame(loop);
       if (!this.root.isConnected) return this.stop();
@@ -197,13 +204,15 @@ export class Embers {
   }
   stop(): void {
     cancelAnimationFrame(this.raf);
+    if (activeEmbers === this) activeEmbers = null;
   }
   private frame(dt: number): void {
+    if (activeEmbers !== this) return; // the canvas moved on to the next screen
     const c = this.canvas;
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
     if (!W || !H) return; // not laid out yet (0/0 alphas would throw in addColorStop)
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = isPhone() ? 1 : Math.min(2, window.devicePixelRatio || 1); // soft glows: phones need no retina copy
     if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
       c.width = Math.round(W * dpr);
       c.height = Math.round(H * dpr);
@@ -294,16 +303,35 @@ export function mountV2(root: HTMLElement, o: MountOpts = {}): () => void {
   const imgs = [...root.querySelectorAll<HTMLImageElement>('.v2-plate img')];
   const ready = () => root.classList.add('ready');
   const timer = window.setTimeout(ready, 1500);
-  void Promise.all(imgs.map((i) => (i.decode ? i.decode().catch(() => undefined) : Promise.resolve()))).then(() => {
+  void Promise.all(imgs.map((i) => decodeOrRetry(i))).then(() => {
     window.clearTimeout(timer);
     ready();
   });
+  // sprites too: an image iOS failed to decode (memory pressure) is fetched and decoded once more
+  for (const i of root.querySelectorAll<HTMLImageElement>('img.v2-art, img.v2-face')) void decodeOrRetry(i);
   return () => {
     stop();
     embers?.stop();
     figs?.dispose();
     window.clearTimeout(timer);
   };
+}
+
+/** Decode an image; if the decoder refuses it (iPhone under memory pressure: the painting stayed black, S12), load it
+ *  again a moment later, twice at most. Resolves either way. */
+function decodeOrRetry(i: HTMLImageElement, tries = 2): Promise<void> {
+  if (!i.decode) return Promise.resolve();
+  return i.decode().catch(
+    () =>
+      new Promise<void>((res) => {
+        if (tries <= 0 || !i.isConnected) return res();
+        window.setTimeout(() => {
+          const base = i.src.replace(/[?&]r=\d+$/, '');
+          i.src = `${base}${base.includes('?') ? '&' : '?'}r=${3 - tries}`;
+          void decodeOrRetry(i, tries - 1).then(res);
+        }, 300);
+      }),
+  );
 }
 
 /** Root markup: back stage (plate, lights, beams), [3D figures + embers are inserted between], front stage (haze, UI). */

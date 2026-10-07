@@ -13,7 +13,7 @@ import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
 import { isPhone } from '../../render/textureBudget';
 import { showcasePose } from '../../render/anims/showcase';
-import type { LivingPlate } from '../v2/living';
+import { clearPlateCache, type LivingPlate } from '../v2/living';
 
 export interface FigureSpec {
   id: string;
@@ -94,7 +94,31 @@ let shared: THREE.WebGLRenderer | null = null;
 let sharedFailed = false;
 let owner: MenuFigures | null = null;
 
+// Rigs kept between screens (S12, PO: "kleine Delays bei jedem Tippen"): building a fighter clones the GLB, so a
+// screen change or a tap on another fighter re-used to cost a rebuild per figure; now they come out of a pool.
+const rigPool = new Map<string, CharacterRig[]>();
+function takeRig(id: string): CharacterRig {
+  return rigPool.get(id)?.pop() ?? buildCharacter(id, 0);
+}
+function giveRig(id: string, rig: CharacterRig): void {
+  rig.root.removeFromParent();
+  const list = rigPool.get(id) ?? [];
+  if (list.length < 2) {
+    list.push(rig);
+    rigPool.set(id, list);
+  } else disposeRig(rig);
+}
+function disposeRig(rig: CharacterRig): void {
+  rig.root.removeFromParent();
+  rig.root.traverse((o) => {
+    const m = (o as THREE.Mesh).material;
+    if (m) for (const x of Array.isArray(m) ? m : [m]) x.dispose(); // the rig's own material clones
+  });
+}
+
 function sharedRenderer(): THREE.WebGLRenderer | null {
+  // a context iOS took away (memory pressure, too many contexts) and never gave back: start over with a new one
+  if (shared?.getContext().isContextLost()) dropShared();
   if (shared || sharedFailed) return shared;
   const canvas = document.createElement('canvas');
   canvas.className = 'mm-figures';
@@ -110,17 +134,27 @@ function sharedRenderer(): THREE.WebGLRenderer | null {
   shared.outputColorSpace = THREE.SRGBColorSpace;
   shared.setScissorTest(true);
   shared.autoClear = false;
+  // S12: while the context is lost the canvas is empty - the CSS painting must show instead of a black screen
+  canvas.addEventListener('webglcontextlost', () => owner?.contextLost());
+  canvas.addEventListener('webglcontextrestored', () => owner?.contextRestored());
   return shared;
 }
 
-/** Free the menus' GL context (call when a match starts: only the game's context should hold textures then). */
-export function releaseMenuRenderer(): void {
+function dropShared(): void {
   if (!shared) return;
   owner?.dispose();
+  for (const list of rigPool.values()) for (const r of list) disposeRig(r);
+  rigPool.clear();
+  clearPlateCache();
   shared.dispose();
   shared.forceContextLoss();
   shared.domElement.remove();
   shared = null;
+}
+
+/** Free the menus' GL context (call when a match starts: only the game's context should hold textures then). */
+export function releaseMenuRenderer(): void {
+  dropShared();
 }
 
 const byRoot = new WeakMap<HTMLElement, MenuFigures>();
@@ -152,6 +186,7 @@ export class MenuFigures {
     if (!this.renderer) return;
     owner?.dispose();
     owner = this;
+    this.renderer.domElement.style.visibility = '';
     root.insertBefore(this.renderer.domElement, before);
     // cel-shaded fighters (D43): the toon ramp saturates above ~1, so the menu light is softer than for PBR and the
     // coloured stage rims carry the scene's colours onto the figure
@@ -175,12 +210,9 @@ export class MenuFigures {
   }
 
   set(specs: FigureSpec[]): void {
-    for (const f of this.figs) {
-      this.scene.remove(f.group, f.rim);
-      if (f.rim2) this.scene.remove(f.rim2);
-    }
+    this.releaseFigs();
     this.figs = specs.map((spec, i) => {
-      const rig = buildCharacter(spec.id, 0);
+      const rig = takeRig(spec.id);
       const group = new THREE.Group();
       group.add(rig.root, contactShadow());
       const rim = new THREE.DirectionalLight(spec.rim, 2.6);
@@ -223,7 +255,7 @@ export class MenuFigures {
 
   render(): void {
     const r = this.renderer;
-    if (!r) return;
+    if (!r || r.getContext().isContextLost()) return;
     const box = this.root.getBoundingClientRect();
     const W = Math.round(box.width);
     const H = Math.round(box.height);
@@ -235,9 +267,8 @@ export class MenuFigures {
     r.setScissor(0, 0, W, H);
     r.setViewport(0, 0, W, H);
     r.clear();
-    const bg = this.bg?.ready ? this.bg : null;
+    const bg = this.bg?.draw(r, W, H, box) ? this.bg : null;
     const pr = bg?.rect(box) ?? null;
-    if (bg) bg.draw(r, W, H, box);
     const t = (performance.now() - this.t0) / 1000;
     for (const f of this.figs) {
       const a = f.spec.anchor.getBoundingClientRect();
@@ -277,21 +308,34 @@ export class MenuFigures {
     }
   }
 
+  private releaseFigs(): void {
+    for (const f of this.figs) {
+      this.scene.remove(f.group, f.rim);
+      if (f.rim2) this.scene.remove(f.rim2);
+      giveRig(f.spec.id, f.rig);
+    }
+    this.figs = [];
+  }
+
+  // a lost context's canvas is not transparent (Chromium paints it white, the iPhone black) - it would cover the CSS
+  // painting under it, so it is hidden until the context is back
+  contextLost(): void {
+    this.bg?.contextLost();
+    if (this.renderer) this.renderer.domElement.style.visibility = 'hidden';
+  }
+
+  contextRestored(): void {
+    this.bg?.contextLost(); // re-check the painting's upload in the new context
+    if (this.renderer) this.renderer.domElement.style.visibility = '';
+  }
+
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.bg?.dispose();
     this.bg = null;
-    for (const f of this.figs) {
-      this.scene.remove(f.group, f.rim);
-      if (f.rim2) this.scene.remove(f.rim2);
-      f.group.traverse((o) => {
-        const m = (o as THREE.Mesh).material;
-        if (m) for (const x of Array.isArray(m) ? m : [m]) x.dispose(); // the rig's own material clones
-      });
-    }
-    this.figs = [];
+    this.releaseFigs();
     if (owner === this) {
       owner = null;
       this.renderer?.domElement.remove();

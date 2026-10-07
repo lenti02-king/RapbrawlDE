@@ -340,6 +340,7 @@ export function renderPortraits(ids: string[], kinds: PortraitKind[] = ['card', 
   }
   renderer.dispose();
   renderer.forceContextLoss();
+  canvas.width = canvas.height = 1; // the backing store counts against iOS's canvas memory until GC (S12)
   return cache;
 }
 

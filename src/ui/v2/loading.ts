@@ -2,6 +2,7 @@
 // lights, sweeping beams, haze and embers, the gold bar grows from the left, the label and a rotating TIPP are native.
 // Same functions as the v1 screen (loadingHtml / setLoading / setLoadingLabel / mountLoading dispatch here).
 import { esc, fitTexts } from '../menu/kit';
+import { isPhone } from '../../render/textureBudget';
 import { LOADING_ART, LOADING_DIR, LOADING_LIGHTS, LOADING_PLATE, LOADING_TEXT } from './art/loading';
 import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, type ScreenArt } from './stage';
 
@@ -49,7 +50,9 @@ export function setLoadingLabelV2(root: HTMLElement, label: string, pulse = fals
 
 export function mountLoadingV2(root: HTMLElement): () => void {
   root.classList.add('v2-loading');
-  const stop = mountV2(root, { embers: 40, hues: [40, 330, 210], living: A, haze: [0.55, 0.45, 0.8], crowdY: 0.42 });
+  // phones: the static painting (S12) - the fight's scene is built behind this screen, a second GL context with its
+  // own textures at that moment is what iOS punished (black loading screen with only the light glows)
+  const stop = mountV2(root, { embers: 40, hues: [40, 330, 210], living: isPhone() ? undefined : A, haze: [0.55, 0.45, 0.8], crowdY: 0.42 });
   let k = 0;
   const tipEl = root.querySelector<HTMLElement>('.v2-tip > span');
   const tipBox = root.querySelector<HTMLElement>('.v2-tip');

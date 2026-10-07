@@ -146,10 +146,11 @@ function parseWithImageElements(loader: GLTFLoader, buf: ArrayBuffer | string, p
  * (scripts/glb-to-json.mjs). Safe under the Artifact CSP (see gltfJsonToGlb / parseWithImageElements).
  * Resolves null when neither file exists.
  */
-export async function fetchGltf(base: string, exact?: string): Promise<GLTF | null> {
+export async function fetchGltf(base: string, exact?: string, mobile = false): Promise<GLTF | null> {
   let url = '';
   let res: Response | null = null;
-  for (const u of exact ? [exact] : [`${base}.glb`, `${base}.gltf.json`]) {
+  const full = [`${base}.glb`, `${base}.gltf.json`];
+  for (const u of exact ? [exact] : mobile ? [`${base}.m.glb`, `${base}.m.gltf.json`, ...full] : full) {
     const r = await fetch(u).catch(() => null);
     const type = r?.headers.get('content-type') ?? '';
     if (r && r.ok && !type.includes('text/html')) {
@@ -179,7 +180,9 @@ export async function loadCharacterModels(
   await Promise.all(
     ids.map(async (id) => {
       try {
-        const gltf = await fetchGltf(`${base}/${id}`, overrides[id]);
+        // phones / below 'high': the fighter's mobile copy (<id>.m.glb: 40k triangles, 2K colour, 1K normal map, S12) -
+        // the 4K originals cost ~80 MB of decoding each before they were shrunk, and that spike starved the iPhone
+        const gltf = await fetchGltf(`${base}/${id}`, overrides[id], texLimit('character') < 4096);
         if (!gltf) return;
         if (!isHumanoid(gltf.scene)) {
           console.warn(`[models] ${id}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);

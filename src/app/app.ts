@@ -1115,6 +1115,8 @@ export class App {
     }, 50);
     // let the screen paint before the (synchronous) scene build
     window.setTimeout(() => {
+      // phones: the menus' GL context goes before the fight's is built (one context with textures at a time, S12)
+      if (isPhone()) releaseMenuRenderer();
       this.ensureArena();
       const view = this.view;
       const ready = (view.arena as unknown as { ready?: Promise<void> }).ready ?? Promise.resolve();

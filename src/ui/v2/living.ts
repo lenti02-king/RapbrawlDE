@@ -22,7 +22,12 @@ void main() {
 
 const FRAG = /* glsl */ `
 precision highp float;
-uniform sampler2D tPlate;
+uniform sampler2D tL;
+uniform sampler2D tC;
+uniform sampler2D tR;
+uniform vec2 uCX; // the centre tile's x range in plate UV (the wings fill the rest)
+uniform vec2 uLX;
+uniform vec2 uRX;
 uniform sampler2D tDepth;
 uniform sampler2D tRigid;
 uniform float uTime;
@@ -35,6 +40,7 @@ uniform vec4 uLights[${MAX_LIGHTS}];
 uniform vec3 uLightCol[${MAX_LIGHTS}];
 uniform vec4 uFlash[3];
 uniform float uIntro;
+uniform float uProbe;
 varying vec2 vUv;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -48,23 +54,30 @@ float fbm(vec2 p) {
   for (int i = 0; i < 3; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
   return v;
 }
+// the painting is the three tiles of the master (no composite canvas: iOS caps the canvas memory, S12)
+vec3 plate(vec2 p) {
+  if (p.x >= uCX.x && p.x <= uCX.y) return texture2D(tC, vec2((p.x - uCX.x) / (uCX.y - uCX.x), p.y)).rgb;
+  if (p.x < uCX.x) return texture2D(tL, vec2((p.x - uLX.x) / (uLX.y - uLX.x), p.y)).rgb;
+  return texture2D(tR, vec2((p.x - uRX.x) / (uRX.y - uRX.x), p.y)).rgb;
+}
 
 void main() {
   vec2 uv = vUv;
+  if (uProbe > 0.5) { gl_FragColor = vec4(plate(uv), 1.0); return; }
   float d = texture2D(tDepth, uv).r;
   float rigid = max(texture2D(tRigid, uv).r, smoothstep(0.82, 0.95, d));
   float far = 1.0 - d;
   float w = pow(far, 1.35) * (1.0 - rigid);
   vec2 puv = uv + uPar * w;
   // crowd: far, not UI, not a light, in the stands band; every column hops on the beat with its own lag
-  vec3 probe = texture2D(tPlate, puv).rgb;
+  vec3 probe = plate(puv);
   float lum = dot(probe, vec3(0.299, 0.587, 0.114));
   float crowd = smoothstep(0.62, 0.3, d) * (1.0 - rigid) * (1.0 - smoothstep(0.62, 0.85, lum)) * smoothstep(uCrowdY - 0.06, uCrowdY + 0.02, uv.y);
   float col = floor(uv.x * 260.0);
   float ph = hash(vec2(col, 7.0));
   float hop = pow(max(0.0, 1.0 - fract(uBeat - ph * 0.35) * 2.2), 2.0);
   puv.y -= (hop * 2.4 + sin(uTime * 2.6 + ph * 6.283) * 0.5) / ${REF_H}.0 * crowd;
-  vec3 c = texture2D(tPlate, puv).rgb;
+  vec3 c = crowd > 0.001 ? plate(puv) : probe;
   lum = dot(c, vec3(0.299, 0.587, 0.114));
   // the painting's own lights: flicker + a breath on the beat
   float pulse = pow(1.0 - fract(uBeat), 2.0);
@@ -102,21 +115,196 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
+// ------------------------------------------------------------------------------------------------ plate resources
+// S12 (iPhone: screens without their painting): the plate used to be composited into a fresh ~4.6 MB canvas on
+// every screen change; iOS caps the total canvas memory and a capped canvas uploads as an empty (black) texture,
+// while the CSS painting was already hidden. Now the master's three tiles are textures as they are (no canvas),
+// the UI mask is a small data texture, the depth is read back at 1/3 size, and every screen's set stays cached on
+// the GPU (a few screens, LRU): going back to a screen costs no reload, no decode, no upload.
+
+interface PlateRes {
+  key: string;
+  x0: number;
+  x1: number;
+  tiles: [THREE.Texture, THREE.Texture, THREE.Texture];
+  depth: THREE.Texture;
+  rigid: THREE.DataTexture;
+  depthPx: Uint8Array;
+  depthW: number;
+  depthH: number;
+  /** Expected brightness (0..255 sum of rgb) at the probe points of the centre tile, for the upload check. */
+  expect: number[];
+  /** Upload verified in the current GL context. */
+  ok: boolean;
+}
+
+const cache = new Map<string, Promise<PlateRes | null>>();
+/** Test hook: ?livingfail makes every upload check fail (the CSS painting must stay). */
+const failTest = typeof location !== 'undefined' && new URLSearchParams(location.search).has('livingfail');
+const cacheMax = () => (isPhone() ? 3 : 5);
+
+function texOf(src: HTMLImageElement): THREE.Texture {
+  const t = new THREE.Texture(src);
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.needsUpdate = true;
+  return t;
+}
+
+function freeRes(r: PlateRes): void {
+  for (const t of [...r.tiles, r.depth, r.rigid]) t.dispose();
+}
+
+/** Drop every cached plate (the menus' GL context goes away or was lost). */
+export function clearPlateCache(): void {
+  for (const p of cache.values()) void p.then((r) => r && freeRes(r));
+  cache.clear();
+}
+
+/** Small throwaway 2D canvas: read pixels, then give the memory back at once (iOS counts it until GC). */
+function readPixels(img: HTMLImageElement, w: number, h: number): Uint8ClampedArray | null {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  let px: Uint8ClampedArray | null = null;
+  if (g) {
+    try {
+      g.drawImage(img, 0, 0, w, h);
+      px = g.getImageData(0, 0, w, h).data;
+    } catch {
+      px = null; // tainted or out of canvas memory
+    }
+  }
+  c.width = c.height = 0;
+  return px;
+}
+
+/** Probe points (tile index, tile UV with y down) used by the upload check: a grid over the centre tile, three points in
+ *  each wing (skipped where off screen). */
+const PROBES: [number, number, number][] = [];
+for (const v of [0.3, 0.55, 0.8]) for (const u of [0.25, 0.5, 0.75]) PROBES.push([1, u, v]);
+PROBES.push([0, 0.35, 0.45], [0, 0.65, 0.7], [0, 0.5, 0.25], [2, 0.35, 0.45], [2, 0.65, 0.7], [2, 0.5, 0.25]);
+
+async function buildRes(a: ScreenArt, rigidExtra: readonly (readonly number[])[], key: string): Promise<PlateRes | null> {
+  const keys = ['l', 'c', 'r'] as const;
+  const x0 = Math.min(...keys.map((k) => a.plate[k][0]));
+  const x1 = Math.max(...keys.map((k) => a.plate[k][0] + a.plate[k][2]));
+  const [imgs, depth] = await Promise.all([Promise.all(keys.map((k) => loadImage(`${a.dir}plate_${k}.webp`))), loadImage(`${a.dir}depth.webp`)]);
+  if (!depth || imgs.some((i) => !i)) return null;
+  // UI mask: every sprite / button box of the screen stays rigid, feathered (two box blurs) so nothing tears
+  const mw = 620;
+  const mh = Math.round((mw * REF_H) / (x1 - x0));
+  const ms = mw / (x1 - x0);
+  let m: Uint8Array = new Uint8Array(mw * mh);
+  for (const [x, y, w, h] of [...Object.values(a.art), ...rigidExtra]) {
+    const ax = Math.max(0, Math.floor((x - x0 - 8) * ms));
+    const bx = Math.min(mw, Math.ceil((x - x0 + w + 8) * ms));
+    const ay = Math.max(0, Math.floor((y - 8) * ms));
+    const by = Math.min(mh, Math.ceil((y + h + 8) * ms));
+    // rows bottom-up: data textures are not flipped
+    for (let yy = ay; yy < by; yy++) m.fill(255, (mh - 1 - yy) * mw + ax, (mh - 1 - yy) * mw + bx);
+  }
+  for (let pass = 0; pass < 2; pass++) m = boxBlur(m, mw, mh, 2);
+  const rigid = new THREE.DataTexture(m, mw, mh, THREE.RedFormat, THREE.UnsignedByteType);
+  rigid.minFilter = rigid.magFilter = THREE.LinearFilter;
+  rigid.unpackAlignment = 1;
+  rigid.needsUpdate = true;
+  // depth on the CPU too (the figures read it for their parallax), at a third of the size
+  const dw = Math.max(1, Math.round(depth.naturalWidth / 3));
+  const dh = Math.max(1, Math.round(depth.naturalHeight / 3));
+  const dpx = readPixels(depth, dw, dh);
+  const depthPx = new Uint8Array(dw * dh);
+  if (dpx) for (let i = 0; i < dw * dh; i++) depthPx[i] = dpx[i * 4];
+  else depthPx.fill(150);
+  // expected colours for the upload check: every tile, tiny
+  const PW = 24;
+  const PH = 27;
+  const small = imgs.map((im) => readPixels(im!, PW, PH));
+  const expect = PROBES.map(([k, u, v]) => {
+    const px = small[k];
+    if (!px) return -1;
+    const i = (Math.min(PH - 1, Math.round(v * (PH - 1))) * PW + Math.min(PW - 1, Math.round(u * (PW - 1)))) * 4;
+    return px[i] + px[i + 1] + px[i + 2];
+  });
+  return {
+    key,
+    x0,
+    x1,
+    tiles: [texOf(imgs[0]!), texOf(imgs[1]!), texOf(imgs[2]!)],
+    depth: texOf(depth),
+    rigid,
+    depthPx,
+    depthW: dw,
+    depthH: dh,
+    expect,
+    ok: false,
+  };
+}
+
+function boxBlur(src: Uint8Array, w: number, h: number, r: number): Uint8Array {
+  const tmp = new Uint8Array(src.length);
+  const out = new Uint8Array(src.length);
+  const n = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    const o = y * w;
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let k = -r; k <= r; k++) s += src[o + Math.max(0, Math.min(w - 1, x + k))];
+      tmp[o + x] = s / n;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let k = -r; k <= r; k++) s += tmp[Math.max(0, Math.min(h - 1, y + k)) * w + x];
+      out[y * w + x] = s / n;
+    }
+  }
+  return out;
+}
+
+function plateRes(a: ScreenArt, rigidExtra: readonly (readonly number[])[]): Promise<PlateRes | null> {
+  const key = a.dir + JSON.stringify(rigidExtra);
+  let p = cache.get(key);
+  if (p) {
+    cache.delete(key); // LRU: most recent last
+    cache.set(key, p);
+    return p;
+  }
+  p = buildRes(a, rigidExtra, key);
+  cache.set(key, p);
+  while (cache.size > cacheMax()) {
+    const [k, old] = cache.entries().next().value as [string, Promise<PlateRes | null>];
+    cache.delete(k);
+    void old.then((r) => r && freeRes(r));
+  }
+  void p.then((r) => {
+    if (!r && cache.get(key) === p) cache.delete(key); // failed loads are retried next time
+  });
+  return p;
+}
+
 /** One screen's living plate: the painting + depth + UI mask as textures, drawn as one quad. */
 export class LivingPlate {
   readonly scene = new THREE.Scene();
   readonly cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private mat: THREE.ShaderMaterial;
-  private tex: THREE.Texture[] = [];
+  private res: PlateRes | null = null;
   private x0 = -400;
   private x1 = 2072;
-  private depthPx: Uint8ClampedArray | null = null;
-  private depthW = 0;
-  private depthH = 0;
   private flashes = [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()];
   private nextFlash = 0.6;
   private t0 = performance.now();
   private pointer = new THREE.Vector2();
+  private disposed = false;
+  /** The GL painting has replaced the CSS one (upload checked in this context). */
+  private live = false;
+  private failed = false;
+  private tries = 0;
+  /** Resources loaded (the plate may still fail its upload check). */
   ready = false;
   /** Current parallax offset in plate UV (read by the figures for their own shift). */
   readonly par = new THREE.Vector2();
@@ -132,7 +320,12 @@ export class LivingPlate {
       depthTest: false,
       depthWrite: false,
       uniforms: {
-        tPlate: { value: null },
+        tL: { value: null },
+        tC: { value: null },
+        tR: { value: null },
+        uCX: { value: new THREE.Vector2(0, 1) },
+        uLX: { value: new THREE.Vector2(0, 1) },
+        uRX: { value: new THREE.Vector2(0, 1) },
         tDepth: { value: null },
         tRigid: { value: null },
         uRect: { value: new THREE.Vector4(-1, -1, 1, 1) },
@@ -146,6 +339,7 @@ export class LivingPlate {
         uLightCol: { value: Array.from({ length: MAX_LIGHTS }, () => new THREE.Vector3()) },
         uFlash: { value: this.flashes },
         uIntro: { value: 0 },
+        uProbe: { value: 0 },
       },
     });
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.mat);
@@ -161,64 +355,21 @@ export class LivingPlate {
 
   private async load(): Promise<void> {
     const a = this.art;
-    const keys = ['l', 'c', 'r'] as const;
-    this.x0 = Math.min(...keys.map((k) => a.plate[k][0]));
-    this.x1 = Math.max(...keys.map((k) => a.plate[k][0] + a.plate[k][2]));
-    const [imgs, depth] = await Promise.all([Promise.all(keys.map((k) => loadImage(`${a.dir}plate_${k}.webp`))), loadImage(`${a.dir}depth.webp`)]);
-    if (!depth || imgs.some((i) => !i) || !this.root.isConnected) return;
-    // painting: one canvas over the whole extended plate (phones at 0.7 scale: ~4 MB of texture)
-    const s = isPhone() ? 0.7 : 1;
-    const W = Math.round((this.x1 - this.x0) * s);
-    const H = Math.round(REF_H * s);
-    const pc = document.createElement('canvas');
-    pc.width = W;
-    pc.height = H;
-    const pg = pc.getContext('2d');
-    if (!pg) return;
-    keys.forEach((k, i) => {
-      if (k === 'c') return;
-      const [x, y, w, h] = a.plate[k];
-      pg.drawImage(imgs[i]!, (x - this.x0) * s, y * s, w * s, h * s);
-    });
-    const [cx, cy, cw, ch] = a.plate.c;
-    pg.drawImage(imgs[1]!, (cx - this.x0) * s, cy * s, cw * s, ch * s);
-    // UI mask: every sprite / button box of the screen stays rigid (feathered so nothing tears at the edges)
-    const mw = 620;
-    const mh = Math.round((mw * REF_H) / (this.x1 - this.x0));
-    const ms = mw / (this.x1 - this.x0);
-    const mc = document.createElement('canvas');
-    mc.width = mw;
-    mc.height = mh;
-    const mg = mc.getContext('2d');
-    if (!mg) return;
-    mg.fillStyle = '#000';
-    mg.fillRect(0, 0, mw, mh);
-    mg.filter = 'blur(2px)';
-    mg.fillStyle = '#fff';
-    for (const [x, y, w, h] of [...Object.values(a.art), ...(this.opts.rigid ?? [])]) mg.fillRect((x - this.x0 - 8) * ms, (y - 8) * ms, (w + 16) * ms, (h + 16) * ms);
-    // depth on the CPU too (the figures read it for their parallax)
-    const dc = document.createElement('canvas');
-    dc.width = this.depthW = depth.naturalWidth;
-    dc.height = this.depthH = depth.naturalHeight;
-    const dg = dc.getContext('2d', { willReadFrequently: true });
-    if (dg) {
-      dg.drawImage(depth, 0, 0);
-      this.depthPx = dg.getImageData(0, 0, dc.width, dc.height).data;
-    }
-    const mk = (src: HTMLCanvasElement | HTMLImageElement) => {
-      const t = new THREE.Texture(src);
-      t.minFilter = THREE.LinearFilter;
-      t.magFilter = THREE.LinearFilter;
-      t.generateMipmaps = false;
-      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-      t.needsUpdate = true;
-      this.tex.push(t);
-      return t;
-    };
+    const res = await plateRes(a, this.opts.rigid ?? []);
+    if (!res || this.disposed || !this.root.isConnected) return;
+    this.res = res;
+    this.x0 = res.x0;
+    this.x1 = res.x1;
     const u = this.mat.uniforms;
-    u.tPlate.value = mk(pc);
-    u.tDepth.value = mk(depth);
-    u.tRigid.value = mk(mc);
+    const span = (k: 'l' | 'c' | 'r') => new THREE.Vector2((a.plate[k][0] - res.x0) / (res.x1 - res.x0), (a.plate[k][0] + a.plate[k][2] - res.x0) / (res.x1 - res.x0));
+    u.tL.value = res.tiles[0];
+    u.tC.value = res.tiles[1];
+    u.tR.value = res.tiles[2];
+    u.uLX.value = span('l');
+    u.uCX.value = span('c');
+    u.uRX.value = span('r');
+    u.tDepth.value = res.depth;
+    u.tRigid.value = res.rigid;
     u.uAspect.value = (this.x1 - this.x0) / REF_H;
     // the painting's light sources (found at extraction): brightest first
     const lights = [...a.lights].sort((p, q) => q[2] - p[2]).slice(0, MAX_LIGHTS);
@@ -228,11 +379,6 @@ export class LivingPlate {
     });
     this.ready = true;
     this.t0 = performance.now();
-    this.root.classList.add('v2-living');
-    // light cones stay above the painting (they were behind the plate images in the back stage)
-    const beams = this.root.querySelector('.v2-beams');
-    const canvas = this.root.querySelector('canvas.mm-figures');
-    if (beams && canvas) this.root.insertBefore(beams, canvas.nextSibling);
   }
 
   /** Left edge of the extended plate in reference px. */
@@ -242,11 +388,11 @@ export class LivingPlate {
 
   /** Relative depth (0 far .. 1 near) at a reference-px point of the painting. */
   depthAt(rx: number, ry: number): number {
-    if (!this.depthPx) return 0.6;
-    const x = Math.round(((rx - this.x0) / (this.x1 - this.x0)) * (this.depthW - 1));
-    const y = Math.round((ry / REF_H) * (this.depthH - 1));
-    const i = (Math.max(0, Math.min(this.depthH - 1, y)) * this.depthW + Math.max(0, Math.min(this.depthW - 1, x))) * 4;
-    return this.depthPx[i] / 255;
+    const r = this.res;
+    if (!r) return 0.6;
+    const x = Math.round(((rx - this.x0) / (this.x1 - this.x0)) * (r.depthW - 1));
+    const y = Math.round((ry / REF_H) * (r.depthH - 1));
+    return r.depthPx[Math.max(0, Math.min(r.depthH - 1, y)) * r.depthW + Math.max(0, Math.min(r.depthW - 1, x))] / 255;
   }
 
   /** Parallax shift (px on screen) of something standing at depth `d`, for the current frame. */
@@ -267,11 +413,40 @@ export class LivingPlate {
     return { x: ox + this.x0 * u, y: oy, w: (this.x1 - this.x0) * u, h: REF_H * u, u };
   }
 
-  /** Update the uniforms and draw (the renderer's viewport covers the whole root). */
-  draw(r: THREE.WebGLRenderer, W: number, H: number, rootBox: DOMRect): void {
-    if (!this.ready) return;
+  /** Upload check: the raw painting was just drawn; a few pixels must match the image (a texture that iOS failed
+   *  to upload samples black). */
+  private check(r: THREE.WebGLRenderer, p: { x: number; y: number; u: number }, W: number, H: number): boolean {
+    const res = this.res!;
+    if (res.expect.some((e) => e < 0)) return true; // no reference pixels: trust the upload
+    const gl = r.getContext();
+    const dpr = r.getPixelRatio();
+    const bh = gl.drawingBufferHeight;
+    const tiles = [this.art.plate.l, this.art.plate.c, this.art.plate.r];
+    const px = new Uint8Array(4);
+    const got = [0, 0, 0];
+    const want = [0, 0, 0];
+    const n = [0, 0, 0];
+    PROBES.forEach(([k, u, v], i) => {
+      const sx = p.x + (tiles[k][0] - this.x0 + u * tiles[k][2]) * p.u;
+      const sy = p.y + v * REF_H * p.u;
+      if (sx < 1 || sy < 1 || sx > W - 1 || sy > H - 1) return;
+      gl.readPixels(Math.floor(sx * dpr), bh - 1 - Math.floor(sy * dpr), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      got[k] += px[0] + px[1] + px[2];
+      want[k] += res.expect[i];
+      n[k]++;
+    });
+    // every tile on screen that is bright enough to tell must come out at least half as bright as the image
+    const ok = [0, 1, 2].every((k) => n[k] < 2 || want[k] < 60 * n[k] || got[k] >= want[k] * 0.4);
+    return ok && !failTest;
+  }
+
+  /** Update the uniforms and draw (the renderer's viewport covers the whole root). False = nothing drawn (the CSS
+   *  painting stays visible). */
+  draw(r: THREE.WebGLRenderer, W: number, H: number, rootBox: DOMRect): boolean {
+    const res = this.res;
+    if (!this.ready || this.failed || !res) return false;
     const p = this.rect(rootBox);
-    if (!p) return;
+    if (!p) return false;
     const t = (performance.now() - this.t0) / 1000;
     const u = this.mat.uniforms;
     u.uTime.value = t;
@@ -296,13 +471,55 @@ export class LivingPlate {
     for (const f of this.flashes) f.w = Math.max(0, f.w - 0.06);
     // clip-space rect of the plate (y up)
     u.uRect.value.set((p.x / W) * 2 - 1, 1 - ((p.y + p.h) / H) * 2, ((p.x + p.w) / W) * 2 - 1, 1 - (p.y / H) * 2);
+    if (!res.ok) {
+      u.uProbe.value = 1;
+      r.render(this.scene, this.cam);
+      u.uProbe.value = 0;
+      const pass = this.check(r, p, W, H);
+      r.clear();
+      if (!pass) {
+        // one more upload attempt next frame, then the CSS painting for good
+        if (++this.tries >= 2) this.fail();
+        else for (const tx of res.tiles) tx.needsUpdate = true;
+        return false;
+      }
+      res.ok = true;
+    }
     r.render(this.scene, this.cam);
+    if (!this.live) {
+      this.live = true;
+      this.root.classList.add('v2-living');
+      this.root.dataset.living = 'ok';
+      // light cones stay above the painting (they were behind the plate images in the back stage)
+      const beams = this.root.querySelector('.v2-beams');
+      const canvas = this.root.querySelector('canvas.mm-figures');
+      if (beams && canvas) this.root.insertBefore(beams, canvas.nextSibling);
+    }
+    return true;
+  }
+
+  private fail(): void {
+    this.failed = true;
+    this.live = false;
+    this.root.classList.remove('v2-living');
+    this.root.dataset.living = 'fail';
+    console.warn('living plate: texture upload check failed, keeping the static painting');
+  }
+
+  /** The GL context went away: show the CSS painting until a draw has been checked again. */
+  contextLost(): void {
+    this.live = false;
+    this.failed = false;
+    this.tries = 0;
+    if (this.res) this.res.ok = false;
+    this.root.classList.remove('v2-living');
+    this.root.dataset.living = 'lost';
   }
 
   dispose(): void {
+    this.disposed = true;
     window.removeEventListener('pointermove', this.onPointer);
-    for (const t of this.tex) t.dispose();
-    this.mat.dispose();
+    this.mat.dispose(); // the textures stay cached for the next visit
     this.root.classList.remove('v2-living');
   }
 }
