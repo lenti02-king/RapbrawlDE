@@ -13,7 +13,7 @@ import { HUD_ART, HUD_BOXES } from './menu/hudArt';
 import { fitTexts, pos, safeInsets, text } from './menu/kit';
 import './hudm.css';
 import './v2/hud2.css';
-import { design } from './design';
+import { isV2 } from './design';
 
 interface Side {
   root: HTMLElement;
@@ -337,7 +337,7 @@ export class Hud {
     this.touch = touch;
     this.lastLocalMeter = -1;
     this.root.classList.remove('duel', 'finish', 'fatal');
-    this.root.classList.toggle('v2h', design() === 'v2'); // D43: the v2 HUD skin (hud2.css)
+    this.root.classList.toggle('v2h', isV2()); // D43: the v2 HUD skin (hud2.css)
     this.root.classList.remove('v2-off');
     this.tauntEl.classList.remove('show');
     this.fatalTitle.classList.remove('show');

@@ -4,9 +4,14 @@
 import { de, toast } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { HOME_ART, HOME_DIR, HOME_HERO, HOME_LIGHTS, HOME_PLATE, HOME_TEXT } from './art/home';
+import { isV3 } from '../design';
+import { homeFront3 } from '../v3/home3';
 import { beamsHtml, button, hazeHtml, hit, lightsHtml, mountV2, plateHtml, screenHtml, sprite, src, t, zone, type ScreenArt } from './stage';
 
-const A: ScreenArt = { dir: HOME_DIR, plate: HOME_PLATE, art: HOME_ART, lights: HOME_LIGHTS };
+const A2: ScreenArt = { dir: HOME_DIR, plate: HOME_PLATE, art: HOME_ART, lights: HOME_LIGHTS };
+/** Design v3: the 3D arena render behind the same layout (its own lights and beams are in the render). */
+const A3: ScreenArt = { ...A2, plateDir: 'assets/ui3/home/', lights: [] };
+let A = A2;
 const T = HOME_TEXT;
 
 export interface HomeModel {
@@ -34,12 +39,13 @@ function badge(id: string, on: boolean | undefined): string {
 }
 
 export function homeHtml(m: HomeModel): string {
+  A = isV3() ? A3 : A2;
   const xp = Math.max(0, Math.min(1, m.xp / Math.max(1, m.xpMax)));
   const pass = Math.max(0, Math.min(1, m.pass.xp / Math.max(1, m.pass.xpMax)));
   const [fx, fy] = FEET;
   const back = `${plateHtml(A)}
     ${lightsHtml(A)}
-    ${beamsHtml([
+    ${isV3() ? '' : beamsHtml([
       { x: 1338, y: 150, len: 760, w: 300, rot: 24, swing: 9, color: '255 90 210', period: 9, alpha: 0.26 },
       { x: 1370, y: 118, len: 820, w: 260, rot: 34, swing: 7, color: '90 150 255', period: 12, delay: 3, alpha: 0.24 },
       { x: 480, y: 70, len: 860, w: 300, rot: -28, swing: 8, color: '255 200 120', period: 10.5, delay: 5, alpha: 0.22 },
@@ -114,13 +120,14 @@ export function homeHtml(m: HomeModel): string {
     `--mask:url(${A.dir}fight_mask.webp)`,
   );
 
-  const front = `${hazeHtml([260, 560, 1420, 830], '220 180 255', 0.5)}
+  // design v3: the cartoon UI kit in the same layout (ui/v3/home3.ts)
+  const front = isV3() ? homeFront3(m) : `${hazeHtml([260, 560, 1420, 830], '220 180 255', 0.5)}
     ${profile}${top}${tiles}${nav}${fight}`;
   return screenHtml(back, front);
 }
 
 export function mountHome(root: HTMLElement, m: HomeModel, onAction: (a: HomeAction) => void): () => void {
-  const stop = mountV2(root, { hues: [42, 320, 210], living: A, haze: [0.56, 0.44, 0.78], crowdY: 0.42, rigid: [[470, 0, 740, 280]] });
+  const stop = mountV2(root, { hues: [42, 320, 210], living: A, haze: [0.56, 0.44, 0.78], crowdY: 0.42, rigid: isV3() ? [[580, 0, 1090, 300]] : [[470, 0, 740, 280]] });
   const figs = menuFigures(root);
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (anchor) figs.set([{ id: m.fighter, anchor, facing: 1, rim: 0xff4fd0, rim2: 0x4f8dff, turn: 0.85, showcase: true }]);

@@ -5,7 +5,7 @@
 import { MM_ART } from './mainMenuArt';
 import { LD_ART, LD_BOXES } from './loadingArt';
 import { clamp, coverOf, fitTexts, pos, safeInsets, text } from './kit';
-import { design } from '../design';
+import { isV2 } from '../design';
 import { loadingHtmlV2, mountLoadingV2, setLoadingLabelV2, setLoadingV2 } from '../v2/loading';
 
 const REF_W = 2000;
@@ -22,7 +22,7 @@ const GW = T.w;
 const GH = T.y + T.h - GY0;
 
 export function loadingHtml(label: string): string {
-  if (design() === 'v2') return loadingHtmlV2(label);
+  if (isV2()) return loadingHtmlV2(label);
   return `<div class="mm-bg ld-bg" style="background-image:url(${LD_ART.bg.src})"></div>
     <div class="ld-logo" style="${pos(LX0, LY0, LX1 - LX0, LY1 - LY0)}"><img alt="RAP BRAWL" draggable="false" src="${MM_ART.logo.src}"></div>
     <div class="mm-g ld-bar" style="--w:${GW};--h:${GH}">

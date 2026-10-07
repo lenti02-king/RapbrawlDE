@@ -11,7 +11,7 @@ for (const sz of sizes.split(',')) {
   const logs = [];
   page.on('console', (m) => m.type() === 'error' && logs.push(`[console] ${m.text()}`));
   page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
-  await page.goto(`${base}/?ui=v2&q=low${process.env.EXTRA ?? ''}`);
+  await page.goto(`${base}/?ui=${process.env.UI ?? 'v2'}&q=low${process.env.EXTRA ?? ''}`);
   await page.waitForFunction(() => window.__rb, null, { timeout: 240000 });
   await page.evaluate(`window.__rb.${js}`);
   await page.waitForTimeout(+wait);

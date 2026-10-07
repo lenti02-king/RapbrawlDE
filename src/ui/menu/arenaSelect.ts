@@ -5,7 +5,7 @@
 // place (no re-render), so the tile roulette can animate.
 import { AS_ART, AS_BOXES } from './arenaSelectArt';
 import { esc, fitTexts, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
-import { design } from '../design';
+import { isV2 } from '../design';
 import { mountShowcaseV2, showcaseHtmlV2, showcaseSelectV2, type TopBar } from '../v2/arena';
 
 export interface ShowcaseItem {
@@ -43,7 +43,7 @@ const box = (b: readonly number[]) => b as unknown as Box;
 const ROW_H = 40;
 
 export function showcaseHtml(items: ShowcaseItem[], cur: ShowcaseItem, o: ShowcaseOpts & { bar?: TopBar | null }): string {
-  if (design() === 'v2') return showcaseHtmlV2(items, cur, o);
+  if (isV2()) return showcaseHtmlV2(items, cur, o);
   const bg = AS_ART.bg;
   const pv = AS_ART.preview;
   const [pw0, pw1, pw2, pw3] = B.previewWindow;

@@ -192,7 +192,8 @@ async function buildRes(a: ScreenArt, rigidExtra: readonly (readonly number[])[]
   const keys = ['l', 'c', 'r'] as const;
   const x0 = Math.min(...keys.map((k) => a.plate[k][0]));
   const x1 = Math.max(...keys.map((k) => a.plate[k][0] + a.plate[k][2]));
-  const [imgs, depth] = await Promise.all([Promise.all(keys.map((k) => loadImage(`${a.dir}plate_${k}.webp`))), loadImage(`${a.dir}depth.webp`)]);
+  const dir = a.plateDir ?? a.dir;
+  const [imgs, depth] = await Promise.all([Promise.all(keys.map((k) => loadImage(`${dir}plate_${k}.webp`))), loadImage(`${dir}depth.webp`)]);
   if (!depth || imgs.some((i) => !i)) return null;
   // UI mask: every sprite / button box of the screen stays rigid, feathered (two box blurs) so nothing tears
   const mw = 620;
@@ -267,7 +268,7 @@ function boxBlur(src: Uint8Array, w: number, h: number, r: number): Uint8Array {
 }
 
 function plateRes(a: ScreenArt, rigidExtra: readonly (readonly number[])[]): Promise<PlateRes | null> {
-  const key = a.dir + JSON.stringify(rigidExtra);
+  const key = (a.plateDir ?? a.dir) + JSON.stringify(rigidExtra);
   let p = cache.get(key);
   if (p) {
     cache.delete(key); // LRU: most recent last

@@ -26,6 +26,10 @@ export function runLab(canvas: HTMLCanvasElement): void {
     (window as unknown as { __bake: string }).__bake = JSON.stringify(arena.bakeScene());
     return;
   }
+  if (new URLSearchParams(location.search).get('lab') === 'ui3') {
+    void import('./ui/v3/lab3').then((m) => m.ui3Lab(canvas));
+    return;
+  }
   if (new URLSearchParams(location.search).get('lab') === 'props') {
     propsLab(canvas);
     return;

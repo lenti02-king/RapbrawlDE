@@ -6,7 +6,7 @@
 import { CS_ART, CS_BOXES } from './charSelectArt';
 import { MenuFigures } from './figures';
 import { esc, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
-import { design } from '../design';
+import { isV2 } from '../design';
 import { mountSelectV2, selectHtmlV2, type SelectOpts } from '../v2/select';
 
 /** Feet (centre of the pedestal top) and figure height in reference px. */
@@ -43,7 +43,7 @@ function sprite(id: 'back' | 'ready'): string {
 }
 
 export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking: number, v2?: SelectOpts): string {
-  if (design() === 'v2') return selectHtmlV2(sides, tiles, picking, v2 ?? { hint: 'TIPPEN ZUM WÄHLEN', status: 'WÄHLE DEINEN KÄMPFER' });
+  if (isV2()) return selectHtmlV2(sides, tiles, picking, v2 ?? { hint: 'TIPPEN ZUM WÄHLEN', status: 'WÄHLE DEINEN KÄMPFER' });
   const bg = CS_ART.bg;
   const fighter = (i: number) => {
     const s = sides[i];

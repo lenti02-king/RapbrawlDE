@@ -18,6 +18,8 @@ export const REF_H = 941;
 
 export interface ScreenArt {
   dir: string;
+  /** Where the plate + depth live when they differ from the sprites (design v3: the 3D arena renders, assets/ui3). */
+  plateDir?: string;
   plate: { readonly l: readonly number[]; readonly c: readonly number[]; readonly r: readonly number[] };
   art: Readonly<Record<string, readonly number[]>>;
   lights: readonly (readonly [number, number, number, readonly number[]])[];
@@ -35,7 +37,7 @@ export function plateHtml(a: ScreenArt): string {
   return `<div class="v2-plate">${(['l', 'c', 'r'] as const)
     .map((k) => {
       const [x, y, w, h] = a.plate[k];
-      return `<img alt="" draggable="false" decoding="sync" src="${a.dir}plate_${k}.webp" style="${pos(x, y, w, h)}">`;
+      return `<img alt="" draggable="false" decoding="sync" src="${a.plateDir ?? a.dir}plate_${k}.webp" style="${pos(x, y, w, h)}">`;
     })
     .join('')}</div>`;
 }

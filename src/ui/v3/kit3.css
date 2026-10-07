@@ -1,0 +1,360 @@
+/* Design v3 UI kit (S13): chunky cartoon mobile-game chrome in the fighters' toon language - thick dark ink outline,
+   flat colour slabs with a hard top highlight and a darker bottom edge that makes every panel a little 3D block,
+   Lilita One lettering with an ink stroke. Sizes in reference px x var(--u) like the v2 stage. */
+.k3 {
+  --ink: #120b18;
+  --c1: #4b3ad6;
+  --c2: #2a1d86;
+  --edge: #170f45;
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  color: #fff;
+}
+.k3-panel,
+.k3-btn {
+  box-sizing: border-box;
+  border: calc(5 * var(--u)) solid var(--ink);
+  border-radius: calc(22 * var(--u));
+  background: linear-gradient(180deg, var(--c1) 0%, var(--c1) 52%, var(--c2) 52%, var(--c2) 100%);
+  box-shadow:
+    inset 0 calc(5 * var(--u)) 0 rgba(255, 255, 255, 0.32),
+    inset 0 calc(-7 * var(--u)) 0 rgba(0, 0, 0, 0.22),
+    0 calc(7 * var(--u)) 0 var(--edge),
+    0 calc(7 * var(--u)) 0 calc(5 * var(--u)) var(--ink),
+    0 calc(16 * var(--u)) calc(22 * var(--u)) rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.k3-btn {
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  transition:
+    transform 0.08s ease-out,
+    box-shadow 0.08s ease-out,
+    filter 0.12s;
+}
+.k3-btn:active,
+.k3-btn.press {
+  transform: translateY(calc(5 * var(--u)));
+  box-shadow:
+    inset 0 calc(5 * var(--u)) 0 rgba(255, 255, 255, 0.32),
+    inset 0 calc(-7 * var(--u)) 0 rgba(0, 0, 0, 0.22),
+    0 calc(2 * var(--u)) 0 var(--edge),
+    0 calc(2 * var(--u)) 0 calc(5 * var(--u)) var(--ink),
+    0 calc(8 * var(--u)) calc(14 * var(--u)) rgba(0, 0, 0, 0.45);
+}
+@media (hover: hover) {
+  .k3-btn:hover {
+    filter: brightness(1.08) saturate(1.06);
+  }
+}
+/* lettering: white with an ink outline (8 text-shadows = a stroke in every engine) and a drop */
+.k3-t {
+  position: absolute;
+  white-space: nowrap;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow:
+    calc(3 * var(--u)) 0 0 var(--ink),
+    calc(-3 * var(--u)) 0 0 var(--ink),
+    0 calc(3 * var(--u)) 0 var(--ink),
+    0 calc(-3 * var(--u)) 0 var(--ink),
+    calc(2.2 * var(--u)) calc(2.2 * var(--u)) 0 var(--ink),
+    calc(-2.2 * var(--u)) calc(2.2 * var(--u)) 0 var(--ink),
+    calc(2.2 * var(--u)) calc(-2.2 * var(--u)) 0 var(--ink),
+    calc(-2.2 * var(--u)) calc(-2.2 * var(--u)) 0 var(--ink),
+    0 calc(6 * var(--u)) 0 var(--ink);
+}
+.k3-gold {
+  color: #ffd84d;
+}
+.i3 {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 calc(4 * var(--u)) 0 rgba(0, 0, 0, 0.45));
+}
+
+/* ---------------------------------------------------------------- home: tiles */
+.k3-tile {
+  --c1: #9b46ff;
+  --c2: #6a22cf;
+  --edge: #3a1179;
+}
+.k3-tile .k3-shine {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 80% at 30% 0%, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
+}
+.k3-tile .k3-art {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: -2%;
+  height: 74%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.k3-tile .k3-art img {
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 calc(4 * var(--u)) 0 rgba(0, 0, 0, 0.45));
+}
+.k3-tile .k3-art img + img {
+  margin-left: -16%;
+}
+.k3-tile .k3-strip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background: linear-gradient(180deg, rgba(10, 6, 20, 0.55), rgba(10, 6, 20, 0.85));
+  border-top: calc(4 * var(--u)) solid var(--ink);
+}
+.k3-tile .k3-strip .k3-ico {
+  position: absolute;
+  left: 6%;
+  top: 14%;
+  width: 18%;
+  height: 72%;
+}
+.k3-tile .k3-strip .k3-t {
+  left: 27%;
+  top: 22%;
+  font-size: calc(33 * var(--u));
+}
+.k3-tile[data-c='fighters'] {
+  --c1: #b052ff;
+  --c2: #7b2ae0;
+  --edge: #3d1180;
+}
+.k3-tile[data-c='decks'] {
+  --c1: #4f9bff;
+  --c2: #2463d6;
+  --edge: #102f73;
+}
+.k3-tile[data-c='shop'] {
+  --c1: #ffb54a;
+  --c2: #e07a17;
+  --edge: #7a3a06;
+}
+.k3-tile[data-c='events'] {
+  --c1: #ff5f9c;
+  --c2: #d6286a;
+  --edge: #6e0f33;
+}
+.k3-tile[data-c='pass'] {
+  --c1: #ffd24d;
+  --c2: #e09a12;
+  --edge: #7a4a06;
+}
+.k3-tile[data-c='missions'] {
+  --c1: #33d6a0;
+  --c2: #129a6e;
+  --edge: #07513a;
+}
+.k3-badge {
+  position: absolute;
+  width: calc(40 * var(--u));
+  height: calc(40 * var(--u));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8a8a, #e3122b 60%);
+  border: calc(4 * var(--u)) solid var(--ink, #120b18);
+  box-shadow: 0 calc(3 * var(--u)) 0 #120b18;
+  font-family: 'Lilita One', sans-serif;
+  font-size: calc(26 * var(--u));
+  line-height: calc(32 * var(--u));
+  text-align: center;
+  color: #fff;
+  animation: k3-badge 1.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+@keyframes k3-badge {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+.k3-bar {
+  position: absolute;
+  height: calc(18 * var(--u));
+  border-radius: calc(9 * var(--u));
+  background: #1c1330;
+  border: calc(3 * var(--u)) solid var(--ink);
+  overflow: hidden;
+}
+.k3-bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, #8dff6a 0 50%, #3fcf3a 50% 100%);
+}
+
+/* ---------------------------------------------------------------- home: top bar */
+.k3-profile {
+  --c1: #3b2c86;
+  --c2: #261a5e;
+  --edge: #120b33;
+}
+.k3-profile .k3-av {
+  position: absolute;
+  left: calc(8 * var(--u));
+  top: calc(8 * var(--u));
+  width: calc(78 * var(--u));
+  height: calc(78 * var(--u));
+  border-radius: calc(16 * var(--u));
+  border: calc(4 * var(--u)) solid var(--ink);
+  background: linear-gradient(180deg, #6fc4ff, #2b6fd6);
+  overflow: hidden;
+}
+.k3-profile .k3-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.k3-lv {
+  position: absolute;
+  width: calc(46 * var(--u));
+  height: calc(46 * var(--u));
+  border-radius: calc(12 * var(--u));
+  background: linear-gradient(180deg, #ffd84d 0 50%, #e09a12 50% 100%);
+  border: calc(4 * var(--u)) solid #120b18;
+  font-family: 'Lilita One', sans-serif;
+  color: #fff;
+  font-size: calc(26 * var(--u));
+  line-height: calc(38 * var(--u));
+  text-align: center;
+}
+.k3-pill {
+  --c1: #241a44;
+  --c2: #1a1233;
+  --edge: #0b0718;
+  border-radius: calc(30 * var(--u));
+  overflow: visible;
+}
+.k3-pill .k3-pi {
+  position: absolute;
+  left: calc(-14 * var(--u));
+  top: calc(-8 * var(--u));
+  width: calc(56 * var(--u));
+  height: calc(56 * var(--u));
+}
+.k3-pill .k3-t {
+  left: calc(48 * var(--u));
+  top: calc(9 * var(--u));
+  font-size: calc(28 * var(--u));
+}
+.k3-pill .k3-plus {
+  position: absolute;
+  right: calc(4 * var(--u));
+  top: calc(4 * var(--u));
+  width: calc(34 * var(--u));
+  height: calc(34 * var(--u));
+  border-radius: calc(10 * var(--u));
+  background: linear-gradient(180deg, #8dff6a 0 50%, #3fcf3a 50% 100%);
+  border: calc(3.5 * var(--u)) solid #120b18;
+  padding: calc(5 * var(--u));
+  box-sizing: border-box;
+}
+.k3-round {
+  --c1: #3b2c86;
+  --c2: #261a5e;
+  --edge: #120b33;
+  border-radius: calc(18 * var(--u));
+}
+.k3-round .k3-ri {
+  position: absolute;
+  inset: 14%;
+}
+
+/* ---------------------------------------------------------------- home: KÄMPFEN */
+.k3-fight {
+  --c1: #ffe14d;
+  --c2: #ffb000;
+  --edge: #9a5a00;
+  border-radius: calc(34 * var(--u));
+  border-width: calc(7 * var(--u));
+  box-shadow:
+    inset 0 calc(7 * var(--u)) 0 rgba(255, 255, 255, 0.55),
+    inset 0 calc(-9 * var(--u)) 0 rgba(160, 80, 0, 0.35),
+    0 calc(10 * var(--u)) 0 var(--edge),
+    0 calc(10 * var(--u)) 0 calc(7 * var(--u)) var(--ink),
+    0 0 calc(40 * var(--u)) rgba(255, 190, 40, 0.55),
+    0 calc(18 * var(--u)) calc(26 * var(--u)) rgba(0, 0, 0, 0.55);
+  animation: k3-glow 2.2s ease-in-out infinite;
+  overflow: visible;
+}
+@keyframes k3-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
+.k3-fight .k3-fist {
+  position: absolute;
+  left: calc(26 * var(--u));
+  top: calc(18 * var(--u));
+  width: calc(110 * var(--u));
+  height: calc(110 * var(--u));
+  transform: rotate(-12deg);
+}
+.k3-fight .k3-t.big {
+  left: calc(150 * var(--u));
+  top: calc(22 * var(--u));
+  font-size: calc(84 * var(--u));
+  color: #fff;
+}
+.k3-fight .k3-t.sub {
+  left: calc(154 * var(--u));
+  top: calc(108 * var(--u));
+  font-size: calc(24 * var(--u));
+  color: #5a2c00;
+  text-shadow: none;
+  letter-spacing: 0.08em;
+}
+
+/* ---------------------------------------------------------------- home: nav bar */
+.k3-nav {
+  --c1: #1f1745;
+  --c2: #160f33;
+  --edge: #07040f;
+  border-radius: calc(26 * var(--u)) calc(26 * var(--u)) 0 0;
+  border-bottom: 0;
+}
+.k3-tab {
+  --c1: #2b2163;
+  --c2: #221a4f;
+  --edge: #0d0826;
+  border-radius: calc(18 * var(--u));
+  border-width: calc(4 * var(--u));
+}
+.k3-tab.on {
+  --c1: #4fb4ff;
+  --c2: #2a7fe0;
+  --edge: #0f3c7a;
+}
+.k3-tab .k3-ti {
+  position: absolute;
+  left: 50%;
+  top: calc(6 * var(--u));
+  width: calc(54 * var(--u));
+  height: calc(54 * var(--u));
+  transform: translateX(-50%);
+}
+.k3-tab .k3-t {
+  left: 0;
+  right: 0;
+  bottom: calc(6 * var(--u));
+  text-align: center;
+  font-size: calc(23 * var(--u));
+}

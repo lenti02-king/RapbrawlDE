@@ -28,7 +28,7 @@ import { mountShop, shopHtml } from '../ui/menu/shop';
 import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
-import { design, setDesign, type Design } from '../ui/design';
+import { isV2, design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
@@ -558,7 +558,7 @@ export class App {
    *  they are picked when a fight starts). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
-    if (design() === 'v2') return this.showHomeV2();
+    if (isV2()) return this.showHomeV2();
     const p = this.profileData;
     const lvl = levelOf(p);
     const rp = store.get('rp', 0);
@@ -721,7 +721,7 @@ export class App {
 
   /** FREUNDE (S12): own friend code, add by name + code, search, challenge (opens the online lobby). Local list. */
   showFriends(): void {
-    if (design() !== 'v2') return this.startMode('friend');
+    if (!isV2()) return this.startMode('friend');
     let myCode = store.get<string>('friendCode', '');
     if (!parseFriendCode(myCode)) {
       myCode = newFriendCode();
@@ -1096,7 +1096,7 @@ export class App {
         hidden: m === 'online' && i === 1,
       };
     }) as [CsSide, CsSide];
-    const v2 = design() === 'v2';
+    const v2 = isV2();
     const tiles: CsTile[] = (v2 ? ROSTER : ROSTER.slice(0, 2)).map((fid) => ({
       id: fid,
       bust: portrait(fid, 'bust'),
@@ -1197,7 +1197,7 @@ export class App {
       (e.currentTarget as HTMLButtonElement).disabled = true;
       const go = () => {
         stop();
-        if (design() === 'v2') this.showVs();
+        if (isV2()) this.showVs();
         else this.launch();
       };
       if (cands.length < 2) return go();
@@ -1242,7 +1242,7 @@ export class App {
   }
 
   showProfile(): void {
-    if (design() === 'v2') return this.showProfileV2();
+    if (isV2()) return this.showProfileV2();
     const p = this.profileData;
     const lvl = levelOf(p);
     const rank = rankOf(p);
@@ -1327,7 +1327,7 @@ export class App {
   /** Design v2 settings (D43): the same options as cards left and right of the favourite in the ring. */
   private showSettingsV2(): void {
     const rows: SettingRow[] = [
-      { key: 'design', name: 'DESIGN', desc: 'Neues Design (Ring, Neon) oder das klassische. Jederzeit umschaltbar, nichts geht verloren.', kind: 'seg', value: design(), opts: [['v2', 'NEU'], ['v1', 'KLASSISCH']] },
+      { key: 'design', name: 'DESIGN', desc: '3D-Arena im Cartoon-Look (neu), das gemalte Ring-Design oder das klassische. Jederzeit umschaltbar, nichts geht verloren.', kind: 'seg', value: design(), opts: [['v3', '3D'], ['v2', 'GEMALT'], ['v1', 'KLASSISCH']] },
       { key: 'quality', name: 'GRAFIKQUALITÄT', desc: 'Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.', kind: 'seg', value: store.get<string>('quality', 'auto'), opts: [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']] },
       { key: 'touch', name: 'TOUCH-STEUERUNG', desc: 'Virtueller Stick und Tasten auf dem Bildschirm.', kind: 'seg', value: store.get<string>('touch', 'auto'), opts: [['auto', 'AUTO'], ['on', 'AN'], ['off', 'AUS']] },
       { key: 'sound', name: 'TON', desc: 'Effekte und Musik.', kind: 'switch', value: !this.audio.muted },
@@ -1383,7 +1383,7 @@ export class App {
   }
 
   showSettings(): void {
-    if (design() === 'v2') return this.showSettingsV2();
+    if (isV2()) return this.showSettingsV2();
     const q = store.get<string>('quality', 'auto');
     const touch = store.get<string>('touch', 'auto');
     const seg = (key: string, cur: string, opts: [string, string][]) =>
@@ -1393,7 +1393,7 @@ export class App {
       `${this.header('EINSTELLUNGEN')}
        <div class="settings">
          <div class="panel setrow"><div><div class="sname">DESIGN</div><div class="sdesc">Neues Design (Ring, Neon) oder das klassische. Jederzeit umschaltbar, nichts geht verloren.</div></div>
-           ${seg('design', design(), [['v2', 'NEU'], ['v1', 'KLASSISCH']])}</div>
+           ${seg('design', design(), [['v3', '3D'], ['v2', 'GEMALT'], ['v1', 'KLASSISCH']])}</div>
          <div class="panel setrow"><div><div class="sname">GRAFIKQUALITÄT</div><div class="sdesc">Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.</div></div>
            ${seg('quality', q, [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']])}</div>
          <div class="panel setrow"><div><div class="sname">TOUCH-STEUERUNG</div><div class="sdesc">Virtueller Stick und Tasten auf dem Bildschirm.</div></div>
@@ -1471,7 +1471,7 @@ export class App {
   /** KÄMPFER: improve and customise your fighters (abilities, outfits, accessories) and choose the favourite that
    *  stands in the main menu. The fighter for a match is picked at match start (char select), not here. */
   showFighters(_player = 0, tab: 'skills' | 'outfit' | 'acc' | 'stats' = 'skills', view?: string): void {
-    if (design() === 'v2') return this.showFightersV2(view);
+    if (isV2()) return this.showFightersV2(view);
     const id = view && ROSTER.includes(view) ? view : this.favorite;
     const d = getFighter(id);
     const all = ROSTER.map((x) => fighterStats(x));
@@ -1805,7 +1805,7 @@ export class App {
   }
 
   showDeck(player: number, done: () => void, doneLabel = 'FERTIG'): void {
-    if (design() === 'v2') return this.showDeckV2(player, done, doneLabel);
+    if (isV2()) return this.showDeckV2(player, done, doneLabel);
     const fid = this.sel.fighters[player];
     const def = getFighter(fid);
     const deck = this.knownDeck(fid, this.sel.loadouts[player]);
@@ -2005,7 +2005,7 @@ export class App {
   }
 
   private showPause(): void {
-    if (design() === 'v2') return this.showPauseV2();
+    if (isV2()) return this.showPauseV2();
     const training = this.mode === 'training';
     const dummyModes: [string, string][] = [
       ['stand', 'STEHEN'],
@@ -2135,7 +2135,7 @@ export class App {
       const t1 = tierOf(after).name;
       rpLine = `<span class="pill">RANGLISTE <b>${w === me ? '+' + RP_WIN : '-' + Math.min(before, RP_LOSS)} RP · ${after} RP${t0 !== t1 ? ` · ${t1}!` : ''}</b></span>`;
     }
-    if (design() === 'v2') return this.showResultsV2(banner, cls, rpLine.replace(/<[^>]+>/g, ''));
+    if (isV2()) return this.showResultsV2(banner, cls, rpLine.replace(/<[^>]+>/g, ''));
     const winner = w === 2 ? s.fighters[me] : s.fighters[w];
     const img = portrait(winner.def, 'card');
     const crowns = Array.from({ length: s.config.roundsToWin }, (_, k) => `<i class="${k < winner.roundsWon ? 'on' : ''}">${UI_ICONS.crown}</i>`).join('');
@@ -2319,7 +2319,7 @@ export class App {
   }
 
   showOnlineLobby(): void {
-    if (design() === 'v2') return this.showLobbyV2();
+    if (isV2()) return this.showLobbyV2();
     store.set('selection', this.sel);
     const mine = { fighter: this.sel.fighters[0], loadout: this.sel.loadouts[0].slice() };
     const el = this.open(
