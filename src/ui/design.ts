@@ -1,5 +1,5 @@
-// Design switch (D42): v1 = the first master set (D38/D41), v2 = the PO's second master set (painted), v3 (S13, the
-// default) = the same screens with the 3D cartoon arena and the cartoon UI kit (src/ui/v3). All stay in the code; the
+// Design switch (D42): v1 = the first master set (D38/D41), v2 = the PO's second master set (painted), v3 (D46, the
+// default) = the v2 layouts with stylized 3D art rendered in Blender (tools/ui3 -> assets/ui3, skin src/ui/v3). All stay in the code; the
 // choice is remembered per device. `?ui=v1|v2|v3` sets it from a link (and is remembered too), the settings screen
 // has a toggle. v3 runs on the v2 screen modules (same layout), so isV2() is true for both.
 export type Design = 'v1' | 'v2' | 'v3';

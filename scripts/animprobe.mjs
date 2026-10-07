@@ -46,7 +46,12 @@ const setupCine = (pg) =>
     const r = app.runner;
     r.sources[0].poll = () => 0;
     r.sources[1].poll = () => 0;
+    const post = app.view.post;
+    const real = post.__real ?? post.render.bind(post);
+    post.render = () => {}; // no drawing while they settle (the strip page is 1280x720 in SwiftShader)
     for (let i = 0; i < 240 && !r.state.fighters.every((f) => f.state === 'idle' && f.y === 0); i++) app.debugAdvance(1);
+    post.__real = real;
+    post.render = real;
     const s = r.state;
     s.fighters[0].x = -d.half;
     s.fighters[1].x = d.half;

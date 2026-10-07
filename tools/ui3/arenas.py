@@ -502,7 +502,7 @@ def bahnhof(scale=1.0, samples=64):
     for k in range(6):
         lib.cylinder('bollard', (9.5 + k * 1.4, y - 1.3, 0.5), 0.09, 1.0, M('bol', lambda: lib.mat('bol', lib.srgb('#1a1a22'), metallic=0.6, rough=0.4)), seg=12)
     # neon signs for the flicker (uv boxes in the backdrop image)
-    signs = [('PIK ASS', (-17.5, -11.5, 3.9, 6.9), '#ff1e3c'), ('KIOSK 069', (-9.3, -0.7, 3.7, 5.1), '#28beff'), ('WEINECK', (2.3, 7.7, 3.6, 4.8), '#ff9632')]
+    signs = [('PIK ASS', (-18.4, -11.2, 4.1, 7.7), '#ff1e3c'), ('KIOSK 069', (-9.3, -0.7, 3.7, 5.1), '#28beff'), ('WEINECK', (2.3, 7.7, 3.6, 4.8), '#ff9632')]
     # moon light + fill
     sl = bpy.data.lights.new('moon', 'SUN')
     sl.energy = 0.4
@@ -517,6 +517,7 @@ def sign_uvs(signs, arena):
     """Project the neon sign boxes (x0, x1, z0, z1 at the facade line y=2.8) into backdrop uv (0..1, v from the top)."""
     from bpy_extras.object_utils import world_to_camera_view
     sc = bpy.context.scene
+    bpy.context.view_layer.update()  # the new camera's matrix_world is identity until the depsgraph updates
     cam = sc.camera
     out = []
     for _name, (x0, x1, z0, z1), col in signs:
@@ -543,12 +544,19 @@ def glare(threshold):
     nt.links.new(g.outputs['Image'], comp.inputs['Image'])
 
 
-def render(arena, scale=1.0, samples=64):
+def render(arena, scale=1.0, samples=64, meta_only=False):
     signs = festival(scale, samples) if arena == 'festival' else bahnhof(scale, samples)
     cam, rx, ry, ground = cam_setup(arena, scale)
     signs = sign_uvs(signs, arena) if signs else []
     out = os.path.join(lib.ROOT, 'public', 'assets', 'arena', f'{arena}3')
     os.makedirs(out, exist_ok=True)
+    if meta_only:  # re-project the sign boxes without rendering (argument 'meta')
+        with open(os.path.join(out, 'meta.json')) as f:
+            meta = json.load(f)
+        meta['signs'] = signs
+        with open(os.path.join(out, 'meta.json'), 'w') as f:
+            json.dump(meta, f, indent=1)
+        return out
     tmp = os.path.join(lib.CACHE, f'arena_{arena}.png')
     glare(0.9 if arena == 'bahnhof' else 0.95)
     bpy.context.scene.render.filepath = tmp
@@ -572,7 +580,7 @@ if __name__ == '__main__' and (len(sys.argv) < 2 or sys.argv[1] != 'floors'):
     sp = int(sys.argv[3]) if len(sys.argv) > 3 else 64
     import time
     t0 = time.time()
-    print(render(a, sc, sp), f'{time.time() - t0:.0f}s')
+    print(render(a, sc, sp, len(sys.argv) > 4 and sys.argv[4] == 'meta'), f'{time.time() - t0:.0f}s')
 
 
 def floor_tiles():

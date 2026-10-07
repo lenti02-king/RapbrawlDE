@@ -406,3 +406,50 @@ The PO tested the sideloaded app (D44) and sent 21 points. Decisions behind the 
   real FREUNDE screen (own code, add/search, challenge → lobby; the list lives on the device until a server exists).
 - Not done in this round: a full art-style rebuild of the menus (PO item 15) — the PO is producing new artworks
   (buttons, characters, banners, cards); the screens take them as drop-ins when they arrive.
+
+## D46 — Session 13: animation smoothness system and design v3 (stylized 3D, rendered in Blender) (2026-10-07)
+The PO asked for two things only: animations that are fluid, clean and human ("keine Glitches"), and a complete
+redesign of backgrounds and screens in the same layout. The first redesign (a flat cartoon kit over a real-time 3D
+arena) was rejected as "billige Produktion"; the PO clarified: *stylized 3D mobile fighting game UI with chunky
+beveled panels, layered cards, bold iconography, metallic frames, soft toon shading and high visual depth (Clash
+Royale, Brawl Stars)*, the Kämpferwahl layout (banners, pedestals) unchanged, and the arenas as the same places in
+that style.
+
+**Animation** — glitches are found by measurement, not by eye alone:
+- `scripts/animprobe.mjs` runs seeded bot matches (or, with `CINE=sofa|gwagon|99|team|blunt`, one signature) through
+  the real loop without drawing and records every key joint every frame; it reports pops (acceleration spikes),
+  direction reversals at speed, teleports (> 0.3 m/frame relative to the hips), transition snaps and feet through /
+  above / sliding on the floor; `SHOTS=` renders frame strips around suspect frames. Facing swaps are skipped (the
+  mirrored rig renames left and right).
+- Transitions are inertialized (quintic decay of the offset and its velocity) instead of cross-fades from a frozen
+  snapshot; joints blend as quaternions everywhere; a critically damped spring follows the final pose. Strikes keep
+  their snap (delivery eases into the contact).
+- More human joints: clavicles follow the arms (lift past the horizontal, slide forward on a reach), toes roll at the
+  ball of the foot, fists close with the arm's extension.
+- Feet: two-bone leg IK plants hovering feet (S12); standing still, planted feet are locked where they touched down
+  and take a quick step when the animation moves them > 11 cm; a lock re-anchors on a teleport (> 0.5 m).
+- Turning around (crossed up) goes through the front view, and the stance switches on the way: before the facing
+  swap the body blends into its mirrored pose, so the lead and rear arm trade places smoothly instead of in one frame.
+  Downed bodies keep their facing until they are up.
+- Cuts are cuts: a new round resets the animator (no blend out of the KO pose, no slide to the start mark); when the
+  sim relocates a fighter on the frame its animation changes (end of a cinematic or throw), the jump is carried in
+  the blend's root offset so the body glides once from where it was drawn (it used to shoot 1 m past its spot and
+  come back).
+
+**Design v3** (`?ui=v3`, the new default; v2 and v1 stay selectable in EINSTELLUNGEN → DESIGN as the backup):
+- Same screen code and layouts as v2 (the PO's masters), art from `assets/ui3/<screen>/` with the v2 sprite names and
+  boxes (`v3Art()` in `ui/v2/stage.ts`). Nothing in a layout moved.
+- All art is real geometry rendered in Blender Cycles (`tools/ui3`, plain `python3` with the bpy module): beveled
+  enamel panels, gold frames with rivets, candy buttons with a clear coat, 3D icons, chains; ortho at 2× with a
+  shared studio HDRI, ink outline added in PIL. The menu backgrounds are one stylized 3D stadium/ring (truss, beams in
+  haze, crowd, banners, LED walls) whose camera is solved per screen so the floor lies under the live fighter's feet
+  (pedestals in the Kämpferwahl); the pieces the v2 masters had painted in are composed into the plates
+  (`compose.py`), sliced l/c/r with a depth map for the living plate.
+- CSS-drawn screens (profile, settings, deck, friends, results, pause, HUD lettering) get a 9-slice skin from the
+  same renders (`tools/ui3/nine.py`, `ui/v3/v3.css`).
+- Arenas: Festival-Bühne and Bahnhofsviertel rebuilt as stylized 3D scenes of the same places (fictional names as in
+  D40) and rendered into the painted-arena format (`assets/arena/<id>3`, loaded in v3 with real side margins); their
+  menu images come from the same renders (`UI=v3 node scripts/arena-thumbs.mjs`). The podcast studio already was a
+  baked stylized 3D scene and stays.
+- Rendering cost: ~20 min per stadium plate and ~15–30 min per arena at full size on the container's CPU; pieces
+  render in seconds. Renders are cached in `.cache/ui3`; outputs are committed.

@@ -251,6 +251,11 @@ class PoseSpring {
     this.ready = true;
   }
 
+  /** Moves a scalar channel's filtered value (a re-anchored root: the filter keeps following without a jump). */
+  shift(i: number, d: number): void {
+    this.x[i] += d;
+  }
+
   /** Filters `target` into `out` (may alias), advancing `frames`. */
   step(target: Float32Array, frames: number, omega: number, out: Float32Array): void {
     if (!this.ready) this.reset(target);
@@ -590,6 +595,18 @@ export class FighterAnimator {
     } else {
       const frames = Math.max(0, dt * 60);
       if (key !== this.key || restart) {
+        // the sim put the fighter somewhere else on the same frame (a cinematic or throw ends, the victim is placed
+        // where the clip left it): jump the visual position and carry the difference in the blend's root offset, so
+        // the body glides once from where it is drawn (S13 probe: the root slid one way while the pose offset
+        // unwound the other - the body shot out 1 m past its spot and came back)
+        const jx = x - this.vx;
+        const df = this.drawFacing || f.facing;
+        if (Math.abs(jx) > 0.45 && !s.cine) {
+          this.current[R_X] -= jx * df;
+          this.prev[R_X] -= jx * df;
+          this.spring.shift(R_X, -jx * df);
+          this.vx = x;
+        }
         this.key = key;
         // blend length: the old fade length stretched (the quintic front-loads the change), and long enough for the
         // body to travel - a crouch-to-stand in 2 frames read as a snap

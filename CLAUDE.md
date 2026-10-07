@@ -74,6 +74,13 @@ node scripts/livingshot.mjs "showHome()" artifacts/s11/living   # living plate f
 Q=medium node scripts/cine.mjs sofa|gwagon|99|team|blunt [f1,f2,..]   # D43 signatures (Q = quality; long runs: BASE_URL=:5174 NO_HMR server)
 node scripts/v2match.mjs artifacts/v2b/match 932x430   # v2 fight HUD, pause and results over the arena
 node scripts/v2shot.mjs "showProfile()" artifacts/v2b/profile "1672x941,932x430"   # v2 ring screens (also showSettings(), showDeck(0, ()=>0))
+UI=v3 node scripts/v2shot.mjs "showCharSelect(0)" artifacts/v3/select "1672x941,932x430"   # design v3 captures (any screen; UI=v3 also for v2match.mjs)
+node scripts/animprobe.mjs jazeek,bonez 1800 11 [out]   # animation glitch probe: seeded bot match, pops/teleports/snaps/feet -> report.json
+SHOTS=903,978 node scripts/animprobe.mjs ...   # + frame strips around those frames;  CINE=sofa|gwagon|99|team|blunt node scripts/animprobe.mjs x 900   # one signature
+scripts/nohmr.sh [5175]              # (re)start the no-HMR dev server by port (needed after code edits AND new public files)
+python3 tools/ui3/stage.py home|select|vs|fighters|custom|loading|ring|lobby|arena 1.0 48   # design v3 stadium backdrop render (~20 min) -> .cache/ui3/stage
+python3 tools/ui3/home.py [names]    # v3 sprites + composed plate per screen (also charselect, vs, fighters, custom, loading, lobby, arena; nine.py = 9-slice kit)
+python3 tools/ui3/arenas.py festival|bahnhof 1.0 64   # stylized 3D arenas -> public/assets/arena/<id>3 (then UI=v3 [BIG=1] node scripts/arena-thumbs.mjs festival,bahnhof)
 ```
 Long capture queues: a second dev server without HMR (`NO_HMR=1 npx vite --port 5174`, restart it after edits) keeps
 source edits from reloading a running capture; the HMR server on 5173 reloads open pages on every edit.
@@ -87,7 +94,8 @@ Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/a
 Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.ts`, procedural fallback); hand-held ones via `render/handProps.ts` (grips per prop).
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
-Design (D42): two designs in the code — v2 (default, `src/ui/v2/`, PO's second master set) and v1 (D38 screens); `?ui=v1|v2` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`).
+Design (D42, D46): three designs in the code — v3 (default: the v2 layouts with stylized 3D art rendered in Blender, `tools/ui3` -> `public/assets/ui3/<screen>` via `v3Art()` in `ui/v2/stage.ts`, skin `ui/v3/v3.css`; arenas `assets/arena/<id>3`), v2 (`src/ui/v2/`, PO's second master set, painted) and v1 (D38 screens); `?ui=v1|v2|v3` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`).
+Animation (D46): inertialized transitions + quaternion blending + pose spring (`render/animator.ts`), foot planting/locking and clavicles/toes/fists in `render/glbRig.ts`; turns blend into the mirrored pose; a new round and sim relocations are cuts. Check changes with `scripts/animprobe.mjs` (pops, teleports, feet) before and after.
 D45 (iPhone round): phones load `<id>.m.glb` (mobile LOD); the living plate checks its first draw (`data-living=ok|fail|lost`, `?livingfail` test hook);
 fight lights are fixed slots (cinematic lights virtual, layer 31) and `GameView.prewarm()` compiles before the round; leg IK `glbRig.plantFeet`;
 sim mechanics `VelocityKey.warp` / `HitDef.reverse`; touch controls in `input/touch.css`; FREUNDE screen `ui/v2/friends.ts`.
