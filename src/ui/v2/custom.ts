@@ -1,13 +1,17 @@
 // Design v2 "Kämpfer anpassen" (PO master ref/v2/custom.webp): category menu on the left, the fighter in 3D on the
 // pedestal (arrows switch fighters), style presets and a preview on the right, LOOK SPEICHERN. Outfits, gloves, shoes
 // and colours do not exist yet: those categories say so honestly ("KOMMT BALD"); POSE switches the menu pose.
+import { isV3 } from '../design';
 import { de, esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { CUSTOM_ART, CUSTOM_DIR, CUSTOM_LIGHTS, CUSTOM_PLATE, CUSTOM_TEXT } from './art/custom';
 import { topBarHtml, type TopBar } from './arena';
-import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
+import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: CUSTOM_DIR, plate: CUSTOM_PLATE, art: CUSTOM_ART, lights: CUSTOM_LIGHTS };
+const A2: ScreenArt = { dir: CUSTOM_DIR, plate: CUSTOM_PLATE, art: CUSTOM_ART, lights: CUSTOM_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/custom/). */
+const A3: ScreenArt = v3Art(A2, 'custom');
+let A = A2;
 const T = CUSTOM_TEXT;
 const FEET: [number, number] = [820, 742];
 const FIG_H = 560;
@@ -36,6 +40,7 @@ function pills(bar: TopBar): string {
 }
 
 export function customHtml(m: CustomModel): string {
+  A = isV3() ? A3 : A2;
   const [fx, fy] = FEET;
   const back = `${plateHtml(A)}${lightsHtml(A, 22)}
     <span class="fig-anchor" data-fig="0" style="--x:${fx - FIG_H / 4};--y:${fy - FIG_H};--w:${FIG_H / 2};--h:${FIG_H}"></span>`;

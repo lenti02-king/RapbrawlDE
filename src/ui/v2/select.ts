@@ -2,13 +2,17 @@
 // front of the team banners, the roster sits in the master's hex grid (free slots keep the master's dark silhouettes
 // as "coming soon"), the neon P1/P2 frames move with the selection. Same data attributes as the v1 screen
 // (data-f, data-side, data-back, data-ready), so the app logic is shared.
+import { isV3 } from '../design';
 import { esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { SELECT_ART, SELECT_CROWN, SELECT_DIR, SELECT_FEET, SELECT_LIGHTS, SELECT_PLATE, SELECT_TEXT, SELECT_TILES } from './art/select';
-import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
+import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt, v3Art } from './stage';
 import type { CsSide, CsTile } from '../menu/charSelect';
 
-const A: ScreenArt = { dir: SELECT_DIR, plate: SELECT_PLATE, art: SELECT_ART, lights: SELECT_LIGHTS };
+const A2: ScreenArt = { dir: SELECT_DIR, plate: SELECT_PLATE, art: SELECT_ART, lights: SELECT_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/select/). */
+const A3: ScreenArt = v3Art(A2, 'select');
+let A = A2;
 const T = SELECT_TEXT;
 /** Roster order in the hex grid: around the gold crown first (left, right, below-left, below-right, ...). */
 const SLOT_ORDER = [5, 7, 9, 11, 4, 8, 1, 3, 10, 2, 0, 12];
@@ -31,6 +35,7 @@ export interface SelectOpts {
 }
 
 export function selectHtmlV2(sides: [CsSide, CsSide], tiles: CsTile[], picking: number, o: SelectOpts): string {
+  A = isV3() ? A3 : A2;
   const figs = SELECT_FEET.map(([fx, fy], i) => {
     const s = sides[i];
     const ped = i ? [1150, 300, 1640, 860] : [40, 300, 560, 860];
@@ -38,7 +43,7 @@ export function selectHtmlV2(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
       <button class="v2-hit v2-ped ${picking === i ? 'picking' : ''} ${s.hidden ? 'hidden' : ''}" data-side="${i}" aria-label="${esc(s.label)}" style="--x:${ped[0]};--y:${ped[1]};--w:${ped[2] - ped[0]};--h:${ped[3] - ped[1]}"></button>`;
   }).join('');
   const back = `${plateHtml(A)}${lightsHtml(A, 22)}
-    ${beamsHtml([
+    ${isV3() ? '' : beamsHtml([
       { x: 300, y: 0, len: 760, w: 300, rot: 8, swing: 6, color: '70 130 255', period: 8, alpha: 0.22 },
       { x: 1390, y: 0, len: 760, w: 300, rot: -8, swing: 6, color: '255 60 90', period: 9, delay: 2, alpha: 0.22 },
     ])}`;

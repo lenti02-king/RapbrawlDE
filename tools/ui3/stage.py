@@ -22,11 +22,12 @@ OUT = os.path.join(lib.CACHE, 'stage')
 os.makedirs(OUT, exist_ok=True)
 
 SHOTS = {
-    'home': dict(feet=(832, 748), figH=540, fov=40, at=(0, 0)),
-    'select': dict(feet=(846, 748), figH=600, fov=40, at=(0, 0), pedestals=[(-1.69, 0), (1.69, 0)], team=True),
+    'home': dict(feet=(832, 748), figH=540, fov=40, at=(0, 0), banners=[(-3.3, 7.6, 4.5, 2.2, 4.0, 'l'), (3.3, 7.6, 4.5, 2.2, 4.0, 'r')]),
+    'select': dict(feet=(846, 748), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(-1.69, 0), (1.69, 0)], team=True,
+                   banners=[(-3.1, 4.6, 3.5, 2.4, 4.4, 'blue'), (3.1, 4.6, 3.5, 2.4, 4.4, 'red')]),
     'vs': dict(feet=(830, 1150), figH=980, fov=40, pitch=-4, at=(0, 0), team=True),
     'fighters': dict(feet=(920, 880), figH=760, fov=40, at=(0, 0)),
-    'custom': dict(feet=(820, 742), figH=600, fov=40, at=(0, 0), pedestals=[(0, 0)]),
+    'custom': dict(feet=(820, 742), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(0, 0)]),
     'loading': dict(feet=(836, 760), figH=330, fov=40, pitch=2, at=(0, 0)),
     'ring': dict(feet=(836, 912), figH=600, fov=40, at=(0, 0)),
     'lobby': dict(feet=(836, 800), figH=420, fov=40, pitch=4, at=(0, 0)),
@@ -116,7 +117,8 @@ def floor_mat():
 # ------------------------------------------------------------------ helpers
 def box(name, size, loc, material, bevel=0.03, rot=(0, 0, 0)):
     bm = bmesh.new()
-    bmesh.ops.create_cube(bm, size=1.0)
+    bm.loops.layers.uv.new()
+    bmesh.ops.create_cube(bm, size=1.0, calc_uvs=True)
     bmesh.ops.scale(bm, vec=size, verts=bm.verts)
     o = lib.obj_from_bm(name, bm, material, smooth=False)
     o.location = loc
@@ -326,13 +328,13 @@ def truss_segment():
     return o
 
 
-def truss_line(seg, a, b):
+def truss_line(seg, a, b, thick=1.0):
     a, b = Vector(a), Vector(b)
     d = b - a
-    n = max(1, round(d.length))
+    n = max(1, round(d.length / thick))
     q = d.to_track_quat('X', 'Z').to_euler()
     for i in range(n):
-        instance('truss', seg, a + d * (i / n), q, (d.length / n, 1, 1))
+        instance('truss', seg, a + d * (i / n), q, (d.length / n, thick, thick))
 
 
 def par_can(loc, aim, color, power=900, angle=24, beam=True):
@@ -379,14 +381,22 @@ def build_rig(team, rng):
             lib.sphere('bulb', (sx * 7.5, 5.55, 1.5 + k * 1.2), 0.07, kit.glow('#ffd27a', 12.0))
 
 
-def build_banners():
-    for sx, path, lines, cols in (
-        (-1, os.path.join(tx.TEX, 'banner_l.png'), ['WORTE', 'WIE', 'FÄUSTE'], ((255, 255, 255), (255, 60, 90), (255, 255, 255))),
-        (1, os.path.join(tx.TEX, 'banner_r.png'), ['BARS', 'TREFFEN', 'HÄRTER'], ((255, 255, 255), (255, 60, 90), (255, 60, 90))),
-    ):
-        tx.banner(lines, path, colors=cols)
-        m = tex_mat(f'banner{sx}', path, emission=0.5, rough=0.8)
-        w, h = 2.5, 5.0
+DEFAULT_BANNERS = [(-5.0, 5.0, 3.15, 2.5, 5.0, 'l'), (5.0, 5.0, 3.15, 2.5, 5.0, 'r')]
+
+
+def build_banners(spec):
+    for (bx, by, bz, w, h, style) in spec:
+        sx = -1 if bx < 0 else 1
+        if style in ('l', 'r'):
+            path = os.path.join(tx.TEX, f'banner_{style}.png')
+            if style == 'l':
+                tx.banner(['WORTE', 'WIE', 'FÄUSTE'], path, colors=((255, 255, 255), (255, 60, 90), (255, 255, 255)))
+            else:
+                tx.banner(['BARS', 'TREFFEN', 'HÄRTER'], path, colors=((255, 255, 255), (255, 60, 90), (255, 60, 90)))
+        else:
+            path = os.path.join(tx.TEX, f'banner_{style}.png')
+            tx.team_banner(path, (60, 140, 255) if style == 'blue' else (255, 50, 80), (10, 16, 48) if style == 'blue' else (48, 8, 18))
+        m = tex_mat(f'banner{bx}', path, emission=0.6, rough=0.8)
         bm = bmesh.new()
         nx, ny = 12, 20
         uv = bm.loops.layers.uv.new()
@@ -396,13 +406,13 @@ def build_banners():
                 f = bm.faces.new((vs[i][j], vs[i + 1][j], vs[i + 1][j + 1], vs[i][j + 1]))
                 for lp, (a, b) in zip(f.loops, ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))):
                     lp[uv].uv = (a / nx, b / ny)
-        o = lib.obj_from_bm(f'banner{sx}', bm, m)
-        o.location = (sx * 5.0, 5.0, 3.15)
-        o.rotation_euler = (0, 0, sx * math.radians(14))
+        o = lib.obj_from_bm(f'banner{bx}', bm, m)
+        o.location = (bx, by, bz)
+        o.rotation_euler = (0, 0, sx * math.radians(10))
         # hanging bar
-        bar = tube('bar', (-1.35, 0, 0), (1.35, 0, 0), 0.04, kit.gold())
-        bar.location = (sx * 5.0, 5.0, 5.7)
-        bar.rotation_euler = (0, math.pi / 2, sx * math.radians(14))
+        bar = tube('bar', (-w / 2 - 0.12, 0, 0), (w / 2 + 0.12, 0, 0), 0.04, kit.gold())
+        bar.location = (bx, by, bz + h / 2 + 0.05)
+        bar.rotation_euler = (0, math.pi / 2, sx * math.radians(10))
 
 
 def build_speakers():
@@ -468,7 +478,13 @@ def build_pedestals(spots, team):
         lib.cylinder(f'ped{i}', (x, y, RING_H + 0.12), 0.95, 0.24, M('pedb', lambda: lib.mat('pedb', lib.srgb('#191626'), metallic=0.5, rough=0.35)), seg=64, bevel=0.05)
         lib.torus(f'pedring{i}', (x, y, RING_H + 0.24), 0.93, 0.045, kit.gold(), seg=(64, 10))
         lib.torus(f'pedled{i}', (x, y, RING_H + 0.05), 0.97, 0.03, kit.glow(top[0], 10.0), seg=(64, 8))
-        disc = kit.plane(f'pedtop{i}', 1.7, 1.7, M('pedtop', lambda: tex_mat('pedtop', tx.ring_canvas(), rough=0.4, emission=0.08)), z=RING_H + 0.245, loc=(x, y))
+        bm = bmesh.new()
+        uv = bm.loops.layers.uv.new()
+        vs = [bm.verts.new((x + 0.9 * math.cos(2 * math.pi * k / 64), y + 0.9 * math.sin(2 * math.pi * k / 64), RING_H + 0.245)) for k in range(64)]
+        f = bm.faces.new(vs)
+        for lp in f.loops:
+            lp[uv].uv = ((lp.vert.co.x - x) / 1.8 + 0.5, (lp.vert.co.y - y) / 1.8 + 0.5)
+        lib.obj_from_bm(f'pedtop{i}', bm, M('pedtop', lambda: tex_mat('pedtop', tx.ring_canvas(), rough=0.4, emission=0.08)), smooth=False)
 
 
 def world(team):
@@ -555,7 +571,7 @@ def solve_camera(shot, scale):
     dyN = (shot['feet'][1] - cy) / cy
     pitch = math.radians(shot.get('pitch', 0))
     at = shot.get('at', (0, 0))
-    P = Vector((at[0], at[1], RING_H))
+    P = Vector((at[0], at[1], RING_H + shot.get('lift', 0.0)))  # lift: the feet stand on a pedestal top
     # camera space (x right, y up, -z forward) -> world for a camera looking +Y pitched down by `pitch`
     dir_cam = Vector((dxN * t * PW / PH, -dyN * t, -1.0))
     rx = math.pi / 2 - pitch
@@ -629,7 +645,7 @@ def build(shot_id, scale=1.0, samples=64):
     chainlink_fence(8.5, -3.5, 8.5, 6.6)
     build_crowd(rng, team)
     build_rig(team, rng)
-    build_banners()
+    build_banners(shot.get('banners', DEFAULT_BANNERS))
     build_speakers()
     build_back(team)
     build_skyline(rng)

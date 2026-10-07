@@ -192,3 +192,29 @@ if __name__ == '__main__':
     print(ring_canvas(), apron(), chainlink(), windows(), led_wall())
     print(banner(['WORTE', 'WIE', 'FÄUSTE'], os.path.join(TEX, 'banner_l.png')))
     print(banner(['BARS', 'TREFFEN', 'HÄRTER'], os.path.join(TEX, 'banner_r.png'), colors=((255, 255, 255), (255, 60, 90), (255, 60, 90))))
+
+
+def team_banner(path, col, dark, W=900, H=1800):
+    """Select screen banner: team colour cloth with a big sprayed crown and drips (no text)."""
+    rnd = random.Random(len(path) * 7)
+    im = Image.new('RGB', (W, H), dark)
+    d = ImageDraw.Draw(im)
+    for _ in range(1400):
+        x, y = rnd.uniform(0, W), rnd.uniform(0, H)
+        r = rnd.uniform(2, 9)
+        c = tuple(int(v * rnd.uniform(0.35, 0.8)) for v in col)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=c)
+    glow = Image.new('L', (W, H), 0)
+    ImageDraw.Draw(glow).polygon(crown_poly(W / 2, H * 0.5, 760), fill=255)
+    glow = glow.filter(ImageFilter.GaussianBlur(60))
+    im = Image.composite(Image.new('RGB', (W, H), col), im, glow.point(lambda v: int(v * 0.55)))
+    d = ImageDraw.Draw(im)
+    d.polygon(crown_poly(W / 2, H * 0.5, 700), fill=col)
+    d.polygon(crown_poly(W / 2, H * 0.5, 600), fill=dark)
+    for k in range(9):
+        x = W / 2 + rnd.uniform(-300, 300)
+        y0 = H * 0.5 + rnd.uniform(60, 160)
+        d.rectangle((x - 6, y0, x + 6, y0 + rnd.uniform(60, 260)), fill=col)
+    d.rectangle((0, 0, W - 1, H - 1), outline=(240, 178, 40), width=20)
+    im.save(path)
+    return path

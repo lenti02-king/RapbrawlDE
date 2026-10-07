@@ -300,28 +300,8 @@ def pills():
 
 # ------------------------------------------------------------------ plate
 def plate(pill_imgs):
-    from stage import OUT as SOUT
-    col = os.path.join(SOUT, 'home_color.png')
-    dep = os.path.join(SOUT, 'home_depth.png')
-    bg = Image.open(col).convert('RGBA').resize((2472 * 2 // 2, 941), Image.LANCZOS)
-    S = bg.width / 2472
-    logo_p = os.path.join(lib.ROOT, 'public', 'assets', 'ui2', 'shared', 'logo.webp')
-    logo = Image.open(logo_p).convert('RGBA')
-    lb = [588, 0, 1014, 268]
-    lw, lh = lb[2] - lb[0], lb[3] - lb[1]
-    lg = P.fit_image(logo, int(lw * S), int(lh * S), 'contain', (0.5, 0.0))
-    bg.alpha_composite(P.drop_shadow(lg, 0, 8, 12, 0.6), (int((lb[0] + 400) * S), int(lb[1] * S)))
-    for k, (im, box) in pill_imgs.items():
-        pi = im.resize((int(box[2] * S), int(box[3] * S)), Image.LANCZOS)
-        bg.alpha_composite(P.drop_shadow(pi, 0, 3, 4, 0.5), (int((box[0] + 400) * S), int(box[1] * S)))
-    rgb = bg.convert('RGB')
-    for k, (x0, x1) in {'l': (0, 404), 'c': (396, 2076), 'r': (2068, 2472)}.items():
-        rgb.crop((int(x0 * S), 0, int(x1 * S), rgb.height)).save(os.path.join(OUT, f'plate_{k}.webp'), quality=90, method=6)
-    d = Image.open(dep).convert('I').point(lambda v: v / 256).convert('L').resize((1236, 470), Image.LANCZOS)
-    d.save(os.path.join(OUT, 'depth.webp'), quality=92)
-    with open(os.path.join(OUT, 'depth.json'), 'w') as f:
-        json.dump({'x0': -400, 'x1': 2072}, f)
-    rgb.resize((1236, 470), Image.LANCZOS).save(os.path.join(lib.ROOT, 'artifacts', 'ui3', 'home_plate.jpg'), quality=88)
+    import compose
+    print(compose.plate('home', [(im, box) for im, box in pill_imgs.values()], OUT, logo_box=[588, 0, 1014, 268]))
 
 
 if __name__ == '__main__':

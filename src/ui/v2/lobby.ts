@@ -3,12 +3,16 @@
 // chat). The master's parts map onto that: RAUM-CODE = the room, FREUNDE EINLADEN = the P2P invitation, the friend
 // list is empty (no accounts yet) and holds the join-by-code field, TEAM 1 / TEAM 2 slots show who is in, 2V2 is
 // announced, the arena strip picks the arena, RAUM ERSTELLEN / BEITRETEN starts.
+import { isV3 } from '../design';
 import { de, esc } from '../menu/kit';
 import { LOBBY_ART, LOBBY_DIR, LOBBY_LIGHTS, LOBBY_PLATE, LOBBY_TEXT } from './art/lobby';
 import { topBarHtml } from './arena';
-import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
+import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: LOBBY_DIR, plate: LOBBY_PLATE, art: LOBBY_ART, lights: LOBBY_LIGHTS };
+const A2: ScreenArt = { dir: LOBBY_DIR, plate: LOBBY_PLATE, art: LOBBY_ART, lights: LOBBY_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/lobby/). */
+const A3: ScreenArt = v3Art(A2, 'lobby');
+let A = A2;
 const T = LOBBY_TEXT;
 
 export interface LobbyModel {
@@ -31,6 +35,7 @@ export interface LobbyModel {
 const box = (b: readonly number[], pad = 0) => `--x:${b[0] - pad};--y:${b[1] - pad};--w:${b[2] - b[0] + 2 * pad};--h:${b[3] - b[1] + 2 * pad}`;
 
 export function lobbyHtml(m: LobbyModel): string {
+  A = isV3() ? A3 : A2;
   const back = `${plateHtml(A)}${lightsHtml(A, 18)}`;
   const P = T.profile;
   const C = T.cur;

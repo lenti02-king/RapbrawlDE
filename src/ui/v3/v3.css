@@ -56,3 +56,165 @@
   object-position: 50% 12%;
   border-radius: calc(var(--u) * 12);
 }
+
+/* ---------------------------------------------------------------------------------------- ring screens (D46)
+   Profile, settings, deck, results, pause, friends: the same layout, chrome from the Blender 9-slice kit
+   (assets/ui3/kit: 2x renders, 64 px corners for panels, 100 px for buttons). */
+.v3 .v2-rs {
+  --k3-panel: url(assets/ui3/kit/panel.webp);
+  --k3-panel-gold: url(assets/ui3/kit/panel_gold.webp);
+}
+.v3 .v2-rs,
+.v3 .v2-rs .rg-card,
+.v3 .v2-rs .rg-chip,
+.v3 .v2-rs .rg-seg > button,
+.v3 .v2-rs .rg-pill,
+.v3 .v2-rs .rg-switch > span,
+.v3 .v2-rs .rg-kpi > b {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  font-weight: 400;
+}
+.v3 .v2-rs [class*='rg-'][style*='Permanent'],
+.v3 .v2-rs .rg-banner,
+.v3 .v2-rs .rg-ptitle,
+.v3 .v2-rs .rg-rname,
+.v3 .v2-rs .rg-sname {
+  font-family: 'Lilita One', 'Nunito', sans-serif !important;
+}
+.v3 .v2-rs .rg-card {
+  border: calc(var(--u) * 20) solid transparent;
+  border-image: var(--k3-panel) 64 fill / calc(var(--u) * 32) / calc(var(--u) * 12) stretch;
+  background: none;
+  box-shadow: none;
+  filter: drop-shadow(0 calc(var(--u) * 10) calc(var(--u) * 10) rgba(0, 0, 0, 0.55));
+  padding: calc(var(--u) * 4) calc(var(--u) * 6);
+}
+.v3 .v2-rs .rg-card.gold {
+  border-image: var(--k3-panel-gold) 64 fill / calc(var(--u) * 32) / calc(var(--u) * 12) stretch;
+  box-shadow: none;
+}
+.v3 .v2-rs .rg-chip,
+.v3 .v2-rs .rg-seg > button,
+.v3 .v2-rs .rg-pill {
+  border: calc(var(--u) * 10) solid transparent;
+  border-image: url(assets/ui3/kit/btn_navy.webp) 96 fill / calc(var(--u) * 22) / calc(var(--u) * 6) stretch;
+  background: none;
+  box-shadow: none;
+  color: #fff;
+  letter-spacing: 0.03em;
+  text-shadow:
+    0 calc(var(--u) * 2) 0 #120b18,
+    calc(var(--u) * 1.5) 0 0 #120b18,
+    calc(var(--u) * -1.5) 0 0 #120b18,
+    0 calc(var(--u) * -1.5) 0 #120b18;
+}
+.v3 .v2-rs .rg-chip.on,
+.v3 .v2-rs .rg-seg > button.on,
+.v3 .v2-rs .rg-pill:not(.gray) {
+  border-image-source: url(assets/ui3/kit/btn_gold.webp);
+  color: #fff;
+  box-shadow: none;
+}
+.v3 .v2-rs .rg-seg > button.on.p2 {
+  border-image-source: url(assets/ui3/kit/btn_red.webp);
+}
+.v3 .v2-rs .rg-pill.gray {
+  border-image-source: url(assets/ui3/kit/btn_navy.webp);
+}
+.v3 .v2-rs .rg-switch {
+  border: calc(var(--u) * 6) solid transparent;
+  border-image: url(assets/ui3/kit/cap.webp) 60 fill / calc(var(--u) * 23) stretch;
+  background: none;
+}
+.v3 .v2-rs .rg-switch.on {
+  border-image-source: url(assets/ui3/kit/btn_green.webp);
+  border-image-slice: 96 fill;
+  box-shadow: none;
+}
+.v3 .v2-rs .rg-switch > i {
+  border: calc(var(--u) * 3) solid #120b18;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #c9d0e6 60%, #7c84a6);
+}
+.v3 .v2-rs .rg-bar {
+  height: calc(var(--u) * 18);
+  border: calc(var(--u) * 3) solid #120b18;
+  box-shadow: inset 0 calc(var(--u) * 3) 0 rgba(0, 0, 0, 0.6), 0 0 0 calc(var(--u) * 2) #e3a51f;
+}
+.v3 .v2-rs .rg-bar > b {
+  background: linear-gradient(180deg, #fff3a0 0 45%, #ffb21a 45% 100%);
+  box-shadow: none;
+}
+.v3 .v2-rs .rg-bar.blue > b {
+  background: linear-gradient(180deg, #a8e8ff 0 45%, #2a8cff 45% 100%);
+}
+.v3 .v2-rs .rg-bar.red > b {
+  background: linear-gradient(180deg, #ffb0b8 0 45%, #e3122b 45% 100%);
+}
+
+/* ---------------------------------------------------------------------------------------- shared v2 bits */
+.v3 .v2-chip {
+  border: calc(var(--u) * 8) solid transparent !important;
+  border-image: url(assets/ui3/kit/btn_navy.webp) 96 fill / calc(var(--u) * 20) / calc(var(--u) * 4) stretch !important;
+  background: none !important;
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  font-weight: 400;
+  color: #fff;
+  text-shadow: 0 calc(var(--u) * 2) 0 #120b18;
+}
+.v3 .v2-chip.on {
+  border-image-source: url(assets/ui3/kit/btn_gold.webp) !important;
+  color: #fff;
+}
+.v3 .v2-panel {
+  border: calc(var(--u) * 20) solid transparent !important;
+  border-image: url(assets/ui3/kit/panel.webp) 64 fill / calc(var(--u) * 32) / calc(var(--u) * 12) stretch !important;
+  background: none !important;
+  box-shadow: none !important;
+  opacity: 0.94;
+}
+.v3 .v2-bigname,
+.v3 .v2-cardname,
+.v3 .v2-graffiti,
+.v3 .v2-dist,
+.v3 .v2-desc {
+  font-family: 'Lilita One', 'Nunito', sans-serif !important;
+}
+.v3 .v2-bigname b {
+  -webkit-text-stroke: calc(var(--u) * 3) #120b18;
+  paint-order: stroke fill;
+  text-shadow: 0 calc(var(--u) * 6) 0 #120b18;
+}
+.v3 .v2-graffiti {
+  transform: rotate(-8deg);
+  -webkit-text-stroke: calc(var(--u) * 3) #120b18;
+  paint-order: stroke fill;
+}
+.v3 .v2-btn.v2-on {
+  filter: brightness(1.12) drop-shadow(0 0 calc(var(--u) * 10) rgba(255, 210, 60, 0.9));
+}
+.v3 .v2-on .v2-ink {
+  --fill: linear-gradient(180deg, #fff7c2 0%, #ffd84a 55%, #ffaa1a 100%);
+  --sw: 0.14em;
+  --ol: #120b18;
+  --sh: 0 0.09em 0 #120b18;
+}
+.v3 .v2-hit:active {
+  filter: brightness(0.92);
+}
+.v3 .v2-plabel {
+  --fill: linear-gradient(180deg, #ffffff, #e2e8ff);
+  --sw: 0.16em;
+  --ol: #120b18;
+  --sh: 0 0.08em 0 #120b18;
+  letter-spacing: 0.06em;
+}
+.v3 .v2-pname {
+  --sw: 0.12em;
+  --ol: #120b18;
+  --sh: 0 0.08em 0 #120b18;
+}
+.v3 .v2-city {
+  --sw: 0.14em;
+  --ol: #2a1400;
+  --sh: 0 0.07em 0 #120b18;
+}

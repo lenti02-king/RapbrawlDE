@@ -1,13 +1,17 @@
 // Design v2 fighter roster (PO master ref/v2/fighters.webp): roster cards on the left (our fighters' portraits over
 // the master's coloured cards, free slots stay locked silhouettes), the chosen fighter in 3D in the middle, info panel
 // on the right (class, level, ANGRIFF / TEMPO / LEBEN, the three ability cards), AUSWÄHLEN = favourite fighter.
+import { isV3 } from '../design';
 import { de, esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { FIGHTERS_ART, FIGHTERS_CARDS, FIGHTERS_DIR, FIGHTERS_FEET, FIGHTERS_FIG_H, FIGHTERS_LIGHTS, FIGHTERS_PLATE, FIGHTERS_TEXT } from './art/fighters';
 import { topBarHtml, type TopBar } from './arena';
-import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
+import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: FIGHTERS_DIR, plate: FIGHTERS_PLATE, art: FIGHTERS_ART, lights: FIGHTERS_LIGHTS };
+const A2: ScreenArt = { dir: FIGHTERS_DIR, plate: FIGHTERS_PLATE, art: FIGHTERS_ART, lights: FIGHTERS_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/fighters/). */
+const A3: ScreenArt = v3Art(A2, 'fighters');
+let A = A2;
 const T = FIGHTERS_TEXT;
 
 export interface RosterEntry {
@@ -47,6 +51,7 @@ const TABS = ['ALLE', 'SCHLÄGER', 'RAPPER', 'TEMPO', 'ABWEHR'];
 const CARD_TINT = ['255 196 60', '170 90 255', '70 140 255', '255 70 70', '80 220 120', '170 90 255', '255 196 60', '70 140 255', '255 70 70', '80 220 120', '170 90 255', '255 196 60'];
 
 export function fightersHtml(roster: RosterEntry[], cur: FighterInfo, tab: number, bar: TopBar): string {
+  A = isV3() ? A3 : A2;
   const [fx, fy] = FIGHTERS_FEET;
   const back = `${plateHtml(A)}${lightsHtml(A, 20)}
     <span class="fig-anchor" data-fig="0" style="--x:${fx - FIGHTERS_FIG_H / 4};--y:${fy - FIGHTERS_FIG_H};--w:${FIGHTERS_FIG_H / 2};--h:${FIGHTERS_FIG_H}"></span>`;

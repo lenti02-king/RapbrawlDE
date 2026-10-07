@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { Crowd, type CrowdSpot } from '../crowd';
+import { isV3 } from '../../ui/design';
 import type { ArenaLike } from './hinterhof';
 
 export type PaintedId = 'festival' | 'bahnhof';
@@ -15,6 +16,8 @@ interface Meta {
   width_px: number;
   height_px: number;
   ground_px: number;
+  /** Design v3 renders (tools/ui3/arenas.py): real scenery this fraction of the width beyond each side. */
+  margin?: number;
   signs: { uv: [number, number, number, number]; color: string }[];
 }
 
@@ -98,7 +101,8 @@ export class PaintedArena implements ArenaLike {
   }
 
   private async load(): Promise<void> {
-    const base = `assets/arena/${this.id}/`;
+    // design v3 (D46): the same places rebuilt as stylized 3D scenes in Blender; v1/v2 keep the PO's paintings
+    const base = `assets/arena/${this.id}${isV3() ? '3' : ''}/`;
     const tl = new THREE.TextureLoader();
     const low = this.quality === 'low';
     const [meta, back, floor] = await Promise.all([
@@ -109,13 +113,19 @@ export class PaintedArena implements ArenaLike {
     back.colorSpace = THREE.SRGBColorSpace;
     floor.colorSpace = THREE.SRGBColorSpace;
     const W = this.cfg.width;
-    const H = (W * meta.height_px) / meta.width_px;
+    const real = meta.margin ?? 0;
+    const H = (W * (1 + 2 * real) * meta.height_px) / meta.width_px;
     const below = ((meta.height_px - meta.ground_px) / meta.height_px) * H;
-    // mirrored margins: 20 % each side (zoomed-out shots on wide phones)
+    // margins: 20 % each side (zoomed-out shots on wide phones) - rendered scenery when the plate has them, else
+    // the painting mirrored at its edges
     const margin = 0.2;
-    back.wrapS = THREE.MirroredRepeatWrapping;
-    back.repeat.set(1 + 2 * margin, 1);
-    back.offset.set(-margin, 0);
+    if (real > 0) {
+      back.wrapS = THREE.ClampToEdgeWrapping;
+    } else {
+      back.wrapS = THREE.MirroredRepeatWrapping;
+      back.repeat.set(1 + 2 * margin, 1);
+      back.offset.set(-margin, 0);
+    }
     back.anisotropy = 4;
     // alpha: fade the last rows (below the ground line) into the 3D floor
     const ac = document.createElement('canvas');
@@ -151,12 +161,13 @@ export class PaintedArena implements ArenaLike {
     // neon flicker glows on the (repainted) signs
     if (meta.signs.length) {
       const tex = glowTexture();
+      const WF = W * (1 + 2 * real); // image width in metres (the v3 renders include their side margins)
       for (const s of meta.signs) {
         const [u0, v0, u1, v1] = s.uv;
-        const cx = ((u0 + u1) / 2 - 0.5) * W;
+        const cx = ((u0 + u1) / 2 - 0.5) * WF;
         const cy = (1 - (v0 + v1) / 2) * H - below;
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(s.color), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, opacity: 0.4 }));
-        sp.scale.set((u1 - u0) * W * 1.6, (v1 - v0) * H * 2.6, 1);
+        sp.scale.set((u1 - u0) * WF * 1.6, (v1 - v0) * H * 2.6, 1);
         sp.position.set(cx, cy, this.cfg.depth + 0.05);
         this.group.add(sp);
         const seed = cx * 3.1;

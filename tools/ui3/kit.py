@@ -519,3 +519,182 @@ def icon_chest(s=1.0, color='purple'):
 
 
 ICONS['chest'] = icon_chest
+
+
+def icon_lock(s=1.0):
+    def f():
+        lib.slab('body', lib.rounded_rect_pts(0.62 * s, 0.5 * s, 0.1 * s), 0.22 * s, 0.05 * s, gold('#ffbf2e', 0.22), seg=3, z0=-0.11 * s).location.y = -0.16 * s
+        arc = [(0.19 * s * math.cos(a), 0.09 * s + 0.2 * s * math.sin(a), 0) for a in [math.pi * i / 20 for i in range(21)]]
+        arc = [(arc[0][0], -0.05 * s, 0)] + arc + [(arc[-1][0], -0.05 * s, 0)]
+        lib.tube_path('shackle', arc, 0.055 * s, steel('#c9d2e6', 0.25), closed=False)
+        lib.sphere('hole', (0, -0.14 * s, 0.11 * s), 0.06 * s, flat('#3a1d00', 0.5), scale=(1, 1, 0.4))
+    return tilt(new_objs(f), 8, -14)
+
+
+ICONS['lock'] = icon_lock
+
+
+def octagon_pts(w, h, cut=0.2, r=0.02):
+    cx, cy = w * cut, h * cut
+    pts = [(-w / 2 + cx, -h / 2), (w / 2 - cx, -h / 2), (w / 2, -h / 2 + cy), (w / 2, h / 2 - cy), (w / 2 - cx, h / 2), (-w / 2 + cx, h / 2), (-w / 2, h / 2 - cy), (-w / 2, -h / 2 + cy)]
+    return lib.round_corners(pts, r, 3) if r else pts
+
+
+FONTS = {
+    'lilita': os.path.join(lib.ROOT, 'node_modules', '@fontsource', 'lilita-one', 'files', 'lilita-one-latin-400-normal.woff'),
+    'anton': os.path.join(lib.ROOT, 'tools', 'arena', 'fonts', 'Anton_400Regular.ttf'),
+}
+
+
+def text3d(name, s, size, material, depth=0.12, bevel=0.03, font='lilita', align='CENTER', loc=(0, 0, 0), rot=(0, 0, 0)):
+    """Extruded, beveled 3D lettering (emblems like the gold VS - real UI text stays native German HTML)."""
+    cu = bpy.data.curves.new(name, 'FONT')
+    cu.body = s
+    cu.font = bpy.data.fonts.load(FONTS[font], check_existing=True)
+    cu.size = size
+    cu.extrude = depth
+    cu.bevel_depth = bevel
+    cu.bevel_resolution = 4
+    cu.align_x = align
+    cu.align_y = 'CENTER'
+    o = lib.link(bpy.data.objects.new(name, cu))
+    o.data.materials.append(material)
+    o.location = loc
+    o.rotation_euler = rot
+    return o
+
+
+def arrow(w, h, color='gold', left=True):
+    """Chunky candy chevron button (arena arrows)."""
+    pts = [(-0.22, 0.5), (0.3, 0.0), (-0.22, -0.5), (-0.42, -0.34), (0.0, 0.0), (-0.42, 0.34)]
+    pts = [((-x if left else x) * w, y * h) for x, y in pts]
+    if left:
+        pts = list(reversed(pts))
+    top, bot, fr, edge = CANDY[color]
+    lib.slab('arrow', lib.round_corners(pts, 0.04, 3), 0.22, 0.05, candy('arrow' + color, top, bot, h), seg=4)
+
+
+def icon_bulb(s=1.0):
+    def f():
+        lib.sphere('glass', (0, 0.1 * s, 0), 0.32 * s, candy('bulb', '#fff4a0', '#ffc21a', 0.6 * s, emission=0.8))
+        lib.cylinder('base', (0, -0.3 * s, 0), 0.15 * s, 0.22 * s, steel('#c9d2e6', 0.25), seg=24, rot=(math.radians(90), 0, 0), bevel=0.02 * s)
+    return tilt(new_objs(f), 6, -10)
+
+
+ICONS['bulb'] = icon_bulb
+
+
+def icon_shield(s=1.0, color='green'):
+    def f():
+        top, bot = CANDY[color][0], CANDY[color][1]
+        pts = [(-0.4, 0.42), (0.4, 0.42), (0.4, 0.02), (0.0, -0.48), (-0.4, 0.02)]
+        pts = lib.round_corners([(x * s, y * s) for x, y in pts], 0.08 * s, 4)
+        lib.frame('srim', pts, 0.07 * s, 0.22 * s, gold(), bevel=0.03 * s)
+        lib.slab('shield', lib.inset(pts, 0.06 * s), 0.18 * s, 0.05 * s, candy('sh' + color, top, bot, s), seg=4)
+    return tilt(new_objs(f), 6, -12)
+
+
+def icon_wing(s=1.0, color='blue'):
+    """Speed: three swept feathers."""
+    def f():
+        top, bot = CANDY[color][0], CANDY[color][1]
+        for k in range(3):
+            pts = [(-0.42, -0.1 + 0.18 * k), (0.4, 0.28 + 0.12 * k), (0.3, 0.12 + 0.12 * k), (-0.38, -0.24 + 0.18 * k)]
+            lib.slab(f'f{k}', lib.round_corners([(x * s, (y - 0.12) * s) for x, y in pts], 0.06 * s, 3), 0.12 * s, 0.035 * s, candy('wing' + color, top, bot, s), seg=3, z0=-0.03 * k * s)
+    return tilt(new_objs(f), 6, -12)
+
+
+ICONS['shield'] = icon_shield
+ICONS['wing'] = icon_wing
+
+
+def icon_jacket(s=1.0, color='gold'):
+    def f():
+        top, bot = CANDY[color][0], CANDY[color][1]
+        body = [(-0.3, -0.45), (0.3, -0.45), (0.3, 0.12), (0.5, -0.1), (0.62, 0.05), (0.32, 0.42), (0.12, 0.46), (0.0, 0.32), (-0.12, 0.46), (-0.32, 0.42), (-0.62, 0.05), (-0.5, -0.1), (-0.3, 0.12)]
+        lib.slab('jacket', lib.round_corners([(x * s, y * s) for x, y in body], 0.04 * s, 3), 0.24 * s, 0.06 * s, candy('jk' + color, top, bot, s), seg=4)
+        lib.slab('zip', lib.rounded_rect_pts(0.05 * s, 0.7 * s, 0.02 * s), 0.04 * s, 0.01 * s, flat('#2a1600', 0.5), z0=0.24 * s).location.y = -0.08 * s
+    return tilt(new_objs(f), 6, -12)
+
+
+def icon_sneaker(s=1.0):
+    def f():
+        sole = [(-0.55, -0.3), (0.58, -0.3), (0.62, -0.18), (-0.55, -0.18)]
+        lib.slab('sole', lib.round_corners([(x * s, y * s) for x, y in sole], 0.05 * s, 3), 0.3 * s, 0.04 * s, flat('#ffffff', 0.4, 0.3), seg=3, z0=-0.15 * s)
+        up = [(-0.52, -0.18), (0.6, -0.18), (0.55, -0.02), (0.1, 0.12), (-0.12, 0.38), (-0.48, 0.38)]
+        lib.slab('upper', lib.round_corners([(x * s, y * s) for x, y in up], 0.08 * s, 4), 0.28 * s, 0.06 * s, candy('snk', '#4fc3ff', '#1565e0', s), seg=4, z0=-0.14 * s)
+        sw = [(-0.3, -0.05), (0.3, 0.02), (0.3, 0.08), (-0.3, 0.04)]
+        lib.slab('swoosh', [(x * s, y * s) for x, y in sw], 0.03 * s, 0.01 * s, flat('#ffffff', 0.4), z0=0.14 * s)
+    return tilt(new_objs(f), 8, -18)
+
+
+def icon_person(s=1.0, color='blue'):
+    def f():
+        top, bot = CANDY[color][0], CANDY[color][1]
+        lib.sphere('head', (0, 0.3 * s, 0), 0.17 * s, candy('pph' + color, top, bot, 0.4 * s))
+        parts = [lib.sphere('torso', (0, -0.02 * s, 0), 0.24 * s, None, scale=(1, 1.1, 0.7))]
+        for sx in (-1, 1):
+            parts.append(lib.cylinder('leg', (sx * 0.1 * s, -0.36 * s, 0), 0.08 * s, 0.34 * s, None, seg=12))
+            arm = lib.cylinder('arm', (sx * 0.27 * s, -0.04 * s, 0), 0.065 * s, 0.34 * s, None, seg=12)
+            arm.rotation_euler = (0, 0, sx * 0.35)
+            parts.append(arm)
+        union(parts, 'body', 0.02 * s, 3, candy('ppb' + color, top, bot, 0.9 * s))
+    return tilt(new_objs(f), 6, -12)
+
+
+def icon_palette(s=1.0):
+    def f():
+        pts = [(0.48 * math.cos(a) * (1.0 if i % 12 else 1.0), 0.38 * math.sin(a)) for i, a in enumerate([2 * math.pi * k / 40 for k in range(40)])]
+        lib.slab('pal', [(x * s / 0.48 * 0.5, y * s) for x, y in pts], 0.1 * s, 0.03 * s, candy('pal', '#e8c08a', '#b07a3a', s, rough=0.5), seg=3)
+        lib.sphere('hole', (0.26 * s, -0.12 * s, 0.1 * s), 0.07 * s, flat('#5a3a1a', 0.6), scale=(1, 1, 0.3))
+        for k, c in enumerate(('#ff3355', '#ffd23f', '#21d35a', '#3d8dff', '#c27bff')):
+            a = math.radians(150 - k * 42)
+            lib.sphere(f'paint{k}', (0.3 * s * math.cos(a) - 0.04 * s, 0.22 * s * math.sin(a) + 0.02 * s, 0.11 * s), 0.08 * s, candy('pt' + c, c, c, 0.2, coat=1.0), scale=(1, 1, 0.45))
+    return tilt(new_objs(f), 10, -16)
+
+
+def icon_dice(s=1.0):
+    def f():
+        lib.slab('die', lib.rounded_rect_pts(0.7 * s, 0.7 * s, 0.14 * s), 0.7 * s, 0.12 * s, candy('die', '#ffffff', '#d7dcef', 0.7 * s, coat=0.6), seg=5, z0=-0.35 * s)
+        for x, y in ((-0.17, 0.17), (0.17, -0.17), (0.0, 0.0), (0.17, 0.17), (-0.17, -0.17)):
+            lib.sphere('pip', (x * s, y * s, 0.355 * s), 0.065 * s, flat('#1a1222', 0.4), scale=(1, 1, 0.35))
+    return tilt(new_objs(f), 24, -30, 12)
+
+
+def icon_back(s=1.0, color='white'):
+    def f():
+        pts = [(-0.45, 0.0), (0.0, 0.42), (0.0, 0.16), (0.42, 0.16), (0.42, -0.16), (0.0, -0.16), (0.0, -0.42)]
+        lib.slab('arrow', lib.round_corners([(x * s, y * s) for x, y in reversed(pts)], 0.04 * s, 3), 0.16 * s, 0.05 * s, flat('#ffffff', 0.3, 0.6) if color == 'white' else candy('bk', CANDY[color][0], CANDY[color][1], s), seg=4)
+    return tilt(new_objs(f), 0, 0)
+
+
+def icon_burst(s=1.0, color='gold'):
+    def f():
+        pts = []
+        for k in range(16):
+            a = math.pi / 2 + 2 * math.pi * k / 16
+            r = 0.5 if k % 2 == 0 else 0.26
+            pts.append((r * s * math.cos(a), r * s * math.sin(a)))
+        lib.slab('burst', pts, 0.16 * s, 0.04 * s, candy('bu' + color, '#fff07a', '#ff6a00', s), seg=3)
+    return tilt(new_objs(f), 8, -14)
+
+
+def icon_person_plus(s=1.0):
+    def f():
+        p = icon_person(0.9 * s, 'white' if False else 'blue')
+        p.location = (-0.12 * s, 0, 0)
+        g = icon_plus(0.42 * s)
+        g.location = (0.3 * s, -0.22 * s, 0.25 * s)
+    return tilt(new_objs(f), 0, 0)
+
+
+def icon_copy(s=1.0):
+    def f():
+        for k, z in ((0, 0.0), (1, 0.08)):
+            o = lib.slab(f'pg{k}', lib.rounded_rect_pts(0.5 * s, 0.62 * s, 0.07 * s), 0.06 * s, 0.02 * s, candy('pg', '#ffffff', '#c9d4ff', s), seg=3, z0=z * s)
+            o.location = ((-0.08 + 0.16 * k) * s, (0.08 - 0.16 * k) * s, 0)
+    return tilt(new_objs(f), 6, -10)
+
+
+ICONS.update({'jacket': icon_jacket, 'sneaker': icon_sneaker, 'person': icon_person, 'palette': icon_palette, 'dice': icon_dice,
+              'back': icon_back, 'burst': icon_burst, 'person_plus': icon_person_plus, 'copy': icon_copy})

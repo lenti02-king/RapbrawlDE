@@ -1,12 +1,16 @@
 // Design v2 loading / title screen (PO master ref/v2/loading.webp): the arena behind the logo with flickering
 // lights, sweeping beams, haze and embers, the gold bar grows from the left, the label and a rotating TIPP are native.
 // Same functions as the v1 screen (loadingHtml / setLoading / setLoadingLabel / mountLoading dispatch here).
+import { isV3 } from '../design';
 import { esc, fitTexts } from '../menu/kit';
 import { isPhone } from '../../render/textureBudget';
 import { LOADING_ART, LOADING_DIR, LOADING_LIGHTS, LOADING_PLATE, LOADING_TEXT } from './art/loading';
-import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, type ScreenArt } from './stage';
+import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: LOADING_DIR, plate: LOADING_PLATE, art: LOADING_ART, lights: LOADING_LIGHTS };
+const A2: ScreenArt = { dir: LOADING_DIR, plate: LOADING_PLATE, art: LOADING_ART, lights: LOADING_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/loading/). */
+const A3: ScreenArt = v3Art(A2, 'loading');
+let A = A2;
 const T = LOADING_TEXT;
 const TIPS = [
   'Specials direkt nach einem geblockten Angriff einsetzen.',
@@ -18,10 +22,11 @@ const TIPS = [
 ];
 
 export function loadingHtmlV2(label: string): string {
+  A = isV3() ? A3 : A2;
   const tr = T.bar.track;
   const tip = T.tip.tip;
   const k = Math.floor(Math.random() * TIPS.length);
-  const back = `${plateHtml(A)}${lightsHtml(A, 26)}${beamsHtml([
+  const back = `${plateHtml(A)}${lightsHtml(A, 26)}${isV3() ? '' : beamsHtml([
     { x: 250, y: 30, len: 700, w: 280, rot: 18, swing: 10, color: '255 70 120', period: 7.5, alpha: 0.2 },
     { x: 1420, y: 30, len: 700, w: 280, rot: -18, swing: 10, color: '80 140 255', period: 8.5, delay: 2, alpha: 0.2 },
     { x: 830, y: 380, len: 420, w: 360, rot: 0, swing: 4, color: '255 220 150', period: 6, alpha: 0.12 },

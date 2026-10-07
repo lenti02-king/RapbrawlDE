@@ -2,12 +2,16 @@
 // slow push-in, cross-fade on change); the master's UI pieces (top bar, info panel tiles, yellow button, neon card
 // frames, arrows) are cut out with their glow and lie over it. Used for the arena pick, the ARENEN tab and the game
 // modes - same data attributes as the v1 showcase (data-item, data-ok, data-back, data-chip), the app logic is shared.
+import { isV3 } from '../design';
 import { de, esc, fitTexts } from '../menu/kit';
 import type { ShowcaseItem, ShowcaseOpts } from '../menu/arenaSelect';
 import { ARENA_ART, ARENA_CARDS, ARENA_DIR, ARENA_TEXT } from './art/arena';
-import { mountV2, screenHtml, src, t, type ScreenArt } from './stage';
+import { mountV2, screenHtml, src, t, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: ARENA_DIR, plate: { l: [], c: [], r: [] }, art: ARENA_ART, lights: [] };
+const A2: ScreenArt = { dir: ARENA_DIR, plate: { l: [], c: [], r: [] }, art: ARENA_ART, lights: [] };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/arena/). */
+const A3: ScreenArt = v3Art(A2, 'arena');
+let A = A2;
 const T = ARENA_TEXT;
 const LOGO = 'assets/ui2/shared/logo.webp';
 const PER_PAGE = 5;
@@ -62,8 +66,11 @@ function btnSpr(id: keyof typeof ARENA_ART, attrs: string, label: string, inner 
 /** The shared top bar of the v2 sub-screens: back, title strip (+ logo), currencies, mail, settings. `title` null =
  *  back button only (screens whose master has its own logo top left). */
 export function topBarHtml(title: string | null, bar: TopBar | null): string {
+  A = isV3() ? A3 : A2;
+  // v3: the capsules under the amounts are their own 3D renders (the v2 master had them painted into the scene)
+  const caps = isV3() ? [[980, 14, 160, 50], [1166, 14, 156, 50], [1346, 14, 152, 50]].map((b, i) => `<img class="v2-art" alt="" draggable="false" src="${A.dir}cap${i + 1}.webp" style="--x:${b[0]};--y:${b[1]};--w:${b[2]};--h:${b[3]}">`).join('') : '';
   const cur = bar
-    ? `${spr('coin')}${t(de(bar.coins), [1008, 20, 1080, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus1', 'data-act="shop"', 'Münzen')}
+    ? `${caps}${spr('coin')}${t(de(bar.coins), [1008, 20, 1080, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus1', 'data-act="shop"', 'Münzen')}
        ${spr('gem')}${t(de(bar.gems), [1204, 20, 1266, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus2', 'data-act="shop"', 'Diamanten')}
        ${spr('bolt')}${t(bar.energy, [1378, 20, 1446, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus3', 'data-act="shop"', 'Energie')}
        ${btnSpr('mail', 'data-act="news"', 'Postfach')}${bar.mail ? spr('badge', 'v2-badge') : ''}
@@ -81,6 +88,7 @@ export function topBarHtml(title: string | null, bar: TopBar | null): string {
 }
 
 export function showcaseHtmlV2(items: ShowcaseItem[], cur: ShowcaseItem, o: ShowcaseOpts & { bar?: TopBar | null }): string {
+  A = isV3() ? A3 : A2;
   const page = Math.floor(Math.max(0, items.indexOf(cur)) / PER_PAGE);
   // all cards are rendered (the app binds their clicks once); paging only shows another five
   const cards = items.map((it, k) => cardHtml(it, k, it.id === cur.id, k % PER_PAGE, Math.floor(k / PER_PAGE))).join('');

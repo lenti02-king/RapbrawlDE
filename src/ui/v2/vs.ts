@@ -1,12 +1,16 @@
 // Design v2 VS screen (PO master ref/v2/vs.webp): both fighters big in 3D facing each other behind the gold VS,
 // both decks (card art rendered from the fighters' own moves), the arena picture in the master's frame (arrows flip
 // the arena), BEREIT starts loading. Shown between the arena pick and the loading screen.
+import { isV3 } from '../design';
 import { esc, fitTexts } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { VS_ART, VS_DIR, VS_FEET, VS_FIG_H, VS_LIGHTS, VS_OPP, VS_PLATE, VS_TEXT, VS_YOU } from './art/vs';
-import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
+import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt, v3Art } from './stage';
 
-const A: ScreenArt = { dir: VS_DIR, plate: VS_PLATE, art: VS_ART, lights: VS_LIGHTS };
+const A2: ScreenArt = { dir: VS_DIR, plate: VS_PLATE, art: VS_ART, lights: VS_LIGHTS };
+/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/vs/). */
+const A3: ScreenArt = v3Art(A2, 'vs');
+let A = A2;
 const T = VS_TEXT;
 
 export interface VsCard {
@@ -40,6 +44,7 @@ function win(b: readonly number[], inner: string, cls = ''): string {
 }
 
 export function vsHtml(m: VsModel): string {
+  A = isV3() ? A3 : A2;
   const figs = VS_FEET.map(
     ([fx, fy], i) => `<span class="fig-anchor" data-fig="${i}" style="--x:${fx - VS_FIG_H / 4};--y:${fy - VS_FIG_H};--w:${VS_FIG_H / 2};--h:${VS_FIG_H}"></span>`,
   ).join('');
