@@ -1,0 +1,58 @@
+/* Design v3 (D46): stylized 3D mobile-game type over the v2 layouts - Lilita One, white with a heavy ink outline and a
+   hard drop (Brawl Stars / Clash Royale lettering), gold for highlights. Only overrides v2's text variables. */
+.v3 .mm-t {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.015em;
+}
+.v3 .v2-label,
+.v3 .v2-num,
+.v3 .v2-small,
+.v3 .v2-nav {
+  --fill: linear-gradient(180deg, #ffffff 0%, #ffffff 58%, #dfe6ff 100%);
+  --sw: 0.14em;
+  --ol: #120b18;
+  --sh: 0 0.09em 0 #120b18, 0 0.14em 0.12em rgba(0, 0, 0, 0.45);
+}
+.v3 .v2-nav {
+  --fill: linear-gradient(180deg, #e6e8ff, #aeb4e0);
+}
+.v3 .v2-nav.on {
+  --fill: linear-gradient(180deg, #ffffff, #e2f2ff);
+  --ol: #0a2a62;
+  --sh: 0 0.09em 0 #0a2a62;
+}
+.v3 .v2-gold,
+.v3 .v2-marker.v2-gold {
+  --fill: linear-gradient(180deg, #fff7c2 0%, #ffd84a 50%, #ffaa1a 100%);
+  --ol: #3a1a00;
+}
+/* lettering on the gold buttons: big white with a dark brown outline (no brush, no slant) */
+.v3 .v2-brush {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  --fill: linear-gradient(180deg, #ffffff 0%, #ffffff 55%, #fff1c2 100%);
+  --sw: 0.12em;
+  --ol: #4a2200;
+  --sh: 0 0.08em 0 #4a2200, 0 0.12em 0.1em rgba(60, 25, 0, 0.5);
+}
+.v3 .v2-btn > .v2-brush,
+.v3 .v2-hit > .v2-brush {
+  transform: none;
+}
+.v3 .v2-mode {
+  --fill: linear-gradient(180deg, #6a3200, #4a2200);
+  --sh: 0 0.04em 0 rgba(255, 246, 190, 0.6);
+}
+.v3 .v2-marker {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  --fill: linear-gradient(180deg, #ffffff, #e2e8ff);
+  --sw: 0.13em;
+  --ol: #120b18;
+  --sh: 0 0.09em 0 #120b18;
+}
+/* the player's fighter in the profile frame */
+.v3 .v3-av {
+  object-fit: cover;
+  object-position: 50% 12%;
+  border-radius: calc(var(--u) * 12);
+}

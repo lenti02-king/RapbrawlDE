@@ -5,12 +5,12 @@ import { de, toast } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { HOME_ART, HOME_DIR, HOME_HERO, HOME_LIGHTS, HOME_PLATE, HOME_TEXT } from './art/home';
 import { isV3 } from '../design';
-import { homeFront3 } from '../v3/home3';
-import { beamsHtml, button, hazeHtml, hit, lightsHtml, mountV2, plateHtml, screenHtml, sprite, src, t, zone, type ScreenArt } from './stage';
+import { portrait } from '../portraits';
+import { beamsHtml, button, hazeHtml, hit, lightsHtml, mountV2, plateHtml, screenHtml, sprite, src, t, v3Art, zone, type ScreenArt } from './stage';
 
 const A2: ScreenArt = { dir: HOME_DIR, plate: HOME_PLATE, art: HOME_ART, lights: HOME_LIGHTS };
-/** Design v3: the 3D arena render behind the same layout (its own lights and beams are in the render). */
-const A3: ScreenArt = { ...A2, plateDir: 'assets/ui3/home/', lights: [] };
+/** Design v3 (D46): the same layout re-made as stylized 3D renders (tools/ui3), lights and beams are in the render. */
+const A3: ScreenArt = v3Art(A2, 'home');
 let A = A2;
 const T = HOME_TEXT;
 
@@ -59,7 +59,8 @@ export function homeHtml(m: HomeModel): string {
     'profile',
     'Profil',
     (ox, oy) =>
-      `<img class="v2-art" alt="" src="${src(A, 'xp_fill')}" style="--x:${xx - ox};--y:${xy - oy};--w:${xw};--h:${xh};clip-path:inset(0 ${((1 - xp) * 100).toFixed(1)}% 0 0)">
+      `${isV3() ? `<img class="v2-art v3-av" alt="" src="${portrait(m.fighter, 'bust')}" style="--x:14;--y:13;--w:92;--h:78">` : ''}
+       <img class="v2-art" alt="" src="${src(A, 'xp_fill')}" style="--x:${xx - ox};--y:${xy - oy};--w:${xw};--h:${xh};clip-path:inset(0 ${((1 - xp) * 100).toFixed(1)}% 0 0)">
        ${t(m.name, [T.profile.name[0], T.profile.name[1], T.profile.name[0] + 214, T.profile.name[3]], ox, oy, { cls: 'v2-label', fs: 27 })}
        ${t(`Lv. ${m.level}`, zone(T.profile.level), ox, oy, { cls: 'v2-label', fs: 25 })}`,
   );
@@ -120,14 +121,13 @@ export function homeHtml(m: HomeModel): string {
     `--mask:url(${A.dir}fight_mask.webp)`,
   );
 
-  // design v3: the cartoon UI kit in the same layout (ui/v3/home3.ts)
-  const front = isV3() ? homeFront3(m) : `${hazeHtml([260, 560, 1420, 830], '220 180 255', 0.5)}
+  const front = `${isV3() ? '' : hazeHtml([260, 560, 1420, 830], '220 180 255', 0.5)}
     ${profile}${top}${tiles}${nav}${fight}`;
   return screenHtml(back, front);
 }
 
 export function mountHome(root: HTMLElement, m: HomeModel, onAction: (a: HomeAction) => void): () => void {
-  const stop = mountV2(root, { hues: [42, 320, 210], living: A, haze: [0.56, 0.44, 0.78], crowdY: 0.42, rigid: isV3() ? [[580, 0, 1090, 300]] : [[470, 0, 740, 280]] });
+  const stop = mountV2(root, { hues: [42, 320, 210], living: A, haze: [0.56, 0.44, 0.78], crowdY: 0.42, rigid: isV3() ? [[580, 0, 1030, 280], [970, 0, 1530, 70]] : [[470, 0, 740, 280]] });
   const figs = menuFigures(root);
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (anchor) figs.set([{ id: m.fighter, anchor, facing: 1, rim: 0xff4fd0, rim2: 0x4f8dff, turn: 0.85, showcase: true }]);

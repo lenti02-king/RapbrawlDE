@@ -8,6 +8,9 @@
 // see the mirrored, darkened wings of the plate (outside the UI). Nothing is ever cropped. Bottom UI lifts above
 // the iPhone home indicator.
 import './v2.css';
+import '../v3/v3.css';
+import { isV3 } from '../design';
+import { V3_LIGHTS } from '../v3/art';
 import { esc, fitTexts, keepLaidOut, pos, safeInsets, text, type Box, type TextOpts } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { LivingPlate } from './living';
@@ -40,6 +43,12 @@ export function plateHtml(a: ScreenArt): string {
       return `<img alt="" draggable="false" decoding="sync" src="${a.plateDir ?? a.dir}plate_${k}.webp" style="${pos(x, y, w, h)}">`;
     })
     .join('')}</div>`;
+}
+
+/** Design v3 (D46): the same screen with its stylized 3D renders (tools/ui3 -> assets/ui3/<screen>/: the same sprite
+ *  names and boxes as v2, so every layout stays exactly the master's). */
+export function v3Art(a: ScreenArt, screen: string): ScreenArt {
+  return { ...a, dir: `assets/ui3/${screen}/`, plateDir: undefined, lights: V3_LIGHTS[screen] ?? [] };
 }
 
 export function sprite(a: ScreenArt, id: string, cls = '', extra = ''): string {
@@ -290,6 +299,7 @@ export interface MountOpts {
  *  Returns the stop function. */
 export function mountV2(root: HTMLElement, o: MountOpts = {}): () => void {
   root.classList.add('mm', 'v2');
+  if (isV3()) root.classList.add('v3');
   const stop = keepLaidOut(root, () => layoutV2(root));
   let embers: Embers | null = null;
   if (root.querySelector('.v2-haze')) root.style.setProperty('--haze', `url(${hazeTexture()})`);
