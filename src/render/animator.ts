@@ -1,5 +1,4 @@
 // Turns simulation state into poses. Pure presentation: reads GameState, never writes it.
-import { CUTOUT_GUARD, CUTOUT_LOOSE, cutoutStance } from './anims/cutoutStances';
 import type { Reaction } from '../core/defs';
 import { UNITS_PER_METER } from '../core/math';
 import { getFighter, getMove } from '../core/registry';
@@ -10,18 +9,26 @@ import type { AnimSet } from './anims/types';
 import { VOLT_ANIMS } from './anims/volt';
 import { JAZEEK_ANIMS } from './anims/jazeek';
 import { BONEZ_ANIMS } from './anims/bonez';
-import { compose, lerpPose, stabilizeHead, toArr } from './pose';
+import { withReach } from './anims/reach';
+import { compose, lerpPose, type PoseDef, stabilizeHead, toArr } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
+
+/** Manuellsen's high boxing guard (D43): fists at the chin, forearms up, chin tucked. */
+const MANU_GUARD: PoseDef = {
+  aim: { shL: [0.45, -0.85, -0.1], elL: [0.55, 0.83, 0.06], shR: [0.35, -0.9, 0.2], elR: [0.45, 0.88, -0.12] },
+  j: { neck: [0, -2, -4], head: [0, -4, -12] },
+};
 
 export const ANIM_SETS: Record<string, AnimSet> = {
   volt: VOLT_ANIMS,
   brick: BRICK_ANIMS,
-  jazeek: JAZEEK_ANIMS,
-  bonez: BONEZ_ANIMS,
-  // D42 cutout test fighters: the boxer moves like Bonez, the street kid like Jazeek (same move keys)
-  manuellsen: { ...BONEZ_ANIMS, id: 'manuellsen', stance: cutoutStance(BONEZ_ANIMS.stance, CUTOUT_GUARD) },
-  lacazette: { ...JAZEEK_ANIMS, id: 'lacazette', stance: cutoutStance(JAZEEK_ANIMS.stance, CUTOUT_LOOSE) },
+  // D43: the PO's modelle-3 fighters; strikes fitted to each model's reach (anims/reach.ts). The boxer moves like
+  // Bonez, the street kid like Jazeek (same move keys)
+  jazeek: withReach(JAZEEK_ANIMS, 'jazeek'),
+  bonez: withReach(BONEZ_ANIMS, 'bonez'),
+  manuellsen: withReach({ ...BONEZ_ANIMS, id: 'manuellsen', stance: compose(BONEZ_ANIMS.stance, MANU_GUARD) }, 'manuellsen'),
+  lacazette: withReach({ ...JAZEEK_ANIMS, id: 'lacazette' }, 'lacazette'),
 };
 
 const DEG = Math.PI / 180;

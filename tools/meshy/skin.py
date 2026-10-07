@@ -1,6 +1,6 @@
 """Add a game skeleton + skin weights to a textured Meshy GLB WITHOUT touching its mesh or textures.
 
-Usage: python3 tools/meshy/skin.py jazeek|bonez [--src .cache/meshy2/<id>_src.glb] [--out path.glb]
+Usage: python3 tools/meshy/skin.py jazeek|bonez|manuellsen|lacazette [--src .cache/meshy3/<id>_std_src.glb] [--out path.glb] [--dir meshy3]
 
 The product owner's textured models must look 1:1 in the game, so this tool never re-exports them through Blender:
   1. Blender (bpy) builds a watertight helper copy (decimate + voxel remesh) and computes bone-heat weights on it
@@ -32,12 +32,13 @@ ap.add_argument('--src')
 ap.add_argument('--out')
 ap.add_argument('--landmarks', help='GLB whose vertices place the joints (default: the untouched original, so a reduced\n'
                 'game version gets exactly the same skeleton and weights as the original)')
+ap.add_argument('--dir', default='meshy3', help='model folder under .cache/ (meshy2 = the session-9 models)')
 args = ap.parse_args()
 spec = importlib.import_module(f'{args.id}_cr')
-SRC = args.src or os.path.join(ROOT, '.cache', 'meshy2', f'{args.id}_src.glb')
-LAND = args.landmarks or os.path.join(ROOT, '.cache', 'meshy2', f'{args.id}_src.glb')
-OUT = args.out or os.path.join(ROOT, '.cache', 'meshy2', f'{args.id}_rigged.glb')
-WORK = os.path.join(ROOT, '.cache', 'meshy2', 'work', args.id)
+SRC = args.src or os.path.join(ROOT, '.cache', args.dir, f'{args.id}_src.glb')
+LAND = args.landmarks or os.path.join(ROOT, '.cache', args.dir, f'{args.id}_src.glb')
+OUT = args.out or os.path.join(ROOT, '.cache', args.dir, f'{args.id}_rigged.glb')
+WORK = os.path.join(ROOT, '.cache', args.dir, 'work', args.id)
 os.makedirs(WORK, exist_ok=True)
 T0 = time.time()
 
@@ -157,6 +158,7 @@ for side, sx in (('L', 1), ('R', -1)):
     P['toe' + side] = P['an' + side] + np.array([0, -J.get('toe', 0.12), -(P['an' + side][2] - VL[:, 2].min()) * 0.6])
     P['toeEnd' + side] = P['toe' + side] + np.array([0, -0.06, 0])
 log('joints', {k: [round(float(a), 3) for a in v] for k, v in P.items()})
+json.dump({k: [float(a) for a in v] for k, v in P.items()}, open(os.path.join(WORK, 'joints.json'), 'w'))  # tools/meshy/jointshot.py
 
 BONES = [('Hips', 'hips', 'spine', None), ('Spine', 'spine', 'chest', 'Hips'), ('Spine2', 'chest', 'neck', 'Spine'),
          ('Neck', 'neck', 'head', 'Spine2'), ('Head', 'head', 'head_top', 'Neck')]
@@ -345,7 +347,7 @@ for name in ALL:
     if kids:
         node['children'] = kids
     js['nodes'].append(node)
-arm_node = {'name': 'Armature', 'children': [node_of['Hips']], 'extras': {'rb_fit': 'height', 'rb_head_pitch': float(spec.HEAD_PITCH), 'rb_fist': True}}
+arm_node = {'name': 'Armature', 'children': [node_of['Hips']], 'extras': {'rb_fit': 'height', 'rb_head_pitch': float(spec.HEAD_PITCH), 'rb_fist': bool(getattr(spec, 'FIST', True))}}
 js['nodes'].append(arm_node)
 js['scenes'][js.get('scene', 0)]['nodes'].append(len(js['nodes']) - 1)
 

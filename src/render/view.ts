@@ -1,6 +1,5 @@
 // GameView: the presentation layer. Reads GameState + SimEvents, never mutates the sim.
 import * as THREE from 'three';
-import { CUTOUT_ACCENTS } from './cutout';
 import type { SimEvent } from '../core/events';
 import { UNITS_PER_METER } from '../core/math';
 import { getFighter, getMove } from '../core/registry';
@@ -239,7 +238,7 @@ export class GameView {
   accentFor(s: GameState, i: number): string {
     const f = s.fighters[i];
     const palette = i === 1 && s.fighters[0].def === f.def ? 1 : 0;
-    const acc = CHARACTER_VISUALS[f.def]?.accents ?? CUTOUT_ACCENTS[f.def] ?? ['#ffd23c', '#ff3b4f'];
+    const acc = CHARACTER_VISUALS[f.def]?.accents ?? ['#ffd23c', '#ff3b4f'];
     return acc[palette] ?? acc[0];
   }
 

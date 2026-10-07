@@ -11,7 +11,7 @@ import path from 'node:path';
 const out = path.resolve(process.argv[2] ?? 'dist-single');
 fs.mkdirSync(path.join(out, 'assets/characters'), { recursive: true });
 execSync(`node scripts/single-file.mjs ${path.join(out, 'rapbrawl.html')} --split`, { stdio: 'inherit' }); // page + rapbrawl.js (D41)
-const ids = ['jazeek', 'bonez'];
+const ids = ['jazeek', 'bonez', 'manuellsen', 'lacazette']; // the PO's modelle-3 fighters (D43)
 for (const id of ids)
   execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}.glb ${path.join(out, 'assets/characters', id + '.gltf.json')} --external-images`, { stdio: 'inherit' });
 // the Vite build copies public/ (incl. .glb and the gitignored test models); the Artifact gets none of that
@@ -146,12 +146,6 @@ if (notJson.length) {
 console.log('design v2 images that failed under CSP:', v2.length ? v2.join(', ') : '(none)');
 if (v2.length) {
   console.error('FAIL: design v2 art did not load under the Artifact CSP');
-  process.exit(1);
-}
-// the D42 cutout fighters (parts.json + piece images)
-const cutMissing = ['manuellsen', 'lacazette'].filter((id) => !models.includes(id));
-if (cutMissing.length) {
-  console.error('FAIL: cutout fighters missing under the Artifact CSP:', cutMissing.join(', '));
   process.exit(1);
 }
 if (!arenaOk) {

@@ -5,6 +5,7 @@
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
 import { limitTextures, texLimit } from './textureBudget';
+import { addOutline, toonFrom, TOON_ON } from './cel';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { JOINTS, JOINT_INDEX, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
@@ -20,15 +21,15 @@ export interface CharacterRig {
 }
 
 /** Fraction of the full fist curl applied to finger bones (models from tools/meshy/skin.py). The two-bone finger
- *  rig cannot form a clean fist on the sculpted hands; a light curl keeps them readable without crumpling. */
-const FIST_CURL = 0.4;
+ *  rig closes the modelle-3 hands cleanly at 0.75 (D43; the older sculpts crumpled above 0.4). */
+const FIST_CURL = 0.75;
 /** Extra curl when the arm is extended (punch contact): a straight arm closes the hand into a tight fist. */
 const FIST_STRIKE = 0.45;
 /** Arm length relative to the sculpt (PO: arms looked oversized next to the body; the hands read better smaller too).
  *  Applied as upper-arm bone scale, so the whole arm chain shrinks toward the shoulder. */
-const ARM_SCALE: Record<string, number> = { jazeek: 0.9, bonez: 0.9 };
+const ARM_SCALE: Record<string, number> = {};
 /** Thumb fold across the fingers at a full fist (deg, per model: the sculpted thumbs point different ways). */
-const THUMB_FOLD: Record<string, number> = { jazeek: -90, bonez: 0 };
+const THUMB_FOLD: Record<string, number> = {};
 
 /** Humanoid bone names (Mixamo convention; prefixes like "mixamorig:" are ignored). */
 const BONE_FOR: Partial<Record<JointName, string>> = {
@@ -235,7 +236,7 @@ export class GlbRig implements CharacterRig {
   private hipsRestPos = new THREE.Vector3();
   private refHipsRest = new THREE.Vector3();
   private hipScale = 1;
-  private materials: THREE.MeshStandardMaterial[] = [];
+  private materials: (THREE.MeshStandardMaterial | THREE.MeshToonMaterial)[] = [];
   private flashColor = new THREE.Color(1, 1, 1);
   private zero = new Float32Array(POSE_LEN);
   private world = new Map<THREE.Object3D, THREE.Quaternion>();
@@ -260,6 +261,7 @@ export class GlbRig implements CharacterRig {
     this.fit.rotation.y = Math.PI / 2;
     this.fit.add(this.model);
     this.root.add(this.fit);
+    const inked: THREE.Mesh[] = [];
     this.model.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) {
@@ -267,7 +269,19 @@ export class GlbRig implements CharacterRig {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
+          // D43: cartoon / cel shading — no gloss at all, quantised light, black ink outline (?toon=0: original PBR, matte)
+          if (TOON_ON && !(m as THREE.Material).name.startsWith('cut_')) {
+            const t = toonFrom(m as THREE.Material);
+            this.materials.push(t);
+            return t;
+          }
           const c = (m as THREE.Material).clone() as THREE.MeshStandardMaterial;
+          if ('roughness' in c) {
+            c.roughness = 1;
+            c.metalness = 0;
+            c.roughnessMap = null;
+            c.metalnessMap = null;
+          }
           if (c.name.startsWith('cut_')) {
             // hair cards, brows, lashes: alpha-tested (no sorting artefacts), soft edges via MSAA coverage
             c.transparent = false;
@@ -280,6 +294,7 @@ export class GlbRig implements CharacterRig {
           return c;
         });
         mesh.material = Array.isArray(mesh.material) ? mats : mats[0];
+        if (TOON_ON) inked.push(mesh);
       }
       const pn = o.name.toLowerCase();
       if (pn.includes('prop_teeth') || pn.includes('goldteeth')) {
@@ -288,6 +303,7 @@ export class GlbRig implements CharacterRig {
       }
       if (pn.includes('prop_mic')) this.props.mic = o;
     });
+    for (const m of inked) addOutline(m);
     const bones = findBones(this.model);
     this.hips = bones.get('Hips')!;
     this.body = this.hips;

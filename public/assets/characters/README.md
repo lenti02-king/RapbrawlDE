@@ -1,21 +1,28 @@
 # Fighter models
 
-`jazeek.glb` and `bonez.glb` are the product owner's **textured Clash-Royale-style Meshy models**, used 1:1 (same mesh
-shapes, same UVs, same texture content). The originals are 69–72 MB each and stay out of git (`.cache/` is ignored);
-the product owner published them as a GitHub release of this repository.
+`jazeek.glb`, `bonez.glb`, `manuellsen.glb` and `lacazette.glb` are the product owner's **stylized mobile-game Meshy
+models** (GitHub release `modelle-3`, Oct 2026, D43), used with the same mesh shapes, UVs and texture content. The
+originals are 37–51 MB each and stay out of git (`.cache/` is ignored). The game renders them cel shaded
+(`src/render/cel.ts`: MeshToonMaterial, no gloss, black ink outline).
 
-| fighter | stored locally as |
-|---|---|
-| Jazeek | `.cache/meshy2/jazeek_src.glb` |
-| Bonez MC | `.cache/meshy2/bonez_src.glb` |
+| fighter | release asset | stored locally as |
+|---|---|---|
+| Jazeek | `Meshy_AI_Stylized_Mobile_Game__1007000320…glb` | `.cache/meshy3/jazeek_src.glb` |
+| Bonez MC | `Meshy_AI_Symmetric_Stylized_Re_1007001712…glb` | `.cache/meshy3/bonez_src.glb` |
+| Manuellsen | `Meshy_AI_Dashiki_Stylized_Boxe_1006205310…glb` | `.cache/meshy3/manuellsen_src.glb` |
+| Lacazette | `Meshy_AI_Symmetric_Stylized_Mo_1007002413…glb` | `.cache/meshy3/lacazette_src.glb` |
+
+Jazeek's generated trousers carried the GG monogram (a third-party trademark); `reduce.py` smooths that print to plain
+fabric (RETOUCH in `tools/meshy/jazeek_cr.py`). The session-9 Clash-Royale-style models are in `.cache/meshy2/`.
 
 Rebuild (Blender 4.2 as a Python module):
 
 ```
 pip install bpy==4.2.0 pillow scipy
-python3 tools/meshy/reduce.py jazeek       # game copy: 120k triangles, base colour 8K->4K, maps 4K->2K -> .cache/meshy2/jazeek_std_src.glb
-python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb
-python3 tools/meshy/skin.py jazeek --out public/test-models/jazeek_cr.glb   # optional: the untouched original, rigged (compare with ?glb=jazeek:test-models/jazeek_cr.glb)
+python3 tools/meshy/reduce.py jazeek       # game copy: 120k triangles, base colour 4K (q88), normal map 2K, no metal/roughness map
+python3 tools/meshy/skin.py jazeek --src .cache/meshy3/jazeek_std_src.glb --out public/assets/characters/jazeek.glb
+python3 tools/meshy/grid.py .cache/meshy3/jazeek_std_src.glb artifacts/meshy3/jazeek_std front,side 420   # landmark grids
+python3 tools/meshy/jointshot.py jazeek artifacts/meshy3/jazeek_std   # skeleton drawn over the grids (check after skin.py)
 ```
 
 What the tools do:

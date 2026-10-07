@@ -1,0 +1,7 @@
+{
+  "model": "manuellsen.glb",
+  "source": "Stylized mobile-game Meshy AI model supplied by the product owner (GitHub release modelle-3, stored as .cache/meshy3/manuellsen_src.glb). Mesh shapes, UVs and texture content as delivered; game copy reduced by tools/meshy/reduce.py (120k triangles, base colour 4096 JPEG q88, normal map 2048, metal/roughness map dropped: the game renders the fighters cel shaded) and rigged by tools/meshy/skin.py. Boxer with hand wraps; wrapped fists are already closed (no finger curl).",
+  "license": "Depends on the product owner's Meshy plan: free-plan generations are CC BY 4.0 (credit Meshy), paid plans grant ownership - verify before release",
+  "likeness": "Depicts a real person at the product owner's request; name/likeness rights must be cleared before release",
+  "triangles": 120000
+}

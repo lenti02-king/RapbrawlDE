@@ -7,7 +7,6 @@ import { UNITS_PER_METER } from '../core/math';
 import { type CharacterRig, GlbRig, hasModel } from './glbRig';
 import { type HumanoidSpec, type Palette, Rig } from './rig';
 import { BONEZ_VISUAL, JAZEEK_VISUAL } from './stylized';
-import { CutoutRig, isCutout } from './cutout';
 import { addPart, taperedCapsule } from './toon';
 
 export interface CharacterVisual {
@@ -258,11 +257,14 @@ export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
   guard: GUARD,
   jazeek: JAZEEK_VISUAL,
   bonez: BONEZ_VISUAL,
+  // D43: the PO's 3D models drive their own looks; the reference rigs only lend proportions (heavy boxer / slim street
+  // kid) and are the fallback when a model does not load
+  manuellsen: { ...BONEZ_VISUAL, accents: ['#e8312f', '#ffd23c'] },
+  lacazette: { ...JAZEEK_VISUAL, accents: ['#e9e6f2', '#7a5cff'] },
 };
 
 /** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. */
 export function buildCharacter(id: string, paletteIndex: number): CharacterRig {
-  if (isCutout(id)) return new CutoutRig(id, getFighter(id).height / UNITS_PER_METER);
   if (hasModel(id)) {
     let h = 1.8;
     try {
