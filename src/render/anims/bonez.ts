@@ -108,7 +108,8 @@ const normals: Record<string, Clip> = {
       active: 4,
       total: 35,
       windAt: 9,
-      wind: { x: -0.08, y: -0.04, s: { sq: 0.1 }, j: { hips: [0, -30, 0], chest: [0, -50, 2], spine: [0, -20, 0], head: [0, 20, 6], shR: [-40, 0, -10], elR: [0, 0, 110], shL: [30, 0, 60], elL: [0, 0, 80] } },
+      // (S13: a third less coil - the fist travelled 0.67 m in the contact frame)
+      wind: { x: -0.06, y: -0.04, s: { sq: 0.1 }, j: { hips: [0, -22, 0], chest: [0, -34, 2], spine: [0, -14, 0], head: [0, 14, 6], shR: [-28, 0, 4], elR: [0, 0, 104], shL: [30, 0, 60], elL: [0, 0, 80] } },
       hit: {
         x: 0.3,
         s: { aR: 0.1, sq: -0.05 },
