@@ -14,7 +14,7 @@ import { BON_MOVES, JAZ_MOVES, LACA_MOVES, MANU_MOVES } from './anims/roster11';
 import * as THREE from 'three';
 import { compose, lerpPose, poseJointQ, type PoseDef, stabilizeHead, toArr, writeJointQ } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
-import { JOINTS, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
+import { JOINTS, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_AL, S_AR, S_LL, S_LR, S_SQ, type JointName } from './rig';
 
 /** Manuellsen's high boxing guard (D43): fists at the chin, forearms up, chin tucked. */
 const MANU_GUARD: PoseDef = {
@@ -106,6 +106,27 @@ export type PoseOverride = (s: GameState, idx: number, out: Float32Array) => boo
 const wrap180 = (d: number) => d - 360 * Math.round(d / 360);
 const RAD = Math.PI / 180;
 const NJ = JOINTS.length;
+/** Joint index of each joint's mirror partner (shL <-> shR, ...; the spine chain mirrors onto itself). */
+const MIRROR_OF = JOINTS.map((n) => JOINT_INDEX[(/[LR]$/.test(n) ? n.slice(0, -1) + (n.endsWith('L') ? 'R' : 'L') : n) as JointName]);
+const _mir = new Float32Array(POSE_LEN);
+
+/** Lateral mirror of a pose: left and right swapped and reflected through the body's sagittal plane (z -> -z). For
+ *  the ZYX joint Eulers the reflection keeps the z angle and negates x and y; the root yaw flips, the roll stays. */
+function mirrorPose(src: Float32Array, out: Float32Array): Float32Array {
+  for (let i = 0; i < NJ; i++) {
+    const m = MIRROR_OF[i] * 3;
+    out[i * 3] = -src[m];
+    out[i * 3 + 1] = -src[m + 1];
+    out[i * 3 + 2] = src[m + 2];
+  }
+  for (let i = NJ * 3; i < POSE_LEN; i++) out[i] = src[i];
+  out[R_YAW] = -src[R_YAW];
+  out[S_AL] = src[S_AR];
+  out[S_AR] = src[S_AL];
+  out[S_LL] = src[S_LR];
+  out[S_LR] = src[S_LL];
+  return out;
+}
 const _q1 = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
 const _q3 = new THREE.Quaternion();
@@ -626,8 +647,15 @@ export class FighterAnimator {
       const k = Math.min(1, this.turnT / TURN);
       const sm = (u: number) => u * u * (3 - 2 * u);
       const toCam = k < 0.5 ? sm(k * 2) : 1 - sm(k * 2 - 1);
-      if (k < 0.5) this.drawFacing = this.turnFrom;
+      if (k < 0.5) {
+        this.drawFacing = this.turnFrom;
+        // the stance switches on the way to the camera: at the facing swap the old-facing body must already show the
+        // mirrored pose (that is what the new facing draws), else the lead and rear arm trade places in one frame
+        // (S13 probe: 0.8 m hand jumps in a boxer guard)
+        lerpPose(this.final, mirrorPose(this.final, _mir), toCam, this.final);
+      }
       this.final[R_YAW] += -90 * toCam;
+      this.final[R_X] *= 1 - toCam; // the forward offset points the other way after the swap: zero it there
     }
     const free = this.key.startsWith('move:') ? this.set.headFree?.[this.key.slice(5)] : undefined;
     stabilizeHead(this.final, free ?? headWeight(this.key));
