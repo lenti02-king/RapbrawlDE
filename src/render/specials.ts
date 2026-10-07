@@ -276,6 +276,14 @@ export class SpecialFX {
     if (!winCrocShown) this.winCroc.setOpacity(0);
   }
 
+  /** Build the props the match's fighters use lazily, so their shaders compile behind the loading screen (S12). */
+  prewarm(defs: string[]): void {
+    this.abilities.prewarm(defs);
+    defs.forEach((d, i) => {
+      if (d === 'jazeek' && !this.mics[i] && hasProp('mic')) this.mics[i] = new HandProp('mic', this.group);
+    });
+  }
+
   // ---------------------------------------------------------------- projectiles
 
   makeProjectile(kind: string): THREE.Object3D | null {

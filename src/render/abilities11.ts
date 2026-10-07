@@ -467,6 +467,14 @@ export class AbilityFX11 {
     return s;
   }
 
+  /** Create the lazily built props of the match's fighters (hidden) so their shaders compile up front. */
+  prewarm(defs: string[]): void {
+    defs.forEach((d, i) => {
+      if (d === 'manuellsen') for (const f of [1, -1]) this.bubble(i, f).visible = false;
+      if (d === 'lacazette') this.shell(i).visible = false;
+    });
+  }
+
   update(s: GameState, time: number, anims: FighterAnimator[], rigs: CharacterRig[]): void {
     s.fighters.forEach((f, i) => {
       const rig = rigs[i];

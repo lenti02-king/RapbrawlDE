@@ -20,6 +20,7 @@ import { SpecialAura } from './aura';
 import { addPart } from './toon';
 import { ToonFX } from './toonfx';
 import { VFX } from './vfx';
+import { isPhone } from './textureBudget';
 
 const U = UNITS_PER_METER;
 const C = (hex: number) => new THREE.Color(hex);
@@ -68,6 +69,14 @@ export class GameView {
   anims: FighterAnimator[] = [];
   private shadows: THREE.Mesh[] = [];
   private projMeshes = new Map<number, THREE.Object3D>();
+  /** Finished projectile meshes per kind, reused by the next spawn (S12: every spawn built new geometry, materials
+   *  and textures that were never freed - the GPU memory grew all match long). */
+  private projPool = new Map<string, THREE.Object3D[]>();
+  /** Fixed light slots (S12): cinematic / aura / fatality lights are virtual and copied onto these each frame. */
+  private slots = { point: [] as THREE.PointLight[], spot: [] as THREE.SpotLight[] };
+  private fixedLights = new Set<THREE.Object3D>();
+  /** Adaptive resolution on phones: frame times of the last window, current pixel-ratio cap. */
+  private perf = { acc: 0, n: 0, cool: 3, max: 2, min: 1 };
   private flash = [0, 0];
   private flashColor = [new THREE.Color(), new THREE.Color()];
   private shakeT = [0, 0];
@@ -94,6 +103,8 @@ export class GameView {
     // phones render at 1.5x (1.25x on low): an iPhone's 3x screen would need ~4x the GPU memory for every target (D41)
     const q = detectQuality();
     this.renderer.setPixelRatio(Math.min(coarse ? (q === 'low' ? 1.25 : q === 'high' ? 2 : 1.5) : 2, window.devicePixelRatio || 1));
+    this.perf.max = this.renderer.getPixelRatio();
+    this.perf.min = Math.min(this.perf.max, 1);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -109,6 +120,7 @@ export class GameView {
       a.setShadowQuality(this.quality === 'high' ? 2048 : 1024);
       this.arena = a;
     }
+    this.initLightSlots();
     this.post = new PostFX(this.renderer, this.scene, this.director.cam, this.quality);
     // fighters pick up the arena's own light (once its textures are in): see buildProbe()
     if (this.quality !== 'low') void Promise.resolve((this.arena as ArenaLike & { ready?: Promise<void> }).ready).then(() => this.buildProbe());
@@ -201,6 +213,128 @@ export class GameView {
     this.matchKey = '';
   }
 
+  // ------------------------------------------------------------------ light slots (S12)
+  // three.js builds every lit shader for the exact number of lights in the scene: a cinematic switching a lamp on
+  // recompiled ALL materials mid-fight (a hitch of seconds on the iPhone), and the 10 idle cinematic lights kept in
+  // the scene to avoid that cost every fragment 10 extra light loops. Now the arena's own lights stay as they are,
+  // every other point/spot light is virtual (layer 31: never seen by the renderer) and the brightest ones are copied
+  // onto a few fixed slots each frame.
+  private initLightSlots(): void {
+    this.scene.traverse((o) => {
+      if ((o as THREE.Light).isLight) this.fixedLights.add(o);
+    });
+    for (let i = 0; i < 3; i++) {
+      const l = new THREE.PointLight(0xffffff, 0, 1, 2);
+      this.slots.point.push(l);
+      this.fixedLights.add(l);
+      this.scene.add(l);
+    }
+    const sp = new THREE.SpotLight(0xffffff, 0, 1, 0.5, 0.5, 0);
+    this.slots.spot.push(sp);
+    this.fixedLights.add(sp);
+    this.scene.add(sp, sp.target);
+  }
+
+  private syncLights(): void {
+    const pts: THREE.PointLight[] = [];
+    const spots: THREE.SpotLight[] = [];
+    this.scene.traverse((o) => {
+      const l = o as THREE.PointLight & THREE.SpotLight;
+      if (!(l.isPointLight || l.isSpotLight) || this.fixedLights.has(l)) return;
+      l.layers.set(31);
+      if (l.intensity <= 0.001) return;
+      for (let p: THREE.Object3D | null = l; p; p = p.parent) if (!p.visible) return;
+      (l.isPointLight ? pts : spots).push(l);
+    });
+    pts.sort((a, b) => b.intensity - a.intensity);
+    spots.sort((a, b) => b.intensity - a.intensity);
+    this.slots.point.forEach((slot, i) => {
+      const l = pts[i];
+      slot.intensity = l ? l.intensity : 0;
+      if (!l) return;
+      slot.color.copy(l.color);
+      slot.distance = l.distance;
+      slot.decay = l.decay;
+      l.getWorldPosition(slot.position);
+    });
+    this.slots.spot.forEach((slot, i) => {
+      const l = spots[i];
+      slot.intensity = l ? l.intensity : 0;
+      if (!l) return;
+      slot.color.copy(l.color);
+      slot.distance = l.distance;
+      slot.decay = l.decay;
+      slot.angle = l.angle;
+      slot.penumbra = l.penumbra;
+      l.getWorldPosition(slot.position);
+      l.target.getWorldPosition(slot.target.position);
+    });
+  }
+
+  /** Compile every shader the match can need while the loading screen is still up (S12: the first block, the
+   *  first special and the first projectile each compiled new shaders mid-fight - visible hangs on the iPhone).
+   *  Hidden props (cinematics, pools) are made visible for the compile only; projectiles get one pooled instance. */
+  prewarm(s: GameState): void {
+    for (const f of s.fighters) {
+      let moves: ReturnType<typeof getFighter>['moves'];
+      try {
+        moves = getFighter(f.def).moves;
+      } catch {
+        continue;
+      }
+      for (const mv of Object.values(moves)) {
+        const kind = mv.projectile?.def.kind;
+        if (!kind || this.projPool.get(kind)?.length) continue;
+        const m = this.fx.makeProjectile(kind) ?? makeProjectile(kind);
+        m.userData.kind = kind;
+        m.visible = false;
+        this.scene.add(m);
+        this.projPool.set(kind, [m]);
+      }
+    }
+    this.fx.prewarm(s.fighters.map((f) => f.def));
+    const hidden: THREE.Object3D[] = [];
+    this.scene.traverse((o) => {
+      if (!o.visible) {
+        hidden.push(o);
+        o.visible = true;
+      }
+    });
+    try {
+      this.syncLights();
+      // compile against the target the scene is really drawn into: tone mapping and output colour space are part of
+      // a program, and they differ between the canvas and the composer's buffer
+      const prev = this.renderer.getRenderTarget();
+      this.renderer.setRenderTarget(this.post.composer?.readBuffer ?? null);
+      this.renderer.compile(this.scene, this.director.cam);
+      this.renderer.setRenderTarget(prev);
+    } catch (e) {
+      console.warn('[view] prewarm failed', e);
+    }
+    for (const o of hidden) o.visible = false;
+  }
+
+  /** Phones: lower the render resolution while frames are slow, raise it again when there is headroom. */
+  private governResolution(dt: number): void {
+    if (!isPhone() || dt <= 0 || dt > 0.25) return;
+    const p = this.perf;
+    p.acc += dt;
+    p.n++;
+    p.cool -= dt;
+    if (p.n < 90 || p.cool > 0) return;
+    const avg = p.acc / p.n;
+    p.acc = 0;
+    p.n = 0;
+    const pr = this.renderer.getPixelRatio();
+    let next = pr;
+    if (avg > 1 / 45 && pr > p.min) next = Math.max(p.min, pr - 0.25);
+    else if (avg < 1 / 58 && pr < p.max) next = Math.min(p.max, pr + 0.25);
+    if (next === pr) return;
+    this.renderer.setPixelRatio(next);
+    this.resize();
+    p.cool = 5; // a resize reallocates the render targets: not more often than this
+  }
+
   setMatch(s: GameState): void {
     const key = s.fighters.map((f) => f.def).join('|');
     if (key === this.matchKey && this.rigs.length) {
@@ -233,6 +367,7 @@ export class GameView {
       this.scene.add(sh);
     });
     this.anims = s.fighters.map((f, i) => new FighterAnimator(ANIM_SETS[f.def], i));
+    this.prewarm(s);
   }
 
   accentFor(s: GameState, i: number): string {
@@ -620,6 +755,8 @@ export class GameView {
     if (this.post.grade) this.post.grade.uniforms.uImpact.value = this.toon.impactNow;
     this.updateDebug(s);
     this.screenFlash = Math.max(0, this.screenFlash - dt * 3.5);
+    this.syncLights();
+    this.governResolution(dt);
     this.post.render(this.scene, this.director.cam);
   }
 
@@ -629,10 +766,19 @@ export class GameView {
       alive.add(p.id);
       let m = this.projMeshes.get(p.id);
       if (!m) {
-        m = this.fx.makeProjectile(p.kind) ?? makeProjectile(p.kind);
-        m.userData.kind = p.kind;
+        m = this.projPool.get(p.kind)?.pop();
+        if (m) {
+          m.visible = true;
+          m.userData.coast = 0;
+          m.position.set(0, 0, 0);
+          m.rotation.set(0, 0, 0);
+          m.scale.set(1, 1, 1);
+        } else {
+          m = this.fx.makeProjectile(p.kind) ?? makeProjectile(p.kind);
+          m.userData.kind = p.kind;
+          this.scene.add(m);
+        }
         this.projMeshes.set(p.id, m);
-        this.scene.add(m);
       }
       m.userData.dir = p.dir;
       if (this.fx.updateProjectile(m, p, s, this.time)) continue;
@@ -655,7 +801,10 @@ export class GameView {
           m.position.x += (m.userData.dir ?? 1) * 15 * dt;
           continue;
         }
-        this.scene.remove(m);
+        m.visible = false; // back to the pool (stays in the scene: no re-upload next time)
+        const pool = this.projPool.get(m.userData.kind as string) ?? [];
+        pool.push(m);
+        this.projPool.set(m.userData.kind as string, pool);
         this.projMeshes.delete(id);
       }
     }
