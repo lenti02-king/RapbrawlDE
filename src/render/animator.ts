@@ -271,6 +271,9 @@ class PoseSpring {
   }
 }
 
+/** States in which a body lies or flies: no visual facing flip until it is upright again. */
+const DOWN = new Set(['knockdown', 'juggle', 'airReset', 'ko', 'wallSplat']);
+
 /**
  * State -> pose. Each animation (state, move, reaction) is sampled exactly on the sim's frame clock; changes between
  * animations are short cross-fades from the pose on screen (1-8 frames by kind) instead of a permanent lag filter,
@@ -288,6 +291,8 @@ export class FighterAnimator {
   private inert = new Inertializer();
   private spring = new PoseSpring();
   private lastFacing = 0;
+  /** Facing the rig is drawn with (see update). */
+  visFacing = 0;
   private turnT = 99;
   private key = '';
   private lastSf = 0;
@@ -586,9 +591,12 @@ export class FighterAnimator {
     this.vx += (x - this.vx) * pk;
     this.vy = y;
     this.lastX = x;
+    // facing the rig is drawn with: follows the sim, except that a body on the floor or in the air does not flip
+    // when the opponent crosses over it (it turned on the floor: S13 probe) - it turns when it is up again
+    if (!this.visFacing || s.cine || !DOWN.has(f.state)) this.visFacing = f.facing;
     // facing flips (crossed-up, warped behind): the rig mirrors at once; a yaw that unwinds from 180 makes it a turn
-    if (this.lastFacing && f.facing !== this.lastFacing) this.turnT = 0;
-    this.lastFacing = f.facing;
+    if (this.lastFacing && this.visFacing !== this.lastFacing && !s.cine) this.turnT = 0;
+    this.lastFacing = this.visFacing;
     if (f.state === 'intro' && f.sf === 0) this.spring.reset(this.current);
     this.spring.step(this.current, Math.max(0, dt * 60), 2, this.final);
     if (this.turnT < 10) {

@@ -288,6 +288,9 @@ export class GlbRig implements CharacterRig {
   /** S13 human shoulders: the clavicle bones (unmapped by the pose system) follow the upper arm like a real shoulder
    *  girdle - they lift when the arm rises past the horizontal (scapulohumeral rhythm) and slide forward on a reach. */
   private clav = new Map<THREE.Bone, 'L' | 'R'>();
+  /** Set per frame by the view: hold planted feet where they touched down (standing still: idle, guard, crouch). */
+  lock = false;
+  private locks: { on: boolean; pos: THREE.Vector3; from: THREE.Vector3; t: number }[] = [];
   /** Toe length per leg (m, model space) for the toe roll. */
   private toeLen: number[] = [];
 
@@ -557,6 +560,7 @@ export class GlbRig implements CharacterRig {
       }
     }
     if (this.plant) this.plantFeet();
+    this.lockFeet();
     this.rollToes();
     // cartoon stretch: elbow/wrist (knee/ankle) move away from their parent along the bone, the skin follows
     for (const [jn, ch] of LIMB_STRETCH) {
@@ -642,35 +646,83 @@ export class GlbRig implements CharacterRig {
       const lift = Math.min(ankY, toeY);
       if (!(lift > 0.008) || lift > 0.34) continue;
       const k = lift < 0.24 ? 1 : 1 - (lift - 0.24) / 0.1; // fade out toward real steps
-      const drop = lift * k * sy;
-      L.up.getWorldPosition(_ph);
-      L.low.getWorldPosition(_pk);
-      const footWorld = L.foot.getWorldQuaternion(_qf);
-      _tg.copy(_pa).y -= drop;
-      const l1 = _ph.distanceTo(_pk);
-      const l2 = _pk.distanceTo(_pa);
-      const d = Math.min(l1 + l2 - 1e-4, Math.max(Math.abs(l1 - l2) + 1e-4, _ph.distanceTo(_tg)));
-      // knee: change the interior angle to the one that reaches the target distance
-      _u.subVectors(_ph, _pk);
-      _w.subVectors(_pa, _pk);
-      const cur = _u.angleTo(_w);
-      const want = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2))));
-      _n.crossVectors(_u, _w);
-      if (_n.lengthSq() < 1e-10) _n.set(1, 0, 0).applyQuaternion(L.low.getWorldQuaternion(_qk));
-      _n.normalize();
-      rotateWorld(L.low, _qd.setFromAxisAngle(_n, want - cur));
-      // thigh: swing the chain so the ankle lands on the target
-      L.low.updateMatrixWorld(true);
-      L.foot.getWorldPosition(_pa);
-      _u.subVectors(_pa, _ph).normalize();
-      _w.subVectors(_tg, _ph).normalize();
-      rotateWorld(L.up, _qd.setFromUnitVectors(_u, _w));
-      L.up.updateMatrixWorld(true);
-      // the foot keeps its orientation in the world
-      L.foot.parent!.getWorldQuaternion(_qk);
-      L.foot.quaternion.copy(unmirror(L.foot, _qk.invert().multiply(footWorld)));
-      L.foot.updateMatrixWorld(true);
+      _tg.copy(_pa).y -= lift * k * sy;
+      this.legIK(L, _tg);
     }
+  }
+
+  /** Foot locking (S13, probe: feet slid while standing - the body settling after a move dragged them along): a
+   *  planted foot stays where it touched down and the leg reaches for it; when the animation puts the foot more than
+   *  ~11 cm away, it takes a quick step there (6 frames, small lift). Off the floor, the animation rules. */
+  private lockFeet(): void {
+    if (!this.lock) {
+      for (const K of this.locks) if (K) K.on = false;
+      return;
+    }
+    this.root.updateMatrixWorld(true);
+    const sy = Math.abs(this.root.matrixWorld.elements[5]) || 1;
+    this.legs.forEach((L, i) => {
+      const K = (this.locks[i] ??= { on: false, pos: new THREE.Vector3(), from: new THREE.Vector3(), t: 1 });
+      L.foot.getWorldPosition(_pa);
+      const lift = this.root.worldToLocal(_pk.copy(_pa)).y - L.ankleRest;
+      if (lift > 0.06) {
+        K.on = false;
+        return;
+      }
+      if (!K.on) {
+        K.on = true;
+        K.pos.copy(_pa);
+        K.t = 1;
+        return;
+      }
+      const err = Math.hypot(_pa.x - K.pos.x, _pa.z - K.pos.z);
+      if (K.t >= 1 && err > 0.11 * sy) {
+        K.from.copy(K.pos);
+        K.t = 0;
+      }
+      let ty = _pa.y;
+      if (K.t < 1) {
+        K.t = Math.min(1, K.t + 1 / 6);
+        const e = smooth01(K.t);
+        K.pos.set(K.from.x + (_pa.x - K.from.x) * e, _pa.y, K.from.z + (_pa.z - K.from.z) * e);
+        ty += 0.06 * sy * Math.sin(Math.PI * K.t);
+      }
+      _tg.set(K.pos.x, ty, K.pos.z);
+      if (_tg.distanceToSquared(_pa) < 4e-6) return;
+      this.legIK(L, _tg);
+    });
+  }
+
+  /** Two-bone leg IK: knee bend + thigh swing put the ankle on `target` (world); the foot keeps its world
+   *  orientation (a raised heel stays raised). */
+  private legIK(L: (typeof this.legs)[number], target: THREE.Vector3): void {
+    L.foot.getWorldPosition(_pa);
+    L.up.getWorldPosition(_ph);
+    L.low.getWorldPosition(_pk);
+    const footWorld = L.foot.getWorldQuaternion(_qf);
+    const l1 = _ph.distanceTo(_pk);
+    const l2 = _pk.distanceTo(_pa);
+    const d = Math.min(l1 + l2 - 1e-4, Math.max(Math.abs(l1 - l2) + 1e-4, _ph.distanceTo(target)));
+    // knee: change the interior angle to the one that reaches the target distance
+    _u.subVectors(_ph, _pk);
+    _w.subVectors(_pa, _pk);
+    const cur = _u.angleTo(_w);
+    const want = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2))));
+    _n.crossVectors(_u, _w);
+    if (_n.lengthSq() < 1e-10) _n.set(1, 0, 0).applyQuaternion(L.low.getWorldQuaternion(_qk));
+    _n.normalize();
+    rotateWorld(L.low, _qd.setFromAxisAngle(_n, want - cur));
+    // thigh: swing the chain so the ankle lands on the target
+    L.low.updateMatrixWorld(true);
+    L.foot.getWorldPosition(_pa);
+    _u.subVectors(_pa, _ph).normalize();
+    _w.subVectors(target, _ph).normalize();
+    rotateWorld(L.up, _qd.setFromUnitVectors(_u, _w));
+    L.up.updateMatrixWorld(true);
+    // the foot keeps its orientation in the world
+    L.foot.parent!.getWorldQuaternion(_qk);
+    L.foot.quaternion.copy(unmirror(L.foot, _qk.invert().multiply(footWorld)));
+    L.foot.updateMatrixWorld(true);
   }
 
   setFlash(intensity: number, color?: THREE.ColorRepresentation): void {

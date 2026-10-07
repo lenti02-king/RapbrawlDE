@@ -79,6 +79,9 @@ const teleports = [];
 const trans = [];
 const feet = [];
 for (let k = 0; k < 2; k++) {
+  // each model's own sole height at rest (big shoes sit higher): the 10th percentile while standing
+  const soles = rec.map((r) => r.F[k]).filter((F) => STAND.has(F.st) && F.y === 0 && Number.isFinite(F.sole)).map((F) => F.sole).sort((a, b) => a - b);
+  const base = soles.length ? soles[Math.floor(soles.length * 0.1)] : 0;
   for (let t = 2; t < rec.length; t++) {
     const A = rec[t - 2].F[k];
     const B = rec[t - 1].F[k];
@@ -116,8 +119,8 @@ for (let k = 0; k < 2; k++) {
     if (keyChange) trans.push(ev);
     // feet
     if (STAND.has(C.st) && C.y === 0 && !rec[t].cine) {
-      if (C.sole < -0.03) feet.push({ ...ev, kind: 'through floor', sole: C.sole });
-      if (C.sole > 0.05) feet.push({ ...ev, kind: 'floating', sole: C.sole });
+      if (C.sole < Math.min(base, 0.02) - 0.03) feet.push({ ...ev, kind: 'through floor', sole: C.sole });
+      if (C.sole > base + 0.04 && C.st !== 'walkF' && C.st !== 'walkB') feet.push({ ...ev, kind: 'floating', sole: C.sole });
       if (C.st === 'idle' || C.st === 'guard' || C.st === 'crouch')
         for (const fj of ['ftL', 'ftR']) {
           const d = len(sub(C.P[fj], B.P[fj]).map((x, i) => (i === 1 ? 0 : x)));
