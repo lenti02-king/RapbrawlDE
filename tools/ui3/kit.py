@@ -39,8 +39,8 @@ def ink():
     return M('ink', lambda: lib.mat('ink', lib.srgb('#1a1222'), rough=0.6))
 
 
-def candy(name, top, bot, h=1.0, rough=0.28, coat=0.6, axis='Y', emission=0.0):
-    return M(f'candy{top}{bot}{h}{axis}{emission}', lambda: lib.gradient_mat(name, top, bot, rough=rough, coat=coat, axis=axis, lo=-h / 2, hi=h / 2, emission=emission))
+def candy(name, top, bot, h=1.0, rough=0.28, coat=0.6, axis='Y', emission=0.0, spec=0.5):
+    return M(f'candy{top}{bot}{h}{axis}{emission}{spec}{rough}{coat}', lambda: lib.gradient_mat(name, top, bot, rough=rough, coat=coat, axis=axis, lo=-h / 2, hi=h / 2, emission=emission, spec=spec))
 
 
 def flat(hexcol, rough=0.4, coat=0.0, metallic=0.0):
@@ -161,12 +161,12 @@ def corners(w, h, inset):
     return [(sx * (w / 2 - inset), sy * (h / 2 - inset)) for sx in (-1, 1) for sy in (-1, 1)]
 
 
-def panel(w, h, r=0.2, face=('#26307f', '#0d1240'), rim='gold', rim_w=0.075, depth=0.16, rivet=True, inner_line=None, pts=None):
+def panel(w, h, r=0.2, face=('#26307f', '#0d1240'), rim='gold', rim_w=0.075, depth=0.16, rivet=True, inner_line=None, pts=None, coat=0.35, rough=0.42):
     """Chunky enamel panel with a beveled metal frame. Returns the top z (for things laid on it)."""
     outer = pts or lib.rounded_rect_pts(w, h, r)
     rim_mat = {'gold': gold(), 'steel': steel(), 'dark': steel('#4b4f63', 0.35)}.get(rim) if isinstance(rim, str) and rim in ('gold', 'steel', 'dark') else candy('rim' + rim, CANDY[rim][2], CANDY[rim][1], h) if isinstance(rim, str) else rim
     lib.frame('rim', outer, rim_w, depth + 0.06, rim_mat, bevel=min(rim_w, 0.06) * 0.45)
-    lib.slab('face', lib.inset(outer, rim_w * 0.8), depth, 0.035, candy('face', face[0], face[1], h, rough=0.42, coat=0.35), seg=4)
+    lib.slab('face', lib.inset(outer, rim_w * 0.8), depth, 0.035, candy(f'face{coat}{rough}', face[0], face[1], h, rough=rough, coat=coat, spec=0.5 if coat > 0.2 else 0.12), seg=4)
     if inner_line:
         lib.frame('line', lib.inset(outer, rim_w + 0.05), 0.012, depth + 0.012, glow(inner_line, 2.5), bevel=0.004, seg=2)
     if rivet:

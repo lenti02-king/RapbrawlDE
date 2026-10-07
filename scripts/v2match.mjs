@@ -8,7 +8,7 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: w, height: h }, hasTouch: h < 500 });
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));
-await page.goto(`${base}/?ui=v2&quick=${process.env.F ?? 'manuellsen,lacazette'}&mode=cpu&q=low${h < 500 ? '&touch=1' : ''}`, { timeout: 300000 });
+await page.goto(`${base}/?ui=${process.env.UI ?? 'v2'}&quick=${process.env.F ?? 'manuellsen,lacazette'}&mode=cpu&q=low${h < 500 ? '&touch=1' : ''}`, { timeout: 300000 });
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
 await page.evaluate(() => {
   const r = window.__rb.runner;
@@ -19,7 +19,7 @@ await page.evaluate(() => {
 await page.waitForTimeout(2500);
 await page.screenshot({ path: `${out}-hud.png`, timeout: 120000 });
 await page.evaluate(() => window.__rb.togglePause());
-await page.waitForTimeout(1500);
+await page.waitForTimeout(3000);
 await page.screenshot({ path: `${out}-pause.png`, timeout: 120000 });
 await page.evaluate(() => window.__rb.togglePause());
 // results: pretend P1 took the match 2:1
@@ -35,7 +35,7 @@ await page.evaluate(() => {
   app.stats.specials = [3, 2];
   app.showResults();
 });
-await page.waitForTimeout(2500);
+await page.waitForTimeout(4500);
 await page.screenshot({ path: `${out}-results.png`, timeout: 120000 });
 console.log(errs.length ? 'ERRORS ' + [...new Set(errs)].join(' | ') : 'no page errors');
 await browser.close();

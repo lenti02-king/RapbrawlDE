@@ -60,28 +60,28 @@
 /* ---------------------------------------------------------------------------------------- ring screens (D46)
    Profile, settings, deck, results, pause, friends: the same layout, chrome from the Blender 9-slice kit
    (assets/ui3/kit: 2x renders, 64 px corners for panels, 100 px for buttons). */
-.v3 .v2-rs {
+:is(.v3.v2-rs, .v3 .v2-rs) {
   --k3-panel: url(assets/ui3/kit/panel.webp);
   --k3-panel-gold: url(assets/ui3/kit/panel_gold.webp);
 }
-.v3 .v2-rs,
-.v3 .v2-rs .rg-card,
-.v3 .v2-rs .rg-chip,
-.v3 .v2-rs .rg-seg > button,
-.v3 .v2-rs .rg-pill,
-.v3 .v2-rs .rg-switch > span,
-.v3 .v2-rs .rg-kpi > b {
+:is(.v3.v2-rs, .v3 .v2-rs),
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-card,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-chip,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-seg > button,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pill,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-switch > span,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-kpi > b {
   font-family: 'Lilita One', 'Nunito', sans-serif;
   font-weight: 400;
 }
-.v3 .v2-rs [class*='rg-'][style*='Permanent'],
-.v3 .v2-rs .rg-banner,
-.v3 .v2-rs .rg-ptitle,
-.v3 .v2-rs .rg-rname,
-.v3 .v2-rs .rg-sname {
+:is(.v3.v2-rs, .v3 .v2-rs) [class*='rg-'][style*='Permanent'],
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-banner,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-ptitle,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-rname,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-sname {
   font-family: 'Lilita One', 'Nunito', sans-serif !important;
 }
-.v3 .v2-rs .rg-card {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-card {
   border: calc(var(--u) * 20) solid transparent;
   border-image: var(--k3-panel) 64 fill / calc(var(--u) * 32) / calc(var(--u) * 12) stretch;
   background: none;
@@ -89,13 +89,13 @@
   filter: drop-shadow(0 calc(var(--u) * 10) calc(var(--u) * 10) rgba(0, 0, 0, 0.55));
   padding: calc(var(--u) * 4) calc(var(--u) * 6);
 }
-.v3 .v2-rs .rg-card.gold {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-card.gold {
   border-image: var(--k3-panel-gold) 64 fill / calc(var(--u) * 32) / calc(var(--u) * 12) stretch;
   box-shadow: none;
 }
-.v3 .v2-rs .rg-chip,
-.v3 .v2-rs .rg-seg > button,
-.v3 .v2-rs .rg-pill {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-chip,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-seg > button,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pill {
   border: calc(var(--u) * 10) solid transparent;
   border-image: url(assets/ui3/kit/btn_navy.webp) 96 fill / calc(var(--u) * 22) / calc(var(--u) * 6) stretch;
   background: none;
@@ -108,46 +108,46 @@
     calc(var(--u) * -1.5) 0 0 #120b18,
     0 calc(var(--u) * -1.5) 0 #120b18;
 }
-.v3 .v2-rs .rg-chip.on,
-.v3 .v2-rs .rg-seg > button.on,
-.v3 .v2-rs .rg-pill:not(.gray) {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-chip.on,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-seg > button.on,
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pill:not(.gray) {
   border-image-source: url(assets/ui3/kit/btn_gold.webp);
   color: #fff;
   box-shadow: none;
 }
-.v3 .v2-rs .rg-seg > button.on.p2 {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-seg > button.on.p2 {
   border-image-source: url(assets/ui3/kit/btn_red.webp);
 }
-.v3 .v2-rs .rg-pill.gray {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pill.gray {
   border-image-source: url(assets/ui3/kit/btn_navy.webp);
 }
-.v3 .v2-rs .rg-switch {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-switch {
   border: calc(var(--u) * 6) solid transparent;
   border-image: url(assets/ui3/kit/cap.webp) 60 fill / calc(var(--u) * 23) stretch;
   background: none;
 }
-.v3 .v2-rs .rg-switch.on {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-switch.on {
   border-image-source: url(assets/ui3/kit/btn_green.webp);
   border-image-slice: 96 fill;
   box-shadow: none;
 }
-.v3 .v2-rs .rg-switch > i {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-switch > i {
   border: calc(var(--u) * 3) solid #120b18;
   background: radial-gradient(circle at 35% 30%, #ffffff, #c9d0e6 60%, #7c84a6);
 }
-.v3 .v2-rs .rg-bar {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-bar {
   height: calc(var(--u) * 18);
   border: calc(var(--u) * 3) solid #120b18;
   box-shadow: inset 0 calc(var(--u) * 3) 0 rgba(0, 0, 0, 0.6), 0 0 0 calc(var(--u) * 2) #e3a51f;
 }
-.v3 .v2-rs .rg-bar > b {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-bar > b {
   background: linear-gradient(180deg, #fff3a0 0 45%, #ffb21a 45% 100%);
   box-shadow: none;
 }
-.v3 .v2-rs .rg-bar.blue > b {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-bar.blue > b {
   background: linear-gradient(180deg, #a8e8ff 0 45%, #2a8cff 45% 100%);
 }
-.v3 .v2-rs .rg-bar.red > b {
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-bar.red > b {
   background: linear-gradient(180deg, #ffb0b8 0 45%, #e3122b 45% 100%);
 }
 
@@ -217,4 +217,58 @@
   --sw: 0.14em;
   --ol: #2a1400;
   --sh: 0 0.07em 0 #120b18;
+}
+
+/* banner / pause title: chunky lettering (Lilita) instead of the dripping paint of v2 */
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-banner > b {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  letter-spacing: 0.02em;
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-banner > b::before {
+  -webkit-text-stroke: calc(var(--u) * 18) #180b00;
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-ptitle {
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  color: #ffd84a;
+  -webkit-text-stroke: calc(var(--u) * 4) #2a1400;
+  paint-order: stroke fill;
+  text-shadow: 0 calc(var(--u) * 6) 0 #120b18;
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pbtn {
+  border: calc(var(--u) * 12) solid transparent;
+  border-image: url(assets/ui3/kit/btn_navy.webp) 96 fill / calc(var(--u) * 24) / calc(var(--u) * 6) stretch;
+  background: none;
+  box-shadow: none;
+  font-family: 'Lilita One', 'Nunito', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: #fff;
+  text-shadow: 0 calc(var(--u) * 3) 0 #120b18, calc(var(--u) * 2) 0 0 #120b18, calc(var(--u) * -2) 0 0 #120b18, 0 calc(var(--u) * -2) 0 #120b18;
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pbtn.gold {
+  border-image-source: url(assets/ui3/kit/btn_gold.webp);
+  color: #fff;
+  box-shadow: none;
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pbtn.red {
+  border-image-source: url(assets/ui3/kit/btn_red.webp);
+}
+:is(.v3.v2-rs, .v3 .v2-rs) .rg-pbtn:active {
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------------------- fight HUD (D46)
+   The PO's HUD frames stay; the lettering becomes the v3 type: chunky, white/gold, heavy ink outline. */
+.hud.hm.v2h.v3h :is(.hm-name, .announce, .combo-n, .combo-l, .combo-d, .card-banner .bname, .sig-ready, .cine-title, .fatal-title, .finish-title, .duel-title) {
+  font-family: 'Lilita One', 'Nunito', sans-serif !important;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  -webkit-text-stroke: 0.09em #120b18;
+  paint-order: stroke fill;
+}
+.hud.hm.v2h.v3h :is(.announce, .fatal-title, .finish-title, .duel-title) {
+  -webkit-text-stroke: 0.07em #1a0b00;
+}
+.hud.hm.v2h.v3h .hm-name {
+  -webkit-text-stroke: 0.12em #120b18;
 }

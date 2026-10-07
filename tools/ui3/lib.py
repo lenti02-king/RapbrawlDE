@@ -179,7 +179,7 @@ def enamel(name, hexcol, rough=0.35, coat=1.0):
     return mat(name, srgb(hexcol), rough=rough, coat=coat, coat_rough=0.04)
 
 
-def gradient_mat(name, top, bottom, rough=0.35, coat=1.0, axis='Z', lo=-1.0, hi=1.0, emission=0.0, metallic=0.0):
+def gradient_mat(name, top, bottom, rough=0.35, coat=1.0, axis='Z', lo=-1.0, hi=1.0, emission=0.0, metallic=0.0, spec=0.5):
     """Base colour graded along an object-space axis (top -> bottom): the lit-from-above glossy candy look."""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
@@ -204,6 +204,7 @@ def gradient_mat(name, top, bottom, rough=0.35, coat=1.0, axis='Z', lo=-1.0, hi=
     p.inputs['Metallic'].default_value = metallic
     p.inputs['Coat Weight'].default_value = coat
     p.inputs['Coat Roughness'].default_value = 0.04
+    p.inputs['Specular IOR Level'].default_value = spec
     return m
 
 

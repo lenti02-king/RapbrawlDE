@@ -75,7 +75,7 @@ if __name__ == '__main__':
             menu(i)
     if want('save'):
         b = ART['save']
-        P.save_webp(C.cta('cu_save', b, 'crown', plate_inset=(0.4, 0.1)), os.path.join(OUT, 'save.webp'), b[2], b[3])
+        P.save_webp(C.cta('cu_save', b, 'crown', plate_inset=(0.2, 0.04), icon_at=(-1.62, 0.0)), os.path.join(OUT, 'save.webp'), b[2], b[3])
     if want('dice'):
         b = ART['dice']
         P.save_webp(C.icon_button('cu_dice', b, 'dice', 'navy', 0.66), os.path.join(OUT, 'dice.webp'), b[2], b[3])

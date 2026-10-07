@@ -29,8 +29,8 @@ SHOTS = {
     'fighters': dict(feet=(920, 880), figH=760, fov=40, at=(0, 0)),
     'custom': dict(feet=(820, 742), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(0, 0)]),
     'loading': dict(feet=(836, 760), figH=330, fov=40, pitch=2, at=(0, 0)),
-    'ring': dict(feet=(836, 912), figH=600, fov=40, at=(0, 0)),
-    'lobby': dict(feet=(836, 800), figH=420, fov=40, pitch=4, at=(0, 0)),
+    'ring': dict(feet=(836, 912), figH=600, fov=40, at=(0, 0), banners=[(-3.3, 7.6, 4.5, 2.2, 4.0, 'l'), (3.3, 7.6, 4.5, 2.2, 4.0, 'r')]),
+    'lobby': dict(feet=(836, 800), figH=420, fov=40, pitch=4, at=(0, 0), banners=[(-3.6, 7.6, 4.5, 2.2, 4.0, 'l'), (3.6, 7.6, 4.5, 2.2, 4.0, 'r')]),
     'arena': dict(feet=(836, 760), figH=300, fov=40, pitch=6, at=(0, 0)),
 }
 

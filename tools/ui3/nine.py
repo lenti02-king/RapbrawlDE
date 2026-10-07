@@ -23,11 +23,11 @@ def save(name, im):
 
 if __name__ == '__main__':
     if want('panel'):
-        save('panel', P.render_piece('k_panel', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#232c78', '#0a0d30'), rim='gold', rim_w=0.09, inner_line='#5fa8ff')))
+        save('panel', P.render_piece('k_panel', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#1c2a86', '#070a2a'), rim='gold', rim_w=0.09, inner_line='#5fa8ff', coat=0.08, rough=0.55)))
     if want('panel_gold'):
-        save('panel_gold', P.render_piece('k_panel_gold', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#3a2a8a', '#140c40'), rim='gold', rim_w=0.12, inner_line='#ffd23f')))
+        save('panel_gold', P.render_piece('k_panel_gold', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#33208a', '#0e0830'), rim='gold', rim_w=0.12, inner_line='#ffd23f', coat=0.08, rough=0.55)))
     if want('panel_red'):
-        save('panel_red', P.render_piece('k_panel_red', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#a0283e', '#3a0812'), rim='gold', rim_w=0.09, inner_line='#ff8a9c')))
+        save('panel_red', P.render_piece('k_panel_red', 240, 240, lambda w, h: kit.panel(w - 0.06, h - 0.06, r=0.3, face=('#a0283e', '#3a0812'), rim='gold', rim_w=0.09, inner_line='#ff8a9c', coat=0.08, rough=0.55)))
     if want('well'):
         def well(w, h):
             pts = lib.rounded_rect_pts(w - 0.04, h - 0.04, 0.22)
