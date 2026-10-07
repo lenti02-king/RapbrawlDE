@@ -14,6 +14,7 @@ import { POSE_LEN, type Rig } from './rig';
 import { smokeTexture } from './props';
 
 const U = UNITS_PER_METER;
+const _hv = new THREE.Vector3();
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ramp = (f: number, a: number, b: number) => clamp01((f - a) / Math.max(1e-6, b - a));
 const pop = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2));
@@ -332,6 +333,229 @@ export function starTexture(): THREE.Texture {
   return starTex;
 }
 
+// ------------------------------------------------------------------ S12 props
+let flagTex: THREE.Texture | null = null;
+/** The flag of Kurdistan (Ala Rengîn: red, white, green, a golden sun with 21 rays) - the PO asked for "eine kurdische
+ *  Flagge"; this is the regional flag, not a party or organisation symbol. */
+export function kurdistanFlagTexture(): THREE.Texture {
+  if (flagTex) return flagTex;
+  const c = document.createElement('canvas');
+  c.width = 384;
+  c.height = 256;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#ed2024';
+  g.fillRect(0, 0, 384, 86);
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 86, 384, 85);
+  g.fillStyle = '#278e43';
+  g.fillRect(0, 171, 384, 85);
+  g.translate(192, 128);
+  g.fillStyle = '#febd11';
+  g.beginPath();
+  for (let i = 0; i < 21; i++) {
+    const a = (i / 21) * Math.PI * 2 - Math.PI / 2;
+    const b = a + Math.PI / 21;
+    g.lineTo(Math.cos(a) * 62, Math.sin(a) * 62);
+    g.lineTo(Math.cos(b) * 36, Math.sin(b) * 36);
+  }
+  g.closePath();
+  g.fill();
+  g.beginPath();
+  g.arc(0, 0, 34, 0, Math.PI * 2);
+  g.fill();
+  flagTex = new THREE.CanvasTexture(c);
+  flagTex.colorSpace = THREE.SRGBColorSpace;
+  return flagTex;
+}
+
+/** A waving flag on a pole: `userData.cloth` (vertex-waved in waveFlag), pole along +y, cloth to +x from the pole. */
+export function makeFlag(): THREE.Group {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 2.3, 8), new THREE.MeshToonMaterial({ color: 0x6b4a2a }));
+  pole.position.y = 1.15;
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshToonMaterial({ color: 0xffd23c }));
+  knob.position.y = 2.32;
+  const geo = new THREE.PlaneGeometry(1.1, 0.73, 16, 5);
+  geo.translate(0.55, 0, 0);
+  const cloth = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: kurdistanFlagTexture(), side: THREE.DoubleSide }));
+  cloth.position.y = 1.88;
+  g.add(pole, knob, cloth);
+  g.userData.cloth = cloth;
+  g.userData.base = Float32Array.from(geo.attributes.position.array as ArrayLike<number>);
+  return g;
+}
+
+export function waveFlag(f: THREE.Object3D, time: number, speed = 1): void {
+  const cloth = f.userData.cloth as THREE.Mesh;
+  const base = f.userData.base as Float32Array;
+  const pos = cloth.geometry.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    const x = base[i * 3];
+    const y = base[i * 3 + 1];
+    const u = x / 1.1; // 0 at the pole .. 1 at the free end
+    pos.setXYZ(i, x - u * u * 0.06, y - u * 0.05 + Math.sin(time * 7 * speed - x * 5) * 0.03 * u, Math.sin(time * 9 * speed - x * 6 + y * 2) * 0.13 * u);
+  }
+  pos.needsUpdate = true;
+}
+
+const letterTex = new Map<string, THREE.Texture>();
+/** One big chrome letter (block capital, steel gradient, ink outline). */
+export function letterTexture(ch: string): THREE.Texture {
+  let t = letterTex.get(ch);
+  if (t) return t;
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  g.font = '400 220px "Anton", "Barlow Condensed", sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  g.lineWidth = 26;
+  g.strokeStyle = '#08060c';
+  g.strokeText(ch, 128, 140);
+  const grd = g.createLinearGradient(0, 40, 0, 230);
+  grd.addColorStop(0, '#ffffff');
+  grd.addColorStop(0.45, '#c8d0de');
+  grd.addColorStop(0.52, '#6c7486');
+  grd.addColorStop(1, '#e8edf6');
+  g.fillStyle = grd;
+  g.fillText(ch, 128, 136);
+  t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  letterTex.set(ch, t);
+  return t;
+}
+/** His track titles are all three characters. */
+const TITLES = ['FTW', 'CUP', 'PKS', 'XOX', 'RAP'];
+
+let chartTex: THREE.Texture | null = null;
+/** A rising chart curve with an arrow head, glowing green (tall canvas, bottom = floor). */
+export function chartTexture(): THREE.Texture {
+  if (chartTex) return chartTex;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 512;
+  const g = c.getContext('2d')!;
+  const pts: [number, number][] = [
+    [40, 500],
+    [70, 420],
+    [96, 446],
+    [120, 330],
+    [146, 360],
+    [170, 220],
+    [190, 250],
+    [212, 70],
+  ];
+  const stroke = (w: number, col: string) => {
+    g.lineWidth = w;
+    g.strokeStyle = col;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.beginPath();
+    pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
+    g.stroke();
+  };
+  stroke(44, 'rgba(60,255,120,0.25)');
+  stroke(26, '#08060c');
+  stroke(16, '#3cff78');
+  g.fillStyle = '#3cff78';
+  g.strokeStyle = '#08060c';
+  g.lineWidth = 8;
+  g.beginPath();
+  g.moveTo(212, 22);
+  g.lineTo(248, 96);
+  g.lineTo(176, 92);
+  g.closePath();
+  g.stroke();
+  g.fill();
+  chartTex = new THREE.CanvasTexture(c);
+  chartTex.colorSpace = THREE.SRGBColorSpace;
+  return chartTex;
+}
+
+let dotTex: THREE.Texture | null = null;
+function dotTexture(): THREE.Texture {
+  if (dotTex) return dotTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.3, 'rgba(255,255,255,0.8)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 64, 64);
+  dotTex = new THREE.CanvasTexture(c);
+  return dotTex;
+}
+
+let crownTex: THREE.Texture | null = null;
+export function crownTexture(): THREE.Texture {
+  if (crownTex) return crownTex;
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 192;
+  const g = c.getContext('2d')!;
+  g.beginPath();
+  g.moveTo(24, 168);
+  g.lineTo(36, 52);
+  g.lineTo(84, 104);
+  g.lineTo(128, 24);
+  g.lineTo(172, 104);
+  g.lineTo(220, 52);
+  g.lineTo(232, 168);
+  g.closePath();
+  const grd = g.createLinearGradient(0, 24, 0, 168);
+  grd.addColorStop(0, '#fff3b0');
+  grd.addColorStop(0.5, '#ffd23c');
+  grd.addColorStop(1, '#c47a08');
+  g.fillStyle = grd;
+  g.lineWidth = 12;
+  g.lineJoin = 'round';
+  g.strokeStyle = '#120a02';
+  g.stroke();
+  g.fill();
+  for (const [x, y, col] of [
+    [128, 128, '#ff3b4e'],
+    [76, 134, '#3f8dff'],
+    [180, 134, '#3cff78'],
+  ] as const) {
+    g.beginPath();
+    g.arc(x, y, 12, 0, Math.PI * 2);
+    g.fillStyle = col;
+    g.fill();
+    g.lineWidth = 5;
+    g.stroke();
+  }
+  crownTex = new THREE.CanvasTexture(c);
+  crownTex.colorSpace = THREE.SRGBColorSpace;
+  return crownTex;
+}
+
+/** The purple double cup (two stacked white foam cups, purple drink), ~16 cm tall, origin at the bottom. */
+export function makeDoubleCup(): THREE.Group {
+  const g = new THREE.Group();
+  const foam = new THREE.MeshToonMaterial({ color: 0xf4f3ef });
+  const ink = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
+  const cup = (y: number, s: number) => {
+    const geo = new THREE.CylinderGeometry(0.046 * s, 0.034 * s, 0.12, 16, 1, true);
+    const m = new THREE.Mesh(geo, foam);
+    m.position.y = y + 0.06;
+    const sh = new THREE.Mesh(geo, ink);
+    sh.scale.setScalar(1.08);
+    m.add(sh);
+    return m;
+  };
+  const drink = new THREE.Mesh(new THREE.CircleGeometry(0.047, 16), new THREE.MeshBasicMaterial({ color: 0x9b3dff }));
+  drink.rotation.x = -Math.PI / 2;
+  drink.position.y = 0.155;
+  const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.035, 12), foam);
+  bottom.rotation.x = Math.PI / 2;
+  bottom.position.y = 0.002;
+  g.add(cup(0, 1), cup(0.035, 1.03), drink, bottom);
+  return g;
+}
+
 // ------------------------------------------------------------------ projectiles
 export function makeProjectile11(kind: string): THREE.Object3D | null {
   if (kind === 'mob') {
@@ -363,6 +587,10 @@ export function makeProjectile11(kind: string): THREE.Object3D | null {
       dust.add(sp);
     }
     g.add(dust);
+    // the flag of Kurdistan, carried high by the runner in the middle (S12, PO)
+    const flag = makeFlag();
+    g.add(flag);
+    g.userData.flag = flag;
     g.userData.mob = rigs;
     g.userData.dust = dust;
     g.userData.arr = new Float32Array(POSE_LEN);
@@ -381,6 +609,19 @@ export function makeProjectile11(kind: string): THREE.Object3D | null {
     g.userData.star = star;
     return g;
   }
+  if (kind === 'letters') {
+    // three chrome capitals in a row (the title is picked per throw in updateProjectile11)
+    const g = new THREE.Group();
+    const letters = [0, 1, 2].map(() => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: letterTexture('F'), transparent: true, depthWrite: false }));
+      sp.scale.setScalar(0.62);
+      sp.renderOrder = 15;
+      g.add(sp);
+      return sp;
+    });
+    g.userData.letters = letters;
+    return g;
+  }
   if (kind === 'gwagon') {
     const car = makeOffroader();
     car.scale.setScalar(0.92);
@@ -396,11 +637,22 @@ export function updateProjectile11(m: THREE.Object3D, p: ProjectileState, s: Gam
     const rigs = m.userData.mob as { rig: Rig; x: number; z: number; ph: number }[];
     const arr = m.userData.arr as Float32Array<ArrayBuffer>;
     const fadeIn = clamp01(p.age / 8);
+    const flag = m.userData.flag as THREE.Group;
     rigs.forEach((r, i) => {
       const k = (time * 2.4 + r.ph) % 1;
       r.rig.root.position.set(r.x * p.dir, -0.85 + (1 - fadeIn) * -0.4, r.z);
-      r.rig.apply(toArr(runPose(k, i % 3 !== 1), arr), p.dir);
+      const pose = runPose(k, i % 3 !== 1);
+      if (i === 3) pose.aim = { shR: [0.15, 1, 0.25], elR: [0.05, 1, 0.15] }; // the flag bearer: arm straight up
+      r.rig.apply(toArr(pose, arr), p.dir);
+      if (i === 3) {
+        r.rig.root.updateMatrixWorld(true);
+        const hand = r.rig.joints.haR.getWorldPosition(_hv);
+        m.worldToLocal(hand);
+        flag.position.set(hand.x, hand.y - 1.55, hand.z);
+      }
     });
+    flag.scale.x = -p.dir; // the cloth trails behind the runners
+    waveFlag(flag, time, 1.4);
     const dust = m.userData.dust as THREE.Group;
     dust.children.forEach((c, i) => {
       const sp = c as THREE.Sprite;
@@ -410,6 +662,26 @@ export function updateProjectile11(m: THREE.Object3D, p: ProjectileState, s: Gam
     });
     if (p.age % 3 === 0) vfx.dust(p.x / U - p.dir * 0.8, 0, 2, 0.6, new THREE.Color(0xd8ccb8));
     void s;
+    return true;
+  }
+  if (p.kind === 'letters') {
+    m.position.set(p.x / U, p.y / U, 0.3);
+    const word = TITLES[p.id % TITLES.length];
+    const letters = m.userData.letters as THREE.Sprite[];
+    letters.forEach((sp, k) => {
+      const tex = letterTexture(word[k]);
+      if (sp.material.map !== tex) {
+        sp.material.map = tex;
+        sp.material.needsUpdate = true;
+      }
+      // reading order left to right, the first letter leaves first; each wobbles a little in flight
+      const lead = p.dir > 0 ? 2 - k : k;
+      sp.visible = p.age >= lead * 3;
+      sp.position.set((k - 1) * 0.46, Math.sin(time * 14 + k * 2) * 0.04, 0);
+      sp.material.rotation = Math.sin(time * 10 + k) * 0.18;
+      sp.scale.setScalar(0.62 * (1 + 0.08 * Math.sin(time * 20 + k)));
+    });
+    if (p.age % 2 === 0) vfx.sparks(p.x / U - p.dir * 0.5, p.y / U, 1, new THREE.Color(0xdfe8ff), 1.5, -p.dir, 0.6);
     return true;
   }
   if (p.kind === 'glint') {
@@ -433,11 +705,23 @@ export function updateProjectile11(m: THREE.Object3D, p: ProjectileState, s: Gam
 }
 
 // ------------------------------------------------------------------ in-move effects
+/** Per-fighter props of the S12 abilities (created on first use / prewarm). */
+interface Kit {
+  shadow: THREE.Group; // König im Schatten: dark smoke silhouette + eyes + crown
+  smoke: THREE.Sprite[];
+  eyes: THREE.Sprite[];
+  crown: THREE.Sprite;
+  cup: THREE.Group; // Lila Becher
+  haze: THREE.Sprite[];
+  chart: THREE.Sprite; // Chart-Einstieg
+  badge: THREE.Sprite;
+}
+
 export class AbilityFX11 {
   readonly group = new THREE.Group();
   private bubbles: THREE.Sprite[] = [];
-  private shells: THREE.Mesh[] = [];
-  private shellMat = new THREE.MeshToonMaterial({ color: 0xf4f3ef, transparent: true, opacity: 0.85 });
+  private kits: (Kit | null)[] = [null, null];
+  private hid = [false, false];
 
   constructor(private vfx: { sparks: (x: number, y: number, n: number, c: THREE.Color, sp: number, dir: number, life?: number) => void; dust: (x: number, y: number, n: number, sp: number, c?: THREE.Color) => void }) {}
 
@@ -454,24 +738,50 @@ export class AbilityFX11 {
     return b;
   }
 
-  /** The puffer vest swelling into a shield (Lacazette's Daunenweste). */
-  private shell(i: number): THREE.Mesh {
-    let s = this.shells[i];
-    if (!s) {
-      s = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), this.shellMat);
-      s.scale.set(0.8, 1.15, 0.95);
-      s.renderOrder = 3;
-      this.group.add(s);
-      this.shells[i] = s;
-    }
-    return s;
+  private kit(i: number): Kit {
+    let k = this.kits[i];
+    if (k) return k;
+    const shadow = new THREE.Group();
+    const smoke = Array.from({ length: 9 }, (_, n) => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTexture(), color: n % 3 ? 0x0c0814 : 0x1c1028, transparent: true, depthWrite: false }));
+      sp.renderOrder = 6;
+      shadow.add(sp);
+      return sp;
+    });
+    const eyes = [0, 1].map(() => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTexture(), color: 0xffd23c, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+      sp.renderOrder = 7;
+      sp.scale.setScalar(0.09);
+      shadow.add(sp);
+      return sp;
+    });
+    const crown = new THREE.Sprite(new THREE.SpriteMaterial({ map: crownTexture(), transparent: true, depthWrite: false }));
+    crown.renderOrder = 8;
+    crown.scale.set(0.42, 0.315, 1);
+    shadow.add(crown);
+    const cup = makeDoubleCup();
+    cup.scale.setScalar(1.7); // reads at fight distance
+    const haze = Array.from({ length: 8 }, () => {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTexture(), color: 0xb36bff, transparent: true, depthWrite: false }));
+      sp.renderOrder = 5;
+      return sp;
+    });
+    const chart = new THREE.Sprite(new THREE.SpriteMaterial({ map: chartTexture(), transparent: true, depthWrite: false }));
+    chart.center.set(0.5, 0);
+    chart.renderOrder = 4;
+    const badge = textSprite('#1 NEU', { width: 0.9, color: '#3cff78', font: '"Rubik Wet Paint", "Anton", sans-serif' });
+    this.group.add(shadow, cup, chart, badge, ...haze);
+    for (const o of [shadow, cup, chart, badge, ...haze]) o.visible = false;
+    k = { shadow, smoke, eyes, crown, cup, haze, chart, badge };
+    this.kits[i] = k;
+    return k;
   }
 
   /** Create the lazily built props of the match's fighters (hidden) so their shaders compile up front. */
   prewarm(defs: string[]): void {
     defs.forEach((d, i) => {
       if (d === 'manuellsen') for (const f of [1, -1]) this.bubble(i, f).visible = false;
-      if (d === 'lacazette') this.shell(i).visible = false;
+      if (d === 'manuellsen' || d === 'bonez' || d === 'lacazette') this.kit(i);
     });
   }
 
@@ -481,6 +791,7 @@ export class AbilityFX11 {
       const anim = anims[i];
       if (!rig || !anim) return;
       const inMove = (k: string) => f.state === 'move' && f.move === k;
+      const kit = this.kits[i];
       // 5000 Kurden: the call (speech bubble over Manuellsen while he is on the phone)
       if (f.def === 'manuellsen') {
         const on = inMove('manu_kurden') && f.mf >= 6 && f.mf <= 46;
@@ -499,40 +810,94 @@ export class AbilityFX11 {
             b.scale.set(w, w * (b.userData.aspect as number), 1);
           }
         }
-        // Beton: grey concrete tint while armoured, stone dust from the joints, a crack ring on the floor
-        const beton = inMove('manu_beton') && f.mf >= 4 && f.mf <= 44;
-        if (beton) {
-          const k = ramp(f.mf, 4, 10) * (1 - ramp(f.mf, 40, 44));
-          rig.setFlash(0.42 * k, 0x8e8c86);
-          if (f.mf % 4 === 0) {
-            const c = rig.joints.chest.getWorldPosition(new THREE.Vector3());
-            this.vfx.sparks(c.x, c.y, 4, new THREE.Color(0xb9b6ad), 2.5, f.facing, 1.2);
-            this.vfx.dust(anim.vx, 0.02, 2, 0.5, new THREE.Color(0xb9b6ad));
+        // König im Schatten: he melts into a dark smoke silhouette with glowing eyes and a crown, glides through,
+        // and steps out of the shadow behind them
+        const sh = inMove('manu_schatten') && f.mf >= 4 && f.mf <= 22;
+        const k = sh || kit ? this.kit(i) : null;
+        if (k) {
+          k.shadow.visible = sh;
+          const hideNow = !s.cine && sh && f.mf >= 7 && f.mf <= 16;
+          if (hideNow) rig.root.visible = false;
+          else if (this.hid[i]) rig.root.visible = true;
+          this.hid[i] = hideNow;
+          if (sh) {
+            const a = ramp(f.mf, 4, 8) * (1 - ramp(f.mf, 17, 22));
+            const hip = rig.joints.hips.getWorldPosition(new THREE.Vector3());
+            const head = rig.joints.head.getWorldPosition(new THREE.Vector3());
+            const hidden = f.mf >= 7 && f.mf <= 16;
+            k.smoke.forEach((sp, n) => {
+              const t = time * 3 + n * 1.7;
+              const hgt = (n / k.smoke.length) * 1.7;
+              sp.position.set(anim.vx + Math.sin(t) * 0.12 - f.facing * (n % 3) * 0.12, (hidden ? 0.1 : hip.y - 0.7) + hgt, 0.2 + Math.cos(t) * 0.05);
+              sp.scale.setScalar((0.55 + 0.25 * Math.sin(t * 1.3)) * (hidden ? 1.15 : 0.9));
+              sp.material.opacity = 0.9 * a;
+              sp.material.rotation = t * 0.4;
+            });
+            const eyeY = hidden ? 1.62 : head.y + 0.03;
+            const ex = hidden ? anim.vx : head.x;
+            k.eyes.forEach((e, n) => {
+              e.position.set(ex + f.facing * 0.06, eyeY, 0.45 + (n ? 0.07 : -0.07));
+              e.material.opacity = hidden ? 1 : 0.3 * a;
+            });
+            k.crown.position.set(ex, eyeY + 0.36 + Math.sin(time * 4) * 0.03, 0.4);
+            k.crown.material.opacity = a;
+            if (f.mf === 6 || f.mf === 16) this.vfx.dust(anim.vx, 0.05, 10, 1.2, new THREE.Color(0x150c20));
           }
         }
       }
-      // Daunenweste: the vest swells into a white quilted shield around the torso while armoured
-      if (f.def === 'lacazette') {
-        const on = inMove('laca_weste') && f.mf >= 3 && f.mf <= 26;
-        const sh = this.shells[i] ?? (on ? this.shell(i) : null);
-        if (sh) {
-          sh.visible = on;
-          if (on) {
-            const c = rig.joints.chest.getWorldPosition(new THREE.Vector3());
-            const k = Math.sin(ramp(f.mf, 3, 8) * Math.PI * 0.5) * (1 - ramp(f.mf, 22, 26));
-            sh.position.set(c.x + f.facing * 0.08, c.y - 0.12, c.z);
-            const pulse = 1 + 0.05 * Math.sin(time * 30);
-            sh.scale.set(0.8 * k * pulse, 1.15 * k * pulse, 0.95 * k);
-            this.shellMat.opacity = 0.75 * k;
+      // Bonez: Lila Becher - the purple double cup in his right hand, purple haze while he sways, a purple tint
+      if (f.def === 'bonez') {
+        const on = inMove('bon_lean');
+        const k = on || kit ? this.kit(i) : null;
+        if (k) {
+          k.cup.visible = on && f.mf <= 50;
+          if (k.cup.visible) {
+            rig.joints.haR.updateWorldMatrix(true, false);
+            const hp = rig.joints.haR.getWorldPosition(new THREE.Vector3());
+            k.cup.position.set(hp.x + f.facing * 0.03, hp.y - 0.12, hp.z + 0.08);
+            // tilted to the mouth while he sips
+            k.cup.rotation.set(0, 0, -f.facing * 1.1 * ramp(f.mf, 3, 6) * (1 - ramp(f.mf, 11, 14)));
           }
+          const sway = on && f.mf >= 10 && f.mf <= 34;
+          const a = ramp(f.mf, 10, 14) * (1 - ramp(f.mf, 30, 36));
+          k.haze.forEach((sp, n) => {
+            sp.visible = sway;
+            if (!sway) return;
+            const t = time * 1.2 + n * 0.8;
+            sp.position.set(anim.vx + Math.sin(t) * 0.5, 0.4 + ((n * 0.27 + time * 0.25) % 1.6), 0.1 + Math.cos(t) * 0.3);
+            sp.scale.setScalar(0.7 + 0.3 * Math.sin(t * 2));
+            sp.material.opacity = 0.45 * a;
+            sp.material.rotation = t;
+          });
+          if (sway) rig.setFlash(0.22 * a, 0x9b3dff);
+          if (on && f.mf === 34) this.vfx.sparks(anim.vx + f.facing * 0.8, 1.35, 10, new THREE.Color(0xc58cff), 5, f.facing, 1.2);
         }
-        // Kalter Blick: the sunglasses flash right before the glint leaves
-        if (inMove('laca_blick') && f.mf >= 9 && f.mf <= 13 && f.mf % 2 === 1) {
-          const h = rig.joints.head.getWorldPosition(new THREE.Vector3());
-          this.vfx.sparks(h.x + f.facing * 0.12, h.y + 0.08, 6, new THREE.Color(0xeef8ff), 2.5, f.facing, 1);
+      }
+      if (f.def === 'lacazette') {
+        // Drei Buchstaben: a chrome glint off his hand as they leave
+        if (inMove('laca_abc') && f.mf >= 10 && f.mf <= 13) {
+          const h = rig.joints.haR.getWorldPosition(new THREE.Vector3());
+          this.vfx.sparks(h.x, h.y, 5, new THREE.Color(0xe8f0ff), 3, f.facing, 1);
+        }
+        // Chart-Einstieg: a green chart curve rises out of the floor under him, "#1 NEU" over his head
+        const on = inMove('laca_chart') && f.mf >= 3 && f.mf <= 34;
+        const k = on || kit ? this.kit(i) : null;
+        if (k) {
+          k.chart.visible = on;
+          k.badge.visible = on && f.mf >= 6;
+          if (on) {
+            const a = ramp(f.mf, 3, 6) * (1 - ramp(f.mf, 28, 34));
+            const top = Math.max(0.6, anim.vy + 0.5);
+            k.chart.position.set(anim.vx - f.facing * 0.15, 0, 0.15);
+            k.chart.scale.set(0.9 * f.facing, top * 1.1, 1);
+            k.chart.material.opacity = a;
+            const head = rig.joints.head.getWorldPosition(new THREE.Vector3());
+            k.badge.position.set(head.x, head.y + 0.55, 0.5);
+            k.badge.material.opacity = a;
+            if (f.mf === 5) this.vfx.sparks(anim.vx, 0.1, 14, new THREE.Color(0x3cff78), 6, f.facing, 1.3);
+          }
         }
       }
     });
   }
 }
-

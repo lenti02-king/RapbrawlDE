@@ -931,6 +931,10 @@ function physics(s: GameState, f: FighterState, ev: SimEvent[]): void {
           if (k.frame !== f.mf) continue;
           if (k.vx !== undefined) f.vx = k.vx * f.facing;
           if (k.vy !== undefined) f.vy = k.vy;
+          if (k.warp !== undefined) {
+            const o = s.fighters[s.fighters[0] === f ? 1 : 0];
+            f.x = o.x + (o.x >= f.x ? 1 : -1) * k.warp;
+          }
         }
       }
       if (mv.gravity) gravity = mv.gravity;
@@ -1410,7 +1414,7 @@ function applyHit(
     startThrow(atk, def, ev);
     return;
   }
-  const pushDir = proj ? proj.dir : atk.facing;
+  const pushDir = proj ? proj.dir : h.reverse ? -atk.facing : atk.facing;
 
   // Counter stance
   if (def.state === 'move') {

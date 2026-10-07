@@ -1,5 +1,5 @@
-// Move clips for the D43 abilities (session 11): Manuellsen (5000 Kurden, Beton, Sofa-Backpfeifen), Lacazette (Kalter
-// Blick, Daunenweste, 70 Schüsse), Jazeek's Ninetynine and Bonez's Ohne mein Team. Frame numbers are move frames
+// Move clips for the D43 abilities (session 11, S12): Manuellsen (5000 Kurden, König im Schatten, Sofa-Backpfeifen),
+// Lacazette (Drei Buchstaben, Chart-Einstieg, 70 Schüsse), Jazeek's Ninetynine and Bonez's Ohne mein Team. Frame numbers are move frames
 // (sim content), keyed so the contact poses land on the hitboxes' first active frame.
 import { compose, type Clip, type PoseDef, smoothClip } from '../pose';
 import { BONEZ_ANIMS } from './bonez';
@@ -28,30 +28,35 @@ const MANU_KURDEN = smoothClip(
   BS,
 );
 
-// Beton: plants wide, flexes (turning to concrete 4-36), then a heavy right hand on f42
-const plant: PoseDef = {
-  y: -0.1,
-  aim: { shL: [0.4, -0.9, -0.35], elL: [0.6, 0.75, -0.1], shR: [0.35, -0.9, 0.35], elR: [0.55, 0.8, 0.1] },
-  j: { chest: [0, -6, 6], head: [0, 0, -8], thL: [16, 24, 40], knL: [0, 0, -52], thR: [-16, 18, -34], knR: [0, 0, -40] },
+// König im Schatten (S12): he sinks into his shadow (hidden 7-16 by the render, a dark silhouette glides through),
+// reappears behind the opponent at f16 and spins a backhand into them (contact 22)
+const sink: PoseDef = {
+  y: -0.28,
+  aim: { shL: [-0.5, -0.8, -0.3], elL: [-0.3, -0.9, -0.2], shR: [-0.5, -0.8, 0.3], elR: [-0.3, -0.9, 0.2] },
+  j: { spine: [0, 0, 24], chest: [0, -6, 16], head: [0, 0, 14], thL: [16, 20, 60], knL: [0, 0, -90], thR: [-16, 18, 30], knR: [0, 0, -80] },
 };
-const flex: PoseDef = compose(plant, { y: -0.12, s: { sq: 0.04 }, j: { chest: [0, -4, 10], spine: [0, 0, 4], neck: [0, 0, -6] } });
-const concreteRight: PoseDef = {
-  x: 0.2,
-  s: { aR: 0.12 },
-  aim: { shR: [1, 0.2, -0.05], elR: [1, 0.18, -0.05], shL: [0.4, -0.8, -0.35], elL: [0.5, 0.8, -0.1], face: 0.85 },
-  j: { hips: [0, 14, 0], spine: [0, 10, -16], chest: [0, 18, -12], thL: [12, 14, 40], knL: [0, 0, -44], thR: [-12, 12, -36], knR: [0, 0, -8], ftR: [0, 0, 30] },
+const rise: PoseDef = {
+  yaw: 70,
+  y: -0.12,
+  aim: { shR: [0.2, 0.2, -0.9], elR: [-0.6, 0.3, -0.7], shL: [-0.2, -0.9, -0.3], elL: [0.3, -0.6, -0.3] },
+  j: { chest: [0, -30, 6], spine: [0, -12, 6], head: [0, 40, 0], thL: [14, 14, 40], knL: [0, 0, -50], thR: [-14, 12, -10], knR: [0, 0, -40] },
 };
-const MANU_BETON = smoothClip(
+const backhand: PoseDef = {
+  yaw: 160,
+  aim: { shR: [1, 0.22, 0.15], elR: [1, 0.18, 0.1], shL: [-0.3, -0.9, -0.3], elL: [0.2, -0.6, -0.3], face: 0.6 },
+  j: { chest: [0, 26, -6], spine: [0, 12, -6], hips: [0, 12, 0], thL: [12, 14, 34], knL: [0, 0, -40], thR: [-12, 12, -24], knR: [0, 0, -16] },
+};
+const MANU_SCHATTEN = smoothClip(
   [
     { f: 1, p: {} },
-    { f: 6, p: plant, e: 'out' },
-    { f: 16, p: flex, e: 'inOut' },
-    { f: 26, p: plant, e: 'inOut' },
-    { f: 34, p: flex, e: 'inOut' },
-    { f: 38, p: compose(plant, { x: -0.06, j: { chest: [0, -30, 4], shR: [-40, 0, -20], elR: [0, 0, 120] } }), e: 'out' },
-    { f: 42, p: concreteRight, e: 'snap' },
-    { f: 47, p: concreteRight },
-    { f: 62, p: {}, e: 'inOut' },
+    { f: 5, p: sink, e: 'in' },
+    { f: 16, p: compose(sink, { yaw: 30 }) },
+    { f: 19, p: rise, e: 'out' },
+    { f: 22, p: backhand, e: 'snap' },
+    { f: 27, p: compose(backhand, { yaw: 168 }) },
+    // unwinds with his back to them (the swagger), the turn to the new side happens when the move ends
+    { f: 40, p: { yaw: 10, j: { head: [0, -40, -6], chest: [0, -10, -4] } }, e: 'inOut' },
+    { f: 48, p: {} },
   ],
   BS,
 );
@@ -74,34 +79,47 @@ const MANU_SOFA = smoothClip(
 );
 
 // ------------------------------------------------------------------ Lacazette
-// Kalter Blick: right hand slides the sunglasses down the nose, chin lowers, a cold stare (glint at f13)
-const glasses: PoseDef = { aim: { shR: [0.3, 0.3, 0.55], elR: [-0.2, 1, 0.25] }, j: { head: [0, 0, -4], chest: [0, -6, 2] } };
-const stare: PoseDef = { aim: { shR: [0.3, 0.15, 0.55], elR: [-0.1, 1, 0.3], face: 1 }, j: { head: [0, -4, -14], neck: [0, 0, -6], chest: [0, -10, -2] } };
-const LACA_BLICK = smoothClip(
+// Drei Buchstaben (S12): a wind-up, then a flat throw across (the three letters leave at f12, one after another)
+const abcWind: PoseDef = {
+  x: -0.04,
+  aim: { shR: [-0.4, 0.3, 0.85], elR: [-0.6, 0.5, 0.6], shL: [0.7, -0.2, -0.5], elL: [0.8, 0.3, -0.4] },
+  j: { chest: [0, -36, 4], spine: [0, -14, 2], head: [0, 26, -2] },
+};
+const abcThrow: PoseDef = {
+  x: 0.1,
+  aim: { shR: [1, 0.12, 0.05], elR: [1, 0.08, -0.05], shL: [-0.3, -0.9, -0.4], elL: [0.2, -0.7, -0.3], face: 0.9 },
+  j: { chest: [0, 30, -6], spine: [0, 12, -8], hips: [0, 10, 0], thL: [12, 14, 34], knL: [0, 0, -36], thR: [-12, 12, -24], knR: [0, 0, -10] },
+};
+const LACA_ABC = smoothClip(
   [
     { f: 1, p: {} },
-    { f: 8, p: glasses, e: 'out' },
-    { f: 13, p: stare, e: 'snap' },
-    { f: 26, p: compose(stare, { j: { head: [0, -2, -16] } }) },
-    { f: 38, p: {}, e: 'inOut' },
+    { f: 8, p: abcWind, e: 'out' },
+    { f: 12, p: abcThrow, e: 'snap' },
+    { f: 18, p: compose(abcThrow, { aim: { shR: [0.9, -0.2, 0.3], elR: [0.8, -0.3, 0.3] } }) },
+    { f: 24, p: compose(abcThrow, { x: 0.06, j: { head: [0, -4, -6] } }), e: 'out' },
+    { f: 40, p: {}, e: 'inOut' },
   ],
   JS,
 );
 
-// Daunenweste: arms cross in front, shoulder dropped, a charge (f6-21), hit 10-20
-const tuck: PoseDef = {
-  y: -0.08,
-  aim: { shL: [0.6, -0.4, 0.4], elL: [0.2, 0.8, 0.6], shR: [0.5, -0.5, 0.5], elR: [-0.2, 0.8, 0.5], face: 0.8 },
-  j: { spine: [0, 20, -14], chest: [0, 30, -10], head: [0, -14, -4], thL: [12, 14, 40], knL: [0, 0, -50], thR: [-12, 12, -26], knR: [0, 0, -20] },
+// Chart-Einstieg (S12): crouch, then straight up on the chart curve with the right fist high (hit 5-14, airborne
+// until landing); lands into a crouch
+const chartLoad: PoseDef = { y: -0.2, aim: { shR: [0.4, -0.7, 0.4], elR: [0.6, 0.6, 0.3] }, j: { spine: [0, 0, 14], chest: [0, -10, 10], thL: [12, 14, 50], knL: [0, 0, -70], thR: [-12, 12, 20], knR: [0, 0, -60] } };
+const chartUp: PoseDef = {
+  x: 0.06,
+  s: { aR: 0.1, sq: -0.06 },
+  aim: { shR: [0.3, 1, 0.1], elR: [0.15, 1, 0.05], shL: [-0.2, -0.9, -0.3], elL: [0.4, -0.5, -0.3], face: 0.7 },
+  j: { spine: [0, 8, -10], chest: [0, 16, -12], head: [0, 0, -16], thL: [12, 14, 70], knL: [0, 0, -90], thR: [-12, 12, -6], knR: [0, 0, -10], ftR: [0, 0, 30] },
 };
-const LACA_WESTE = smoothClip(
+const LACA_CHART = smoothClip(
   [
-    { f: 1, p: {} },
-    { f: 6, p: compose(tuck, { x: -0.06, s: { sq: 0.06 } }), e: 'out' },
-    { f: 10, p: compose(tuck, { x: 0.12, s: { sq: -0.04 } }), e: 'snap' },
-    { f: 20, p: compose(tuck, { x: 0.14 }) },
-    { f: 28, p: compose(tuck, { x: 0.04, y: -0.04, j: { chest: [0, 10, -4] } }), e: 'out' },
-    { f: 46, p: {}, e: 'inOut' },
+    { f: 1, p: chartLoad },
+    { f: 4, p: compose(chartLoad, { y: -0.24 }) },
+    { f: 6, p: chartUp, e: 'snap' },
+    { f: 14, p: compose(chartUp, { aim: { shR: [0.2, 1, 0.15], elR: [0.1, 1, 0.1] } }) },
+    { f: 24, p: compose(chartUp, { s: {}, j: { thL: [12, 14, 40], knL: [0, 0, -60] } }), e: 'out' },
+    { f: 40, p: { y: 0, j: { thL: [12, 14, 30], knL: [0, 0, -40], thR: [-12, 12, -10], knR: [0, 0, -30] } } },
+    { f: 56, p: {}, e: 'inOut' },
   ],
   JS,
 );
@@ -146,7 +164,7 @@ const JAZ_99 = smoothClip(
   JS,
 );
 
-export const MANU_MOVES: Record<string, Clip> = { manu_kurden: MANU_KURDEN, manu_beton: MANU_BETON, manu_sofa: MANU_SOFA };
-export const LACA_MOVES: Record<string, Clip> = { laca_blick: LACA_BLICK, laca_weste: LACA_WESTE, laca_gwagon: LACA_GWAGON };
+export const MANU_MOVES: Record<string, Clip> = { manu_kurden: MANU_KURDEN, manu_schatten: MANU_SCHATTEN, manu_sofa: MANU_SOFA };
+export const LACA_MOVES: Record<string, Clip> = { laca_abc: LACA_ABC, laca_chart: LACA_CHART, laca_gwagon: LACA_GWAGON };
 export const JAZ_MOVES: Record<string, Clip> = { jaz_99: JAZ_99 };
 export const BON_MOVES: Record<string, Clip> = { bon_team: BONEZ_ANIMS.moves.bon_palm };

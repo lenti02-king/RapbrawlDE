@@ -1,0 +1,143 @@
+/* Touch controls, S12 (PO: "die Tastenfelder im Kampf müssen gemütlicher sein, besser designed und besser
+   platziert"). Sizes follow the screen height (a phone in landscape is ~380-430 px tall): the main button is a
+   quarter of it. The right thumb rests on LEICHT in the corner; SCHWER, BLOCK and GRIFF sit on an arc around it,
+   none closer than a thumb's width. Chunky mobile-game buttons (thick ink outline, glossy top, icon + label),
+   slightly see-through so the fight stays visible. The stick floats: it appears where the left thumb lands. */
+.touch .stick-zone {
+  width: 42%;
+  height: 86%;
+}
+.touch .stick-base {
+  left: calc(19vh + var(--sal));
+  top: auto;
+  bottom: calc(5vh + var(--sab));
+  width: 31vh;
+  height: 31vh;
+  transform: translate(-50%, 0);
+  border: 0.55vh solid rgba(255, 214, 90, 0.55);
+  background: radial-gradient(circle, rgba(10, 12, 32, 0.25) 0%, rgba(10, 12, 32, 0.55) 62%, rgba(10, 12, 32, 0.7) 100%);
+  box-shadow:
+    inset 0 0 3vh rgba(0, 0, 0, 0.45),
+    0 0 2vh rgba(0, 0, 0, 0.35);
+  opacity: 0.55;
+}
+.touch .stick-base.active {
+  opacity: 0.95;
+  /* follows the thumb: positioned by touch.ts with left/top */
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+.touch .stick-base .dirs i {
+  width: 2.2vh;
+  height: 2.2vh;
+  margin: -1.1vh;
+  background: rgba(255, 255, 255, 0.22);
+  transform: rotate(var(--a)) translateY(-12.4vh);
+}
+.touch .stick-base .dirs i.on {
+  background: #ffd23c;
+  box-shadow: 0 0 1.6vh rgba(255, 200, 40, 0.95);
+}
+.touch .stick-knob {
+  width: 13vh;
+  height: 13vh;
+  border: 0.55vh solid #120a1e;
+  background: radial-gradient(circle at 38% 32%, #ffffff 0%, #ffe9a0 35%, #f2a51a 80%, #b06a08 100%);
+  box-shadow:
+    inset 0 -0.8vh 0 rgba(0, 0, 0, 0.18),
+    0 0.8vh 0 rgba(0, 0, 0, 0.4);
+}
+
+.touch .pad {
+  right: var(--sar);
+  bottom: var(--sab);
+  width: 56vh;
+  height: 58vh;
+}
+.touch .act {
+  border: 0.6vh solid #120a1e;
+  font-family: 'Anton', var(--display), sans-serif;
+  font-size: 6vh;
+  line-height: 1;
+  color: #fff;
+  text-shadow:
+    0 0.45vh 0 rgba(0, 0, 0, 0.55),
+    0 0 1vh rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 1.1vh 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1.4vh 0 rgba(0, 0, 0, 0.22),
+    0 1vh 0 rgba(0, 0, 0, 0.45),
+    0 0 2.2vh rgba(0, 0, 0, 0.35);
+  opacity: 0.9;
+  transition:
+    transform 0.06s ease-out,
+    filter 0.06s;
+}
+/* a touch target a little bigger than the drawing */
+.touch .act::before {
+  content: '';
+  position: absolute;
+  inset: -1.6vh;
+  border-radius: 50%;
+}
+.touch .act > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2vh;
+  pointer-events: none;
+}
+.touch .act svg {
+  width: 44%;
+  height: auto;
+  filter: drop-shadow(0 0.4vh 0 rgba(0, 0, 0, 0.45));
+}
+.touch .act small {
+  font-family: 'Barlow Condensed', var(--ui), sans-serif;
+  font-weight: 800;
+  font-size: 2.5vh;
+  letter-spacing: 0.08em;
+  margin-top: 0;
+}
+.touch .act.down {
+  transform: scale(0.92) translateY(0.4vh);
+  filter: brightness(1.2);
+  box-shadow:
+    inset 0 0.8vh 0 rgba(255, 255, 255, 0.35),
+    0 0.3vh 0 rgba(0, 0, 0, 0.45),
+    0 0 3vh rgba(255, 230, 140, 0.75);
+}
+.touch .act-light {
+  right: 4vh;
+  bottom: 5vh;
+  width: 24vh;
+  height: 24vh;
+  background: radial-gradient(circle at 50% 30%, #9fdcff 0%, #3f8dff 55%, #1d4fb8 100%);
+}
+.touch .act-heavy {
+  right: 29vh;
+  bottom: 3vh;
+  width: 20vh;
+  height: 20vh;
+  background: radial-gradient(circle at 50% 30%, #ffb0a8 0%, #ff3b4e 55%, #a3101f 100%);
+}
+.touch .act-block {
+  right: 6vh;
+  bottom: 31vh;
+  width: 18vh;
+  height: 18vh;
+  font-size: 4.2vh;
+  background: radial-gradient(circle at 50% 30%, #e6e9ff 0%, #8f9ccc 55%, #4d5a8a 100%);
+}
+.touch .act-grab {
+  right: 27vh;
+  bottom: 25vh;
+  width: 15vh;
+  height: 15vh;
+  font-size: 3.8vh;
+  background: radial-gradient(circle at 50% 30%, #c6ffd2 0%, #3fc56b 55%, #1d7a3c 100%);
+}
+.touch .act-block small,
+.touch .act-grab small {
+  font-size: 2.2vh;
+}

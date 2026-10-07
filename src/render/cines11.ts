@@ -3,7 +3,7 @@
 // the same hit frames, startDx and endDx). Attacker-local coordinates: x toward the victim, y up, z toward the camera.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { burstSprite, makeOffroader, runPose, starTexture, textSprite } from './abilities11';
+import { burstSprite, crownTexture, makeOffroader, runPose, starTexture, textSprite } from './abilities11';
 import { BONEZ_ANIMS, BONEZ_POSES } from './anims/bonez';
 import { JAZEEK_ANIMS } from './anims/jazeek';
 import type { AnimSet } from './anims/types';
@@ -53,9 +53,11 @@ function signTrack(group: THREE.Group, items: { f: number; word: string; fill: s
 }
 
 // =================================================================== MANUELLSEN — SOFA-BACKPFEIFEN (signature)
-// Grab -> a black sofa pops up behind the opponent -> he pushes them down onto it -> three slaps with straight arms
-// (sim hits 70 / 92 / 116: batsch, batsch, BATSCH) -> the last one tips the sofa over backwards, the victim tumbles
-// over the backrest. startDx 0.95, endDx 2.6.
+// Stage 1: grab -> a black sofa pops up behind the opponent -> he pushes them down onto it -> three slaps with straight
+// arms (sim hits 70 / 92 / 116: batsch, batsch, BATSCH) -> the last one knocks them out cold: they slump on the sofa
+// and sleep (Zzz, PO S12: "man muss klar sehen, er ist K.O. und schläft").
+// Stage 2: "König im Schatten" (his autobiography): the lights go down, one spot on him, a crown comes down onto his
+// head, the title - then he kicks the sofa over backwards with the sleeper on it (hit 226). startDx 0.95, endDx 2.6.
 const MS = BONEZ_ANIMS.stance;
 const SOFA_X = 1.5;
 const SEAT_H = 0.47;
@@ -93,6 +95,23 @@ const slapFollow = (side: 'R' | 'L'): PoseDef => ({
 // double biceps: upper arms out to the sides, forearms up (reads from the 3/4 front camera)
 const flexUp: PoseDef = { y: 0.02, aim: { shL: [0.25, 0.1, -1], elL: [0.2, 1, -0.1], shR: [0.25, 0.1, 1], elR: [0.2, 1, 0.1] }, j: { chest: [0, 0, -8], head: [0, 0, -6] } };
 const dustHands: PoseDef = { aim: { shL: [0.6, -0.5, -0.1], elL: [0.4, 0.6, 0.6], shR: [0.6, -0.5, 0.1], elR: [0.4, 0.6, -0.6] }, j: { head: [0, -8, -8] } };
+// index finger to the lips (pssst, he sleeps), the other hand on the hip
+const shush: PoseDef = { aim: { shR: [0.4, 0.15, 0.6], elR: [-0.25, 1, -0.05], shL: [0.1, -0.8, -0.6], elL: [-0.4, 0.4, 0.5] }, j: { head: [0, 18, 6], chest: [0, 10, 2] } };
+// arms crossed high, chest out, chin up: the king in the spotlight
+const kingStand: PoseDef = {
+  aim: { shL: [0.35, -0.9, 0], elL: [0.1, 0.05, 1], shR: [0.35, -0.9, 0], elR: [0.1, 0.1, -1] },
+  j: { chest: [0, -4, -6], head: [0, 0, -8], thL: [16, 10, 4], thR: [-16, 8, -4] },
+};
+const SOFA_KICK_CHAMBER: PoseDef = {
+  y: 0.02,
+  aim: { shL: [0.4, -0.5, -0.6], elL: [0.6, 0.5, -0.4], shR: [0.3, -0.6, 0.6], elR: [0.5, 0.5, 0.4] },
+  j: { spine: [0, 0, 10], chest: [0, -6, 6], thR: [-8, 6, 96], knR: [0, 0, -110], ftR: [0, 0, 20], thL: [10, 10, -4], knL: [0, 0, -12] },
+};
+const SOFA_PUSH_KICK: PoseDef = {
+  y: 0.02,
+  aim: { shL: [0.5, -0.4, -0.7], elL: [0.7, 0.4, -0.4], shR: [0.2, -0.7, 0.6], elR: [0.5, 0.4, 0.5] },
+  j: { spine: [0, 0, -16], chest: [0, -6, -10], thR: [-8, 6, 88], knR: [0, 0, -6], ftR: [0, 0, -30], thL: [10, 10, -10], knL: [0, 0, -16] },
+};
 
 const SOFA_ATK = smoothClip(
   [
@@ -116,8 +135,19 @@ const SOFA_ATK = smoothClip(
     { f: 116, p: compose(slapHit('R'), { x: 0.62 }), e: 'snap' },
     { f: 124, p: compose(slapFollow('R'), { x: 0.6 }), e: 'out' },
     { f: 136, p: compose(dustHands, { x: 0.45 }), e: 'inOut' },
-    { f: 148, p: compose(flexUp, { x: 0.4 }), e: 'inOut' },
-    { f: 160, p: compose(flexUp, { x: 0.4, y: 0.03 }) },
+    // he looks at the sleeper, a finger to his lips: pssst
+    { f: 150, p: compose(shush, { x: 0.42 }), e: 'inOut' },
+    { f: 166, p: compose(shush, { x: 0.42, j: { head: [0, 10, -2] } }) },
+    // stage 2: lights down, he straightens up, the crown comes down (180-196), arms crossed: the king
+    { f: 178, p: compose(kingStand, { x: 0.3 }), e: 'inOut' },
+    { f: 196, p: compose(kingStand, { x: 0.3, y: 0.02, j: { head: [0, 0, -12] } }), e: 'out' },
+    { f: 212, p: compose(kingStand, { x: 0.32, j: { head: [0, -6, -10] } }) },
+    // the kick: chamber, push-kick into the sofa (226)
+    { f: 220, p: compose(SOFA_KICK_CHAMBER, { x: 0.5 }), e: 'inOut' },
+    { f: 226, p: compose(SOFA_PUSH_KICK, { x: 0.62 }), e: 'snap' },
+    { f: 234, p: compose(SOFA_PUSH_KICK, { x: 0.66 }) },
+    { f: 246, p: compose(flexUp, { x: 0.5 }), e: 'inOut' },
+    { f: 260, p: compose(flexUp, { x: 0.5, y: 0.03 }) },
   ],
   MS,
 );
@@ -150,6 +180,26 @@ function sofaDef(set: AnimSet): Clip {
         elR: [0, 0, 40],
       },
     });
+  // knocked out on the sofa: sunk deep into the backrest, head rolled over and back, mouth to the sky, arms limp at the
+  // sides, knees apart; `b` 0..1 = the slow breath of a sleeper
+  const ko = (b: number): PoseDef =>
+    compose(sit(0, -26 + b * 2), {
+      y: SEAT_H + 0.02 - pivot,
+      j: {
+        spine: [6, 0, -18 + b * 2],
+        chest: [8, 0, -12 + b * 3],
+        neck: [14, 0, -10],
+        head: [34, -10, -22],
+        thL: [24, 10, 86],
+        knL: [0, 0, -84],
+        thR: [-24, 10, 84],
+        knR: [0, 0, -88],
+        shL: [70, 0, 6],
+        elL: [0, 0, 12],
+        shR: [-70, 0, 6],
+        elR: [0, 0, 12],
+      },
+    });
   return smoothClip(
     [
       { f: 0, p: compose(r.hitHigh, { x: 0.02 }) },
@@ -168,11 +218,17 @@ function sofaDef(set: AnimSet): Clip {
       { f: 98, p: sit(38, 6), e: 'out' },
       { f: 110, p: sit(4, 0), e: 'inOut' },
       { f: 116, p: sit(-70, 24), e: 'snap' },
-      // over the backrest with the tipping sofa
-      { f: 122, p: compose(r.juggle, { x: at(SOFA_X + 0.25), y: 1.05 - pivot, rot: 70 }), e: 'out' },
-      { f: 132, p: compose(r.juggle, { x: at(2.2), y: 0.75 - pivot, rot: 160 }) },
-      { f: 140, p: compose(r.lying, { x: endX, rot: 90, s: { sq: 0.16 } }), e: 'in' },
-      { f: 160, p: compose(r.lying, { x: endX, rot: 90, j: { head: [0, 14, -6] } }) },
+      // out cold: slumps into the backrest, head over to one side, arms dead on the seat - asleep (Zzz, props)
+      { f: 124, p: ko(0), e: 'out' },
+      { f: 150, p: ko(1) },
+      { f: 176, p: ko(0) },
+      { f: 200, p: ko(1) },
+      { f: 224, p: ko(0) },
+      // stage 2 ends: the kicked sofa goes over backwards, the sleeper tumbles over the backrest
+      { f: 230, p: compose(r.juggle, { x: at(SOFA_X + 0.25), y: 1.05 - pivot, rot: 70 }), e: 'out' },
+      { f: 238, p: compose(r.juggle, { x: at(2.2), y: 0.75 - pivot, rot: 160 }) },
+      { f: 246, p: compose(r.lying, { x: endX, rot: 90, s: { sq: 0.16 } }), e: 'in' },
+      { f: 260, p: compose(r.lying, { x: endX, rot: 90, j: { head: [0, 14, -6] } }) },
     ],
     set.stance,
   );
@@ -220,6 +276,30 @@ export function makeSofa(): THREE.Group {
   return g;
 }
 
+let zTex: THREE.Texture | null = null;
+/** A "Z" for the sleeper (square canvas sprite, white with ink). */
+function zSprite(): THREE.Sprite {
+  if (!zTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    g.font = '400 110px "Rubik Wet Paint", "Anton", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = 16;
+    g.strokeStyle = '#0b0910';
+    g.strokeText('Z', 64, 68);
+    g.fillStyle = '#ffffff';
+    g.fillText('Z', 64, 68);
+    zTex = new THREE.CanvasTexture(c);
+    zTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: zTex, transparent: true, depthWrite: false, depthTest: false }));
+  sp.renderOrder = 22;
+  return sp;
+}
+
 function sofaProps(): CineProps {
   const group = new THREE.Group();
   const pivot = new THREE.Group(); // tips over about the back-bottom edge
@@ -232,6 +312,8 @@ function sofaProps(): CineProps {
     { f: 70, word: 'BATSCH!', fill: '#ff5a5a', w: 1.1, pos: [1.25, 1.9, 0.6] },
     { f: 92, word: 'BATSCH!', fill: '#ffb03a', w: 1.15, pos: [1.0, 2.0, 0.6] },
     { f: 116, word: 'BATSCH!!', fill: '#ffd23c', w: 1.6, pos: [1.25, 2.1, 0.6], len: 22 },
+    { f: 151, word: 'PSSST…', fill: '#9fd0ff', w: 0.95, pos: [0.25, 2.15, 0.6], len: 18 },
+    { f: 226, word: 'RUMMS!', fill: '#ff8a2a', w: 1.4, pos: [1.7, 1.6, 0.6], len: 18 },
   ]);
   const tex = smokeTexture();
   const poof = Array.from({ length: 10 }, (_, i) => {
@@ -240,17 +322,41 @@ function sofaProps(): CineProps {
     group.add(s);
     return s;
   });
+  // the sleeper: Z's rising from the head, a few stars circling right after the knockout
+  const zs = [0, 1, 2].map(() => {
+    const z = zSprite();
+    group.add(z);
+    return z;
+  });
+  const stars = Array.from({ length: 5 }, () => {
+    const st = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTexture(), color: 0xffe36a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    st.scale.setScalar(0.16);
+    st.renderOrder = 22;
+    group.add(st);
+    return st;
+  });
+  // stage 2: the crown that comes down onto his head, the title
+  const crown = new THREE.Sprite(new THREE.SpriteMaterial({ map: crownTexture(), transparent: true, depthWrite: false }));
+  crown.renderOrder = 23;
+  group.add(crown);
+  const title = textSprite('KÖNIG IM SCHATTEN', { width: 2.6, color: '#ffd23c', stroke: '#1a0f02', font: '"Rubik Wet Paint", "Anton", sans-serif' });
+  title.renderOrder = 24;
+  const tAspect = title.scale.y / title.scale.x;
+  group.add(title);
+  const spot = new THREE.SpotLight(0xfff0c8, 0, 9, 0.42, 0.6, 0);
+  group.add(spot, spot.target);
   return {
     group,
+    lights: [spot],
     update(f: number, c: PropCtx) {
       const appear = pop(lin(f, 12, 18));
-      const gone = f >= 150 ? 1 - lin(f, 150, 156) : 1;
+      const gone = f >= 250 ? 1 - lin(f, 250, 256) : 1;
       pivot.visible = f >= 12 && gone > 0.01;
       pivot.scale.setScalar(Math.max(0.01, appear * gone));
-      // tips over backwards on the last slap
-      pivot.rotation.z = -1.35 * ramp(f, 116, 128);
+      // tips over backwards when he kicks it (226)
+      pivot.rotation.z = -1.35 * ramp(f, 226, 238);
       // the poof when it appears and disappears
-      const pk = (f >= 12 && f < 24 ? 1 - lin(f, 14, 24) : 0) + (f >= 150 && f < 160 ? 1 - lin(f, 152, 160) : 0);
+      const pk = (f >= 12 && f < 24 ? 1 - lin(f, 14, 24) : 0) + (f >= 250 && f < 260 ? 1 - lin(f, 252, 260) : 0);
       poof.forEach((s, i) => {
         s.visible = pk > 0.01;
         if (!s.visible) return;
@@ -260,13 +366,53 @@ function sofaProps(): CineProps {
         s.scale.setScalar(0.6 + 0.2 * Math.sin(i));
         s.material.opacity = pk;
       });
+      // the victim's head (attacker-local): asleep on the sofa
+      const head = c.rigs[1]?.joints.head.getWorldPosition(new THREE.Vector3());
+      const hx = head ? (head.x - c.ax) * c.facing : SOFA_X - 0.2;
+      const hy = head ? head.y : 1.0;
+      const asleep = f >= 128 && f < 226;
+      zs.forEach((z, i) => {
+        const t = ((f - 128) / 26 + i / 3) % 1;
+        z.visible = asleep;
+        if (!asleep) return;
+        z.position.set(hx + 0.12 + t * 0.35, hy + 0.2 + t * 0.6, 0.55);
+        const k = Math.sin(t * Math.PI);
+        z.scale.setScalar(0.16 + t * 0.2);
+        z.material.opacity = k;
+        z.material.rotation = -0.3 + t * 0.4;
+      });
+      const dizzy = f >= 118 && f < 150;
+      stars.forEach((st, i) => {
+        st.visible = dizzy;
+        if (!dizzy) return;
+        const a = c.time * 5 + (i / stars.length) * Math.PI * 2;
+        st.position.set(hx + Math.cos(a) * 0.28, hy + 0.24 + Math.sin(a * 2) * 0.04, 0.4 + Math.sin(a) * 0.2);
+        st.material.opacity = 1 - lin(f, 140, 150);
+      });
+      // the crown comes down onto Manuellsen's head (180-196) and stays until the end
+      const top = c.rigs[0]?.joints.head.getWorldPosition(new THREE.Vector3());
+      const tx = top ? (top.x - c.ax) * c.facing : 0.4;
+      const ty = top ? top.y + 0.27 : 2.1;
+      const drop = ramp(f, 180, 196);
+      crown.visible = f >= 178;
+      crown.position.set(tx, ty + (1 - drop) * 1.4, 0.35);
+      crown.scale.set(0.42, 0.315, 1);
+      crown.material.rotation = (1 - drop) * 0.5 * Math.sin(c.time * 6);
+      const tk = f >= 198 && f < 222 ? pop(lin(f, 198, 203)) * (1 - lin(f, 217, 222)) : 0;
+      title.visible = tk > 0.01;
+      title.position.set(0.9, 2.55, 0.8);
+      title.scale.set(2.6 * tk, 2.6 * tk * tAspect, 1);
+      // one spot on him while the lights are down
+      spot.intensity = 7 * ramp(f, 168, 180) * (1 - ramp(f, 222, 232));
+      spot.position.copy(c.world(0.3, 4.2, 1.2));
+      spot.target.position.copy(c.world(0.35, 0.9, 0));
       signs(f);
     },
   };
 }
 
 export const SOFA_SLAPS: CineDef = {
-  frames: 160,
+  frames: 260,
   startDx: 0.95,
   camera: [
     { f: 0, pos: [0.4, 1.4, 3.6], target: [0.55, 1.25, 0], fov: 36, cut: true },
@@ -281,17 +427,33 @@ export const SOFA_SLAPS: CineDef = {
     // slap 2: from behind the sofa
     { f: 82, pos: [2.9, 1.5, -1.6], target: [0.9, 1.25, 0], fov: 34, cut: true },
     { f: 104, pos: [2.8, 1.5, -1.4], target: [0.9, 1.25, 0], fov: 32 },
-    // the big one: wide, so the tipping sofa reads
+    // the big one: wide
     { f: 106, pos: [1.2, 1.4, 4.8], target: [1.3, 1.0, 0], fov: 40, cut: true },
-    { f: 140, pos: [1.3, 1.35, 5.4], target: [1.5, 0.9, 0], fov: 40 },
+    { f: 124, pos: [1.25, 1.38, 4.6], target: [1.35, 0.95, 0], fov: 38 },
+    // out cold: close on the sleeper (Zzz)
+    { f: 126, pos: [0.55, 1.35, 1.6], target: [1.35, 0.85, 0], fov: 34, cut: true },
+    { f: 148, pos: [0.65, 1.3, 1.4], target: [1.35, 0.85, 0], fov: 32 },
+    // pssst: two-shot
+    { f: 150, pos: [1.0, 1.4, 3.6], target: [0.85, 1.15, 0], fov: 38, cut: true },
+    { f: 168, pos: [1.0, 1.4, 3.4], target: [0.85, 1.15, 0], fov: 36 },
+    // stage 2: low hero angle on him as the crown comes down
+    { f: 170, pos: [0.9, 0.7, 2.5], target: [0.3, 1.6, 0], fov: 38, cut: true },
+    { f: 198, pos: [0.85, 0.75, 2.2], target: [0.3, 1.75, 0], fov: 36 },
+    // the title, both in frame
+    { f: 200, pos: [1.0, 1.5, 4.4], target: [0.9, 1.4, 0], fov: 40, cut: true },
+    { f: 218, pos: [1.0, 1.5, 4.2], target: [0.9, 1.35, 0], fov: 40 },
+    // the kick: wide, so the tipping sofa reads
+    { f: 220, pos: [1.2, 1.4, 4.8], target: [1.3, 1.0, 0], fov: 40, cut: true },
+    { f: 244, pos: [1.3, 1.35, 5.4], target: [1.5, 0.9, 0], fov: 40 },
     // the flex
-    { f: 142, pos: [2.3, 1.45, 2.7], target: [0.45, 1.35, 0], fov: 36, cut: true },
-    { f: 160, pos: [2.1, 1.5, 2.4], target: [0.45, 1.45, 0], fov: 34 },
+    { f: 246, pos: [2.3, 1.45, 2.7], target: [0.55, 1.35, 0], fov: 36, cut: true },
+    { f: 260, pos: [2.1, 1.5, 2.4], target: [0.55, 1.45, 0], fov: 34 },
   ],
   atk: SOFA_ATK,
   def: sofaDef,
   props: sofaProps,
-  dim: (f) => (f < 150 ? 0.55 : 0.4),
+  // the lights go down for "König im Schatten"
+  dim: (f) => (f < 166 ? 0.55 : f < 228 ? 0.55 + 0.3 * ramp(f, 166, 178) - 0.3 * ramp(f, 222, 230) : 0.4),
   fx: [
     { f: 1, run: (c) => (c.audio.whoosh(2), c.view.director.shake(0.2)) },
     { f: 14, run: (c) => (c.audio.boom(), c.view.toon.puff(c.def.x, 0, 8, 0.9, C(0xece8f2), 0.3, 0.6)) },
@@ -314,15 +476,29 @@ export const SOFA_SLAPS: CineDef = {
         }
       },
     })),
-    { f: 126, run: (c) => (c.audio.slam(), c.view.toon.puff(c.def.x, 0, 10, 1.2, C(0xe9dfd0), 0.28, 0.7)) },
-    { f: 150, run: (c) => c.audio.sparkle() },
+    { f: 168, run: (c) => c.audio.boom() },
+    { f: 196, run: (c) => (c.audio.sparkle(), c.audio.crowdSwell(0.6)) },
+    {
+      f: 226,
+      run: (c: FxCtx) => {
+        c.audio.slam();
+        const p = c.def.clone().add(new THREE.Vector3(0, 0.6, 0.2));
+        c.view.toon.impact(p.x, p.y, 1.6, C(0xff8a2a), { spikes: 13, life: 0.3 });
+        c.view.director.shake(0.6);
+        c.view.director.punch(3);
+      },
+    },
+    { f: 236, run: (c) => (c.audio.slam(), c.view.toon.puff(c.def.x, 0, 10, 1.2, C(0xe9dfd0), 0.28, 0.7)) },
+    { f: 250, run: (c) => c.audio.sparkle() },
   ],
 };
 
 // =================================================================== LACAZETTE — 70 SCHÜSSE (signature)
-// The off-roader crossed the stage and caught them: it drifts round so the driver's side faces them (window opens),
-// 70 shots from the window (sim hits 64-104 every 10, the last burst 116), a counter runs up to 70, then the line
-// "…DAS WAREN 70 SCHÜSSE AUS DEM G-WAGON" and the car pulls away. Lacazette watches, arms crossed. startDx 3.0.
+// Stage 1: the off-roader crossed the stage and caught them: it drifts round so the driver's side faces them (window
+// opens), 70 shots from the window (sim hits 64-104 every 10, the last burst 116 throws them onto their knees), a
+// counter runs up to 70, then the line "…DAS WAREN 70 SCHÜSSE AUS DEM G-WAGON". Lacazette watches, arms crossed.
+// Stage 2 (S12): he walks up, pulls them up by the collar, glasses down - KALTER BLICK from close - and a push kick
+// (226); the car pulls away. startDx 3.0, endDx 2.0.
 const LS = JAZEEK_ANIMS.stance;
 // the car stops diagonally behind the victim: driver's side (window) toward them and the camera, nose to the front right
 const CAR_X = 5.7;
@@ -333,6 +509,14 @@ const SHOT1 = 118;
 
 const crossedL: PoseDef = { j: { chest: [0, -8, 6], shL: [10, 0, 66], elL: [0, 0, 116], shR: [-10, 0, 66], elR: [0, 0, 116], head: [0, -10, 6] } };
 const glassesDown: PoseDef = { aim: { shR: [0.3, 0.3, 0.55], elR: [-0.2, 1, 0.25] }, j: { head: [0, -6, -14], chest: [0, -8, 2], shL: [10, 0, 60], elL: [0, 0, 110] } };
+// stage 2 (S12): he steps up to the kneeling victim, pulls them up by the collar, glasses down - a cold stare from
+// close - lets go and finishes with a push kick (226)
+const collarL: PoseDef = {
+  x: 0.25,
+  aim: { shL: [0.9, 0.1, -0.15], elL: [0.9, 0.3, 0], shR: [-0.1, -0.95, 0.3], elR: [0.3, -0.6, 0.3], face: 0.8 },
+  j: { chest: [0, -8, -6], spine: [0, -4, -6], head: [0, -6, -4] },
+};
+const collarStare: PoseDef = compose(collarL, { aim: { shR: [0.3, 0.3, 0.55], elR: [-0.2, 1, 0.25] }, j: { head: [0, -4, -14], neck: [0, 0, -6] } });
 const GW_ATK = smoothClip(
   [
     { f: 0, p: compose(LS, { j: { head: [0, -6, 4] } }) },
@@ -341,7 +525,16 @@ const GW_ATK = smoothClip(
     { f: 128, p: glassesDown, e: 'inOut' },
     { f: 146, p: glassesDown },
     { f: 158, p: compose(crossedL, { j: { head: [0, 0, 12] } }), e: 'inOut' },
-    { f: 170, p: crossedL },
+    { f: 168, p: compose(crossedL, { x: 0.12 }) },
+    { f: 180, p: compose(collarL, { x: 0.2 }), e: 'inOut' },
+    { f: 188, p: collarL, e: 'out' },
+    { f: 196, p: collarStare, e: 'inOut' },
+    { f: 210, p: collarStare },
+    { f: 216, p: compose(SOFA_KICK_CHAMBER, { x: 0.18 }), e: 'inOut' },
+    { f: 226, p: compose(SOFA_PUSH_KICK, { x: 0.3 }), e: 'snap' },
+    { f: 234, p: compose(SOFA_PUSH_KICK, { x: 0.3 }) },
+    { f: 246, p: compose(crossedL, { x: 0.1, j: { head: [0, 0, 12] } }), e: 'inOut' },
+    { f: 250, p: compose(crossedL, { x: 0.1 }) },
   ],
   LS,
 );
@@ -361,11 +554,45 @@ function gwagonDef(set: AnimSet): Clip {
     const side = k % 2 ? 1 : -1;
     keys.push({ f, p: compose(k % 3 === 2 ? r.hitGut : r.hitHigh, { x: 0.05 + (f - SHOT0) * 0.006, j: { head: [0, side * 24, 14], chest: [0, side * 16, 10] } }), e: 'snap' });
   }
+  // the last burst throws them toward Lacazette, onto their knees (dazed, swaying); stage 2: pulled up by the collar,
+  // held, then the kick sends them back down to endX
+  const NEAR = START - 0.95; // victim-local x of "right in front of him"
+  const kneel = (sway: number): PoseDef =>
+    compose(set.stance, {
+      x: NEAR - 0.1,
+      y: -0.48,
+      j: {
+        hips: [0, 0, 0],
+        spine: [sway * 6, sway * 6, 18],
+        chest: [sway * 6, sway * 8, 14],
+        head: [sway * 12, sway * 14, 18],
+        thL: [8, 6, 90],
+        knL: [0, 0, -100],
+        ftL: [0, 0, 10],
+        thR: [-8, 6, -10],
+        knR: [0, 0, -110],
+        ftR: [0, 0, 60],
+        shL: [30, 0, 10],
+        elL: [0, 0, 20],
+        shR: [-30, 0, 10],
+        elR: [0, 0, 20],
+      },
+    });
+  const held: PoseDef = compose(r.hitHigh, { x: NEAR, y: 0.04, j: { head: [0, 10, 20], chest: [0, 0, 10] } });
   keys.push(
-    { f: 116, p: compose(r.juggle, { x: 0.6, y: 0.5, rot: 25 }), e: 'snap' },
-    { f: 124, p: compose(r.juggle, { x: endX - 0.1, y: 0.35, rot: 70 }), e: 'out' },
-    { f: 130, p: compose(r.lying, { x: endX, rot: 90, s: { sq: 0.16 } }), e: 'in' },
-    { f: 170, p: compose(r.lying, { x: endX, rot: 90 }) },
+    { f: 116, p: compose(r.juggle, { x: 0.9, y: 0.6, rot: 25 }), e: 'snap' },
+    { f: 124, p: compose(r.juggle, { x: NEAR - 0.3, y: 0.3, rot: 40 }), e: 'out' },
+    { f: 130, p: kneel(0), e: 'in' },
+    { f: 145, p: kneel(1) },
+    { f: 160, p: kneel(-1) },
+    { f: 175, p: kneel(0.6) },
+    // pulled up by the collar
+    { f: 188, p: compose(held, { y: 0.0 }), e: 'out' },
+    { f: 210, p: compose(held, { j: { head: [0, 16, 24] } }) },
+    { f: 226, p: compose(r.hitGut, { x: NEAR - 0.05 }), e: 'snap' },
+    { f: 232, p: compose(r.juggle, { x: endX + 0.6, y: 0.45, rot: 40 }), e: 'out' },
+    { f: 238, p: compose(r.lying, { x: endX, rot: 90, s: { sq: 0.16 } }), e: 'in' },
+    { f: 250, p: compose(r.lying, { x: endX, rot: 90 }) },
   );
   return smoothClip(keys, set.stance);
 }
@@ -399,6 +626,11 @@ function gwagonProps(): CineProps {
   let line: THREE.Sprite | null = null;
   const tmp = new THREE.Vector3();
   let last = -1;
+  // stage 2: the cold stare from close up, then the kick
+  const blick = signTrack(group, [
+    { f: 198, word: 'KALTER BLICK', fill: '#9fd8ff', w: 1.5, pos: [0.4, 2.25, 0.7], len: 20 },
+    { f: 226, word: 'BOOM!', fill: '#ff8a2a', w: 1.2, pos: [1.2, 1.7, 0.6], len: 16 },
+  ]);
   return {
     group,
     lights: [lamp],
@@ -406,7 +638,7 @@ function gwagonProps(): CineProps {
       // car path: roars in along the front lane, drifts (the tail swings out past the stop angle and settles) and stops
       // diagonally at CAR_X with the open driver's window toward the victim; pulls away into the back right at the end
       const arrive = ramp(f, 0, 26);
-      const leave = ramp(f, 140, 170);
+      const leave = ramp(f, 230, 250);
       const x = lerp(0.2, CAR_X, arrive) + leave * 6;
       const z = lerp(1.7, CAR_Z, arrive) - leave * 3.5;
       car.position.set(x, 0, z);
@@ -416,7 +648,7 @@ function gwagonProps(): CineProps {
       car.rotation.x = roll;
       gun.visible = f >= SHOT0 - 8 && f < SHOT1 + 6;
       gun.rotation.x = f >= SHOT0 && f < SHOT1 ? Math.sin(c.time * 60) * 0.12 : 0; // recoil
-      const spin = f < 30 ? -c.time * 30 : f > 140 ? -c.time * 34 : 0;
+      const spin = f < 30 ? -c.time * 30 : f > 230 ? -c.time * 34 : 0;
       for (const w of wheels) w.rotation.z = spin;
       // shots
       const shooting = f >= SHOT0 && f < SHOT1;
@@ -478,12 +710,13 @@ function gwagonProps(): CineProps {
         group.remove(line);
         line = null;
       }
+      blick(f);
       // per-frame bits: tyre smoke during the drift, shell casings, sparks on the victim
       const fi = Math.floor(f);
       if (fi < last) last = -1;
       if (fi === last) return;
       for (let k = last + 1; k <= fi; k++) {
-        if (k < 30 || k > 140) {
+        if (k < 30 || k > 230) {
           const rear = c.world(x - Math.cos(yaw) * 1.5, 0.25, z + Math.sin(yaw) * 1.5);
           c.view.fx.smoke.spawn(rear, new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.4, (Math.random() - 0.5) * 0.4), 0xd8d4e0, 0.3, 1.2, 2.2, Math.random() - 0.5);
         }
@@ -500,7 +733,7 @@ function gwagonProps(): CineProps {
 }
 
 export const SEVENTY_SHOTS: CineDef = {
-  frames: 170,
+  frames: 250,
   startDx: 3.0,
   camera: [
     // the drift: wide and low, the car slides in from the front lane
@@ -518,14 +751,23 @@ export const SEVENTY_SHOTS: CineDef = {
     // the line: wide on everything
     { f: 116, pos: [2.9, 1.9, 8.4], target: [2.9, 1.5, 0], fov: 46, cut: true },
     { f: 150, pos: [2.9, 1.85, 7.8], target: [2.9, 1.45, 0], fov: 46 },
-    // Lacazette, cool: glasses down, 3/4 front
-    { f: 152, pos: [2.1, 1.6, 2.7], target: [0.2, 1.55, 0], fov: 32, cut: true },
-    { f: 170, pos: [1.9, 1.62, 2.4], target: [0.2, 1.57, 0], fov: 30 },
+    // stage 2: he walks up to them, two-shot
+    { f: 152, pos: [1.6, 1.4, 3.8], target: [0.7, 1.15, 0], fov: 38, cut: true },
+    { f: 186, pos: [1.5, 1.45, 3.4], target: [0.7, 1.3, 0], fov: 36 },
+    // the cold stare: his face close, glasses down
+    { f: 188, pos: [1.0, 1.66, 1.35], target: [0.25, 1.62, 0], fov: 30, cut: true },
+    { f: 212, pos: [0.95, 1.66, 1.2], target: [0.25, 1.62, 0], fov: 28 },
+    // the kick: low and wide, the car behind
+    { f: 214, pos: [1.4, 0.8, 4.6], target: [1.4, 1.0, 0], fov: 42, cut: true },
+    { f: 236, pos: [1.6, 0.85, 4.9], target: [1.6, 0.95, 0], fov: 42 },
+    // he stands, the car pulls away
+    { f: 238, pos: [2.4, 1.5, 6.4], target: [2.4, 1.2, 0], fov: 44, cut: true },
+    { f: 250, pos: [2.4, 1.5, 6.6], target: [2.6, 1.2, 0], fov: 44 },
   ],
   atk: GW_ATK,
   def: gwagonDef,
   props: gwagonProps,
-  dim: (f) => (f < 150 ? 0.6 : 0.4),
+  dim: (f) => (f < 150 ? 0.6 : f < 230 ? 0.55 : 0.4),
   fx: [
     { f: 1, run: (c) => (c.audio.carIn(), c.view.director.shake(0.3)) },
     { f: 30, run: (c) => (c.audio.slam(), c.view.director.shake(0.2)) },
@@ -543,7 +785,19 @@ export const SEVENTY_SHOTS: CineDef = {
       },
     },
     { f: 121, run: (c) => (c.audio.stab(), c.audio.crowdSwell(0.8)) },
-    { f: 142, run: (c) => c.audio.carIn() },
+    { f: 186, run: (c) => c.audio.whoosh(1) },
+    { f: 198, run: (c) => (c.audio.sparkle(), c.view.director.shake(0.1)) },
+    {
+      f: 226,
+      run: (c) => {
+        hitFx(c, 3, 0xff8a2a);
+        c.audio.boom();
+        c.view.director.shake(0.7);
+        c.view.director.punch(3);
+        c.audio.crowdSwell(0.8);
+      },
+    },
+    { f: 230, run: (c) => c.audio.carIn() },
   ],
 };
 

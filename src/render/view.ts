@@ -29,7 +29,7 @@ const BLOCK_COLOR = C(0x7fd8ff);
 const COUNTER_COLOR = C(0xff3b5c);
 /** Impact-star fill per strength (light .. super) and smear widths (m). */
 const STAR_FILL = [C(0xfff1a8), C(0xffd34d), C(0xff8a2a), C(0xffe066)];
-const STAR_SIZE = [0.55, 0.75, 1.05, 1.4];
+const STAR_SIZE = [0.5, 0.68, 0.92, 1.22];
 const SMEAR_W = [0.06, 0.085, 0.12, 0.15];
 const DUST = C(0xd9cdb8);
 
@@ -47,6 +47,9 @@ export interface ViewHooks {
   /** Cinematic presentation hook (camera + poses + fx); returns true while active. */
   cinematic?: (view: GameView, s: GameState, dt: number, alpha: number) => boolean;
 }
+
+const _fp = new THREE.Vector3();
+const PLANTED = new Set(['idle', 'walkF', 'walkB', 'crouch', 'guard', 'blockstun', 'land', 'intro']);
 
 export class GameView {
   readonly renderer: THREE.WebGLRenderer;
@@ -68,6 +71,8 @@ export class GameView {
   rigs: CharacterRig[] = [];
   anims: FighterAnimator[] = [];
   private shadows: THREE.Mesh[] = [];
+  /** Contact shadows under each foot (S12: the fighters looked like floating). */
+  private footShadows: THREE.Mesh[][] = [];
   private projMeshes = new Map<number, THREE.Object3D>();
   /** Finished projectile meshes per kind, reused by the next spawn (S12: every spawn built new geometry, materials
    *  and textures that were never freed - the GPU memory grew all match long). */
@@ -344,6 +349,8 @@ export class GameView {
     this.matchKey = key;
     for (const r of this.rigs) this.scene.remove(r.root);
     for (const sh of this.shadows) this.scene.remove(sh);
+    for (const pair of this.footShadows) for (const fs of pair) this.scene.remove(fs);
+    this.footShadows = [];
     this.rigs = [];
     this.shadows = [];
     const shadowTex = radial();
@@ -359,12 +366,20 @@ export class GameView {
       this.applyProbe(rig);
       const sh = new THREE.Mesh(
         new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: this.quality === 'low' ? 0.75 : 0.45 }),
+        new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: this.quality === 'low' ? 0.75 : 0.55 }),
       );
       sh.rotation.x = -Math.PI / 2;
       sh.renderOrder = 1;
       this.shadows.push(sh);
       this.scene.add(sh);
+      const feet = [0, 1].map(() => {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.8 }));
+        m.rotation.x = -Math.PI / 2;
+        m.renderOrder = 1;
+        this.scene.add(m);
+        return m;
+      });
+      this.footShadows.push(feet);
     });
     this.anims = s.fighters.map((f, i) => new FighterAnimator(ANIM_SETS[f.def], i));
     this.prewarm(s);
@@ -396,7 +411,7 @@ export class GameView {
           });
           if (e.counter) this.vfx.ring(x, y, 1.4, COUNTER_COLOR, 0.32);
           if (e.strength >= 2 || e.counter) this.toon.speedLines(x, y, e.counter ? C(0xffd0d8) : C(0xffffff), e.strength === 3 ? 0.32 : 0.22, e.strength === 3 ? 0.45 : 0.6);
-          if (e.counter && e.strength >= 2) this.toon.impactFrame(0.05);
+          // the colour-inverted frame is kept for the KO and the signatures (S12: on every counter it was too much)
           this.lastHit[e.d] = e.strength;
           this.director.shake([0.1, 0.18, 0.32, 0.45][e.strength] + (e.counter ? 0.15 : 0));
           this.director.kick(dir * [0.02, 0.035, 0.06, 0.08][e.strength], 0, -[0.02, 0.04, 0.08, 0.1][e.strength]);
@@ -717,6 +732,8 @@ export class GameView {
       if (!anim || !rig) continue;
       anim.beat = beat;
       const pose = anim.update(s, dt, this.time, alpha);
+      // standing states keep both feet on the floor (S12); cinematics, hits and airborne poses stay as authored
+      (rig as { plant?: boolean }).plant = !s.cine && f.y === 0 && anim.vy < 0.01 && PLANTED.has(f.state);
       rig.apply(pose, f.facing);
       let sx = 0;
       if (f.hitstop > 0 && this.shakeT[i] > 0) sx = (s.frame % 2 ? 1 : -1) * 0.03 * Math.min(1, f.hitstop / 6);
@@ -731,6 +748,18 @@ export class GameView {
       sh.visible = rig.root.visible; // a fighter hidden by a cinematic (turned into a prop) leaves no shadow
       if (rig.props.mic) rig.props.mic.visible = !s.projectiles.some((p) => p.owner === i && p.kind === 'mic');
       rig.root.updateMatrixWorld(true);
+      // a small dark spot under each foot, strongest when the sole is on the floor
+      const fsh = this.footShadows[i];
+      if (fsh)
+        (['ftL', 'ftR'] as const).forEach((jn, k) => {
+          const m = fsh[k];
+          const p = rig.joints[jn].getWorldPosition(_fp);
+          const near = 1 - Math.min(1, Math.max(0, (p.y - 0.06) / 0.32));
+          m.visible = rig.root.visible && near > 0.02;
+          m.position.set(p.x + f.facing * 0.05, 0.008, p.z);
+          m.scale.set(0.42 + 0.1 * (1 - near), 0.24 + 0.06 * (1 - near), 1);
+          (m.material as THREE.MeshBasicMaterial).opacity = near;
+        });
       this.toon.track(i, rig);
     }
 

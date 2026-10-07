@@ -1017,19 +1017,23 @@ const build = (k: number, h = 0): PoseDef => ({
   },
   j: { spine: [0, (k - 0.5) * 6, -10], chest: [0, (0.5 - k) * 10, -14], head: [0, (k - 0.5) * 8, -10], thL: [12, 16, 30], knL: [0, 0, -40], thR: [-12, 12, -20], knR: [0, 0, -30] },
 });
-// the cool smoking stance: weight back, left hand low, head tilted
+// the cool smoking stance: weight back, left hand low, head tilted; the joint is IN his right hand (S12, PO: it
+// floated crosswise in front of him): between drags the hand rests at chest height, forearm up; for a drag it goes
+// to his lips (drag = 1)
 const cool = (drag: number): PoseDef =>
   compose(BL.chill, {
     x: -0.04,
     y: 0.015 * drag,
+    aim: {
+      shR: [0.15 + 0.25 * drag, -0.75 + 0.9 * drag, 0.6 - 0.05 * drag],
+      elR: [0.45 - 0.9 * drag, 0.85 + 0.1 * drag, 0.1 - 0.2 * drag],
+    },
     j: {
       hips: [0, -10, 0],
-      spine: [0, -4, 2 + 5 * drag],
-      chest: [0, -10 - 10 * drag, 6 + 12 * drag],
-      neck: [0, -2, 4 * drag],
-      head: [0, -8, 8 + 10 * drag],
-      shR: [-30, 0, 52 + 2 * drag],
-      elR: [0, 0, 142],
+      spine: [0, -4, 2 + 2 * drag],
+      chest: [0, -10 - 6 * drag, 6 + 4 * drag],
+      neck: [0, -2, -2 * drag],
+      head: [0, -8 + 6 * drag, 8 - 12 * drag],
       haR: [0, 0, -10],
       shL: [16, 0, 14],
       elL: [0, 0, 22],
@@ -1039,7 +1043,7 @@ const cool = (drag: number): PoseDef =>
       knR: [0, 0, -6],
     },
   });
-const exhale = compose(BL.blow, { x: 0.02, j: { head: [0, -4, -14], chest: [0, -6, -12], shR: [-30, 0, 40], elR: [0, 0, 96] } });
+const exhale = compose(BL.blow, { x: 0.02, aim: { shR: [0.2, -0.6, 0.65], elR: [0.6, 0.7, 0.2] }, j: { head: [0, -4, -14], chest: [0, -6, -12] } });
 
 const BLUNT_ATK = smoothClip(
   [
@@ -1226,9 +1230,9 @@ function bluntProps(): CineProps {
     outCloud.add(s);
     return { s, a: (i / 16) * Math.PI * 2, r: 0.2 + ((i * 29) % 9) / 30 };
   });
-  // --- the joint: the PO's prop in his right hand (2.2x for readability), ember glow + lighter flame
+  // --- the joint: the PO's prop in his right hand, ember glow + lighter flame
   const joint = new HandProp('joint', group);
-  const jointScale = 2.2;
+  const jointScale = 1.35; // between the fingers (2.2 read as a baton floating across him)
   const ember = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff5a14, transparent: true, depthWrite: false, depthTest: false }));
   ember.renderOrder = 11;
   const emberGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xff8a2a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
@@ -1345,7 +1349,8 @@ function bluntProps(): CineProps {
         }
         for (const h of [84, 102])
           if (k >= h && k < h + 5) {
-            const mouth = c.world(0.22, 1.62, 0.05);
+            const head = c.rigs[0]?.joints.head.getWorldPosition(new THREE.Vector3());
+            const mouth = head ? head.add(new THREE.Vector3(c.facing * 0.1, -0.06, 0.05)) : c.world(0.22, 1.62, 0.05);
             for (let i = 0; i < 2; i++)
               c.view.fx.smoke.spawn(mouth.clone(), new THREE.Vector3(c.facing * (0.9 + Math.random() * 1.2), 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4), 0xe4e8de, 0.24, 1.5, 2.6, (Math.random() - 0.5) * 2);
           }
@@ -1374,8 +1379,13 @@ export const BLUNT_SESSION: CineDef = {
     // the reveal: he holds up the joint
     { f: 54, pos: [0.85, 1.65, 1.7], target: [0.2, 1.55, 0], fov: 32, cut: true },
     { f: 70, pos: [0.75, 1.65, 1.55], target: [0.2, 1.6, 0], fov: 30 },
-    // smoking: cool wide-ish shot, slow orbit
-    { f: 72, pos: [1.6, 1.45, 3.4], target: [0.5, 1.4, 0], fov: 34, cut: true },
+    // smoking: the first drag medium, then the face close-up while he pulls on it (PO S12: "Face-Zoom, wie er den
+    // Joint raucht"), back out for the third
+    { f: 72, pos: [1.5, 1.5, 3.0], target: [0.4, 1.45, 0], fov: 34, cut: true },
+    { f: 88, pos: [1.3, 1.52, 2.7], target: [0.35, 1.5, 0], fov: 32 },
+    { f: 90, pos: [0.75, 1.68, 1.05], target: [0.12, 1.62, 0], fov: 28, cut: true },
+    { f: 108, pos: [0.68, 1.68, 0.92], target: [0.12, 1.63, 0], fov: 26 },
+    { f: 110, pos: [1.2, 1.5, 2.8], target: [0.45, 1.45, 0], fov: 34, cut: true },
     { f: 118, pos: [1.1, 1.5, 3.1], target: [0.6, 1.4, 0], fov: 34 },
     // the last exhale and the fly-out: wide
     { f: 120, pos: [1.2, 1.4, 5.0], target: [1.3, 1.3, 0], fov: 40, cut: true },

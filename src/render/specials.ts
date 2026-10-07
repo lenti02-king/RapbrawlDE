@@ -12,7 +12,7 @@ import { HeartPool, makeCroc, makeCrocRunner, makeSpotlight, noteTexture, smokeT
 import { showcaseOf } from '../core/sim';
 import { HandProp } from './handProps';
 import { AbilityFX11, makeProjectile11, updateProjectile11 } from './abilities11';
-import { crocAsHead, crocRunnerModel, hasProp, materialsOf, propMesh, propModel, setOpacity, tunerCarModel } from './propModels';
+import { crocAsHead, crocRunnerModel, hasProp, propMesh, tunerCarModel } from './propModels';
 import type { CharacterRig } from './glbRig';
 import type { VFX } from './vfx';
 
@@ -37,8 +37,6 @@ export class SpecialFX {
   private chain: THREE.Sprite[][] = [];
   private lastMf = [-1, -1];
   private winCroc: Croc;
-  /** The PO's wrecking ball per fighter (Abrissbirne), created on first use. */
-  private balls: (THREE.Object3D | null)[] = [null, null];
   /** Jazeek's gold mic (the PO's model) in his right hand while he sings. */
   private mics: HandProp[] = [];
   private spots = [makeSpotlight(0xfff0c8), makeSpotlight(0xfff0c8)];
@@ -191,32 +189,6 @@ export class SpecialFX {
         this.flame[i].visible = false;
         this.lastMf[i] = -1;
       }
-
-      // --- Bonez: Abrissbirne — the PO's wrecking ball swings in on its chain from the background, straight into the
-      // opponent on the hit frames 18-21 (pendulum about a pivot above them; the hitbox stays the sim's)
-      if (inMove('bon_abriss') && f.mf < 42) {
-        let ball = this.balls[i];
-        if (!ball && hasProp('ball')) {
-          const pivot = new THREE.Group();
-          const m = propModel('ball', true)!;
-          m.scale.setScalar(1.4); // chain + ball 2.1 m
-          pivot.add(m);
-          pivot.userData.mats = materialsOf(m);
-          this.group.add(pivot);
-          ball = this.balls[i] = pivot;
-        }
-        if (ball) {
-          const mf = f.mf;
-          const k = (a: number, b: number) => Math.min(1, Math.max(0, (mf - a) / (b - a)));
-          // + = back into the scene; 0 = hanging straight down at the opponent's head
-          const th = mf < 18 ? 1.25 * (1 - k(4, 18) * k(4, 18)) : mf < 24 ? -0.5 * ease(k(18, 24)) : -0.5 + 0.35 * ease(k(24, 36));
-          ball.visible = true;
-          ball.position.set(x + f.facing * 1.1, 2.9, 0); // the ~1 m ball hangs at the opponent's head on the hit frame
-          ball.rotation.set(th, 0, 0);
-          setOpacity(ball.userData.mats as THREE.Material[], Math.min(k(1, 6), 1 - k(32, 41)));
-          if (mf === 18 && f.hitstop === 0 && emitTick) this.vfx.sparks(x + f.facing * 1.1, 1.5, 12, new THREE.Color(0xffd36b), 6, f.facing, 2);
-        }
-      } else if (this.balls[i]) this.balls[i]!.visible = false;
 
       // --- Bonez: gold teeth while grinning
       if (rig.props.teeth) {

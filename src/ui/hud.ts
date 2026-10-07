@@ -413,7 +413,7 @@ export class Hud {
           break;
         }
         case 'fight':
-          this.say(s.config.training ? 'TRAINING' : 'FIGHT!', 'fight', 900);
+          this.say(s.config.training ? 'TRAINING' : 'KÄMPFT!', 'fight', 900);
           break;
         case 'perfectBlock':
           this.say('PERFEKT-BLOCK!', 'pblock', 900);

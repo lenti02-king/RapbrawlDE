@@ -32,12 +32,18 @@ const STAR_FRAG = /* glsl */ `
     float tip = mix(1.0 - uJag, 1.0, hash(i + uSeed));
     float R = mix(0.36, 0.86 * tip, pow(tri, 1.6));
     float aa = fwidth(r) * 1.5;
-    float ink = 1.0 - smoothstep(R + 0.07 - aa, R + 0.07, r);
+    // S12 (PO: "Treffer-VFX transparenter oder cooler"): a thin ink rim, a see-through body that gets clearer toward
+    // the spike tips, a hot opaque core and a soft glow around the star
+    float ink = 1.0 - smoothstep(R + 0.04 - aa, R + 0.04, r);
     float fill = 1.0 - smoothstep(R - aa, R, r);
-    float core = 1.0 - smoothstep(R * 0.55 - aa, R * 0.55, r);
+    float core = 1.0 - smoothstep(R * 0.42 - 0.08, R * 0.42, r);
     float hole = smoothstep(uHole * R - aa, uHole * R, r);
-    vec3 col = mix(uInk, mix(uFill, uCore, core), fill);
-    float alpha = ink * hole * uAlpha;
+    float body = fill * mix(0.38, 0.92, core) * (1.0 - 0.35 * smoothstep(0.3, 0.9, r));
+    float rim = ink * (1.0 - fill) * 0.8;
+    float glow = (1.0 - smoothstep(R, R + 0.22, r)) * (1.0 - ink) * (1.0 - smoothstep(0.82, 1.0, r)) * 0.3;
+    vec3 col = mix(mix(uFill, uCore, core), uInk, rim / max(0.001, rim + body));
+    col = mix(col, mix(uFill, vec3(1.0), 0.5), glow / max(0.001, glow + body + rim));
+    float alpha = max(body + rim, glow) * hole * uAlpha;
     if (alpha < 0.01) discard;
     gl_FragColor = vec4(col, alpha);
     #include <colorspace_fragment>

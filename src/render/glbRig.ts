@@ -222,6 +222,30 @@ const _X = new THREE.Vector3(1, 0, 0);
 const _Z = new THREE.Vector3(0, 0, 1);
 const _v = new THREE.Vector3();
 const _m = new THREE.Matrix4();
+const _pa = new THREE.Vector3();
+const _pt = new THREE.Vector3();
+const _pk = new THREE.Vector3();
+const _ph = new THREE.Vector3();
+const _tg = new THREE.Vector3();
+const _u = new THREE.Vector3();
+const _w = new THREE.Vector3();
+const _n = new THREE.Vector3();
+const _qf = new THREE.Quaternion();
+const _qk = new THREE.Quaternion();
+const _qd = new THREE.Quaternion();
+const _qp = new THREE.Quaternion();
+/** A mirrored rig (facing left: root scale.x < 0) decomposes into world quaternions conjugated by the mirror; a local
+ *  rotation computed from them must be conjugated back: (x, y, z, w) -> (x, -y, -z, w). */
+function unmirror(b: THREE.Object3D, q: THREE.Quaternion): THREE.Quaternion {
+  if (b.parent!.matrixWorld.determinant() < 0) q.set(q.x, -q.y, -q.z, q.w);
+  return q;
+}
+/** Rotate a bone by a world-space delta (true world axes, from world positions). */
+function rotateWorld(b: THREE.Object3D, delta: THREE.Quaternion): void {
+  b.parent!.getWorldQuaternion(_qp);
+  b.getWorldQuaternion(_qk);
+  b.quaternion.copy(unmirror(b, _qp.invert().multiply(_qk.premultiply(delta))));
+}
 
 export class GlbRig implements CharacterRig {
   readonly root = new THREE.Group();
@@ -251,6 +275,10 @@ export class GlbRig implements CharacterRig {
   /** Ground clamp: sole joints (ankles + toes) and their lowest root-space height in the rest pose. */
   private soles: THREE.Object3D[] = [];
   private soleRest = 0;
+  /** Foot planting (S12, PO: "die Spieler schweben leicht"): the legs and their rest heights (root space). */
+  private legs: { up: THREE.Bone; low: THREE.Bone; foot: THREE.Bone; toe: THREE.Bone | null; ankleRest: number; toeRest: number }[] = [];
+  /** Set per frame by the view: the fighter stands (idle, walk, guard, crouch, blockstun) - hovering feet go down. */
+  plant = false;
 
   constructor(
     id: string,
@@ -428,6 +456,14 @@ export class GlbRig implements CharacterRig {
     }
     this.root.updateMatrixWorld(true);
     this.soleRest = this.soleHeight();
+    const rootY = (o: THREE.Object3D) => this.root.worldToLocal(o.getWorldPosition(new THREE.Vector3())).y;
+    for (const side of ['Left', 'Right']) {
+      const up = bones.get(`${side}UpLeg`);
+      const low = bones.get(`${side}Leg`);
+      const foot = bones.get(`${side}Foot`);
+      const toe = bones.get(`${side}ToeBase`) ?? null;
+      if (up && low && foot) this.legs.push({ up, low, foot, toe, ankleRest: rootY(foot), toeRest: toe ? rootY(toe) : rootY(foot) });
+    }
     const arm = ARM_SCALE[id] ?? 1;
     if (arm !== 1)
       for (const n of ['LeftArm', 'RightArm']) {
@@ -498,6 +534,7 @@ export class GlbRig implements CharacterRig {
         this.hips.position.copy(_v3.applyMatrix4(_m));
       }
     }
+    if (this.plant) this.plantFeet();
     // cartoon stretch: elbow/wrist (knee/ankle) move away from their parent along the bone, the skin follows
     for (const [jn, ch] of LIMB_STRETCH) {
       const b = this.joints[jn];
@@ -508,6 +545,50 @@ export class GlbRig implements CharacterRig {
     }
     const [w, h] = squashScale(p[S_SQ]);
     this.root.scale.set(facing * w, h, w);
+  }
+
+  /** Two-bone leg IK: a foot whose lowest point (ankle or toe) floats above its rest height is lowered onto the
+   *  floor by bending the knee; the foot keeps its world orientation (a raised heel stays raised, the toes touch).
+   *  Feet higher than ~30 cm (knees, kicks, steps) are left alone. */
+  private plantFeet(): void {
+    this.root.updateMatrixWorld(true);
+    const sy = Math.abs(this.root.matrixWorld.elements[5]) || 1;
+    for (const L of this.legs) {
+      L.foot.getWorldPosition(_pa);
+      const toeY = L.toe ? this.root.worldToLocal(L.toe.getWorldPosition(_pt)).y - L.toeRest : Infinity;
+      const ankY = this.root.worldToLocal(_pk.copy(_pa)).y - L.ankleRest;
+      const lift = Math.min(ankY, toeY);
+      if (!(lift > 0.008) || lift > 0.34) continue;
+      const k = lift < 0.24 ? 1 : 1 - (lift - 0.24) / 0.1; // fade out toward real steps
+      const drop = lift * k * sy;
+      L.up.getWorldPosition(_ph);
+      L.low.getWorldPosition(_pk);
+      const footWorld = L.foot.getWorldQuaternion(_qf);
+      _tg.copy(_pa).y -= drop;
+      const l1 = _ph.distanceTo(_pk);
+      const l2 = _pk.distanceTo(_pa);
+      const d = Math.min(l1 + l2 - 1e-4, Math.max(Math.abs(l1 - l2) + 1e-4, _ph.distanceTo(_tg)));
+      // knee: change the interior angle to the one that reaches the target distance
+      _u.subVectors(_ph, _pk);
+      _w.subVectors(_pa, _pk);
+      const cur = _u.angleTo(_w);
+      const want = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2))));
+      _n.crossVectors(_u, _w);
+      if (_n.lengthSq() < 1e-10) _n.set(1, 0, 0).applyQuaternion(L.low.getWorldQuaternion(_qk));
+      _n.normalize();
+      rotateWorld(L.low, _qd.setFromAxisAngle(_n, want - cur));
+      // thigh: swing the chain so the ankle lands on the target
+      L.low.updateMatrixWorld(true);
+      L.foot.getWorldPosition(_pa);
+      _u.subVectors(_pa, _ph).normalize();
+      _w.subVectors(_tg, _ph).normalize();
+      rotateWorld(L.up, _qd.setFromUnitVectors(_u, _w));
+      L.up.updateMatrixWorld(true);
+      // the foot keeps its orientation in the world
+      L.foot.parent!.getWorldQuaternion(_qk);
+      L.foot.quaternion.copy(unmirror(L.foot, _qk.invert().multiply(footWorld)));
+      L.foot.updateMatrixWorld(true);
+    }
   }
 
   setFlash(intensity: number, color?: THREE.ColorRepresentation): void {

@@ -12,7 +12,7 @@ import { JOINTS, POSE_LEN } from '../render/rig';
 import { heartGeometry, heartMaterial, makeCrocRunner, makePalm, makeSpotlight, makeSunset, noteTexture, smokeTexture } from '../render/props';
 import { makeDiamondRain, makeTunerCar } from '../render/specials';
 import { crocRunnerModel, palmModel, propModel, tunerCarModel } from '../render/propModels';
-import { burstSprite, crewRig, makeOffroader, runPose, starTexture, textSprite } from '../render/abilities11';
+import { burstSprite, chartTexture, crewRig, crownTexture, letterTexture, makeDoubleCup, makeFlag, makeOffroader, runPose, textSprite, waveFlag } from '../render/abilities11';
 import { makeNine, makeSofa } from '../render/cines11';
 
 /**
@@ -112,19 +112,17 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       }
       return { group: g, wide: 1.2, shiftX: 0.4 };
     }
-    case 'bon_abriss': {
-      const model = propModel('ball');
-      if (model) {
-        // the PO's wrecking ball, swinging in on its chain (origin at the top of the chain)
-        model.rotation.z = 0.35;
-        add(model, 1.6, 2.9, -0.3);
-      } else {
-        const ball = add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 20), new THREE.MeshStandardMaterial({ color: 0x2b2140, metalness: 0.7, roughness: 0.35 })), 1.25, 1.2, -0.2);
-        ball.castShadow = true;
-        for (let i = 0; i < 6; i++) add(new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.02, 6, 12), new THREE.MeshStandardMaterial({ color: 0x9a94b0, metalness: 0.8, roughness: 0.3 })), 1.25 + i * 0.03, 1.7 + i * 0.13, -0.2).rotation.y = i % 2 ? Math.PI / 2 : 0;
+    case 'bon_lean': {
+      // the purple double cup, big, with purple haze curling around it
+      const cup = add(makeDoubleCup(), 1.25, 0.95, -0.2);
+      cup.scale.setScalar(4.2);
+      cup.rotation.z = -0.25;
+      const tex = smokeTexture();
+      for (let i = 0; i < 7; i++) {
+        const sp = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xb36bff, transparent: true, opacity: 0.55, depthWrite: false })), 0.2 + Math.cos(i * 0.9) * 0.8, 0.8 + (i % 4) * 0.4, 0.3);
+        sp.scale.setScalar(0.7);
       }
-      for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.05), additive(0xff6a3d, 0.85)), 0.55 - i * 0.12, 1.0 + i * 0.18, 0.1);
-      return { group: g, wide: 1.25, shiftX: 0.45 };
+      return { group: g, wide: 1.25, shiftX: 0.4 };
     }
     case 'bon_grin': {
       const glint = noteTexture();
@@ -163,18 +161,20 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       }
       const n = add(textSprite('5000', { width: 1.3, color: '#ffd23c', stroke: '#2a1200' }), 0.75, 2.25, 0.4);
       void n;
+      const flag = add(makeFlag(), 0.2, -0.2, -1.1);
+      waveFlag(flag, 0.6);
       return { group: g, wide: 1.3, shiftX: 0.2 };
     }
-    case 'manu_beton': {
-      const stone = new THREE.MeshToonMaterial({ color: 0x8c8a86 });
+    case 'manu_schatten': {
+      // dark shadow smoke around him, the gold crown over his head
+      const tex = smokeTexture();
       for (let i = 0; i < 9; i++) {
-        const c = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.06 + (i % 3) * 0.04, 0), stone), 0.75 + Math.cos(i * 1.7) * 0.35, 1.2 + Math.sin(i * 2.3) * 0.4, 0.3 + (i % 2) * 0.2);
-        c.rotation.set(i, i * 0.6, 0);
+        const sp = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: i % 2 ? 0x0c0814 : 0x241634, transparent: true, opacity: 0.85, depthWrite: false })), -0.7 + (i % 3) * 0.3, 0.3 + Math.floor(i / 3) * 0.5, -0.3);
+        sp.scale.setScalar(0.9);
       }
-      for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.05), additive(0xd8d2c4, 0.8)), 0.3 - i * 0.1, 1.05 + i * 0.16, 0.1);
-      const crack = add(new THREE.Mesh(new THREE.RingGeometry(0.25, 0.55, 7), new THREE.MeshBasicMaterial({ color: 0x3a3632, transparent: true, opacity: 0.55 })), 0.1, 0.01, 0.1);
-      crack.rotation.x = -Math.PI / 2;
-      return { group: g, wide: 1.15, shiftX: 0.3 };
+      const crown = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: crownTexture(), transparent: true, depthWrite: false })), 0.05, 2.25, 0.4);
+      crown.scale.set(0.6, 0.45, 1);
+      return { group: g, wide: 1.2, shiftX: 0.1 };
     }
     case 'manu_sofa': {
       const sofa = add(makeSofa(), 1.45, 0, -0.35);
@@ -182,20 +182,22 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       add(burstSprite('BATSCH!', '#ff5a5a', 1.0), 1.05, 2.05, 0.5);
       return { group: g, wide: 1.3, shiftX: 0.45 };
     }
-    case 'laca_blick': {
-      const tex = starTexture();
-      for (let i = 0; i < 3; i++) {
-        const st = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xeef8ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), 0.45 + i * 0.42, 1.6 - i * 0.02, 0.35);
-        st.scale.setScalar(0.55 - i * 0.12);
-      }
-      add(new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.05), additive(0xcfe9ff, 0.85)), 1.0, 1.6, 0.3);
-      return { group: g, wide: 1.2, shiftX: 0.35 };
+    case 'laca_abc': {
+      // three chrome capitals flying out of his hand
+      'FTW'.split('').forEach((ch, i) => {
+        const sp = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: letterTexture(ch), transparent: true, depthWrite: false })), 0.75 + i * 0.5, 1.25 + i * 0.08, 0.4);
+        sp.scale.setScalar(0.62);
+        sp.material.rotation = (i - 1) * -0.15;
+      });
+      add(new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.3), additive(0xcfe0ff, 0.35)), 0.6, 1.3, 0.2);
+      return { group: g, wide: 1.35, shiftX: 0.55 };
     }
-    case 'laca_weste': {
-      const shell = add(new THREE.Mesh(new THREE.SphereGeometry(0.62, 24, 16), new THREE.MeshToonMaterial({ color: 0xf2f4f8, transparent: true, opacity: 0.35, depthWrite: false })), 0.15, 1.15, 0);
-      shell.scale.set(1, 1.15, 0.9);
-      for (let i = 0; i < 5; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.8 - i * 0.08, 0.05), additive(0xffffff, 0.8)), -0.55 - i * 0.05, 0.75 + i * 0.2, 0.2);
-      return { group: g, wide: 1.15, shiftX: 0.2 };
+    case 'laca_chart': {
+      // the green chart curve he rides up, "#1 NEU"
+      const ch = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: chartTexture(), transparent: true, depthWrite: false })), -0.15, 1.05, -0.2);
+      ch.scale.set(1.2, 2.4, 1);
+      add(textSprite('#1 NEU', { width: 0.95, color: '#3cff78', font: '"Rubik Wet Paint", "Anton", sans-serif' }), 0.85, 2.35, 0.4);
+      return { group: g, wide: 1.2, shiftX: 0.2 };
     }
     case 'laca_gwagon': {
       const car = add(makeOffroader(), 1.1, 0, -1.3);

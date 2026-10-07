@@ -381,13 +381,20 @@ const moves: Record<string, Clip> = {
     ],
     S,
   ),
-  bon_abriss: new Clip(
+  // Lila Becher (S12): a sip from the purple double cup (right hand), then a slow, woozy lean back and to the side
+  // (the sway dodges, 12-30) and a lazy left hook (contact 34)
+  bon_lean: new Clip(
     [
-      { f: 1, p: {} },
-      { f: 14, p: { x: -0.1, y: -0.06, j: { chest: [0, -64, 4], spine: [0, -24, 4], head: [0, 30, 4], shR: [-50, 0, -30], elR: [0, 0, 110], shL: [30, 0, 70], elL: [0, 0, 70] } } },
-      { f: 18, p: compose(straight, { x: 0.1, j: { spine: [0, 10, -20] } }), e: 'snap' },
-      { f: 23, p: compose(straight, { x: 0.1, j: { spine: [0, 10, -20] } }) },
-      { f: 44, p: {} },
+      { f: 1, p: { aim: { shR: [0.3, 0.2, 0.5], elR: [0.2, 0.95, 0.2] } } },
+      { f: 5, p: { aim: { shR: [0.35, 0.3, 0.55], elR: [-0.35, 1, 0.1] }, j: { head: [0, 6, -16], chest: [0, -4, -6], neck: [0, 0, -6] } } },
+      { f: 11, p: { aim: { shR: [0.35, 0.3, 0.55], elR: [-0.35, 1, 0.1] }, j: { head: [0, 6, -20], chest: [0, -4, -8], neck: [0, 0, -8] } } },
+      { f: 15, p: { y: -0.04, aim: { shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3] }, j: { spine: [-14, 0, -12], chest: [-10, 10, -10], head: [-8, 12, -6], hips: [6, 0, 0] } } },
+      { f: 21, p: { y: -0.08, x: -0.1, aim: { shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3], shL: [-0.4, -0.8, -0.5], elL: [0.2, -0.9, -0.2] }, j: { spine: [12, 0, -20], chest: [10, -12, -14], head: [10, -10, -8], hips: [-6, 0, 0] } } },
+      { f: 27, p: { y: -0.06, x: -0.04, aim: { shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3] }, j: { spine: [-16, 0, -10], chest: [-12, 14, -8], head: [-10, 14, -4], hips: [8, 0, 0] } } },
+      { f: 31, p: { y: -0.05, aim: { shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3], shL: [-0.5, 0.1, -0.7], elL: [0.3, 0.4, 0.8] }, j: { chest: [0, -40, 2], spine: [0, -18, 0], head: [0, 26, 0] } }, e: 'inOut' },
+      { f: 34, p: { x: 0.14, y: -0.04, aim: { shL: [1, 0.25, -0.1], elL: [0.55, 0.3, 0.75], shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3], face: 0.8 }, j: { chest: [0, 34, -8], spine: [0, 14, -10], hips: [0, 10, 0] } }, e: 'snap' },
+      { f: 40, p: { x: 0.16, y: -0.04, aim: { shL: [0.8, 0.1, 0.5], elL: [0.3, 0.2, 0.9], shR: [0.1, -0.6, 0.6], elR: [0.4, 0.7, 0.3] }, j: { chest: [0, 44, -6], spine: [0, 18, -8] } } },
+      { f: 58, p: {}, e: 'inOut' },
     ],
     S,
   ),

@@ -12,8 +12,9 @@ const out = `artifacts/vfx${process.argv[3] ? '_' + process.argv[3].split(',')[0
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 800, height: 450 } });
+page.setDefaultTimeout(180000);
 page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
-await page.goto(`${base}/?quick=${pair}&mode=cpu&q=${q}${process.env.EXTRA ?? ''}`);
+await page.goto(`${base}/?quick=${pair}&mode=cpu&q=${q}${process.env.EXTRA ?? ''}`, { timeout: 180000 });
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 240000 });
 await page.evaluate(() => {
   const rb = window.__rb;

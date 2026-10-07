@@ -1,5 +1,5 @@
-// D43 abilities of the modelle-3 roster: Manuellsen (5000 Kurden, Beton, Sofa-Backpfeifen), Lacazette (Kalter Blick,
-// Daunenweste, 70 Schüsse), the new signatures of Jazeek (Ninetynine) and Bonez (Ohne mein Team).
+// Abilities of the modelle-3 roster (D43, S12): Manuellsen (5000 Kurden, König im Schatten, Sofa-Backpfeifen), Lacazette
+// (Drei Buchstaben, Chart-Einstieg, 70 Schüsse), Bonez' Lila Becher, the signatures Ninetynine and Ohne mein Team.
 import { describe, expect, it } from 'vitest';
 import { RULES } from '../src/core/sim';
 import { getFighter, validateLoadout } from '../src/core/registry';
@@ -45,18 +45,23 @@ describe('Manuellsen', () => {
     expect(hp - s.fighters[1].health).toBeLessThanOrEqual(24);
   });
 
-  it('Beton: absorbs a strike and answers with a knockdown right hand', () => {
+  it('König im Schatten: glides through the opponent (a jab passes through him) and hits from behind', () => {
     const s = newMatch(ML);
-    place(s, 1.0);
+    place(s, 1.2);
     s.fighters[0].meter = 100;
+    const side0 = Math.sign(s.fighters[1].x - s.fighters[0].x);
+    const hp0 = s.fighters[0].health;
     const evs = run(s, 1, IN.S2);
-    evs.push(...run(s, 12, 0, IN.LIGHT));
-    evs.push(...run(s, 60));
-    expect(ofType(evs, 'armor').length).toBeGreaterThanOrEqual(1);
-    expect(ofType(evs, 'hit').some((h) => h.a === 0)).toBe(true);
+    evs.push(...run(s, 6, 0, IN.LIGHT));
+    evs.push(...run(s, 50));
+    expect(s.fighters[0].health).toBe(hp0); // the jab went through the shadow
+    expect(Math.sign(s.fighters[1].x - s.fighters[0].x)).toBe(-side0); // he came out on the other side
+    const h = ofType(evs, 'hit').filter((e) => e.a === 0);
+    expect(h).toHaveLength(1);
+    expect(h[0].damage).toBe(85);
   });
 
-  it('Sofa-Backpfeifen: grab -> sofa -> three slaps (cinematic), unblockable, a jump escapes', () => {
+  it('Sofa-Backpfeifen: grab -> sofa -> three slaps, KO on the sofa, crown, sofa over (cinematic), unblockable, a jump escapes', () => {
     const go = (p2: number, pre = 0) => {
       const s = newMatch(ML);
       place(s, 1.2);
@@ -64,56 +69,75 @@ describe('Manuellsen', () => {
       if (pre) run(s, pre, 0, p2);
       const hp = s.fighters[1].health;
       const evs = run(s, 1, IN.S3, p2).concat(run(s, 60, 0, p2));
-      evs.push(...run(s, 180 * RULES.CINE_RATE));
+      evs.push(...run(s, 280 * RULES.CINE_RATE));
       return { evs, dmg: hp - s.fighters[1].health };
     };
     const blocked = go(IN.BLOCK);
     expect(ofType(blocked.evs, 'cineStart').map((c) => c.id)).toEqual(['manu_sofa']);
-    expect(ofType(blocked.evs, 'cineHit')).toHaveLength(3);
-    expect(blocked.dmg).toBe(30 + 70 + 70 + 140);
+    expect(ofType(blocked.evs, 'cineHit')).toHaveLength(4);
+    expect(blocked.dmg).toBe(30 + 70 + 70 + 110 + 40);
     expect(ofType(go(IN.UP, 2).evs, 'cineStart')).toHaveLength(0);
   });
 });
 
 describe('Lacazette', () => {
-  it('Kalter Blick: fast glint at eye height, long stun on hit', () => {
-    const s = newMatch(LM);
-    place(s, 4.0);
-    s.fighters[0].meter = 100;
-    const evs = run(s, 1, IN.S1).concat(run(s, 40));
-    const h = ofType(evs, 'hit').filter((e) => e.a === 0 && e.projectile);
-    expect(h).toHaveLength(1);
-  });
-
-  it('Kalter Blick: flies over a crouching opponent', () => {
+  it('Drei Buchstaben: three letters, three hits', () => {
     const s = newMatch(LM);
     place(s, 3.0);
     s.fighters[0].meter = 100;
-    run(s, 4, 0, IN.DOWN);
-    const evs = run(s, 1, IN.S1, IN.DOWN).concat(run(s, 40, 0, IN.DOWN));
-    expect(ofType(evs, 'hit').filter((e) => e.a === 0)).toHaveLength(0);
+    const hp = s.fighters[1].health;
+    const evs = run(s, 1, IN.S1).concat(run(s, 70));
+    expect(ofType(evs, 'hit').filter((e) => e.a === 0 && e.projectile)).toHaveLength(3);
+    expect(hp - s.fighters[1].health).toBeGreaterThanOrEqual(45);
+    expect(hp - s.fighters[1].health).toBeLessThanOrEqual(55);
   });
 
-  it('Daunenweste: armoured shoulder charge through a jab, knockdown', () => {
-    const s = newMatch(LM);
-    place(s, 1.4);
-    s.fighters[0].meter = 200;
-    const evs = run(s, 1, IN.S2);
-    evs.push(...run(s, 6, 0, IN.LIGHT));
-    evs.push(...run(s, 50));
-    expect(ofType(evs, 'hit').some((h) => h.a === 0)).toBe(true);
+  it('Chart-Einstieg: launches from the ground and catches a jump-in', () => {
+    const g = newMatch(LM);
+    place(g, 0.9);
+    g.fighters[0].meter = 200;
+    const evs = run(g, 1, IN.S2).concat(run(g, 60));
+    expect(ofType(evs, 'hit').filter((e) => e.a === 0).map((e) => e.damage)).toEqual([80]);
+    // anti-air: some timing against a forward jump from 1.5 m connects
+    const caught = [2, 4, 6, 8, 10, 12, 14].some((d) => {
+      const s = newMatch(LM);
+      place(s, 1.5);
+      s.fighters[0].meter = 200;
+      run(s, 4, 0, IN.UP | IN.LEFT);
+      run(s, d, 0, IN.LEFT);
+      const e = run(s, 1, IN.S2, IN.LEFT).concat(run(s, 40));
+      return ofType(e, 'hit').some((h) => h.a === 0 && h.damage === 80);
+    });
+    expect(caught).toBe(true);
   });
 
-  it('70 Schüsse: the car crosses the stage; on hit the drive-by cinematic (six bursts)', () => {
+  it('70 Schüsse: the car crosses the stage; on hit the drive-by (six bursts) and the bonnet slam', () => {
     const s = newMatch(LM);
     place(s, 4.0);
     s.fighters[0].meter = 300;
     const hp = s.fighters[1].health;
     const evs = run(s, 1, IN.S3).concat(run(s, 120));
     expect(ofType(evs, 'cineStart').map((c) => c.id)).toEqual(['laca_gwagon']);
-    evs.push(...run(s, 190 * RULES.CINE_RATE));
-    expect(ofType(evs, 'cineHit')).toHaveLength(6);
-    expect(hp - s.fighters[1].health).toBe(30 + 35 * 4 + 40 + 90);
+    evs.push(...run(s, 270 * RULES.CINE_RATE));
+    expect(ofType(evs, 'cineHit')).toHaveLength(7);
+    expect(hp - s.fighters[1].health).toBe(30 + 35 * 4 + 40 + 60 + 50);
+  });
+});
+
+describe('Bonez', () => {
+  it('Lila Becher: a sip, a jab passes through the sway, then the hook', () => {
+    const s = newMatch({ fighters: ['bonez', 'jazeek'] });
+    place(s, 1.1);
+    s.fighters[0].meter = 100;
+    const hp0 = s.fighters[0].health;
+    const evs = run(s, 1, IN.S2);
+    evs.push(...run(s, 14));
+    evs.push(...run(s, 6, 0, IN.LIGHT));
+    evs.push(...run(s, 50));
+    expect(s.fighters[0].health).toBe(hp0);
+    const h = ofType(evs, 'hit').filter((e) => e.a === 0);
+    expect(h).toHaveLength(1);
+    expect(h[0].damage).toBe(90);
   });
 });
 

@@ -47,6 +47,8 @@ export interface HitDef {
   pushBlock: number;
   /** Launch into the air (juggle state) with this velocity (vx relative to attacker facing). */
   launch?: { vx: number; vy: number };
+  /** The hitbox is behind the attacker (a backhand after passing through): knockback and push go backwards. */
+  reverse?: boolean;
   /** Grounded hard knockdown on hit. */
   knockdown?: boolean;
   meterOnHit: number;
@@ -69,6 +71,8 @@ export interface VelocityKey {
   vx?: number;
   /** Vertical velocity (units/frame); setting this makes the fighter airborne. */
   vy?: number;
+  /** Reappear on the far side of the opponent, this far from their centre (units): a shadow step through them. */
+  warp?: number;
 }
 
 export interface ProjectileDef {

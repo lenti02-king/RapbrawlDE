@@ -5,6 +5,15 @@
 import { IN } from '../core/input';
 import type { GameState } from '../core/state';
 import { type InputSource, socd } from './sources';
+import './touch.css';
+
+/** Button icons (original, drawn here): fist, fist with impact burst, shield, grabbing hand. */
+const ICON = {
+  light: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 30c0-6 4-10 9-10h17c6 0 10 4 10 10v6c0 9-7 16-16 16h-6c-8 0-14-6-14-14z" fill="#fff" stroke="#120a1e" stroke-width="4" stroke-linejoin="round"/><path d="M24 20v9M32 20v9M40 20v9" stroke="#120a1e" stroke-width="3.5" stroke-linecap="round"/><path d="M14 34c4-2 9-2 12 1" fill="none" stroke="#120a1e" stroke-width="3.5" stroke-linecap="round"/></svg>`,
+  heavy: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M44 6l3 9 9-3-5 8 8 5-10 1 1 9-7-6-5 7-1-9" fill="#ffd23c" stroke="#120a1e" stroke-width="3" stroke-linejoin="round"/><path d="M8 34c0-6 4-10 9-10h15c6 0 10 4 10 10v6c0 9-7 16-16 16h-4c-8 0-14-6-14-14z" fill="#fff" stroke="#120a1e" stroke-width="4" stroke-linejoin="round"/><path d="M18 24v9M26 24v9M34 24v9" stroke="#120a1e" stroke-width="3.5" stroke-linecap="round"/></svg>`,
+  shield: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M32 6l22 8v16c0 14-9 23-22 28C19 53 10 44 10 30V14z" fill="#fff" stroke="#120a1e" stroke-width="4.5" stroke-linejoin="round"/><path d="M32 14v36M18 24h28" stroke="#8f9ccc" stroke-width="4" stroke-linecap="round"/></svg>`,
+  grab: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 30V16a4 4 0 018 0v12V12a4 4 0 018 0v16-12a4 4 0 018 0v16-8a4 4 0 018 0v16c0 12-8 20-20 20h-2c-9 0-15-6-18-13l-6-11a4 4 0 017-4z" fill="#fff" stroke="#120a1e" stroke-width="4" stroke-linejoin="round"/></svg>`,
+};
 
 interface Btn {
   el: HTMLElement;
@@ -59,10 +68,10 @@ export class TouchControls implements InputSource {
     this.root.innerHTML = `
       <div class="stick-zone"><div class="stick-base"><div class="dirs">${CENTERS.map((a) => `<i style="--a:${90 - a}deg"></i>`).join('')}</div><div class="stick-knob"></div></div></div>
       <div class="pad">
-        <button class="act act-block" data-bit="BLOCK">BLOCK</button>
-        <button class="act act-grab" data-bit="GRAB">GRIFF</button>
-        <button class="act act-heavy" data-bit="HEAVY"><span>H<small>SCHWER</small></span></button>
-        <button class="act act-light" data-bit="LIGHT"><span>L<small>LEICHT</small></span></button>
+        <button class="act act-block" data-bit="BLOCK" aria-label="Blocken"><span>${ICON.shield}<small>BLOCK</small></span></button>
+        <button class="act act-grab" data-bit="GRAB" aria-label="Griff"><span>${ICON.grab}<small>GRIFF</small></span></button>
+        <button class="act act-heavy" data-bit="HEAVY" aria-label="Schwer"><span>${ICON.heavy}<small>SCHWER</small></span></button>
+        <button class="act act-light" data-bit="LIGHT" aria-label="Leicht"><span>${ICON.light}<small>LEICHT</small></span></button>
       </div>`;
     parent.appendChild(this.root);
     this.stickZone = this.root.querySelector('.stick-zone')!;

@@ -2,9 +2,11 @@
 // normals are Bonez's boxing set on a heavier, slower body. Abilities from his memes (PO session 11):
 //  - 5000 Kurden ("Sag was gegen mich – 5000 Kurden stehen auf"): he calls, a crowd of men storms from behind him across
 //    the stage: three hits, blockable (mid), ignores projectiles (a crowd does not stop for a sound wave).
-//  - Beton ("Du musst immer Beton sein"): turns to concrete: absorbs up to three strikes, then a concrete right hand.
+//  - König im Schatten (S12, his autobiography; replaces Beton, PO: "nur ein Schlag"): through the opponent as a
+//    shadow, a backhand from behind.
 //  - Sofa-Backpfeifen (signature, the slap scandal): grabs, a black sofa appears behind the opponent, they drop onto
-//    it, and he slaps them three times with straight arms: batsch, batsch, batsch — the last one tips the sofa over.
+//    it, three slaps with straight arms: batsch, batsch, batsch - they sleep it off on the sofa (S12: KO, Zzz), then
+//    stage 2: lights down, a crown, KÖNIG IM SCHATTEN, and the sofa goes over backwards.
 import type { FighterDef, MoveDef } from '../core/defs';
 import { m, mps } from '../core/math';
 import { BONEZ } from './bonez';
@@ -47,25 +49,29 @@ const specials: MoveDef[] = [
     },
   },
   {
-    key: 'manu_beton',
-    name: 'Beton',
+    // König im Schatten (his autobiography's title): he sinks into his own shadow, glides through the opponent as a
+    // dark silhouette (strike- and projectile-proof, no collision) and comes out behind them with a backhand
+    key: 'manu_schatten',
+    name: 'König im Schatten',
     kind: 'special',
-    total: 62,
-    armor: { start: 4, end: 40, hits: 3 },
+    total: 48,
+    strikeInvuln: [4, 20],
+    passThrough: [4, 24],
     velocity: [
-      { frame: 38, vx: mps(2.6) },
-      { frame: 45, vx: 0 },
+      { frame: 6, vx: mps(2.5) },
+      { frame: 16, vx: 0, warp: m(0.8) },
     ],
     hits: [
-      hit(42, 45, {
-        damage: 95,
-        chip: 10,
+      hit(22, 25, {
+        damage: 85,
+        chip: 8,
         strength: 2,
         hitstun: 26,
-        blockstun: 18,
-        pushHit: 1400,
+        blockstun: 16,
+        pushHit: 1200,
         knockdown: true,
-        boxes: [box(0.25, 1.2, 1.05, 1.75)],
+        reverse: true,
+        boxes: [box(-1.05, -0.1, 0.9, 1.75)],
         meterOnHit: 0,
         meterOnBlock: 0,
       }),
@@ -126,14 +132,15 @@ export const MANUELLSEN: FighterDef = {
       ai: 'zone',
     },
     {
-      id: 'manu_beton',
-      name: 'Beton',
-      category: 'counter',
+      id: 'manu_schatten',
+      name: 'König im Schatten',
+      category: 'mobility',
       cost: 100,
-      move: 'manu_beton',
-      role: 'Panzerung + harte Rechte',
-      description: '„Du musst immer Beton sein.“ Er wird zu Beton, schluckt bis zu drei Schläge und antwortet mit einer betonharten Rechten.',
-      ai: 'counter',
+      move: 'manu_schatten',
+      role: 'Durch den Gegner, Schlag von hinten',
+      description: '„König im Schatten“: Er versinkt in seinem Schatten, gleitet als dunkle Silhouette durch den Gegner hindurch – Schläge und Projektile gehen ins Leere – und taucht hinter ihm mit einem Rückhandschlag auf.',
+      ai: 'range',
+      aiRange: [0.6, 2.2],
     },
     {
       id: 'manu_sofa',
@@ -148,17 +155,20 @@ export const MANUELLSEN: FighterDef = {
     },
   ],
   cinematics: {
+    // stage 1: three slaps, the last one knocks them out cold on the sofa (they sleep: Zzz); stage 2: lights out,
+    // the crown comes down - KÖNIG IM SCHATTEN - and he kicks the sofa over backwards with the sleeper on it
     manu_sofa: {
       id: 'manu_sofa',
-      frames: 160,
+      frames: 260,
       startDx: m(0.95),
       hits: [
         { frame: 70, damage: 70, strength: 2 },
         { frame: 92, damage: 70, strength: 2 },
-        { frame: 116, damage: 140, strength: 3 },
+        { frame: 116, damage: 110, strength: 3 },
+        { frame: 226, damage: 40, strength: 3 },
       ],
       endDx: m(2.6),
     },
   },
-  defaultLoadout: ['manu_kurden', 'manu_beton', 'manu_sofa'],
+  defaultLoadout: ['manu_kurden', 'manu_schatten', 'manu_sofa'],
 };

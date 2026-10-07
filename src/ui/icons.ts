@@ -79,11 +79,11 @@ const CARD_ICONS: Record<string, string> = {
     `<path d="M14 46c-6 0-9-5-7-10 1-4 5-6 9-5 0-7 6-12 13-11 3-6 13-7 17 0 7-1 12 5 10 11 5 1 7 7 3 11-2 3-5 4-8 4z" fill="#e4e0ee" ${S}/>
      <circle cx="38" cy="34" r="3" fill="#ffd65a"/><path d="M38 27v14M31 34h14" stroke="#ffd65a" stroke-width="2" stroke-linecap="round"/>`,
   ),
-  bon_abriss: svg(
-    `<rect x="14" y="20" width="30" height="24" rx="9" fill="#f2c79a" ${S}/>
-     <path d="M20 20v-4M27 20v-5M34 20v-5M41 21v-3" stroke="#14183a" stroke-width="3" stroke-linecap="round"/>
-     <path d="M44 28l10-4M44 34h12M44 40l10 4" stroke="#ff6a3d" stroke-width="4" stroke-linecap="round"/>
-     <path d="M14 30h-6" stroke="#14183a" stroke-width="3" stroke-linecap="round"/>`,
+  bon_lean: svg(
+    `<path d="M20 16h24l-3 38H23z" fill="#f4f3ef" ${S}/>
+     <path d="M22 26h20l-1 10H23z" fill="#9b3dff" stroke="#14183a" stroke-width="2.5"/>
+     <path d="M19 22h26" stroke="#14183a" stroke-width="3" stroke-linecap="round"/>
+     <path d="M46 14c4-2 8 0 8 4M50 26c3-1 6 1 6 4" fill="none" stroke="#c58cff" stroke-width="3" stroke-linecap="round"/>`,
   ),
   bon_grin: svg(
     `<path d="M10 26c6 16 38 16 44 0z" fill="#3a1d24" ${S}/>
@@ -96,6 +96,22 @@ const CARD_ICONS: Record<string, string> = {
      <path d="M24 56c2-12 4-22 2-32" fill="none" stroke="#14183a" stroke-width="5" stroke-linecap="round"/>
      <path d="M26 24c-6-6-14-6-18-2 6 0 11 2 14 6M26 24c2-8 8-12 14-12-4 3-8 7-9 12M26 24c-8 0-14 6-14 12 4-5 9-7 14-8M26 24c8-2 14 2 16 8-5-3-10-4-15-3" fill="#2a1540" stroke="#14183a" stroke-width="2"/>
      <path d="M6 56h52" stroke="#14183a" stroke-width="3.5" stroke-linecap="round"/>`,
+  ),
+  // Manuellsen / Lacazette (S12)
+  manu_schatten: svg(
+    `<path d="M14 54c0-14 6-26 18-26s18 12 18 26z" fill="#1a1028" ${S}/>
+     <circle cx="32" cy="22" r="10" fill="#1a1028" ${S}/>
+     <circle cx="28" cy="22" r="2.2" fill="#ffd23c"/><circle cx="36" cy="22" r="2.2" fill="#ffd23c"/>
+     <path d="M22 10l3-7 4 5 3-6 3 6 4-5 3 7z" fill="#ffd23c" ${S}/>`,
+  ),
+  laca_abc: svg(
+    `<text x="32" y="44" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="26" fill="#e8edf6" stroke="#14183a" stroke-width="2.5" paint-order="stroke">FTW</text>
+     <path d="M6 50h14M8 56h10" stroke="#cfe0ff" stroke-width="3" stroke-linecap="round"/>`,
+  ),
+  laca_chart: svg(
+    `<path d="M8 54l10-14 6 5 9-16 6 6 12-23" fill="none" stroke="#14183a" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+     <path d="M8 54l10-14 6 5 9-16 6 6 12-23" fill="none" stroke="#3cff78" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round"/>
+     <path d="M44 8l11 2-4 10z" fill="#3cff78" ${S}/>`,
   ),
 };
 

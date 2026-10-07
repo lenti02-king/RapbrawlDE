@@ -15,7 +15,8 @@ fs.mkdirSync(`${out}/tmp`, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
 page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
-await page.goto(`${base}/?quick=${fighter},${other}&mode=training&q=${q}${process.env.EXTRA ?? ''}`);
+await page.goto(`${base}/?quick=${fighter},${other}&mode=training&q=${q}${process.env.EXTRA ?? ''}`, { timeout: 180000 });
+page.setDefaultTimeout(180000);
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 600000 });
 await page.evaluate(() => {
   window.__rb.debugHold = true;

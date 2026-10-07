@@ -4,7 +4,7 @@ const [, , out = 'artifacts/hud.png', w = '1280', h = '720', touch = '0'] = proc
 const base = process.env.BASE_URL ?? 'http://localhost:5173';
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: +w, height: +h }, hasTouch: touch === '1', isMobile: touch === '1' });
-await page.goto(`${base}/?quick=jazeek,bonez&mode=cpu&q=${process.env.Q ?? 'medium'}&touch=${touch}`);
+await page.goto(`${base}/?quick=jazeek,bonez&mode=cpu&q=${process.env.Q ?? 'medium'}&touch=${touch}`, { timeout: 180000 });
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 600000 });
 await page.evaluate(() => {
   const rb = window.__rb;

@@ -103,7 +103,7 @@ describe('Jazeek', () => {
 });
 
 describe('Jazeek: Blunt für dich', () => {
-  const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_abriss', 'bon_team']] as [string[], string[]] };
+  const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_lean', 'bon_team']] as [string[], string[]] };
 
   it('grabs a standing opponent close by and rolls them into the joint: three drags + the pop (124 damage)', () => {
     const s = newMatch(BL);
