@@ -28,7 +28,7 @@ import { mountShop, shopHtml } from '../ui/menu/shop';
 import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
-import { isV2, isV3, design, setDesign, type Design } from '../ui/design';
+import { isV2, design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
@@ -163,8 +163,6 @@ function rankPct(p: Profile): number {
 /** Hometowns on the character-select ribbon (from the PO's master design). */
 const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
 const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club', 'courtyard']);
-/** Arenas rebuilt in the design-v3 look (D46): their v3 renders replace the painted ones in the menus. */
-const V3_ARENAS = new Set(['festival', 'bahnhof']);
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
 /** Stored menu mode (older saves used 'online' for the friend room code). */
@@ -1000,7 +998,6 @@ export class App {
   private arenaItems(): ShowcaseItem[] {
     // full-screen 1672x941 renders for the v2 arena screen (scripts/arena-thumbs.mjs BIG=1); others use the thumbnail
     const fav = this.favArena;
-    const v3 = isV3();
     return ARENAS.map((a) => ({
       id: a.id,
       name: a.name,
@@ -1011,8 +1008,8 @@ export class App {
         ['STIMMUNG', a.mood],
         ['PUBLIKUM', a.crowd],
       ],
-      img: a.locked ? '' : v3 && V3_ARENAS.has(a.id) ? `assets/ui3/arenas/${a.id}_t.webp` : a.img,
-      big: a.locked || !BIG_ARENAS.has(a.id) ? undefined : `assets/ui${v3 && V3_ARENAS.has(a.id) ? 3 : 2}/arenas/${a.id}.webp`,
+      img: a.locked ? '' : a.img,
+      big: a.locked || !BIG_ARENAS.has(a.id) ? undefined : `assets/ui2/arenas/${a.id}.webp`,
       locked: a.locked,
       tag: a.id === fav ? 'FAVORIT' : undefined,
     }));
@@ -1330,7 +1327,7 @@ export class App {
   /** Design v2 settings (D43): the same options as cards left and right of the favourite in the ring. */
   private showSettingsV2(): void {
     const rows: SettingRow[] = [
-      { key: 'design', name: 'DESIGN', desc: '3D-Arena im Cartoon-Look (neu), das gemalte Ring-Design oder das klassische. Jederzeit umschaltbar, nichts geht verloren.', kind: 'seg', value: design(), opts: [['v3', '3D'], ['v2', 'GEMALT'], ['v1', 'KLASSISCH']] },
+      { key: 'design', name: 'DESIGN', desc: 'Das neue Street-Design (Frankfurt, Berlin), das gemalte Ring-Design oder das klassische. Jederzeit umschaltbar, nichts geht verloren.', kind: 'seg', value: design(), opts: [['v4', 'STREET'], ['v2', 'RING'], ['v1', 'KLASSISCH']] },
       { key: 'quality', name: 'GRAFIKQUALITÄT', desc: 'Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.', kind: 'seg', value: store.get<string>('quality', 'auto'), opts: [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']] },
       { key: 'touch', name: 'TOUCH-STEUERUNG', desc: 'Virtueller Stick und Tasten auf dem Bildschirm.', kind: 'seg', value: store.get<string>('touch', 'auto'), opts: [['auto', 'AUTO'], ['on', 'AN'], ['off', 'AUS']] },
       { key: 'sound', name: 'TON', desc: 'Effekte und Musik.', kind: 'switch', value: !this.audio.muted },
@@ -1396,7 +1393,7 @@ export class App {
       `${this.header('EINSTELLUNGEN')}
        <div class="settings">
          <div class="panel setrow"><div><div class="sname">DESIGN</div><div class="sdesc">Neues Design (Ring, Neon) oder das klassische. Jederzeit umschaltbar, nichts geht verloren.</div></div>
-           ${seg('design', design(), [['v3', '3D'], ['v2', 'GEMALT'], ['v1', 'KLASSISCH']])}</div>
+           ${seg('design', design(), [['v4', 'STREET'], ['v2', 'RING'], ['v1', 'KLASSISCH']])}</div>
          <div class="panel setrow"><div><div class="sname">GRAFIKQUALITÄT</div><div class="sdesc">Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.</div></div>
            ${seg('quality', q, [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']])}</div>
          <div class="panel setrow"><div><div class="sname">TOUCH-STEUERUNG</div><div class="sdesc">Virtueller Stick und Tasten auf dem Bildschirm.</div></div>

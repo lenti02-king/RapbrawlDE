@@ -102,6 +102,6 @@ export function friendsHtml(myCode: string, myName: string, list: Friend[], top:
   const front = `${hazeHtml([520, 760, 1150, 930], '170 150 255', 0.5)}
     ${topBarHtml('FREUNDE', top)}
     ${mine}${add}${play}${friends}
-    ${goldBtn('room', 'RAUM ÖFFNEN', [166, 816, 310, 80], 34, false)}`;
+    ${goldBtn('room', 'RAUM ÖFFNEN', [176, 808, 290, 74], 40, false)}`;
   return screenHtml(ringFigure(560), front);
 }

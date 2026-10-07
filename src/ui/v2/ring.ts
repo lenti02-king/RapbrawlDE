@@ -3,7 +3,6 @@
 // crowd, lights and haze), wear the masters' panel look (navy glass with a blue neon edge, gold for the important
 // one, the chained gold button, marker headings) and keep a live 3D fighter in the middle of the ring.
 // Results and pause lie over the running arena instead (the winner celebrates in the match itself).
-import { isV3 } from '../design';
 import './ring.css';
 import { esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
@@ -11,14 +10,10 @@ import { LINE } from '../lines';
 import { RING_DIR, RING_LIGHTS, RING_PLATE } from './art/ring';
 import { FIGHTERS_DIR } from './art/fighters';
 import { topBarHtml, type TopBar } from './arena';
-import { hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, t, type ScreenArt, v3Art } from './stage';
+import { hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, t, type ScreenArt } from './stage';
 
-const A2: ScreenArt = { dir: RING_DIR, plate: RING_PLATE, art: {}, lights: RING_LIGHTS };
-/** Design v3 (D46): the same layout with the stylized 3D renders (tools/ui3 -> assets/ui3/ring/). */
-const A3: ScreenArt = v3Art(A2, 'ring');
-let A = A2;
+const A: ScreenArt = { dir: RING_DIR, plate: RING_PLATE, art: {}, lights: RING_LIGHTS };
 const GOLD = `${FIGHTERS_DIR}select.webp`; // the master's chained gold button (443 x 113)
-const gold = (): string => (isV3() ? 'assets/ui3/fighters/select.webp' : GOLD);
 const CROWN = `<svg viewBox="0 0 64 52" aria-hidden="true"><path d="M6 46l4-30 12 12 10-20 10 20 12-12 4 30z" fill="currentColor" stroke="#1a0f02" stroke-width="4" stroke-linejoin="round"/></svg>`;
 
 type Rect = [number, number, number, number]; // x, y, w, h in reference px
@@ -29,7 +24,7 @@ export function goldBtn(act: string, label: string, r: Rect, fs = 54, main = tru
   const [, , w, h] = r;
   // label zone of the sprite (fighters master: 1318..1570 x 778..866 inside 1200..1643 x 772..885)
   const lz: [number, number, number, number] = [w * 0.2, h * 0.05, w * 0.85, h * 0.83];
-  return `<button class="v2-btn rg-goldbtn ${main ? 'v2-main' : ''}" data-act="${act}" aria-label="${esc(label)}" style="${at(r)};--mask:url(${gold()})"><img class="v2-face" alt="" draggable="false" src="${gold()}">${t(label, lz, 0, 0, { cls: 'v2-brush', fs, align: 'center' })}</button>`;
+  return `<button class="v2-btn rg-goldbtn ${main ? 'v2-main' : ''}" data-act="${act}" aria-label="${esc(label)}" style="${at(r)};--mask:url(${GOLD})"><img class="v2-face" alt="" draggable="false" src="${GOLD}">${t(label, lz, 0, 0, { cls: 'v2-brush', fs, align: 'center' })}</button>`;
 }
 
 /** Navy pill button with a gold rim (secondary actions). */
@@ -51,10 +46,7 @@ function ringBack(fig: boolean, figH = 600, fy = 912): string {
 }
 
 /** The ring backdrop with the fighter anchor, for ring screens built elsewhere (FREUNDE). */
-export const ringFigure = (figH = 600, fy = 912): string => {
-  A = isV3() ? A3 : A2;
-  return ringBack(true, figH, fy);
-};
+export const ringFigure = (figH = 600, fy = 912): string => ringBack(true, figH, fy);
 
 export interface RingMount {
   stop: () => void;
@@ -94,7 +86,6 @@ export interface ProfileModel {
 }
 
 export function profileHtml(m: ProfileModel, top: TopBar): string {
-  A = isV3() ? A3 : A2;
   const player = card(
     [40, 112, 556, 226],
     `<div class="rg-player">
@@ -159,7 +150,6 @@ export interface SettingRow {
 }
 
 export function settingsHtml(rows: SettingRow[], top: TopBar): string {
-  A = isV3() ? A3 : A2;
   const row = (s: SettingRow, r: Rect) => {
     const ctl =
       s.kind === 'seg'
@@ -245,7 +235,6 @@ export function deckParts(m: DeckModel): { slots: string; coll: string; info: st
 }
 
 export function deckHtml(m: DeckModel, top: TopBar | null, living: boolean): string {
-  A = isV3() ? A3 : A2;
   const p = deckParts(m);
   const presets = [0, 1, 2].map((i) => `<button class="${i === m.preset ? 'on' : ''}" data-preset="${i}">PRESET ${i + 1}</button>`).join('');
   const sides = m.side.map((s, i) => `<button class="${i === m.player ? `on ${i ? 'p2' : ''}` : ''}" data-p="${i}">${esc(s)}</button>`).join('');
@@ -286,7 +275,6 @@ export interface ResultModel {
 }
 
 export function resultsHtml(m: ResultModel): string {
-  A = isV3() ? A3 : A2;
   const side = (s: ResultSide, o: ResultSide, i: number) => {
     const row = (l: string, a: number, b: number) =>
       `<div class="rg-srow"><span class="rg-k">${l}</span><b>${a}</b>${bar(a + b ? a / (a + b) : 0.5, i ? 'blue' : 'red')}</div>`;
@@ -317,7 +305,6 @@ export function resultsHtml(m: ResultModel): string {
 
 // ============================================================================================== PAUSE
 export function pauseHtml(training: string): string {
-  A = isV3() ? A3 : A2;
   const front = `${card(
     [536, 120, 600, 700],
     `<div class="rg-pause"><div class="rg-ptitle">PAUSE</div>${training}
