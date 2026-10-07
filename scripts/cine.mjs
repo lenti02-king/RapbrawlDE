@@ -31,6 +31,8 @@ await page.evaluate(([idx, croc, who, d43]) => {
   r.paused = true;
   r.sources[0].poll = () => 0;
   r.sources[1].poll = () => 0;
+  // let both stand still first: a CPU jump or attack already in progress would change the outcome
+  for (let i = 0; i < 180 && !r.state.fighters.every((f) => f.state === 'idle' && f.y === 0); i++) r.frame();
   const s = r.state;
   const half = d43 ? d43.half : who === 'blunt' ? 5000 : croc ? 16000 : 6000; // the Blunt is a grab (D42)
   s.fighters[0].x = -half;

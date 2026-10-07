@@ -90,7 +90,8 @@ const slapFollow = (side: 'R' | 'L'): PoseDef => ({
   aim: side === 'R' ? { shR: [0.45, -0.2, -0.85], elR: [0.4, -0.2, -0.9], face: 0.6 } : { shL: [0.45, -0.2, 0.85], elL: [0.4, -0.2, 0.9], face: 0.6 },
   j: { chest: [0, side === 'R' ? -40 : 40, -4] },
 });
-const flexUp: PoseDef = { y: 0.02, j: { chest: [0, 0, 8], head: [0, 0, 14], shL: [20, 0, 150], elL: [0, 0, 110], shR: [-20, 0, 150], elR: [0, 0, 110] } };
+// double biceps: upper arms out to the sides, forearms up (reads from the 3/4 front camera)
+const flexUp: PoseDef = { y: 0.02, aim: { shL: [0.25, 0.1, -1], elL: [0.2, 1, -0.1], shR: [0.25, 0.1, 1], elR: [0.2, 1, 0.1] }, j: { chest: [0, 0, -8], head: [0, 0, -6] } };
 const dustHands: PoseDef = { aim: { shL: [0.6, -0.5, -0.1], elL: [0.4, 0.6, 0.6], shR: [0.6, -0.5, 0.1], elR: [0.4, 0.6, -0.6] }, j: { head: [0, -8, -8] } };
 
 const SOFA_ATK = smoothClip(
@@ -178,7 +179,7 @@ function sofaDef(set: AnimSet): Clip {
 }
 
 /** Black leather two-seater, seat front facing -x, origin on the floor under the seat's back edge. */
-function makeSofa(): THREE.Group {
+export function makeSofa(): THREE.Group {
   const g = new THREE.Group();
   const leather = new THREE.MeshToonMaterial({ color: 0x1a1a20 });
   const sheen = new THREE.MeshToonMaterial({ color: 0x2c2c36 });
@@ -284,8 +285,8 @@ export const SOFA_SLAPS: CineDef = {
     { f: 106, pos: [1.2, 1.4, 4.8], target: [1.3, 1.0, 0], fov: 40, cut: true },
     { f: 140, pos: [1.3, 1.35, 5.4], target: [1.5, 0.9, 0], fov: 40 },
     // the flex
-    { f: 142, pos: [0.9, 1.5, 2.6], target: [0.3, 1.45, 0], fov: 34, cut: true },
-    { f: 160, pos: [0.85, 1.5, 2.3], target: [0.3, 1.5, 0], fov: 32 },
+    { f: 142, pos: [2.3, 1.45, 2.7], target: [0.45, 1.35, 0], fov: 36, cut: true },
+    { f: 160, pos: [2.1, 1.5, 2.4], target: [0.45, 1.45, 0], fov: 34 },
   ],
   atk: SOFA_ATK,
   def: sofaDef,
@@ -561,14 +562,14 @@ function nineCurve(): THREE.CurvePath<THREE.Vector3> {
   return path;
 }
 
-function makeNine(): THREE.Group {
+export function makeNine(): THREE.Group {
   const g = new THREE.Group();
   const curve = nineCurve();
-  const ice = new THREE.MeshToonMaterial({ color: 0xe6f6ff, emissive: 0x4a7ea0, emissiveIntensity: 0.55 });
+  const ice = new THREE.MeshToonMaterial({ color: 0xd2efff, emissive: 0x3a6a90, emissiveIntensity: 0.3 });
   const tube = inked(new THREE.TubeGeometry(curve, 80, 0.085, 12, false), ice, 1.12);
   g.add(tube);
   // iced-out: faceted stones along the tube
-  const stones = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.05, 0), new THREE.MeshToonMaterial({ color: 0xffffff, emissive: 0x9fdcff, emissiveIntensity: 0.6 }), 90);
+  const stones = new THREE.InstancedMesh(new THREE.OctahedronGeometry(0.05, 0), new THREE.MeshToonMaterial({ color: 0xffffff, emissive: 0x9fdcff, emissiveIntensity: 0.4 }), 90);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   for (let i = 0; i < 90; i++) {
@@ -806,8 +807,8 @@ export const NINETYNINE: CineDef = {
     { f: 112, pos: [1.6, 1.6, 6.4], target: [1.6, 1.6, 0], fov: 46, cut: true },
     { f: 140, pos: [1.6, 1.4, 6.0], target: [1.6, 1.2, 0], fov: 44 },
     // MVP
-    { f: 142, pos: [1.6, 1.5, 2.6], target: [0.9, 1.55, 0], fov: 32, cut: true },
-    { f: 160, pos: [1.5, 1.5, 2.3], target: [0.9, 1.6, 0], fov: 30 },
+    { f: 142, pos: [2.5, 1.45, 2.8], target: [0.75, 1.4, 0], fov: 36, cut: true },
+    { f: 160, pos: [2.3, 1.5, 2.5], target: [0.75, 1.45, 0], fov: 34 },
   ],
   atk: NINETY_ATK,
   def: ninetyDef,
@@ -932,7 +933,8 @@ function teamDef(set: AnimSet): Clip {
 function crewExtra(visual: string, i: number): ExtraActor {
   const lane = [0.55, -0.55, 0.95, -0.95][i];
   const spot = [1.55, 1.75, 1.15, 2.1][i];
-  const side = [0.9, 2.4, 0.5, 2.7][i];
+  // after the pile-on they line up behind the two, arms crossed (x, z): framing the right hand, never in front of it
+  const back = ([[-0.7, -0.9], [2.5, -1.0], [-1.25, -1.5], [3.05, -1.6]] as const)[i];
   const t0 = 72 + i * 2;
   const run = (k: number) => compose(BS2, runPose(k));
   const stomp: PoseDef = { y: 0.04, j: { spine: [0, 0, -18], chest: [0, 0, -10], thR: [-8, 10, 70], knR: [0, 0, -70], shL: [30, 0, 70], elL: [0, 0, 60], shR: [-30, 0, 50], elR: [0, 0, 80] } };
@@ -946,8 +948,8 @@ function crewExtra(visual: string, i: number): ExtraActor {
       { f: t0, p: [-3.2 - i * 0.4, 0, lane] },
       { f: t0 + 10, p: [spot - 0.4, 0, lane * 0.7], e: 'out' },
       { f: 104, p: [spot - 0.4, 0, lane * 0.7] },
-      { f: 116, p: [side - (side > 1.5 ? 0 : 0.6), 0, lane * 1.4 - 0.6], e: 'inOut' },
-      { f: 170, p: [side - (side > 1.5 ? 0 : 0.6), 0, lane * 1.4 - 0.6] },
+      { f: 116, p: [back[0], 0, back[1]], e: 'inOut' },
+      { f: 170, p: [back[0], 0, back[1]] },
     ],
     clip: smoothClip(
       [
@@ -995,7 +997,7 @@ function teamProps(): CineProps {
   phone.add(ph, screen, rec);
   group.add(phone);
   const signs = signTrack(group, [
-    { f: 50, word: 'HANDYVERBOT!', fill: '#ff4f6a', w: 1.9, pos: [1.0, 2.35, 0.5], len: 20 },
+    { f: 50, word: 'HANDYVERBOT!', fill: '#ff4f6a', w: 1.6, pos: [1.05, 1.95, 0.5], len: 20 },
     { f: 130, word: 'BOOM!', fill: '#ffd23c', w: 1.5, pos: [1.6, 2.0, 0.6], len: 18 },
   ]);
   const title = { s: null as THREE.Sprite | null };

@@ -462,7 +462,7 @@ export const JAZEEK: FighterDef = {
       move: 'jaz_blunt',
       role: 'Griff – Gegner wird zum Joint',
       description:
-        'Er packt den Gegner, rollt ihn in einen riesigen Joint, zündet ihn an und zieht dreimal kräftig – jeder Zug brennt. Dann ploppt der Gegner hustend wieder raus. Nicht blockbar, aber ausweichbar (springen, Abstand). Daneben gegriffen: lange offen.',
+        'Er packt den Gegner und trägt ihn auf den Händen in eine Cartoon-Wolke – Hände wirbeln, der Gegner verschwindet, ein Joint kommt raus. Jazeek raucht ihn in Ruhe, jeder Zug brennt, und beim letzten Ausatmen fliegt der Gegner aus der Wolke. Nicht blockbar, aber ausweichbar (springen, Abstand). Daneben gegriffen: lange offen.',
       ai: 'range',
       aiRange: [0.3, 1.1],
     },

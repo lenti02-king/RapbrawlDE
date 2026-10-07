@@ -95,6 +95,8 @@ export interface HumanoidSpec {
   headScale?: [number, number, number];
   /** Fraction of the upper arm covered by the top's sleeve (0 = tank top, 1 = long). Default 1. */
   sleeve?: number;
+  /** Sleeves down to the wrist (hoodies): the forearm wears the top too. */
+  longSleeves?: boolean;
 }
 
 export class Rig {
@@ -212,7 +214,7 @@ export class Rig {
           addPart(sh, taperedCapsule(s.upperArm * sleeve, s.armR[0] * 1.12, s.armR[0] * 1.08 - (s.armR[0] - s.armR[1]) * sleeve, 16), top);
       }
       const el = this.joint(`el${side}`, sh, [0, -s.upperArm, 0]);
-      addPart(el, taperedCapsule(s.foreArm, s.foreR[0], s.foreR[1]), skin);
+      addPart(el, taperedCapsule(s.foreArm, s.foreR[0], s.foreR[1]), s.longSleeves ? top : skin);
       const ha = this.joint(`ha${side}`, el, [0, -s.foreArm, 0]);
       addPart(ha, new RoundedBoxGeometry(s.hand * 0.95, s.hand, s.hand * 0.85, 2, s.hand * 0.28), skin, {
         pos: [0.01, -s.hand * 0.45, 0],

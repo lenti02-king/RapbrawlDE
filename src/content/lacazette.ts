@@ -162,7 +162,7 @@ export const LACAZETTE: FighterDef = {
         { frame: 104, damage: 40, strength: 2 },
         { frame: 116, damage: 90, strength: 3 },
       ],
-      endDx: m(3.4),
+      endDx: m(2.0), // the shots push the victim back toward Lacazette (render: cines11 SEVENTY_SHOTS endX)
     },
   },
   defaultLoadout: ['laca_blick', 'laca_weste', 'laca_gwagon'],

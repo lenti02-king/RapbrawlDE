@@ -35,6 +35,7 @@ import { fightersHtml, mountFighters, type RosterEntry } from '../ui/v2/fighters
 import { CUSTOM_MENU, customHtml, mountCustom } from '../ui/v2/custom';
 import { lobbyHtml, lobbyOpponent, lobbySheet, lobbyStatus, mountLobby } from '../ui/v2/lobby';
 import type { TopBar } from '../ui/v2/arena';
+import { deckHtml, deckParts, mountOverlay, mountRing, pauseHtml, profileHtml, resultsHtml, settingsHtml, type DeckCard, type DeckModel, type SettingRow } from '../ui/v2/ring';
 import { AudioEngine } from '../audio/audio';
 import { MatchRunner } from './match';
 import { NetMatchRunner, RtcTransport, runLobby, sameDeviceTransport, type LobbyResult } from '../net/online';
@@ -149,6 +150,13 @@ function rankOf(p: Profile): { name: string; next: string } {
   while (i + 1 < RANKS.length && p.wins >= RANKS[i + 1][0]) i++;
   const nxt = RANKS[i + 1];
   return { name: RANKS[i][1], next: nxt ? `Noch ${nxt[0] - p.wins} Siege bis ${nxt[1]}` : 'Höchster Rang erreicht' };
+}
+/** 0..1 of the way from the current rank to the next (design v2 profile). */
+function rankPct(p: Profile): number {
+  let i = 0;
+  while (i + 1 < RANKS.length && p.wins >= RANKS[i + 1][0]) i++;
+  const nxt = RANKS[i + 1];
+  return nxt ? (p.wins - RANKS[i][0]) / (nxt[0] - RANKS[i][0]) : 1;
 }
 
 /** Hometowns on the character-select ribbon (from the PO's master design). */
@@ -1126,6 +1134,7 @@ export class App {
   }
 
   showProfile(): void {
+    if (design() === 'v2') return this.showProfileV2();
     const p = this.profileData;
     const lvl = levelOf(p);
     const rank = rankOf(p);
@@ -1162,7 +1171,111 @@ export class App {
     el.querySelector('[data-back]')!.addEventListener('click', () => this.showHome());
   }
 
+  /** Design v2 profile (D43): player card, rank, numbers, history and per-fighter wins around the favourite in the ring. */
+  private showProfileV2(): void {
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const rank = rankOf(p);
+    const fav = this.favorite;
+    const el = this.open(
+      profileHtml(
+        {
+          name: this.playerName,
+          bust: portrait(fav, 'bust'),
+          level: lvl.level,
+          xp: lvl.xp,
+          xpPct: lvl.pct / 100,
+          rank: rank.name,
+          rankNext: rank.next,
+          rankPct: rankPct(p),
+          rp: store.get('rp', 0),
+          matches: p.matches,
+          wins: p.wins,
+          rate: p.matches ? Math.round(((p.wins + p.draws * 0.5) / p.matches) * 100) : 0,
+          bestCombo: p.bestCombo,
+          fav: { id: fav, name: getFighter(fav).name.toUpperCase() },
+          history: p.history
+            .slice(-7)
+            .reverse()
+            .map((h) => ({ r: h.r, me: getFighter(h.f).name, opp: getFighter(h.o).name, meImg: portrait(h.f, 'bust'), oppImg: portrait(h.o, 'bust'), mode: h.mode })),
+          fighters: ROSTER.map((id) => ({ id, name: getFighter(id).name.toUpperCase(), img: portrait(id, 'bust'), m: p.byFighter[id]?.m ?? 0, w: p.byFighter[id]?.w ?? 0 })),
+        },
+        this.topBar,
+      ),
+      'mm v2-profilescreen',
+    );
+    const stop = mountRing(el, fav);
+    this.bindTopBar(el, stop);
+    el.querySelector('[data-name]')?.addEventListener('click', () => {
+      stop();
+      this.showNameDialog();
+    });
+    el.querySelector('[data-back]')?.addEventListener('click', () => {
+      stop();
+      this.showHome();
+    });
+  }
+
+  /** Design v2 settings (D43): the same options as cards left and right of the favourite in the ring. */
+  private showSettingsV2(): void {
+    const rows: SettingRow[] = [
+      { key: 'design', name: 'DESIGN', desc: 'Neues Design (Ring, Neon) oder das klassische. Jederzeit umschaltbar, nichts geht verloren.', kind: 'seg', value: design(), opts: [['v2', 'NEU'], ['v1', 'KLASSISCH']] },
+      { key: 'quality', name: 'GRAFIKQUALITÄT', desc: 'Hoch: Spiegelungen, große Schatten. Niedrig: für schwache Handys. Lädt neu.', kind: 'seg', value: store.get<string>('quality', 'auto'), opts: [['auto', 'AUTO'], ['low', 'NIEDRIG'], ['medium', 'MITTEL'], ['high', 'HOCH']] },
+      { key: 'touch', name: 'TOUCH-STEUERUNG', desc: 'Virtueller Stick und Tasten auf dem Bildschirm.', kind: 'seg', value: store.get<string>('touch', 'auto'), opts: [['auto', 'AUTO'], ['on', 'AN'], ['off', 'AUS']] },
+      { key: 'sound', name: 'TON', desc: 'Effekte und Musik.', kind: 'switch', value: !this.audio.muted },
+      { key: 'vibrate', name: 'VIBRATION', desc: 'Kurzes Rütteln bei Treffern (Handy).', kind: 'switch', value: store.get('vibrate', true) },
+      { key: 'flashes', name: 'BLITZEFFEKTE', desc: 'Kurze Farbumkehr bei Kontern, Signature und K.O. Aus = augenschonender.', kind: 'switch', value: store.get('flashes', true) },
+      { key: 'blood', name: 'BLUT', desc: 'Bluttropfen bei harten Treffern, Spezialangriffen und Fatalitys (USK 16). Aus = ohne Blut.', kind: 'switch', value: store.get('blood', true) },
+      { key: 'help', name: 'STEUERUNG & TASTEN', desc: 'Alle Eingaben für Tastatur, Controller und Touch.', kind: 'button', label: 'ANSEHEN' },
+    ];
+    const el = this.open(settingsHtml(rows, this.topBar), 'mm v2-settingsscreen');
+    const stop = mountRing(el, this.favorite);
+    this.bindTopBar(el, stop);
+    const again = () => {
+      stop();
+      this.showSettings();
+    };
+    el.querySelectorAll<HTMLButtonElement>('[data-set]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.set!;
+        const v = b.dataset.v!;
+        if (key === 'design') {
+          stop();
+          setDesign(v as Design);
+          return this.showSettings();
+        }
+        store.set(key, v);
+        if (key === 'quality') location.reload();
+        else {
+          if (key === 'touch') this.touchEnabled = v === 'on' || (v === 'auto' && matchMedia('(pointer: coarse)').matches);
+          again();
+        }
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const key = b.dataset.toggle!;
+        if (key === 'sound') {
+          this.audio.setMuted(!this.audio.muted);
+          store.set('muted', this.audio.muted);
+        } else store.set(key, !store.get(key, true));
+        if (key === 'flashes' && this._view) this._view.toon.impactFrames = store.get('flashes', true);
+        if (key === 'blood' && this._view) this._view.toon.bloodOn = store.get('blood', true);
+        again();
+      }),
+    );
+    el.querySelector('[data-help]')?.addEventListener('click', () => {
+      stop();
+      this.showHelp(() => this.showSettings());
+    });
+    el.querySelector('[data-back]')?.addEventListener('click', () => {
+      stop();
+      this.showHome();
+    });
+  }
+
   showSettings(): void {
+    if (design() === 'v2') return this.showSettingsV2();
     const q = store.get<string>('quality', 'auto');
     const touch = store.get<string>('touch', 'auto');
     const seg = (key: string, cur: string, opts: [string, string][]) =>
@@ -1438,7 +1551,115 @@ export class App {
     store.set('presets', all);
   }
 
+  /** Design v2 deck (D43): deck + collection left, the fighter in the ring (menus only), card details right. */
+  private showDeckV2(player: number, done: () => void, doneLabel: string): void {
+    const fid = this.sel.fighters[player];
+    const def = getFighter(fid);
+    const deck = this.sel.loadouts[player].slice();
+    let focus: string | null = deck[0] ?? null;
+    let placing = false;
+    const presets = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {})[fid] ?? { i: 0, decks: [] };
+    let preset = presets.i;
+    const inMenu = this.mode === 'menu';
+    const dc = (id: string): DeckCard => {
+      const c = getCard(fid, id);
+      return { id, name: c.name, art: portrait(fid, `art:${id}`), cat: CAT_DE[c.category], color: CAT_COLOR[c.category], cost: c.cost / 100, sig: c.category === 'signature', inDeck: deck.includes(id) };
+    };
+    const model = (): DeckModel => {
+      const fc = focus ? getCard(fid, focus) : null;
+      const specials = def.cards.filter((c) => c.category !== 'signature');
+      const sigs = def.cards.filter((c) => c.category === 'signature');
+      return {
+        fighter: def.name.toUpperCase(),
+        side: [this.sideLabel(0), this.sideLabel(1)],
+        player,
+        preset,
+        deck: deck.map(dc),
+        all: [...specials, ...sigs].map((c) => dc(c.id)),
+        focus: fc ? { ...dc(fc.id), role: fc.role, desc: fc.description } : null,
+        placing,
+        err: validateLoadout(fid, deck),
+        done: doneLabel,
+      };
+    };
+    const el = this.open(deckHtml(model(), inMenu ? this.topBar : null, inMenu), 'mm v2-deckscreen');
+    const stop = mountRing(el, fid, inMenu);
+    if (inMenu) this.bindTopBar(el, stop);
+    const ok = el.querySelector<HTMLButtonElement>('[data-act="ok"]')!;
+    const render = () => {
+      const m = model();
+      const parts = deckParts(m);
+      el.querySelector('[data-slots]')!.innerHTML = parts.slots;
+      el.querySelector('[data-coll]')!.innerHTML = parts.coll;
+      el.querySelector('[data-info]')!.innerHTML = parts.info;
+      el.querySelector('[data-err]')!.textContent = m.err ?? '';
+      ok.disabled = !!m.err;
+      el.querySelectorAll<HTMLElement>('[data-slot]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const i = Number(b.dataset.slot);
+          if (placing && focus && i !== SIGNATURE_SLOT) {
+            deck[i] = focus;
+            placing = false;
+          } else focus = deck[i];
+          render();
+        }),
+      );
+      el.querySelectorAll<HTMLElement>('[data-card]').forEach((b) =>
+        b.addEventListener('click', () => {
+          const id = b.dataset.card!;
+          const c = getCard(fid, id);
+          if (c.category === 'signature' && !deck.includes(id)) deck[SIGNATURE_SLOT] = id;
+          focus = id;
+          placing = false;
+          render();
+        }),
+      );
+      el.querySelector('[data-use]')?.addEventListener('click', () => {
+        placing = !placing;
+        render();
+      });
+    };
+    render();
+    const save = () => {
+      if (!validateLoadout(fid, deck)) {
+        this.sel.loadouts[player] = deck.slice();
+        store.set('selection', this.sel);
+        this.savePreset(fid, preset, deck);
+      }
+    };
+    el.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) =>
+      b.addEventListener('click', () => {
+        save();
+        preset = Number(b.dataset.preset);
+        const all = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {});
+        const stored = all[fid]?.decks[preset];
+        const next = stored && !validateLoadout(fid, stored) ? stored : def.defaultLoadout;
+        deck.splice(0, deck.length, ...next);
+        focus = deck[0] ?? null;
+        placing = false;
+        el.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((x) => x.classList.toggle('on', x === b));
+        render();
+        save();
+      }),
+    );
+    el.querySelectorAll<HTMLButtonElement>('[data-p]').forEach((b) =>
+      b.addEventListener('click', () => {
+        save();
+        stop();
+        this.showDeck(Number(b.dataset.p), done, doneLabel);
+      }),
+    );
+    const leave = () => {
+      save();
+      stop();
+      done();
+    };
+    el.querySelector('[data-back]')?.addEventListener('click', leave);
+    ok.addEventListener('click', leave);
+  }
+
   showDeck(player: number, done: () => void, doneLabel = 'FERTIG'): void {
+    if (design() === 'v2') return this.showDeckV2(player, done, doneLabel);
     const fid = this.sel.fighters[player];
     const def = getFighter(fid);
     const deck = this.sel.loadouts[player].slice();
@@ -1638,6 +1859,7 @@ export class App {
   }
 
   private showPause(): void {
+    if (design() === 'v2') return this.showPauseV2();
     const training = this.mode === 'training';
     const dummyModes: [string, string][] = [
       ['stand', 'STEHEN'],
@@ -1691,6 +1913,48 @@ export class App {
     );
   }
 
+  /** Design v2 pause (D43): a gold-framed card over the frozen arena. */
+  private showPauseV2(): void {
+    const training = this.mode === 'training';
+    const bot = this.bots[0];
+    const dummy: [string, string][] = [
+      ['stand', 'STEHEN'],
+      ['crouch', 'DUCKEN'],
+      ['blockAll', 'ALLES BLOCKEN'],
+      ['block', 'BLOCKEN'],
+      ['jump', 'SPRINGEN'],
+      ['cpu', 'CPU'],
+    ];
+    const extra = training
+      ? `<div class="row"><span class="hint">DUMMY</span>${dummy.map(([k, n]) => `<button class="toggle ${bot?.dummy === k ? 'on' : ''}" data-d="${k}">${n}</button>`).join('')}<button class="toggle ${this.view.debug ? 'on' : ''}" data-hb>HITBOXEN</button></div>`
+      : '';
+    const el = this.open(pauseHtml(extra), 'mm overlay v2-pausescreen');
+    const stop = mountOverlay(el);
+    el.querySelectorAll<HTMLButtonElement>('[data-d]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (bot) bot.dummy = b.dataset.d as Bot['dummy'];
+        el.querySelectorAll('[data-d]').forEach((x) => x.classList.toggle('on', x === b));
+      }),
+    );
+    el.querySelector('[data-hb]')?.addEventListener('click', (e) => {
+      this.view.debug = !this.view.debug;
+      (e.currentTarget as HTMLElement).classList.toggle('on', this.view.debug);
+    });
+    el.querySelectorAll<HTMLButtonElement>('[data-a]').forEach((b) =>
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const a = b.dataset.a;
+        const mode = this.mode as PlayMode;
+        stop();
+        if (a === 'resume') this.togglePause();
+        else if (a === 'restart') this.startMatch(mode);
+        else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
+        else if (a === 'help') this.showHelp(() => this.showPause());
+        else if (a === 'quit') this.quitToMenu();
+      }),
+    );
+  }
+
   private quitToMenu(): void {
     this.leaveNet();
     this.localIdx = 0;
@@ -1725,6 +1989,7 @@ export class App {
       const t1 = tierOf(after).name;
       rpLine = `<span class="pill">RANGLISTE <b>${w === me ? '+' + RP_WIN : '-' + Math.min(before, RP_LOSS)} RP · ${after} RP${t0 !== t1 ? ` · ${t1}!` : ''}</b></span>`;
     }
+    if (design() === 'v2') return this.showResultsV2(banner, cls, rpLine.replace(/<[^>]+>/g, ''));
     const winner = w === 2 ? s.fighters[me] : s.fighters[w];
     const img = portrait(winner.def, 'card');
     const crowns = Array.from({ length: s.config.roundsToWin }, (_, k) => `<i class="${k < winner.roundsWon ? 'on' : ''}">${UI_ICONS.crown}</i>`).join('');
@@ -1754,6 +2019,63 @@ export class App {
           this.startMatch(mode);
         }
         else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
+        else this.quitToMenu();
+      }),
+    );
+  }
+
+  /** Design v2 results (D43): brush banner, both fighters' numbers left and right of the celebrating winner in the
+   *  arena, XP, rematch as the chained gold button. */
+  private showResultsV2(banner: string, cls: string, rpLine: string): void {
+    const s = this.runner!.state;
+    const w = s.matchWinner;
+    const me = this.localIdx;
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const kind = cls === 'lose' ? 'lose' : cls === 'draw' ? 'draw' : 'win';
+    const side = (i: number) => {
+      const f = s.fighters[i];
+      return {
+        name: getFighter(f.def).name.toUpperCase(),
+        img: portrait(f.def, 'card'),
+        label: this.sideLabel(i),
+        rounds: f.roundsWon,
+        damage: this.stats.damage[i],
+        combo: this.stats.maxCombo[i],
+        cards: this.stats.specials[i],
+        win: w === i,
+      };
+    };
+    const winnerName = w === 2 ? '' : getFighter(s.fighters[w].def).name.toUpperCase();
+    const r = s.fighters.map((f) => f.roundsWon);
+    const sub = w === 2 ? `UNENTSCHIEDEN · ${r[0]}:${r[1]} RUNDEN` : `${winnerName} GEWINNT · ${r[w]}:${r[1 - w]} RUNDEN`;
+    const gained = this.mode === 'cpu' || this.mode === 'online' ? (w === 2 ? 70 : w === me ? 110 : 50) : 0;
+    const el = this.open(
+      resultsHtml({
+        banner,
+        kind,
+        sub,
+        roundsToWin: s.config.roundsToWin,
+        sides: [side(0), side(1)],
+        xp: gained,
+        xpPct: lvl.pct / 100,
+        level: lvl.level,
+        rpLine,
+        online: this.mode === 'online',
+      }),
+      'mm overlay v2-resultscreen',
+    );
+    const stop = mountOverlay(el);
+    this.hud.root.classList.add('v2-off'); // the banner takes the top; setup() of the next match brings the HUD back
+    el.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const a = b.dataset.act;
+        const mode = this.mode as PlayMode;
+        stop();
+        if (a === 'rematch') {
+          if (this.flow.ranked) this.sel.level = tierOf(store.get('rp', 0)).level;
+          this.startMatch(mode);
+        } else if (a === 'deck') this.showDeck(0, () => this.startMatch(mode), 'KAMPF!');
         else this.quitToMenu();
       }),
     );

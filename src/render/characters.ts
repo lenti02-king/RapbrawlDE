@@ -255,7 +255,7 @@ const GUARD: CharacterVisual = {
  *  no faces of real people, no logos. Several palettes so a group never looks cloned. */
 const CREW: CharacterVisual = {
   id: 'crew',
-  spec: { ...GUARD.spec, chestR: 0.2, shoulderR: 0.21, shoulderHalf: 0.22 },
+  spec: { ...GUARD.spec, chestR: 0.2, shoulderR: 0.21, shoulderHalf: 0.22, longSleeves: true },
   accents: ['#ffd21f'],
   palettes: [
     { skin: 0x8a5a3c, top: 0x16161b, top2: 0x2a2a33, pants: 0x1c1d24, pants2: 0x1c1d24, shoes: 0xf2f2f2, sole: 0xdddddd, hat: 0x16161b, metal: 0xe8c04a, shades: 0x050505 },

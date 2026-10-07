@@ -202,6 +202,7 @@ export class Embers {
     const c = this.canvas;
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
+    if (!W || !H) return; // not laid out yet (0/0 alphas would throw in addColorStop)
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) {
       c.width = Math.round(W * dpr);

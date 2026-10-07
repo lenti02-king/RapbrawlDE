@@ -8,10 +8,12 @@ import { getCard, getFighter, getMove } from '../core/registry';
 import { ANIM_SETS } from '../render/animator';
 import { buildCharacter } from '../render/characters';
 import { toArr, type PoseDef } from '../render/pose';
-import { JOINTS } from '../render/rig';
+import { JOINTS, POSE_LEN } from '../render/rig';
 import { heartGeometry, heartMaterial, makeCrocRunner, makePalm, makeSpotlight, makeSunset, noteTexture, smokeTexture } from '../render/props';
 import { makeDiamondRain, makeTunerCar } from '../render/specials';
 import { crocRunnerModel, palmModel, propModel, tunerCarModel } from '../render/propModels';
+import { burstSprite, crewRig, makeOffroader, runPose, starTexture, textSprite } from '../render/abilities11';
+import { makeNine, makeSofa } from '../render/cines11';
 
 /**
  * Card art props: what the ability looks like (wave, spotlight, notes, hearts, diamonds, croc, smoke, wrecking ball,
@@ -149,6 +151,80 @@ function artProps(cardId: string): { group: THREE.Group; wide?: number; shiftX?:
       car.rotation.y = -0.5;
       add(car, 0.9, 0, -0.9);
       return { group: g, wide: 1.35, shiftX: 0.45 };
+    }
+    // ---- D43 cards (session 11)
+    case 'manu_kurden': {
+      // the crew charging behind him, fists up, and the gold "5000"
+      const arr = new Float32Array(POSE_LEN);
+      for (let i = 0; i < 4; i++) {
+        const rig = crewRig(i);
+        rig.apply(toArr(runPose(0.15 + i * 0.27, i !== 2), arr), 1);
+        add(rig.root, -0.7 + i * 0.5, 0, -0.9 - (i % 2) * 0.5);
+      }
+      const n = add(textSprite('5000', { width: 1.3, color: '#ffd23c', stroke: '#2a1200' }), 0.75, 2.25, 0.4);
+      void n;
+      return { group: g, wide: 1.3, shiftX: 0.2 };
+    }
+    case 'manu_beton': {
+      const stone = new THREE.MeshToonMaterial({ color: 0x8c8a86 });
+      for (let i = 0; i < 9; i++) {
+        const c = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.06 + (i % 3) * 0.04, 0), stone), 0.75 + Math.cos(i * 1.7) * 0.35, 1.2 + Math.sin(i * 2.3) * 0.4, 0.3 + (i % 2) * 0.2);
+        c.rotation.set(i, i * 0.6, 0);
+      }
+      for (let i = 0; i < 4; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.05), additive(0xd8d2c4, 0.8)), 0.3 - i * 0.1, 1.05 + i * 0.16, 0.1);
+      const crack = add(new THREE.Mesh(new THREE.RingGeometry(0.25, 0.55, 7), new THREE.MeshBasicMaterial({ color: 0x3a3632, transparent: true, opacity: 0.55 })), 0.1, 0.01, 0.1);
+      crack.rotation.x = -Math.PI / 2;
+      return { group: g, wide: 1.15, shiftX: 0.3 };
+    }
+    case 'manu_sofa': {
+      const sofa = add(makeSofa(), 1.45, 0, -0.35);
+      sofa.rotation.y = 0.35;
+      add(burstSprite('BATSCH!', '#ff5a5a', 1.0), 1.05, 2.05, 0.5);
+      return { group: g, wide: 1.3, shiftX: 0.45 };
+    }
+    case 'laca_blick': {
+      const tex = starTexture();
+      for (let i = 0; i < 3; i++) {
+        const st = add(new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xeef8ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })), 0.45 + i * 0.42, 1.6 - i * 0.02, 0.35);
+        st.scale.setScalar(0.55 - i * 0.12);
+      }
+      add(new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.05), additive(0xcfe9ff, 0.85)), 1.0, 1.6, 0.3);
+      return { group: g, wide: 1.2, shiftX: 0.35 };
+    }
+    case 'laca_weste': {
+      const shell = add(new THREE.Mesh(new THREE.SphereGeometry(0.62, 24, 16), new THREE.MeshToonMaterial({ color: 0xf2f4f8, transparent: true, opacity: 0.35, depthWrite: false })), 0.15, 1.15, 0);
+      shell.scale.set(1, 1.15, 0.9);
+      for (let i = 0; i < 5; i++) add(new THREE.Mesh(new THREE.PlaneGeometry(0.8 - i * 0.08, 0.05), additive(0xffffff, 0.8)), -0.55 - i * 0.05, 0.75 + i * 0.2, 0.2);
+      return { group: g, wide: 1.15, shiftX: 0.2 };
+    }
+    case 'laca_gwagon': {
+      const car = add(makeOffroader(), 1.1, 0, -1.3);
+      car.scale.setScalar(0.75);
+      car.rotation.y = -0.55;
+      add(textSprite('70', { width: 0.9, color: '#ffd23c', stroke: '#2a1200' }), 1.0, 2.2, 0.4);
+      return { group: g, wide: 1.4, shiftX: 0.55 };
+    }
+    case 'jaz_99': {
+      const nine = add(makeNine(), 0.95, 1.25, -0.4);
+      nine.scale.setScalar(0.8);
+      nine.rotation.z = -0.15;
+      for (let i = 0; i < 6; i++) {
+        const st = add(new THREE.Mesh(new THREE.OctahedronGeometry(0.07, 0), additive(0xcff2ff, 1)), 0.5 + Math.cos(i * 1.1) * 0.6, 1.4 + Math.sin(i * 1.1) * 0.6, 0.5);
+        st.scale.set(0.6, 2.2, 0.6);
+      }
+      return { group: g, wide: 1.3, shiftX: 0.45 };
+    }
+    case 'bon_team': {
+      add(makeSunset(3.2), 0.4, 1.4, -2.4);
+      add(palmModel(2.8, 0.4) ?? makePalm(2.8, 0.4), -1.0, 0, -1.6);
+      add(palmModel(3.2, -0.3) ?? makePalm(3.2, -0.3), 1.6, 0, -1.8);
+      const arr = new Float32Array(POSE_LEN);
+      for (let i = 0; i < 2; i++) {
+        const rig = crewRig(i + 1);
+        rig.apply(toArr(runPose(0.3 + i * 0.4, true), arr), 1);
+        add(rig.root, 0.9 + i * 0.6, 0, -0.7 - i * 0.4);
+      }
+      return { group: g, wide: 1.25, shiftX: 0.3 };
     }
     default:
       return null;

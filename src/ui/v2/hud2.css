@@ -1,0 +1,145 @@
+/* Design v2 fight HUD (D43): the PO's HUD master art stays (health frames, timer, card hand), everything around it
+   speaks the v2 menus' language - marker names, gold brush announcer with drips, navy-glass banners with neon edges,
+   the chained-gold "SIGNATURE BEREIT", crowns that pop. Applied with .hud.hm.v2h (design v2). */
+.hud.hm.v2h {
+  --v2h-gold: linear-gradient(180deg, #fff6c0 0%, #ffd450 42%, #f08a10 100%);
+  --v2h-ink: #120800;
+  --v2h-stroke: 0.04em 0 0 var(--v2h-ink), -0.04em 0 0 var(--v2h-ink), 0 0.04em 0 var(--v2h-ink), 0 -0.04em 0 var(--v2h-ink),
+    0.03em 0.03em 0 var(--v2h-ink), -0.03em 0.03em 0 var(--v2h-ink), 0.03em -0.03em 0 var(--v2h-ink), -0.03em -0.03em 0 var(--v2h-ink);
+}
+/* names: the masters' marker lettering */
+.hud.hm.v2h .hm-name {
+  font-family: 'Permanent Marker', 'Barlow Condensed', sans-serif;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.hud.hm.v2h .hm-crowns i.won {
+  filter: drop-shadow(0 0 0.35rem rgba(255, 200, 50, 0.9));
+  animation: v2h-crown 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes v2h-crown {
+  from {
+    transform: scale(2.4) rotate(-20deg);
+    opacity: 0;
+  }
+}
+.hud.hm.v2h .hm-ring {
+  box-shadow: 0 0 1.2rem rgba(255, 200, 50, 0.45), inset 0 0 0.8rem rgba(255, 200, 50, 0.25);
+}
+
+/* announcer: RUNDE 1 / KÄMPFT! / K.O. in the gold brush of the KÄMPFEN button, with paint drips */
+.hud.hm.v2h .announce {
+  font-family: 'Rubik Wet Paint', 'Anton', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: #ffd23c;
+  text-shadow:
+    var(--v2h-stroke),
+    0 0.09em 0 #000,
+    0 0 0.5em rgba(255, 170, 30, 0.55);
+}
+.hud.hm.v2h .announce.ko,
+.hud.hm.v2h .announce.splat {
+  color: #ff4a5a;
+  text-shadow:
+    var(--v2h-stroke),
+    0 0.09em 0 #000,
+    0 0 0.5em rgba(255, 40, 60, 0.6);
+}
+.hud.hm.v2h .announce.beat,
+.hud.hm.v2h .announce.duel,
+.hud.hm.v2h .announce.duelwin,
+.hud.hm.v2h .announce.pblock {
+  color: #ffe36a;
+}
+
+/* combo counter: big marker digits, gold */
+.hud.hm.v2h .combo-n {
+  font-family: 'Rubik Wet Paint', 'Anton', sans-serif;
+  color: #ffd23c;
+  text-shadow:
+    var(--v2h-stroke),
+    0 0.08em 0 #000;
+}
+.hud.hm.v2h .combo.p2 .combo-n {
+  color: #8fd0ff;
+}
+.hud.hm.v2h .combo-l {
+  font-family: 'Permanent Marker', sans-serif;
+  letter-spacing: 0.04em;
+  color: #fff;
+}
+.hud.hm.v2h .combo-d {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffe9a0;
+}
+
+/* card activation banner: navy glass with the neon edge (blue = left player, red = right) */
+.hud.hm.v2h .card-banner {
+  border: 0.16rem solid #3f8dff;
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, rgba(22, 36, 79, 0.95), rgba(7, 12, 32, 0.95));
+  box-shadow: 0 0 0.9rem rgba(63, 141, 255, 0.6), inset 0 0 0.6rem rgba(63, 141, 255, 0.3);
+}
+.hud.hm.v2h .card-banner.p2 {
+  border-color: #ff4a5a;
+  background: linear-gradient(180deg, rgba(79, 22, 32, 0.95), rgba(32, 7, 12, 0.95));
+  box-shadow: 0 0 0.9rem rgba(255, 74, 90, 0.6), inset 0 0 0.6rem rgba(255, 74, 90, 0.3);
+}
+.hud.hm.v2h .card-banner .bname {
+  font-family: 'Permanent Marker', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+/* SIGNATURE BEREIT: the chained gold button look, brush lettering */
+.hud.hm.v2h .sig-ready {
+  font-family: 'Rubik Wet Paint', 'Anton', sans-serif;
+  font-weight: 400;
+  color: #150b02;
+  text-shadow: 0 0.04em 0 rgba(255, 246, 190, 0.6);
+  border: 0.2rem solid #2b1503;
+  border-radius: 0.6rem;
+  background: linear-gradient(180deg, #fff1a0 0%, #ffd23c 45%, #f2a51a 100%);
+  box-shadow:
+    0 0.3rem 0 #6a4206,
+    0 0 1.4rem rgba(255, 200, 40, 0.7);
+}
+.hud.hm.v2h .sig-ready small {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #2b1503;
+  text-shadow: none;
+}
+
+/* the ready hand cards breathe in the v2 neon */
+.hud.hm.v2h .hcard.ready {
+  filter: drop-shadow(0 0 0.45rem rgba(63, 141, 255, 0.85));
+}
+.hud.hm.v2h .hcard.ready.sig {
+  filter: drop-shadow(0 0 0.6rem rgba(255, 200, 40, 0.95));
+}
+
+/* cinematic title (letterbox) and the fatality / finisher titles */
+.hud.hm.v2h .cine-title {
+  font-family: 'Permanent Marker', sans-serif;
+  color: #ffd23c;
+  text-shadow:
+    var(--v2h-stroke),
+    0 0.06em 0 #000;
+}
+.hud.hm.v2h .fatal-title,
+.hud.hm.v2h .finish-title,
+.hud.hm.v2h .duel-title {
+  font-family: 'Rubik Wet Paint', 'Anton', sans-serif;
+  font-weight: 400;
+}
+
+/* hidden under the v2 results screen */
+.hud.hm.v2-off {
+  opacity: 0;
+  transition: opacity 0.3s;
+}

@@ -1109,14 +1109,23 @@ function puffTexture(): THREE.Texture {
   g.arc(64, 64, 58, 0, Math.PI * 2);
   g.fillStyle = '#16121c';
   g.fill();
-  const grd = g.createRadialGradient(54, 50, 6, 64, 64, 54);
-  grd.addColorStop(0, '#ffffff');
-  grd.addColorStop(0.6, '#f1eef6');
-  grd.addColorStop(1, '#b9b3c8');
+  // cel-shaded ball: lavender shadow, the lit part as an offset disc (hard edge = toon band), a soft highlight
+  g.save();
   g.beginPath();
   g.arc(64, 64, 52, 0, Math.PI * 2);
-  g.fillStyle = grd;
+  g.clip();
+  g.fillStyle = '#b7aecb';
+  g.fillRect(0, 0, 128, 128);
+  g.beginPath();
+  g.arc(57, 55, 47, 0, Math.PI * 2);
+  g.fillStyle = '#f3f0f8';
   g.fill();
+  const hi = g.createRadialGradient(44, 40, 2, 44, 40, 20);
+  hi.addColorStop(0, 'rgba(255,255,255,1)');
+  hi.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hi;
+  g.fillRect(0, 0, 128, 128);
+  g.restore();
   puffTex = new THREE.CanvasTexture(c);
   puffTex.colorSpace = THREE.SRGBColorSpace;
   return puffTex;
@@ -1226,7 +1235,7 @@ function bluntProps(): CineProps {
   emberGlow.renderOrder = 10;
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeGlow(), color: 0xffc24a, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   group.add(ember, emberGlow, flame);
-  const light = new THREE.PointLight(0xff7a2a, 0, 3, 2);
+  const light = new THREE.PointLight(0xff7a2a, 0, 1.6, 2);
   const tip = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   let last = -1;
@@ -1297,9 +1306,10 @@ function bluntProps(): CineProps {
         ember.position.copy(tip);
         emberGlow.position.copy(tip);
         ember.scale.setScalar(0.07 + 0.05 * flare);
-        emberGlow.scale.setScalar(0.25 + 0.5 * flare + 0.04 * Math.sin(t * 9));
-        (emberGlow.material as THREE.SpriteMaterial).opacity = 0.7;
-        light.intensity = 1.5 + 5 * flare;
+        // small: on the toon materials a strong point light washed Jazeek out to a white-orange shape
+        emberGlow.scale.setScalar(0.12 + 0.16 * flare + 0.02 * Math.sin(t * 9));
+        (emberGlow.material as THREE.SpriteMaterial).opacity = 0.6;
+        light.intensity = 0.25 + 0.9 * flare;
         light.position.copy(group.localToWorld(tip.clone()));
       } else light.intensity = 0;
       flame.visible = f >= 62 && f < 68 && joint.ok;
