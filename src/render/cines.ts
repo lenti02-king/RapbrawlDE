@@ -1346,7 +1346,8 @@ function bluntProps(): CineProps {
           const p = c.world(CLOUD_X + (Math.random() - 0.5) * 0.8, CLOUD_Y + (Math.random() - 0.5) * 0.5, 0.2);
           c.view.vfx.sparks(p.x, p.y, 3, C(0xffffff), 3, 0, 1.5);
         }
-        if (lit && k % 3 === 0 && joint.ok) {
+        // (no ember smoke during the face close-up 86-110: it drifted across the lens)
+        if (lit && k % 3 === 0 && joint.ok && (k < 86 || k >= 110)) {
           const w = group.localToWorld(tip.clone());
           c.view.fx.smoke.spawn(w, new THREE.Vector3((Math.random() - 0.5) * 0.15, 0.4 + Math.random() * 0.2, 0), k % 2 ? 0xd9dfd2 : 0xc6cfc0, 0.12, 1.4, 2.0, Math.random() - 0.5);
         }
@@ -1360,7 +1361,7 @@ function bluntProps(): CineProps {
                 mouth.clone(),
                 up
                   ? new THREE.Vector3(c.facing * (0.25 + Math.random() * 0.3), 0.9 + Math.random() * 0.4, -0.1 - Math.random() * 0.2)
-                  : new THREE.Vector3(c.facing * (0.9 + Math.random() * 1.2), 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4),
+                  : new THREE.Vector3(c.facing * (0.8 + Math.random() * 0.8), 0.5 + Math.random() * 0.4, -0.15 - Math.random() * 0.3),
                 0xe4e8de,
                 up ? 0.16 : 0.24,
                 1.5,

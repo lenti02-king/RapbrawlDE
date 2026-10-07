@@ -633,7 +633,8 @@ function gwagonProps(): CineProps {
   let last = -1;
   // stage 2: the cold stare from close up, then the kick
   const blick = signTrack(group, [
-    { f: 198, word: 'KALTER BLICK', fill: '#9fd8ff', w: 0.62, pos: [0.6, 2.0, 0.55], len: 20 },
+    // close to the lens, above their heads inside the letterbox (projected: x 0.16-0.6, y 0.29-0.79 NDC at f 205)
+    { f: 198, word: 'KALTER BLICK', fill: '#9fd8ff', w: 0.22, pos: [0.85, 1.95, 0.85], len: 20 },
     { f: 226, word: 'BOOM!', fill: '#ff8a2a', w: 1.2, pos: [1.2, 1.7, 0.6], len: 16 },
   ]);
   return {
@@ -1214,9 +1215,10 @@ export const NINETYNINE: CineDef = {
     { f: 28, pos: [1.0, 1.3, 5.2], target: [1.3, 1.3, 0], fov: 42, cut: true },
     { f: 40, pos: [1.1, 1.4, 5.0], target: [1.6, 1.4, 0], fov: 42 },
     // the orbit: the camera circles with the nines
-    { f: 42, pos: [3.8, 1.2, 3.2], target: [1.9, 1.3, 0], fov: 40, cut: true },
-    { f: 66, pos: [1.9, 0.9, 4.6], target: [1.9, 1.35, 0], fov: 40 },
-    { f: 88, pos: [0.0, 1.3, 3.6], target: [1.9, 1.35, 0], fov: 40 },
+    // (wider and higher than the slam shot: the floating opponent stays inside the letterbox)
+    { f: 42, pos: [3.8, 1.4, 4.0], target: [1.5, 1.7, 0], fov: 46, cut: true },
+    { f: 66, pos: [1.6, 1.1, 5.4], target: [1.3, 1.7, 0], fov: 44 },
+    { f: 88, pos: [-0.4, 1.5, 4.4], target: [1.3, 1.6, 0], fov: 44 },
     // the run-up and the kick: low, side
     { f: 90, pos: [1.2, 0.6, 4.2], target: [1.2, 1.3, 0], fov: 44, cut: true },
     { f: 110, pos: [1.6, 0.8, 4.4], target: [1.7, 1.4, 0], fov: 44 },

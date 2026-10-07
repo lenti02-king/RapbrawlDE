@@ -127,10 +127,14 @@ export function burstSprite(word: string, fill: string, w = 0.9): THREE.Sprite {
   g.lineWidth = 14;
   g.strokeStyle = '#100c14';
   g.stroke();
-  g.font = '400 112px "Rubik Wet Paint", "Anton", sans-serif';
+  // long words (KALTER BLICK) shrink to fit inside the burst instead of running off the canvas
+  const font = (px: number) => `400 ${px}px "Rubik Wet Paint", "Anton", sans-serif`;
+  g.font = font(112);
+  const px = Math.max(48, Math.floor(112 * Math.min(1, 400 / Math.max(1, g.measureText(word).width))));
+  g.font = font(px);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.lineWidth = 22;
+  g.lineWidth = Math.round((22 * px) / 112);
   g.strokeText(word, 0, 6);
   g.fillStyle = '#ffffff';
   g.fillText(word, 0, 6);
