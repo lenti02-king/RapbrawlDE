@@ -6,6 +6,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, page + rapbrawl.js; see the latest session for the version): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
+- iPhone app (native, no browser): GitHub → Actions → "iOS app (unsigned IPA for sideloading)" → latest run → artifact `rapbrawl-ios-ipa` → install `RAPBRAWL.ipa` with Sideloadly (Windows/Mac) and a free Apple ID; valid 7 days, then re-install (D44). Build VERIFIED (Xcode 26.3, BUILD SUCCEEDED); running on a device UNVERIFIED until the PO's first install.
 - Local: `npm install && npm run dev`.
 
 ## Session 11 — modelle-3 roster, cel look, new abilities, living menus, v2 everywhere (D43)

@@ -363,3 +363,12 @@ and the croc were hard to read; two new fighters (Manuellsen, Lacazette) exactly
   between the panels); results and pause lie over the running arena (the winner celebrates in the match itself;
   a second GL context during a match would cost iPhone memory, D41). The fight HUD keeps the PO's HUD master art and
   takes the v2 type and effects (`ui/v2/hud2.css`).
+
+## D44 — iPhone as a native app without an Apple developer account (2026-10-07)
+- The PO wants to test natively on the iPhone, not in a browser, and chose the free route. `.github/workflows/ios.yml`
+  builds the existing Capacitor iOS project (SPM, landscape only, status bar hidden) on a GitHub macOS runner without
+  code signing and uploads `RAPBRAWL.ipa`. The PO installs it with Sideloadly, which signs it with their own Apple ID
+  (free: 7-day validity, max. 3 sideloaded apps, Developer Mode on the iPhone). No certificates or secrets live in the
+  repository; the public repo makes the macOS minutes free.
+- Upgrade path when needed: Apple Developer Program (paid, PO decision) → signed builds + TestFlight upload from the same
+  workflow with App Store Connect API key secrets.
