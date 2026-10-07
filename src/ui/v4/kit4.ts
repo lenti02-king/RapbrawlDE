@@ -44,5 +44,17 @@ export function placed(A: ScreenArt, id: string, b: readonly number[], cls = '',
   return `<img class="v2-art ${cls}" alt="" draggable="false" decoding="sync" src="${A.dir}${id}.webp" style="--x:${x0};--y:${y0};--w:${x1 - x0};--h:${y1 - y0}${mirror ? ';transform:scaleX(-1)' : ''}">`;
 }
 
+// The PO's artwork drop-ins (cards, characters, select boxes, banners, skins: design/v4/README.md). Listed in
+// assets/ui4/art/manifest.json (scripts/art-manifest.mjs), so nothing is probed that is not there.
+let artFiles = new Set<string>();
+export const artReady: Promise<void> = fetch('assets/ui4/art/manifest.json')
+  .then((r) => (r.ok ? r.json() : []))
+  .then((l: unknown) => {
+    if (Array.isArray(l)) artFiles = new Set(l.filter((x): x is string => typeof x === 'string'));
+  })
+  .catch(() => undefined);
+/** URL of a PO artwork file under assets/ui4/art/ when it exists, else undefined. */
+export const artUrl = (rel: string): string | undefined => (artFiles.has(rel) ? `assets/ui4/art/${rel}` : undefined);
+
 /** [x, y, w, h] -> [x0, y0, x1, y1] */
 export const xywh = (b: readonly number[]): [number, number, number, number] => [b[0], b[1], b[0] + b[2], b[1] + b[3]];

@@ -7,7 +7,7 @@ import { esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { SELECT_ART, SELECT_DIR, SELECT_GRID, SELECT_LIGHTS, SELECT_P1, SELECT_P2, SELECT_PLATE, SELECT_TEXT } from './art/select';
 import { hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, t, zone, type ScreenArt } from '../v2/stage';
-import { goldButton, placed, topHtml, xywh, type Wallet } from './kit4';
+import { artUrl, goldButton, placed, topHtml, xywh, type Wallet } from './kit4';
 import type { CsSide, CsTile } from '../menu/charSelect';
 
 const A: ScreenArt = { dir: SELECT_DIR, plate: SELECT_PLATE, art: SELECT_ART, lights: SELECT_LIGHTS };
@@ -54,7 +54,14 @@ export function selectHtmlV4(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
       <button class="v2-hit v2-ped ${picking === i ? 'picking' : ''} ${sides[i].hidden ? 'hidden' : ''}" data-side="${i}" aria-label="${esc(sides[i].label)}" style="--x:${ped[0]};--y:${ped[1]};--w:${ped[2] - ped[0]};--h:${ped[3] - ped[1]}"></button>`;
     })
     .join('');
-  const back = `${plateHtml(A)}${lightsHtml(A, 26)}${anchors}`;
+  // the PO's banner artwork (once it exists) over the painted banners, behind the fighters
+  const banners = ([['banner_p1.webp', [72, 186, 398, 664]], ['banner_p2.webp', [1286, 186, 1604, 656]]] as const)
+    .map(([f, b]) => {
+      const u = artUrl(f);
+      return u ? `<img class="v2-art" alt="" draggable="false" src="${u}" style="--x:${b[0]};--y:${b[1]};--w:${b[2] - b[0]};--h:${b[3] - b[1]}">` : '';
+    })
+    .join('');
+  const back = `${plateHtml(A)}${banners}${lightsHtml(A, 26)}${anchors}`;
 
   const at = new Map<string, CsTile>();
   tiles.forEach((tl, i) => SLOTS[i] && at.set(SLOTS[i].join(','), tl));
@@ -68,7 +75,7 @@ export function selectHtmlV4(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
       if (!tl) return `<button class="v2-hit v4-cell" data-locked aria-label="Kommt bald" style="${box}"></button>`;
       for (const p of tl.tags) cursors.push(cursor(p as 0 | 1, b));
       const inset = 7;
-      return `<span class="v4-win" style="--x:${x0 + inset};--y:${y0 + inset};--w:${x1 - x0 - 2 * inset};--h:${y1 - y0 - 2 * inset};clip-path:${OCT}"><img alt="" draggable="false" src="${tl.bust}"></span>
+      return `<span class="v4-win" style="--x:${x0 + inset};--y:${y0 + inset};--w:${x1 - x0 - 2 * inset};--h:${y1 - y0 - 2 * inset};clip-path:${OCT}"><img alt="" draggable="false" src="${artUrl(`select/${tl.id}.webp`) ?? tl.bust}"></span>
         <button class="v2-hit v4-cell" data-f="${tl.id}" aria-label="${esc(tl.name)}" style="${box}"></button>`;
     }),
   ).join('');

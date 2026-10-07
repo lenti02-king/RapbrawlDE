@@ -6,7 +6,7 @@ import { toast } from '../menu/kit';
 import { menuFigures, type FigureSpec } from '../menu/figures';
 import { CUSTOM_ART, CUSTOM_DIR, CUSTOM_HERO, CUSTOM_LIGHTS, CUSTOM_PLATE, CUSTOM_SEGS, CUSTOM_TEXT } from './art/custom';
 import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, t, zone, type ScreenArt } from '../v2/stage';
-import { goldButton, placed, tileButton, topHtml, xywh, type Wallet } from './kit4';
+import { artUrl, goldButton, placed, tileButton, topHtml, xywh, type Wallet } from './kit4';
 
 const A: ScreenArt = { dir: CUSTOM_DIR, plate: CUSTOM_PLATE, art: CUSTOM_ART, lights: CUSTOM_LIGHTS };
 
@@ -39,7 +39,16 @@ export function customHtmlV4(m: CustomV4Model): string {
     <span class="fig-anchor" data-fig="0" style="--x:${fx - H / 4};--y:${fy - H};--w:${H / 2};--h:${H}"></span>
     <button class="v2-hit v4-swipe" data-act="swipe" aria-label="Kämpfer wechseln" style="--x:150;--y:240;--w:700;--h:460"></button>`;
   const skins = ['s1', 's2', 's3', 's4', 's5', 's6']
-    .map((id, i) => tileButton(A, id, i ? 'skin' : 'equip-skin', ['Standard', 'Street', 'Champion', 'Nacht', 'Gold', 'Exklusiv'][i], i * 0.35, i ? 'v4-soon' : ''))
+    .map((id, i) => {
+      // the PO's skin artwork (once it exists) in the tile's picture window above the label strip
+      const u = artUrl(`skins/${m.fighter}_${i + 1}.webp`);
+      const art = (ox: number, oy: number) => {
+        if (!u) return '';
+        const [x, y, w, h] = CUSTOM_ART[id as 's1'];
+        return `<span class="v4-win" style="--x:${x + 14 - ox};--y:${y + 14 - oy};--w:${w - 28};--h:${Math.round(h * 0.62)};border-radius:calc(var(--u) * 8)"><img alt="" draggable="false" src="${u}"></span>`;
+      };
+      return tileButton(A, id, i ? 'skin' : 'equip-skin', ['Standard', 'Street', 'Champion', 'Nacht', 'Gold', 'Exklusiv'][i], i * 0.35, i ? 'v4-soon' : '', art);
+    })
     .join('');
   const front = `${hazeHtml([60, 560, 900, 800], '255 190 120', 0.32)}
     ${topHtml(A, CUSTOM_TEXT, m)}

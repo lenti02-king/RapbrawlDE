@@ -6,7 +6,7 @@
   "description": "RAPBRAWL - competitive 2.5D fighting game",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/art-manifest.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
