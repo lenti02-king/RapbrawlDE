@@ -4,15 +4,27 @@
 // feet through the floor or floating in standing states, sliding feet while standing.
 // Usage: node scripts/animprobe.mjs [fighters=jazeek,bonez] [frames=3000] [seed=7] [out=artifacts/probe]
 //        SHOTS=1200,1450 node scripts/animprobe.mjs ...   also renders a frame strip (-6..+6) around those frames
+//        CINE=sofa|gwagon|99|team|blunt node scripts/animprobe.mjs x 900   starts that signature/special at once and
+//        records it (the pair comes from the cinematic; frames count from the trigger)
 // Dev server must be running (BASE_URL, default :5173).
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 
-const [, , pair = 'jazeek,bonez', framesArg = '3000', seedArg = '7', outArg] = process.argv;
+const CINES = {
+  sofa: { quick: 'manuellsen,lacazette', btn: 'S3', half: 6000 },
+  gwagon: { quick: 'lacazette,manuellsen', btn: 'S3', half: 16000 },
+  99: { quick: 'jazeek,bonez', btn: 'S3', half: 6000 },
+  team: { quick: 'bonez,jazeek', btn: 'S3', half: 6000 },
+  blunt: { quick: 'jazeek,bonez', btn: 'S1', half: 5000, card: 'jaz_blunt' },
+};
+const cineDef = CINES[process.env.CINE ?? ''];
+const argv = process.argv.slice();
+if (cineDef) argv[2] = cineDef.quick;
+const [, , pair = 'jazeek,bonez', framesArg = '3000', seedArg = '7', outArg] = argv;
 const base = process.env.BASE_URL ?? 'http://localhost:5173';
 const N = Number(framesArg);
-const out = outArg ?? `artifacts/probe/${pair.replace(',', '_')}_${seedArg}`;
+const out = outArg ?? (cineDef ? `artifacts/probe/cine_${process.env.CINE}` : `artifacts/probe/${pair.replace(',', '_')}_${seedArg}`);
 fs.mkdirSync(out, { recursive: true });
 const shots = (process.env.SHOTS ?? '').split(',').filter(Boolean).map(Number);
 
@@ -21,9 +33,30 @@ const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
 page.setDefaultTimeout(600000);
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto(`${base}/?quick=${pair}&mode=demo&q=low&hold=1&seed=${seedArg}`, { timeout: 300000 });
+await page.goto(`${base}/?quick=${pair}&mode=${cineDef ? 'cpu' : 'demo'}&q=low&hold=1&seed=${seedArg}`, { timeout: 300000 });
 await page.waitForFunction(() => window.__rb?.runner?.state && window.__rb.view.rigs.length === 2, null, { timeout: 300000 });
 await page.waitForTimeout(1500);
+
+// CINE: both stand still, then P1 (meter full, card in slot 1 for specials) taps the button until it starts
+const setupCine = (pg) =>
+  cineDef &&
+  pg.evaluate((d) => {
+    const app = window.__rb;
+    app.debugHold = true;
+    const r = app.runner;
+    r.sources[0].poll = () => 0;
+    r.sources[1].poll = () => 0;
+    for (let i = 0; i < 240 && !r.state.fighters.every((f) => f.state === 'idle' && f.y === 0); i++) app.debugAdvance(1);
+    const s = r.state;
+    s.fighters[0].x = -d.half;
+    s.fighters[1].x = d.half;
+    s.fighters[0].meter = 300;
+    if (d.card) s.fighters[0].loadout[0] = d.card;
+    let n = 0;
+    const btn = app.IN[d.btn];
+    r.sources[0].poll = () => (r.state.freeze > 0 || r.state.cine || r.state.fighters[0].state === 'move' || n > 120 ? 0 : n++ % 2 === 0 ? btn : 0);
+  }, cineDef);
+await setupCine(page);
 
 const JOINTS = ['hips', 'chest', 'head', 'haL', 'haR', 'elL', 'elR', 'knL', 'knR', 'ftL', 'ftR'];
 // record in chunks (keeps each evaluate short)
@@ -56,7 +89,7 @@ for (let start = 0; start < N; start += 200) {
           }
           let sole = Infinity;
           for (const b of rig.soles ?? []) sole = Math.min(sole, b.getWorldPosition(new rig.root.position.constructor()).y);
-          row.F.push({ key: an.key, st: f.state, mv: f.move ?? null, mf: f.mf, sf: f.sf, hs: f.hitstop, y: f.y, vis: rig.root.visible, sole: +sole.toFixed(4), R: [+rig.root.position.x.toFixed(4), +rig.root.position.y.toFixed(4), 0], P });
+          row.F.push({ df: an.drawFacing, key: an.key, st: f.state, mv: f.move ?? null, mf: f.mf, sf: f.sf, hs: f.hitstop, y: f.y, vis: rig.root.visible, sole: +sole.toFixed(4), R: [+rig.root.position.x.toFixed(4), +rig.root.position.y.toFixed(4), 0], P });
         }
         res.push(row);
       }
@@ -87,6 +120,8 @@ for (let k = 0; k < 2; k++) {
     const B = rec[t - 1].F[k];
     const C = rec[t].F[k];
     if (!A.vis || !B.vis || !C.vis) continue;
+    // a facing swap mirrors the rig: left and right joints trade names (the turn blends into the mirrored pose first)
+    if (A.df !== B.df || B.df !== C.df) continue;
     // body-relative motion (the root moving with the sim is not a pose glitch): joints relative to the hips
     let worst = { j: '', a: 0 };
     for (const j of JOINTS) {
@@ -170,9 +205,10 @@ if (shots.length) {
   // strip around each shot frame: re-run with screenshots
   const p2 = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   p2.setDefaultTimeout(600000);
-  await p2.goto(`${base}/?quick=${pair}&mode=demo&q=low&hold=1&seed=${seedArg}`, { timeout: 300000 });
+  await p2.goto(`${base}/?quick=${pair}&mode=${cineDef ? 'cpu' : 'demo'}&q=low&hold=1&seed=${seedArg}`, { timeout: 300000 });
   await p2.waitForFunction(() => window.__rb?.runner?.state && window.__rb.view.rigs.length === 2, null, { timeout: 300000 });
   await p2.waitForTimeout(1500);
+  await setupCine(p2);
   let at = 0;
   for (const s0 of shots) {
     const files = [];
