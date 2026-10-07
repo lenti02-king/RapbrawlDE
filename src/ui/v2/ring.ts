@@ -45,6 +45,9 @@ function ringBack(fig: boolean, figH = 600, fy = 912): string {
   return `${plateHtml(A)}${lightsHtml(A, 22)}${fig ? `<span class="fig-anchor" data-fig="0" style="--x:${fx - figH / 4};--y:${fy - figH};--w:${figH / 2};--h:${figH}"></span>` : ''}`;
 }
 
+/** The ring backdrop with the fighter anchor, for ring screens built elsewhere (FREUNDE). */
+export const ringFigure = (figH = 600, fy = 912): string => ringBack(true, figH, fy);
+
 export interface RingMount {
   stop: () => void;
 }

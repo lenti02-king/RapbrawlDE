@@ -30,6 +30,7 @@ import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
 import { design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
+import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
 import { fightersHtml, mountFighters, type RosterEntry } from '../ui/v2/fighters';
 import { CUSTOM_MENU, customHtml, mountCustom } from '../ui/v2/custom';
@@ -689,9 +690,8 @@ export class App {
           store.set('newsSeen', NEWS_VERSION);
           return this.showNews(el);
         case 'social':
-          store.set('menuMode', 'friend');
           stop();
-          return this.startMode('friend');
+          return this.showFriends();
         case 'events':
           return soon('EVENTS');
         case 'pass':
@@ -709,6 +709,102 @@ export class App {
       }
     });
     obs.observe(this.ui, { childList: true });
+  }
+
+  /** FREUNDE (S12): own friend code, add by name + code, search, challenge (opens the online lobby). Local list. */
+  showFriends(): void {
+    if (design() !== 'v2') return this.startMode('friend');
+    let myCode = store.get<string>('friendCode', '');
+    if (!parseFriendCode(myCode)) {
+      myCode = newFriendCode();
+      store.set('friendCode', myCode);
+    }
+    let list = store.get<Friend[]>('friends', []).filter((f) => f && typeof f.name === 'string' && parseFriendCode(f.code));
+    const el = this.open(friendsHtml(myCode, this.playerName, list, this.topBar), 'mm v2-friendsscreen');
+    const stop = mountRing(el, this.favorite);
+    this.bindTopBar(el, stop);
+    const $ = <T extends HTMLElement>(q: string) => el.querySelector<T>(q)!;
+    const listEl = $<HTMLElement>('[data-list]');
+    const search = $<HTMLInputElement>('[data-in="search"]');
+    const nameIn = $<HTMLInputElement>('[data-in="name"]');
+    const codeIn = $<HTMLInputElement>('[data-in="code"]');
+    const msg = $<HTMLElement>('[data-msg]');
+    const say = (t: string, err = false) => {
+      msg.textContent = t;
+      msg.classList.toggle('err', err);
+    };
+    const save = () => {
+      store.set('friends', list);
+      listEl.innerHTML = friendsListHtml(list, search.value);
+      const h = el.querySelector('.fr-card:last-of-type .rg-head span:last-child');
+      if (h) h.textContent = `FREUNDE (${list.length})`;
+    };
+    const play = () => {
+      store.set('menuMode', 'friend');
+      stop();
+      this.startMode('friend');
+    };
+    $('[data-back]')?.addEventListener('click', () => {
+      stop();
+      this.showHome();
+    });
+    $('[data-copy]').addEventListener('click', () => {
+      const done = () => homeToast(el, `CODE ${myCode} KOPIERT`);
+      navigator.clipboard?.writeText(myCode).then(done, () => {
+        const r = document.createRange();
+        r.selectNodeContents($('.fr-mycode'));
+        getSelection()?.removeAllRanges();
+        getSelection()?.addRange(r);
+        homeToast(el, 'CODE MARKIERT – JETZT KOPIEREN');
+      }) ?? done();
+    });
+    const add = () => {
+      const name = nameIn.value.trim().replace(/\s+/g, ' ').slice(0, 16);
+      const code = parseFriendCode(codeIn.value);
+      if (!name) return say('Gib einen Namen ein.', true);
+      if (!code) return say('Code ungültig – Form RB-XXXX-XXXX.', true);
+      if (code === myCode) return say('Das ist dein eigener Code.', true);
+      if (list.some((f) => f.code === code)) return say('Schon in deiner Liste.', true);
+      list.push({ name, code, added: Date.now() });
+      nameIn.value = codeIn.value = '';
+      say(`${name} hinzugefügt.`);
+      save();
+    };
+    $('[data-add]').addEventListener('click', add);
+    codeIn.addEventListener('keydown', (e) => e.key === 'Enter' && add());
+    codeIn.addEventListener('blur', () => {
+      const c = parseFriendCode(codeIn.value);
+      if (c) codeIn.value = c;
+    });
+    search.addEventListener('input', () => (listEl.innerHTML = friendsListHtml(list, search.value)));
+    listEl.addEventListener('click', (e) => {
+      const t = e.target as HTMLElement;
+      const rm = t.closest<HTMLElement>('[data-remove]');
+      if (rm) {
+        // two taps: the first one asks
+        if (!rm.classList.contains('sure')) {
+          rm.classList.add('sure');
+          rm.textContent = 'ENTFERNEN?';
+          return;
+        }
+        list = list.filter((f) => f.code !== rm.dataset.remove);
+        return save();
+      }
+      const ch = t.closest<HTMLElement>('[data-challenge]');
+      if (ch) {
+        const f = list.find((x) => x.code === ch.dataset.challenge);
+        if (f) f.last = Date.now();
+        store.set('friends', list);
+        homeToast(el, `${f?.name ?? 'FREUND'} HERAUSFORDERN – RAUM ÖFFNEN, CODE SCHICKEN`);
+        return window.setTimeout(play, 700);
+      }
+      if (t.closest('[data-addcode]')) {
+        codeIn.value = parseFriendCode(search.value) ?? '';
+        nameIn.focus();
+        say('Name eintragen, dann HINZUFÜGEN.');
+      }
+    });
+    $('[data-act="room"]').addEventListener('click', play);
   }
 
   /** Currencies for the v2 top bars (local placeholder economy). */
