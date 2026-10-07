@@ -51,7 +51,10 @@ function ringBack(fig: boolean, figH = 600, fy = 912): string {
 }
 
 /** The ring backdrop with the fighter anchor, for ring screens built elsewhere (FREUNDE). */
-export const ringFigure = (figH = 600, fy = 912): string => ringBack(true, figH, fy);
+export const ringFigure = (figH = 600, fy = 912): string => {
+  A = isV3() ? A3 : A2;
+  return ringBack(true, figH, fy);
+};
 
 export interface RingMount {
   stop: () => void;

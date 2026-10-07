@@ -305,6 +305,7 @@ export class FighterAnimator {
   private walkPhase = 0;
   private lastX = 0;
   private init = false;
+  private round = -1;
   private lastReaction: Reaction = 'high';
   /** Visual (smoothed) world position in meters. */
   vx = 0;
@@ -548,6 +549,14 @@ export class FighterAnimator {
       }
     }
 
+    // a new round is a cut (both fighters are put back on their marks): no blend out of the KO pose and no slide
+    // across the floor to the new spot (S13 probe: lying -> intro popped and slid)
+    if (s.round !== this.round) {
+      this.round = s.round;
+      this.init = false;
+      this.turnT = TURN;
+      this.lastFacing = 0;
+    }
     if (!this.init) {
       this.current.set(out);
       this.prev.set(out);

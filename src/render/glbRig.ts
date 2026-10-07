@@ -676,6 +676,13 @@ export class GlbRig implements CharacterRig {
         return;
       }
       const err = Math.hypot(_pa.x - K.pos.x, _pa.z - K.pos.z);
+      // more than half a metre: the fighter was put somewhere else (new round, throw, warp) - no step, re-anchor
+      // (S13 probe: the feet stretched back toward the KO spot for 6 frames after the round cut)
+      if (err > 0.5 * sy) {
+        K.pos.copy(_pa);
+        K.t = 1;
+        return;
+      }
       if (K.t >= 1 && err > 0.11 * sy) {
         K.from.copy(K.pos);
         K.t = 0;

@@ -26,8 +26,9 @@ SHOTS = {
     'select': dict(feet=(846, 748), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(-1.69, 0), (1.69, 0)], team=True,
                    banners=[(-3.1, 4.6, 3.5, 2.4, 4.4, 'blue'), (3.1, 4.6, 3.5, 2.4, 4.4, 'red')]),
     'vs': dict(feet=(830, 1150), figH=980, fov=40, pitch=-4, at=(0, 0), team=True),
-    'fighters': dict(feet=(920, 880), figH=760, fov=40, at=(0, 0)),
-    'custom': dict(feet=(820, 742), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(0, 0)]),
+    # no banners behind the big panels (only fragments of their lettering showed between them)
+    'fighters': dict(feet=(920, 880), figH=760, fov=40, at=(0, 0), banners=[]),
+    'custom': dict(feet=(820, 742), figH=600, fov=40, at=(0, 0), lift=0.245, pedestals=[(0, 0)], banners=[]),
     'loading': dict(feet=(836, 760), figH=330, fov=40, pitch=2, at=(0, 0)),
     'ring': dict(feet=(836, 912), figH=600, fov=40, at=(0, 0), banners=[(-3.3, 7.6, 4.5, 2.2, 4.0, 'l'), (3.3, 7.6, 4.5, 2.2, 4.0, 'r')]),
     'lobby': dict(feet=(836, 800), figH=420, fov=40, pitch=4, at=(0, 0), banners=[(-3.6, 7.6, 4.5, 2.2, 4.0, 'l'), (3.6, 7.6, 4.5, 2.2, 4.0, 'r')]),

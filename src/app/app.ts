@@ -28,7 +28,7 @@ import { mountShop, shopHtml } from '../ui/menu/shop';
 import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
-import { isV2, design, setDesign, type Design } from '../ui/design';
+import { isV2, isV3, design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
@@ -163,6 +163,8 @@ function rankPct(p: Profile): number {
 /** Hometowns on the character-select ribbon (from the PO's master design). */
 const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
 const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club', 'courtyard']);
+/** Arenas rebuilt in the design-v3 look (D46): their v3 renders replace the painted ones in the menus. */
+const V3_ARENAS = new Set(['festival', 'bahnhof']);
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
 /** Stored menu mode (older saves used 'online' for the friend room code). */
@@ -998,6 +1000,7 @@ export class App {
   private arenaItems(): ShowcaseItem[] {
     // full-screen 1672x941 renders for the v2 arena screen (scripts/arena-thumbs.mjs BIG=1); others use the thumbnail
     const fav = this.favArena;
+    const v3 = isV3();
     return ARENAS.map((a) => ({
       id: a.id,
       name: a.name,
@@ -1008,8 +1011,8 @@ export class App {
         ['STIMMUNG', a.mood],
         ['PUBLIKUM', a.crowd],
       ],
-      img: a.locked ? '' : a.img,
-      big: a.locked || !BIG_ARENAS.has(a.id) ? undefined : `assets/ui2/arenas/${a.id}.webp`,
+      img: a.locked ? '' : v3 && V3_ARENAS.has(a.id) ? `assets/ui3/arenas/${a.id}_t.webp` : a.img,
+      big: a.locked || !BIG_ARENAS.has(a.id) ? undefined : `assets/ui${v3 && V3_ARENAS.has(a.id) ? 3 : 2}/arenas/${a.id}.webp`,
       locked: a.locked,
       tag: a.id === fav ? 'FAVORIT' : undefined,
     }));
