@@ -737,7 +737,7 @@ export class GameView {
       // standing states keep both feet on the floor (S12); cinematics, hits and airborne poses stay as authored
       (rig as { plant?: boolean }).plant = !s.cine && f.y === 0 && anim.vy < 0.01 && PLANTED.has(f.state);
       (rig as { lock?: boolean }).lock = !s.cine && f.y === 0 && anim.vy < 0.01 && LOCKED.has(f.state);
-      rig.apply(pose, anim.visFacing || f.facing);
+      rig.apply(pose, anim.drawFacing || f.facing);
       let sx = 0;
       // impact shake during hitstop: a decaying ~12 Hz sine (5 frames per swing at 60 fps) (S13: the old +-3 cm flip every frame read as a jitter)
       if (f.hitstop > 0 && this.shakeT[i] > 0) sx = Math.sin(this.time * 75) * 0.016 * Math.min(1, f.hitstop / 8);

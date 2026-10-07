@@ -272,7 +272,10 @@ class PoseSpring {
 }
 
 /** States in which a body lies or flies: no visual facing flip until it is upright again. */
-const DOWN = new Set(['knockdown', 'juggle', 'airReset', 'ko', 'wallSplat']);
+// a body on the floor (and getting up from it) keeps its facing: flipping a lying body mirrors it in depth (S13)
+const DOWN = new Set(['knockdown', 'juggle', 'airReset', 'ko', 'wallSplat', 'wakeup']);
+/** Turn-around length in frames (facing flips): half toward the camera with the old facing, half back with the new. */
+const TURN = 12;
 
 /**
  * State -> pose. Each animation (state, move, reaction) is sampled exactly on the sim's frame clock; changes between
@@ -291,8 +294,11 @@ export class FighterAnimator {
   private inert = new Inertializer();
   private spring = new PoseSpring();
   private lastFacing = 0;
-  /** Facing the rig is drawn with (see update). */
+  /** Facing the fighter visually has (follows the sim, held while down; see update). */
   visFacing = 0;
+  /** Facing the rig is drawn with this frame (the old one during the first half of a turn-around). */
+  drawFacing = 0;
+  private turnFrom = 0;
   private turnT = 99;
   private key = '';
   private lastSf = 0;
@@ -594,15 +600,25 @@ export class FighterAnimator {
     // facing the rig is drawn with: follows the sim, except that a body on the floor or in the air does not flip
     // when the opponent crosses over it (it turned on the floor: S13 probe) - it turns when it is up again
     if (!this.visFacing || s.cine || !DOWN.has(f.state)) this.visFacing = f.facing;
-    // facing flips (crossed-up, warped behind): the rig mirrors at once; a yaw that unwinds from 180 makes it a turn
-    if (this.lastFacing && this.visFacing !== this.lastFacing && !s.cine) this.turnT = 0;
+    // facing flips (crossed-up, warped behind). The rig mirrors by facing, so a 180 degree yaw on the new facing
+    // would show the back for a frame (S13 probe: the old turn popped). Instead the body turns toward the camera
+    // with its old facing, swaps facing when it looks straight at the camera (left/right are nearly symmetric
+    // there) and turns on into the new direction.
+    if (this.lastFacing && this.visFacing !== this.lastFacing && !s.cine) {
+      this.turnFrom = this.drawFacing || this.lastFacing; // what is on screen now
+      this.turnT = 0;
+    }
     this.lastFacing = this.visFacing;
     if (f.state === 'intro' && f.sf === 0) this.spring.reset(this.current);
     this.spring.step(this.current, Math.max(0, dt * 60), 2, this.final);
-    if (this.turnT < 10) {
+    this.drawFacing = this.visFacing;
+    if (this.turnT < TURN) {
       this.turnT += Math.max(0, dt * 60);
-      const k = Math.min(1, this.turnT / 10);
-      this.final[R_YAW] += -180 * (1 - k * k * (3 - 2 * k));
+      const k = Math.min(1, this.turnT / TURN);
+      const sm = (u: number) => u * u * (3 - 2 * u);
+      const toCam = k < 0.5 ? sm(k * 2) : 1 - sm(k * 2 - 1);
+      if (k < 0.5) this.drawFacing = this.turnFrom;
+      this.final[R_YAW] += -90 * toCam;
     }
     const free = this.key.startsWith('move:') ? this.set.headFree?.[this.key.slice(5)] : undefined;
     stabilizeHead(this.final, free ?? headWeight(this.key));
