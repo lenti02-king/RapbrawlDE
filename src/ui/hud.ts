@@ -697,6 +697,7 @@ export class Hud {
     if (sigId && prev >= 0 && !s.config.training) {
       const cost = getCard(me.def, sigId).cost;
       if (prev < cost && me.meter >= cost) {
+        this.sigReady.dataset.shown = String(s.frame); // test hook: the banner fired (the tween is real-time, e2e may miss it)
         this.play(this.sigReady, 2.4, (k, el) => {
           const [o, sc] = popHold(k, 0.4);
           el.style.opacity = String(o);

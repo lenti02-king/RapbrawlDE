@@ -136,11 +136,17 @@ const sim = (page) =>
   await page.waitForFunction(() => ['idle', 'crouch', 'walkF', 'walkB'].includes(window.__rb.runner.state.fighters[0].state), null, { timeout: 10000 }).catch(() => {});
   await page.evaluate(() => {
     const s = window.__rb.runner.state;
+    delete document.querySelector('.sig-ready').dataset.shown;
     s.fighters[0].meter = 300;
     s.fighters[0].x = s.fighters[1].x - 12000;
   });
+  // the banner is a 2.4 s real-time tween; with SwiftShader frames of 2-4 s under load its opacity can be missed, so
+  // the HUD stamps the moment it fires (data-shown) and the banner text must be the German one
   const banner = await page
-    .waitForFunction(() => Number(document.querySelector('.sig-ready').style.opacity) > 0.5, null, { timeout: 20000 })
+    .waitForFunction(() => {
+      const el = document.querySelector('.sig-ready');
+      return !!el.dataset.shown && el.textContent.includes('SIGNATURE BEREIT');
+    }, null, { timeout: 60000 })
     .then(() => true)
     .catch(() => false);
   check(banner, '"SIGNATURE BEREIT!" banner appears when Hype is full');

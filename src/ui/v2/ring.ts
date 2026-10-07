@@ -194,7 +194,9 @@ export interface DeckModel {
 }
 
 function deckCard(c: DeckCard, cls: string, attr: string): string {
-  return `<button class="rg-dcard ${c.sig ? 'sig' : ''} ${cls}" ${attr} style="--cat:${c.color}"><span class="rg-dart">${c.art ? `<img alt="" src="${c.art}">` : ''}</span>${
+  // a painted card (assets/cards/<id>.webp, PO artwork) wins over the in-engine render, as in the HUD hand
+  const bg = `url('assets/cards/${c.id}.webp')${c.art ? `, url('${c.art}')` : ''}`;
+  return `<button class="rg-dcard ${c.sig ? 'sig' : ''} ${cls}" ${attr} style="--cat:${c.color}"><span class="rg-dart" style="background-image:${bg}"></span>${
     c.cost ? `<span class="rg-cost">${c.cost}</span>` : ''
   }${c.sig ? `<span class="rg-dcrown">${CROWN}</span>` : ''}<span class="rg-dname">${esc(c.name)}</span></button>`;
 }

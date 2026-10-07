@@ -1,12 +1,31 @@
 # Project status
 
-_Last updated: 2026-10-06 (session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-07 (session 11: the four fighters from the PO's modelle-3 models with cel look, new signatures and abilities for all four, Blunt rework, living v2 menus, v2 profile/settings/deck/results/pause/HUD; session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
 - Private claude.ai Artifact (owner-only until shared, page + rapbrawl.js; see the latest session for the version): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - Local: `npm install && npm run dev`.
+
+## Session 11 — modelle-3 roster, cel look, new abilities, living menus, v2 everywhere (D43)
+| Area | Status | Evidence |
+|---|---|---|
+| All four fighters = the PO's modelle-3 models (reduced, rigged, GG print retouched on Jazeek); 2D cutouts removed | VERIFIED (lab, match, menus, close-ups) | `tools/meshy/reduce.py --dir meshy3`, `skin.py`, `?quick=manuellsen,lacazette` |
+| Cel look: MeshToonMaterial (metal 0 / rough 1) + black ink outline, `?toon=0` fallback | VERIFIED (screenshots) | `render/cel.ts` |
+| Strikes reach their hitboxes on the new proportions (lunge fit per move) | VERIFIED (`reach.mjs`; tall uppercuts/palm a little short) | `node scripts/reach.mjs jazeek` |
+| Living v2 menus (depth parallax, crowd on the beat, lights, haze) | VERIFIED (frame diff) | `node scripts/livingshot.mjs` |
+| KÄMPFEN button re-cut with chains, black brush lettering with drips | VERIFIED (screenshot) | `tools/ui-extract/v2_fight_btn.py` |
+| Kämpfer screen: names centred on the cards, card colour behind the portraits | VERIFIED (932x430) | `node scripts/v2shot.mjs "showFighters()"` |
+| Manuellsen: 5000 Kurden (mob, 3 hits), Beton (armour + heavy right), Sofa-Backpfeifen signature | VERIFIED (unit tests, film strips, cine sheet) | `tests/abilities.test.ts`, `Q=medium node scripts/cine.mjs sofa` |
+| Lacazette: Kalter Blick, Daunenweste, 70 Schüsse signature (car drifts in, driver's side to the opponent, 70-shot counter, the line) | VERIFIED (tests + cine sheet); Blick/Weste strips not captured | `node scripts/cine.mjs gwagon` |
+| Jazeek: Ninetynine signature (replaces Herzbrecher in the deck); Blunt für dich reworked (carry, cloud, joint, smoke, exhale launch) | VERIFIED (tests + cine sheets) | `node scripts/cine.mjs 99`, `MOVE=0 node scripts/cine.mjs blunt` |
+| Bonez: Ohne mein Team signature (palms, HANDYVERBOT, crew pile-on, big right hand; replaces Palmen-Bassdrop in the deck) | VERIFIED (tests + cine sheet) | `node scripts/cine.mjs team` |
+| Card art for the eight new cards | VERIFIED (deck and HUD screenshots) | `ui/portraits.ts` |
+| v2 profile, settings, deck in the ring (living plate, live favourite fighter); results + pause over the arena; v2 HUD skin | VERIFIED (1672x941 + 932x430 screenshots, e2e checks) | `node scripts/v2shot.mjs "showProfile()"`, `node scripts/v2match.mjs` |
+| Checks: unit 91/91, typecheck, Artifact payload under CSP (4 models, arenas, props, v2 art); Artifact **version 20** published | VERIFIED | `npm test`, `node scripts/artifact-check.mjs` |
+| e2e + netplay | E2E_RESULT | `npm run e2e`, `node scripts/netplay.mjs 60` |
+| Feel of the new abilities, iPhone performance of the ink outline and the living plates | UNVERIFIED (PO test on the device) | |
 
 ## Session 10 — design v2, slower specials, reworked abilities, two cartoon fighters (D42)
 | Area | Status | Evidence |
@@ -209,7 +228,9 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 ## Known issues / risks
 - Feel/timing (hitstop, damage, meter gain, touch layout) has never been tested by a human; the bot balance number is only a sanity check.
 - In headless Chromium, CSS animations started while the sim runs stay frozen (load artifact of software rendering). HUD pop-ups were therefore moved to JS tweens; remaining CSS animations (combo bump, card glow) are cosmetic.
-- Fighters are the PO's textured Meshy models; the sculpted hands are open and are curled into fists at runtime, which stretches the finger geometry a little up close. Likeness/name rights for Jazeek and Bonez MC are not cleared (see below).
+- Fighters are the PO's modelle-3 models; the sculpted hands are open and are curled into fists at runtime, which stretches the finger geometry a little up close (guard hands still look slightly claw-like). Likeness/name rights for all four real persons are not cleared (see below).
+- Crew extras in Ohne mein Team / 5000 Kurden are procedural low-detail figures (hoodies); they read at distance, not in close-ups.
+- A projectile signature (70 Schüsse, croc) that hits an airborne opponent juggles instead of starting the cinematic (by design: jumping is the escape).
 - Meshy licence: free-plan generations are CC BY 4.0 (credit Meshy), paid plans grant ownership; the PO must confirm which applies.
 - Online: no matchmaking/TURN/rematch; the Artifact host blocks WebRTC.
 - Bot is reactive but exploitable. Back-throw victim animation assumes a forward throw.
@@ -228,7 +249,7 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Rights**: written permission from Jazeek and Bonez MC (name, likeness, voice/music references) before any public release. Third-party logos (e.g. monogram prints, scarf brand) were deliberately left out.
 - **Assets**: accessories/outfits and mode tiles — prompts in `docs/ASSET_PROMPTS.md` (croc, car, props now delivered by the PO and in the game).
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
-- **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release; their abilities/cards once the PO decides the style works.
+- **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release. Their abilities reference real memes/scandals (the Animus slap video, "5000 Kurden", "70 Schüsse aus dem G-Wagon") — check with them and a lawyer; the meme line says 5000 (the PO wrote 3000 — one constant to change). The car is a generic off-roader without badges; gunfire is shown as toy-like flashes (USK).
 - **Design v2 masters** contain generic AI art (the lobby's example friends, preset figures): the game shows its own fighters there; the masters' crown logo and RB belt are the PO's brand.
 - **Blunt für dich**: a real person (Jazeek) rolling and smoking a joint — affects the USK rating (drug use depicted) and is a reputation question for the artist; decide before release (option: a neutral "Zigarre"/vape or a fictional herb).
 - **Arena paintings**: the PO's two images contain real brands/businesses (festival logo, bar and kiosk names); the game uses retouched copies with fictional names (FESTIVAL-BÜHNE, PIK ASS, KIOSK 069, WEINECK). Check the image source/licence of the paintings themselves.
@@ -236,8 +257,9 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - Hosting decision for signaling/matchmaking + TURN.
 
 ## Next objectives (suggested order)
-0. PO review of design v2 on the iPhone (Artifact): screen by screen; switch back with EINSTELLUNGEN → DESIGN → KLASSISCH. Masters for the fight HUD and the remaining screens if they should follow v2.
-0b. Manuellsen + Lacazette: PO check of the cutout look/motion, then their abilities.
+0. PO review of Artifact version 20 on the iPhone: the four new fighters (look, motion), the signatures (Sofa, 70 Schüsse, Ninetynine, Ohne mein Team, the new Blunt), the living menus and the v2 profile/settings/deck/results/HUD; frame rate with the ink outline on the device.
+0b. PO artworks for characters and cards (announced): drop-in via `assets/cards/<id>.webp` (cards already prefer a painted file) and the select/roster portraits.
+0c. Animation polish on the new bodies: guard hands, tall uppercut reach, per-fighter idle for Manuellsen/Lacazette (they borrow Bonez's/Jazeek's sets).
 1. Human playtest on a real phone (APK / Artifact) → tune touch layout, hitstop, damage, meter, charge rate, fatality minigame timing.
 1b. Online "Gegen Freunde" (room code) flow polish (PO: later); outfits/accessories once the PO's assets exist.
 2. Integrate delivered art (card art via `ui/icons.ts` replacement, portraits, GLB characters mapped onto the joint/pose system).

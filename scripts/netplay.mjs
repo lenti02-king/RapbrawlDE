@@ -10,7 +10,10 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const ctx = await browser.newContext({ viewport: { width: 640, height: 360 } });
 const [A, B] = [await ctx.newPage(), await ctx.newPage()];
 const errors = [];
-for (const p of [A, B]) p.on('pageerror', (e) => errors.push(e.message));
+for (const p of [A, B]) {
+  p.on('pageerror', (e) => errors.push(e.message));
+  p.setDefaultTimeout(180000); // software GL + the ink outlines: the first load and screen changes can take a while
+}
 const toLobby = async (p) => {
   await p.goto(base + '/?touch=0&q=low&ui=v1&netsilence=60');
   await p.waitForSelector('.splash');
