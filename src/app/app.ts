@@ -28,13 +28,19 @@ import { mountShop, shopHtml } from '../ui/menu/shop';
 import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
-import { isV2, design, setDesign, type Design } from '../ui/design';
+import { isV2, isV4, design, setDesign, type Design } from '../ui/design';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
 import { fightersHtml, mountFighters, type RosterEntry } from '../ui/v2/fighters';
 import { CUSTOM_MENU, customHtml, mountCustom } from '../ui/v2/custom';
 import { lobbyHtml, lobbyOpponent, lobbySheet, lobbyStatus, mountLobby } from '../ui/v2/lobby';
+import { homeHtmlV4, homeToastV4, mountHomeV4, type HomeV4Action, type HomeV4Model } from '../ui/v4/home';
+import { modesHtmlV4, mountModesV4, type ModeTile, type ModesV4Model } from '../ui/v4/modes';
+import { setSelectWallet } from '../ui/v4/select';
+import { customHtmlV4, mountCustomV4, type CustomV4Model } from '../ui/v4/custom';
+import { lobbyHtmlV4, lobbyOpponentV4, lobbyStatusV4, mountLobbyV4 } from '../ui/v4/lobby';
+import type { Wallet } from '../ui/v4/kit4';
 import type { TopBar } from '../ui/v2/arena';
 import { deckHtml, deckParts, mountOverlay, mountRing, pauseHtml, profileHtml, resultsHtml, settingsHtml, type DeckCard, type DeckModel, type SettingRow } from '../ui/v2/ring';
 import { AudioEngine } from '../audio/audio';
@@ -558,6 +564,7 @@ export class App {
    *  they are picked when a fight starts). */
   showHome(): void {
     if (this.mode !== 'menu') this.enterMenu();
+    if (isV4()) return this.showHomeV4();
     if (isV2()) return this.showHomeV2();
     const p = this.profileData;
     const lvl = levelOf(p);
@@ -645,6 +652,135 @@ export class App {
       }
     });
     obs.observe(this.ui, { childList: true });
+  }
+
+  /** Design v4 wallet (the masters' capsules): coins and gems of the local economy, rank points as trophies. */
+  private get wallet(): Wallet {
+    const eco = economyOf(this.profileData);
+    return { coins: eco.coins, gems: eco.gems, trophies: store.get('rp', 0) };
+  }
+
+  /** Design v4 home (D47, the PO's Frankfurt master): FIGHT opens the modes, the tiles the menus, the favourite stands
+   *  on the pedestal. */
+  private showHomeV4(): void {
+    const p = this.profileData;
+    const lvl = levelOf(p);
+    const model: HomeV4Model = {
+      ...this.wallet,
+      name: this.playerName,
+      level: lvl.level,
+      xp: lvl.xp % 400,
+      xpMax: 400,
+      fighter: this.favorite,
+      avatar: portrait(this.favorite, 'bust'),
+    };
+    const el = this.open(homeHtmlV4(model), 'mm v4-home');
+    const soon = (what: string) => homeToastV4(el, `${what} – KOMMT BALD`);
+    const stop = mountHomeV4(el, model, (a: HomeV4Action) => {
+      const leave = (fn: () => void) => {
+        stop();
+        fn();
+      };
+      switch (a) {
+        case 'fight':
+          return leave(() => this.showModes());
+        case 'ranked':
+          return leave(() => this.startMode('ranked'));
+        case 'profile':
+          return leave(() => this.showProfile());
+        case 'settings':
+          return leave(() => this.showSettings());
+        case 'fighters':
+          store.set('rosterSeen', ROSTER.length);
+          return leave(() => this.showCustomV4(this.favorite));
+        case 'decks':
+          return leave(() => this.showDeck(0, () => this.showHome()));
+        case 'shop':
+          return leave(() => this.showShop());
+        case 'news':
+          store.set('newsSeen', NEWS_VERSION);
+          return this.showNews(el);
+        case 'social':
+          return leave(() => this.showOnlineLobby());
+        case 'events':
+          return soon('EVENTS');
+        case 'pass':
+          return soon('BATTLE PASS');
+        case 'missions':
+          return soon('MISSIONEN');
+        case 'home':
+          return;
+      }
+    });
+    const obs = new MutationObserver(() => {
+      if (!el.isConnected) {
+        stop();
+        obs.disconnect();
+      }
+    });
+    obs.observe(this.ui, { childList: true });
+  }
+
+  /** Design v4 modes (D47): 1 VS 1 (offline: vs CPU), MIT FREUNDEN (online: room / offline: two players on one
+   *  device), TRAINING; 2 VS 2 is announced. WEITER goes straight to the fighter select. */
+  private showModesV4(): void {
+    const last = menuModeOf(store.get<string>('menuMode', 'quick'));
+    const tile: ModeTile = last === 'friend' || last === 'local' ? 'friends' : last === 'training' ? 'training' : 'duel';
+    const model: ModesV4Model = { ...this.wallet, tile, online: last === 'friend' };
+    const el = this.open(modesHtmlV4(model), 'mm v4-modes');
+    const stop = mountModesV4(el, model, (a, m) => {
+      const leave = (fn: () => void) => {
+        stop();
+        fn();
+      };
+      if (a === 'back') return leave(() => this.showHome());
+      if (a === 'shop') return leave(() => this.showShop());
+      if (a === 'social') return leave(() => this.showOnlineLobby());
+      if (a === 'news') {
+        store.set('newsSeen', NEWS_VERSION);
+        return this.showNews(el);
+      }
+      if (a === 'online' && m.tile === 'duel') toast(el, 'ONLINE-DUELL GEGEN ZUFALLSGEGNER KOMMT MIT DEM SERVER – SPIEL SO LANGE MIT FREUNDEN');
+      if (a !== 'next') return;
+      const mode: MenuMode = m.tile === 'training' ? 'training' : m.tile === 'friends' ? (m.online ? 'friend' : 'local') : m.online ? 'ranked' : 'quick';
+      store.set('menuMode', mode);
+      leave(() => this.startMode(mode));
+    });
+  }
+
+  /** Design v4 customise (D47): one fighter on the pedestal; swipe for the next; AUSRÜSTEN makes him the favourite. */
+  private showCustomV4(id: string): void {
+    const all = ROSTER.map((x) => fighterStats(x));
+    const lo = (k: 'dmg' | 'speed' | 'reach') => Math.min(...all.map((v) => v[k]));
+    const hi = (k: 'dmg' | 'speed' | 'reach') => Math.max(...all.map((v) => v[k]));
+    const cells = (k: 'dmg' | 'speed' | 'reach', v: number) => 2 + Math.round((3 * (v - lo(k))) / Math.max(1e-6, hi(k) - lo(k)));
+    const st = fighterStats(id);
+    const model: CustomV4Model = {
+      ...this.wallet,
+      fighter: id,
+      name: getFighter(id).name,
+      stats: { power: cells('dmg', st.dmg), speed: cells('speed', st.speed), tech: cells('reach', st.reach) },
+    };
+    const el = this.open(customHtmlV4(model), 'mm v4-custom');
+    const n = ROSTER.length;
+    const stop = mountCustomV4(el, model, (a) => {
+      const leave = (fn: () => void) => {
+        stop();
+        fn();
+      };
+      if (a === 'back') return leave(() => this.showHome());
+      if (a === 'next' || a === 'prev') return leave(() => this.showCustomV4(ROSTER[(ROSTER.indexOf(id) + (a === 'next' ? 1 : -1) + n) % n]));
+      if (a === 'equip') {
+        store.set('favFighter', id);
+        return toast(el, `${getFighter(id).name.toUpperCase()} AUSGERÜSTET – STEHT JETZT IM MENÜ`);
+      }
+      if (a === 'shop') return leave(() => this.showShop());
+      if (a === 'social') return leave(() => this.showOnlineLobby());
+      if (a === 'news') {
+        store.set('newsSeen', NEWS_VERSION);
+        return this.showNews(el);
+      }
+    });
   }
 
   /** Design v2 home (D42): the PO's second master; KÄMPFEN starts the chosen mode, MODI picks it. */
@@ -825,8 +961,8 @@ export class App {
   private bindTopBar(el: HTMLElement, leave: () => void): void {
     el.querySelectorAll<HTMLElement>('.v2-stage [data-act]').forEach((b) =>
       b.addEventListener('click', (e) => {
-        e.stopPropagation();
         const a = b.dataset.act;
+        if (a === 'shop' || a === 'settings' || a === 'news') e.stopPropagation();
         if (a === 'shop') {
           leave();
           this.showShop();
@@ -956,6 +1092,7 @@ export class App {
 
   /** Game modes in the arena-select design: picture tiles, info panel, CPU strength on the chip. */
   showModes(): void {
+    if (isV4()) return this.showModesV4();
     const rp = store.get('rp', 0);
     const tier = tierOf(rp);
     const items: ShowcaseItem[] = [
@@ -1104,8 +1241,13 @@ export class App {
       tags: [0, 1].filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1)),
     }));
     const status = m === 'local' ? `SPIELER ${picking + 1} WÄHLT` : m === 'online' ? 'GEGNER WÄHLT ONLINE' : m === 'training' ? 'TRAININGSPARTNER' : 'GEGNER: CPU';
+    if (isV4()) setSelectWallet(this.wallet);
     const el = this.open(charSelectHtml(sides, tiles, picking, { hint: 'TIPPEN ZUM WÄHLEN', status }), 'st-select');
     const stop = mountCharSelect(el, sides);
+    if (isV4()) {
+      this.bindTopBar(el, stop);
+      if (m === 'local') toast(el, `SPIELER ${picking + 1} WÄHLT`);
+    }
     const go = (fn: () => void) => () => {
       stop();
       fn();
@@ -2445,8 +2587,13 @@ export class App {
     const arenas = this.arenaItems()
       .filter((a) => !a.locked)
       .map((a) => ({ id: a.id, name: a.name, img: a.img }));
+    const v4 = isV4();
+    const friends = store.get<Friend[]>('friends', []).filter((f) => f && typeof f.name === 'string' && parseFriendCode(f.code));
+    friends.sort((a, b) => (b.last ?? b.added ?? 0) - (a.last ?? a.added ?? 0));
     const el = this.open(
-      lobbyHtml({
+      v4
+        ? lobbyHtmlV4({ ...this.wallet, name: this.playerName, code, friends })
+        : lobbyHtml({
         name: this.playerName,
         level: lvl.level,
         xp: (lvl.xp % 400) / 400,
@@ -2461,20 +2608,26 @@ export class App {
         gems: eco.gems,
         energy: '40/40',
       }),
-      'mm v2-lobbyscreen',
+      v4 ? 'mm v4-lobby' : 'mm v2-lobbyscreen',
     );
-    const stop = mountLobby(el);
+    const stop = v4 ? mountLobbyV4(el) : mountLobby(el);
+    el.querySelectorAll('[data-act="add-friend"]').forEach((b) =>
+      b.addEventListener('click', () => {
+        leave();
+        this.showFriends();
+      }),
+    );
     const leave = () => {
       stop();
       this.leaveNet();
     };
     this.bindTopBar(el, leave);
-    const say = (m: string, err = false) => lobbyStatus(el, m, err);
+    const say = (m: string, err = false) => (v4 ? lobbyStatusV4 : lobbyStatus)(el, m, err);
     let busy = false;
     const go = (t: Transport, host: boolean) => {
       if (busy) return;
       busy = true;
-      lobbyOpponent(el, host ? 'WARTET …' : 'VERBINDE …');
+      (v4 ? lobbyOpponentV4 : lobbyOpponent)(el, host ? 'WARTET …' : 'VERBINDE …');
       runLobby(t, host, mine, (g) => this.onlineConfig(g))
         .then((res) => {
           stop();

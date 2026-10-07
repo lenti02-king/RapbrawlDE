@@ -1,0 +1,183 @@
+/* Design v4 (D47): the PO's street masters on the v2 stage (v2.css: layout, buttons, text). Only light and life are
+   added here: the cut pieces breathe and catch a sheen so they sit in the lit scene instead of on top of it. */
+
+/* live amounts in the capsules: the masters' white condensed numerals */
+.v2 .v4-amt {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  --fill: linear-gradient(180deg, #ffffff 0%, #ffffff 60%, #dfe5f2 100%);
+  --sw: 0.09em;
+  --ol: #05070f;
+}
+
+/* tiles: a slow light sweep over the tile's own shape, staggered per tile */
+.v4-tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask: var(--mask) center / 100% 100% no-repeat;
+  mask: var(--mask) center / 100% 100% no-repeat;
+  background: linear-gradient(110deg, transparent 0%, transparent 40%, rgba(255, 250, 230, 0.32) 50%, transparent 60%, transparent 100%) -170% 0 / 55% 100% no-repeat;
+  mix-blend-mode: screen;
+  animation: v4-sheen 7.5s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes v4-sheen {
+  0%,
+  62% {
+    background-position: -170% 0;
+  }
+  86%,
+  100% {
+    background-position: 270% 0;
+  }
+}
+@media (hover: hover) {
+  .v4-tile:hover {
+    filter: brightness(1.12) drop-shadow(0 0 calc(var(--u) * 10) rgba(255, 196, 70, 0.45));
+  }
+}
+
+/* the selection frame (blue neon from the master): breathes like a lit neon tube */
+.v4-sel {
+  animation: v4-neon 2.4s ease-in-out infinite;
+}
+@keyframes v4-neon {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 calc(var(--u) * 4) rgba(70, 150, 255, 0.55));
+  }
+  50% {
+    filter: brightness(1.22) drop-shadow(0 0 calc(var(--u) * 14) rgba(90, 170, 255, 0.85));
+  }
+}
+.v4-sel.red {
+  animation-name: v4-neon-red;
+}
+@keyframes v4-neon-red {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 calc(var(--u) * 4) rgba(255, 60, 80, 0.55));
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 calc(var(--u) * 14) rgba(255, 70, 90, 0.85));
+  }
+}
+
+/* the gold chain buttons: the v2 main pulse/shine (v2-main) with a warmer, stronger glow */
+.v4-gold {
+  animation-name: v4-gold;
+}
+@keyframes v4-gold {
+  0%,
+  100% {
+    filter: brightness(1) drop-shadow(0 0 calc(var(--u) * 2) rgba(255, 200, 40, 0.25));
+  }
+  50% {
+    filter: brightness(1.08) drop-shadow(0 0 calc(var(--u) * 20) rgba(255, 190, 30, 0.6));
+  }
+}
+
+/* small framed buttons (plus, mail, back, gear) */
+.v4-btn:active {
+  filter: brightness(1.3);
+}
+
+/* windows the game fills (avatar, roster tiles, later the PO's artwork) */
+.v4-win {
+  position: absolute;
+  left: calc(var(--x) * var(--u));
+  top: calc(var(--y) * var(--u));
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+  overflow: hidden;
+  pointer-events: none;
+}
+.v4-win > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+}
+
+/* hand-lettered names on the P1/P2 plates (the master's white brush italics) */
+.v2 .v4-pname {
+  font-family: 'Permanent Marker', 'Barlow Condensed', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  --fill: linear-gradient(180deg, #ffffff, #e9ecf4);
+  --sw: 0.07em;
+  --ol: #07080d;
+  --sh: 0.03em 0.06em 0 #000, 0 0.08em 0.12em rgba(0, 0, 0, 0.6);
+}
+/* the slant on the box: a transform on the background-clip:text <i> drops its fill in Chromium (see v2.css) */
+.v2 .v4-pname {
+  transform: skewX(-8deg);
+}
+/* the customise title plate and other upright heavy labels */
+.v2 .v4-title {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  --fill: linear-gradient(180deg, #ffffff 0%, #ffffff 60%, #dde3ee 100%);
+  --sw: 0.08em;
+  --ol: #06080f;
+}
+.v2 .v4-status {
+  font-weight: 600;
+  --fill: linear-gradient(180deg, #7dff9a, #39d85f);
+  --sw: 0.07em;
+  --ol: #04140a;
+}
+.v2 .v4-muted {
+  font-weight: 600;
+  --fill: linear-gradient(180deg, #c9cfe0, #9aa3bc);
+  --sw: 0.07em;
+}
+
+/* stat segments that light up (the master's cyan cells) */
+.v4-seg {
+  animation: v4-seg 3.2s ease-in-out infinite;
+  animation-delay: var(--d, 0s);
+}
+@keyframes v4-seg {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.25) drop-shadow(0 0 calc(var(--u) * 6) rgba(60, 220, 255, 0.7));
+  }
+}
+
+/* locked / not yet available pieces stay as painted, a little dimmer */
+.v4-soon {
+  filter: saturate(0.75) brightness(0.82);
+}
+
+/* lobby join panel (ANFRAGEN): a veil over the friend list, the master's blue button for the actions */
+.v4-join[hidden] {
+  display: none;
+}
+.v4-veil {
+  border-radius: calc(var(--u) * 14);
+  background: linear-gradient(180deg, rgba(8, 12, 32, 0.94), rgba(4, 6, 18, 0.96));
+  box-shadow: inset 0 0 0 calc(var(--u) * 2) rgba(80, 150, 255, 0.55), 0 0 calc(var(--u) * 18) rgba(40, 110, 255, 0.35);
+}
+.v4-input {
+  box-sizing: border-box;
+  border: calc(var(--u) * 2) solid rgba(90, 160, 255, 0.8);
+  border-radius: calc(var(--u) * 10);
+  background: rgba(2, 4, 14, 0.9);
+  color: #fff;
+  font: 700 calc(var(--u) * 30) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.3em;
+  text-align: center;
+  text-transform: uppercase;
+  outline: none;
+}
+.v4-input:focus {
+  box-shadow: 0 0 calc(var(--u) * 12) rgba(90, 170, 255, 0.7);
+}

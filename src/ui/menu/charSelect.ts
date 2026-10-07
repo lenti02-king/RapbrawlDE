@@ -6,8 +6,9 @@
 import { CS_ART, CS_BOXES } from './charSelectArt';
 import { MenuFigures } from './figures';
 import { esc, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
-import { isV2 } from '../design';
+import { isV2, isV4 } from '../design';
 import { mountSelectV2, selectHtmlV2, type SelectOpts } from '../v2/select';
+import { mountSelectV4, selectHtmlV4 } from '../v4/select';
 
 /** Feet (centre of the pedestal top) and figure height in reference px. */
 const FEET: [number, number][] = [
@@ -43,6 +44,7 @@ function sprite(id: 'back' | 'ready'): string {
 }
 
 export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking: number, v2?: SelectOpts): string {
+  if (isV4()) return selectHtmlV4(sides, tiles, picking);
   if (isV2()) return selectHtmlV2(sides, tiles, picking, v2 ?? { hint: 'TIPPEN ZUM WÄHLEN', status: 'WÄHLE DEINEN KÄMPFER' });
   const bg = CS_ART.bg;
   const fighter = (i: number) => {
@@ -93,7 +95,7 @@ export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking
 }
 
 export function mountCharSelect(root: HTMLElement, sides: [CsSide, CsSide]): () => void {
-  if (root.querySelector('.v2-stage')) return mountSelectV2(root, sides);
+  if (root.querySelector('.v2-stage')) return isV4() ? mountSelectV4(root, sides) : mountSelectV2(root, sides);
   root.classList.add('mm', 'cs');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;
   const bg = CS_ART.bg;

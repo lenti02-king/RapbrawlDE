@@ -268,7 +268,7 @@ def run(screen: str, ref: str, elements: dict, remove: list | None = None, remov
         for k, e in elements.items():  # dark grungy plates: smooth fill + grain (LaMa hallucinates letter ghosts there)
             for n in e.get('smooth', []):
                 z = e['text'][n]
-                f = fit_zone(img, z)
+                f = fit_zone(img, z) if e.get('fit', True) else z
                 smooth |= uix.rect_mask(img.shape, (f[0] - 4, f[1] - 4, f[2] + 4, f[3] + 4)) & uix.dilate(masks[k], 2)
         if smooth.any():
             # base: the plate's dark ground (low percentile of the ring around each hole), then fine grain
@@ -290,7 +290,14 @@ def run(screen: str, ref: str, elements: dict, remove: list | None = None, remov
             sm = np.clip(sm.astype(np.float32) + noise[..., None], 0, 255).astype(np.uint8)
             sa = (cv2.GaussianBlur(smooth, (0, 0), 2).astype(np.float32) / 255.0)[..., None]
             src = (src * (1 - sa) + sm * sa).astype(np.uint8)
-        bg = uix.inpaint(src, hole & ~fig_hole & ~flat & ~smooth, max_side=1024, ctx=0.45)
+        scan = np.zeros((H, W), np.uint8)
+        for k, e in elements.items():  # text on banded panels (D47): each row interpolated between its clean ends
+            for n in e.get('scan', []):
+                z = e['text'][n]
+                scan |= uix.rect_mask(img.shape, (z[0] - 3, z[1] - 3, z[2] + 3, z[3] + 3))
+        if scan.any():
+            src = uix.fill_scanlines(src, scan)
+        bg = uix.inpaint(src, hole & ~fig_hole & ~flat & ~smooth & ~scan, max_side=1024, ctx=0.45)
         if plate_fix:
             bg = plate_fix(img, bg)
         cv2.imwrite(bg_path, bg)

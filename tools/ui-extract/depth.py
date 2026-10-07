@@ -5,7 +5,7 @@ painting, depth fog and to tell the crowd/background from the stage. Output: pub
 
 Setup (once): git clone --depth 1 https://github.com/isl-org/MiDaS .cache/depth/MiDaS; pip install timm==0.6.13;
 curl -L -o .cache/depth/dpt_hybrid_384.pt https://github.com/isl-org/MiDaS/releases/download/v3/dpt_hybrid_384.pt
-Usage: python3 tools/ui-extract/depth.py [screen ...]"""
+Usage: python3 tools/ui-extract/depth.py [screen ...]      (UI=ui4: the design-v4 plates, public/assets/ui4, D47)"""
 import json
 import os
 import re
@@ -16,11 +16,13 @@ import torch
 from PIL import Image
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+UI = os.environ.get('UI', 'ui2')  # ui2 (design v2) | ui4 (design v4)
+TS = {'ui2': 'v2', 'ui4': 'v4'}[UI]
 D = os.path.join(ROOT, '.cache', 'depth')
 sys.path.insert(0, os.path.join(D, 'MiDaS'))
 from midas.dpt_depth import DPTDepthModel  # noqa: E402
 
-SCREENS = sys.argv[1:] or ['home', 'select', 'arena', 'vs', 'loading', 'fighters', 'custom', 'lobby']
+SCREENS = sys.argv[1:] or (['home', 'select', 'arena', 'vs', 'loading', 'fighters', 'custom', 'lobby'] if UI == 'ui2' else ['home', 'modes', 'select', 'custom', 'lobby'])
 model = DPTDepthModel(path=os.path.join(D, 'dpt_hybrid_384.pt'), backbone='vitb_rn50_384', non_negative=True)
 model.eval()
 torch.set_num_threads(4)
@@ -28,7 +30,7 @@ MEAN, STD = np.array([0.5, 0.5, 0.5]), np.array([0.5, 0.5, 0.5])
 
 
 def plate_of(screen):
-    ts = open(os.path.join(ROOT, 'src', 'ui', 'v2', 'art', f'{screen}.ts')).read()
+    ts = open(os.path.join(ROOT, 'src', 'ui', TS, 'art', f'{screen}.ts')).read()
     m = re.search(r'_PLATE = (\{.*?\}) as const', ts)
     if not m:
         return None, None
@@ -39,7 +41,7 @@ def plate_of(screen):
         return None, None
     canvas = Image.new('RGB', (x1 - x0, 941))
     for k, (x, y, w, h) in sorted(plate.items(), key=lambda kv: kv[0] != 'c'):  # wings first, centre on top
-        p = os.path.join(ROOT, 'public', 'assets', 'ui2', screen, f'plate_{k}.webp')
+        p = os.path.join(ROOT, 'public', 'assets', UI, screen, f'plate_{k}.webp')
         if os.path.exists(p):
             canvas.paste(Image.open(p).convert('RGB').resize((w, h)), (x - x0, y))
     return canvas, (x0, x1)
@@ -59,7 +61,7 @@ for screen in SCREENS:
     lo, hi = np.percentile(pred, 1), np.percentile(pred, 99.5)
     dep = np.clip((pred - lo) / max(1e-6, hi - lo), 0, 1)
     out = Image.fromarray((dep * 255).astype(np.uint8)).resize((min(1280, W // 2), int(min(1280, W // 2) * H / W)), Image.BICUBIC)
-    path = os.path.join(ROOT, 'public', 'assets', 'ui2', screen, 'depth.webp')
+    path = os.path.join(ROOT, 'public', 'assets', UI, screen, 'depth.webp')
     out.save(path, 'WEBP', quality=90)
     json.dump({'x0': ext[0], 'x1': ext[1]}, open(path[:-5] + '.json', 'w'))
     print(screen, 'depth', out.size, 'extent', ext, flush=True)
