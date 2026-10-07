@@ -497,12 +497,17 @@ export class App {
     this.screen = null;
   }
 
+  private lastScreen = { cls: '', t: 0 };
   private open(html: string, cls = ''): HTMLElement {
+    // the same screen drawn again (a tap inside it: another fighter, a toggle, a card) swaps instantly - no fade
+    // from black, no entrance animations (S12, PO: "kleine Delays bei jedem Tippen")
+    const again = !!cls && cls === this.lastScreen.cls && !!this.screen?.isConnected;
+    this.lastScreen = { cls, t: performance.now() };
     this.closeScreen();
     const el = document.createElement('div');
     // screens without their own master layout wear the app-wide master skin (backdrop, panel frames, buttons)
     const master = /\b(mm|splash|st-select|st-arena|st-modes|st-loading|shop|board)\b/.test(cls);
-    el.className = `screen ${cls}${master ? '' : ' kp'}`;
+    el.className = `screen ${cls}${master ? '' : ' kp'}${again ? ' ready again' : ''}`;
     el.innerHTML = html;
     this.ui.appendChild(el);
     this.screen = el;
@@ -852,6 +857,8 @@ export class App {
       bust: portrait(this.sel.fighters[i], 'bust'),
       label: m === 'local' ? `SPIELER ${i + 1}` : i === 0 ? 'DU' : 'GEGNER',
       deck: deckOf(i),
+      fighter: getFighter(this.sel.fighters[i]).name.toUpperCase(),
+      city: (HOMETOWN[this.sel.fighters[i]] ?? '').toUpperCase(),
     });
     const arenaOf = (k: number) => ({ name: open[k].name, img: open[k].big ?? open[k].img });
     const model = { sides: [side(0), side(1)] as [VsSide, VsSide], arena: arenaOf(idx), arenaIdx: idx, arenaCount: open.length };
@@ -1582,6 +1589,36 @@ export class App {
     });
     el.querySelector('[data-custom]')?.addEventListener('click', go(() => this.showCustomV2(id)));
     el.querySelector('[data-back]')?.addEventListener('click', go(() => this.showHome()));
+    // S12: swipe sideways over the fighter (or the chevrons) to the next one; the abilities open his deck
+    const step = (k: number) => {
+      const n = ROSTER.length;
+      stop();
+      this.showFightersV2(ROSTER[(ROSTER.indexOf(id) + k + n) % n], tab);
+    };
+    el.querySelectorAll<HTMLElement>('[data-step]').forEach((b) => b.addEventListener('click', () => step(Number(b.dataset.step))));
+    const zone = el.querySelector<HTMLElement>('[data-swipe]');
+    let down: { x: number; y: number; t: number } | null = null;
+    zone?.addEventListener('pointerdown', (e) => (down = { x: e.clientX, y: e.clientY, t: performance.now() }));
+    zone?.addEventListener('pointerup', (e) => {
+      if (!down) return;
+      const dx = e.clientX - down.x;
+      const dy = e.clientY - down.y;
+      down = null;
+      if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.3) step(dx < 0 ? 1 : -1);
+    });
+    zone?.addEventListener('pointercancel', () => (down = null));
+    el.querySelectorAll('[data-deck]').forEach((b) =>
+      b.addEventListener(
+        'click',
+        go(() => {
+          // the deck editor works on player 1's pick: put this fighter (with his saved deck) there
+          this.sel.fighters[0] = id;
+          this.sel.loadouts[0] = this.presetDeck(id);
+          store.set('selection', this.sel);
+          this.showDeck(0, () => this.showFightersV2(id, tab), 'FERTIG');
+        }),
+      ),
+    );
   }
 
   /** Design v2 "Kämpfer anpassen" (D42): the PO's master; only the pose exists so far, the rest says KOMMT BALD. */

@@ -7,6 +7,13 @@
 .screen.mm.v2.ready {
   opacity: 1;
 }
+/* the same screen re-drawn after a tap: no fade, no entrance pops (S12) */
+.screen.again,
+.screen.again .rg-card,
+.screen.again .cs-ped img {
+  transition: none !important;
+  animation-name: none !important;
+}
 .v2-stage {
   position: absolute;
   left: 0;
@@ -478,6 +485,31 @@
   --ol: #05070e;
   --sh: 0.02em 0.06em 0 #000, 0 0 0.25em rgba(0, 0, 0, 0.8);
 }
+/* home town under the fighter's name (S12): gold, spaced capitals, a pin drawn in CSS */
+.v2 .v2-city {
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  --fill: linear-gradient(180deg, #fff3b0 0%, #ffd23c 55%, #f2a51a 100%);
+  --sw: 0.07em;
+  --ol: #1a0f02;
+  --sh: 0 0.05em 0 #000, 0 0 0.3em rgba(0, 0, 0, 0.85);
+}
+.v2 .v2-city::before {
+  content: '';
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg) translate(0.06em, -0.06em);
+  background: #ffd23c;
+  box-shadow:
+    inset 0 0 0 0.14em #ffd23c,
+    0 0 0 0.06em #1a0f02;
+}
+.v2 .v2-vsname {
+  --sh: 0.02em 0.06em 0 #000, 0 0 0.35em rgba(0, 0, 0, 0.9);
+}
 .v2-ped.picking::after {
   content: '';
   position: absolute;
@@ -622,6 +654,46 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   font-size: calc(var(--u) * 21);
+}
+/* KÄMPFER: swipe zone over the 3D fighter, chevrons either side of him, the abilities open the deck (S12) */
+.v2-swipezone {
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+.v2-swipe {
+  display: grid;
+  place-items: center;
+}
+.v2-swipe > span {
+  width: 62%;
+  height: 46%;
+  background: linear-gradient(180deg, #fff1a0, #f2a51a);
+  clip-path: polygon(70% 0, 100% 0, 30% 50%, 100% 100%, 70% 100%, 0 50%);
+  filter: drop-shadow(0 0 calc(var(--u) * 6) rgba(255, 200, 60, 0.7));
+  animation: v2-nudge 1.8s ease-in-out infinite;
+}
+.v2-swipe.r > span {
+  transform: scaleX(-1);
+  animation-name: v2-nudge-r;
+}
+.v2-swipe:active > span {
+  filter: brightness(1.3) drop-shadow(0 0 calc(var(--u) * 10) rgba(255, 220, 90, 0.9));
+}
+@keyframes v2-nudge {
+  50% {
+    translate: calc(var(--u) * -6) 0;
+  }
+}
+@keyframes v2-nudge-r {
+  50% {
+    translate: calc(var(--u) * 6) 0;
+  }
+}
+.v2-deckhit {
+  border-radius: calc(var(--u) * 14);
+}
+.v2-deckhit:active {
+  background: rgba(255, 210, 80, 0.12) !important;
 }
 .v2-chip.on {
   background: #ffcf3a !important;

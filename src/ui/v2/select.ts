@@ -62,8 +62,11 @@ export function selectHtmlV2(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
     const s = sides[i];
     const lb = i ? N.p2_label : N.p1_label;
     const nm = i ? N.p2_name : N.p1_name;
-    return `${t(s.label, [lb[0] - 30, lb[1], lb[2] + 30, lb[3]], 0, 0, { cls: `v2-plabel p${i + 1} ${picking === i ? 'on' : ''}`, fs: 24, align: 'center' })}
-      ${t(s.hidden ? '???' : s.name, [nm[0] - 26, nm[1], nm[2] + 26, nm[3]], 0, 0, { cls: 'v2-pname', fs: 50, align: 'center' })}`;
+    // name a little higher and smaller than the master's, the home town under it on the same plate (PO S12)
+    const city = s.hidden || !s.city ? '' : s.city.toUpperCase();
+    return `${t(s.label, [lb[0] - 30, lb[1] - 4, lb[2] + 30, lb[3] - 4], 0, 0, { cls: `v2-plabel p${i + 1} ${picking === i ? 'on' : ''}`, fs: 24, align: 'center' })}
+      ${t(s.hidden ? '???' : s.name, [nm[0] - 26, nm[1] - 6, nm[2] + 26, nm[3] - 12], 0, 0, { cls: 'v2-pname', fs: 46, align: 'center' })}
+      ${city ? t(city, [nm[0] - 40, nm[3] - 10, nm[2] + (i ? 40 : 20), nm[3] + 20], 0, 0, { cls: 'v2-city', fs: 28, align: 'center' }) : ''}`;
   };
   const B = T.bar;
   const front = `${hazeHtml([0, 640, 1672, 900], '200 170 255', 0.45)}${grid}

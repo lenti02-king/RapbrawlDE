@@ -65,9 +65,37 @@ function contactShadow(): THREE.Mesh {
   return m;
 }
 
+/** Per-fighter flavour of the waiting loop (S12): Jazeek nods to the menu beat, Manuellsen breathes heavy and rolls
+ *  his neck, Bonez sways with his chin up, Lacazette barely moves. */
+const STYLE: Record<string, { nod: number; breath: number; sway: number; look: number }> = {
+  jazeek: { nod: 5, breath: 1, sway: 1.2, look: 0.8 },
+  bonez: { nod: 0, breath: 1, sway: 1.5, look: 1.2 },
+  manuellsen: { nod: 0, breath: 1.8, sway: 0.6, look: 0.6 },
+  lacazette: { nod: 0, breath: 0.7, sway: 0.5, look: 0.7 },
+};
+
 /** Relaxed waiting loop on top of the fighter's stance: breathing, a slow weight shift, small look-arounds. */
-export function waitingPose(base: Float32Array, t: number, seed: number, out: Float32Array): void {
+export function waitingPose(base: Float32Array, t: number, seed: number, out: Float32Array, id = ''): void {
+  const st = STYLE[id] ?? { nod: 0, breath: 1, sway: 1, look: 1 };
   out.set(base);
+  if (st.nod) {
+    // head bob on the 90 BPM menu beat (down on the beat, quick and loose)
+    const ph = (t * 1.5) % 1;
+    out[J.head * 3 + 2] += Math.pow(Math.max(0, Math.sin(ph * Math.PI)), 2) * st.nod;
+    out[J.chest * 3 + 2] += Math.pow(Math.max(0, Math.sin(ph * Math.PI)), 2) * st.nod * 0.25;
+  }
+  if (id === 'manuellsen') out[J.neck * 3 + 0] += Math.sin(t * 0.6 + seed) * 4; // slow neck roll
+  if (st.breath !== 1) {
+    const b = Math.sin(t * 1.6 + seed);
+    out[J.chest * 3 + 2] += b * 1.6 * (st.breath - 1);
+    out[J.shL * 3 + 2] += b * 1.4 * (st.breath - 1);
+    out[J.shR * 3 + 2] -= b * 1.4 * (st.breath - 1);
+  }
+  const ws0 = Math.sin(t * 0.75 + seed * 2) * (st.sway - 1);
+  out[R_X] += ws0 * 0.018;
+  out[J.hips * 3 + 1] += ws0 * 4;
+  const lk = Math.sin(t * 0.45 + seed * 3);
+  out[J.head * 3 + 1] += Math.sign(lk) * Math.pow(Math.abs(lk), 3) * 14 * (st.look - 1);
   const br = Math.sin(t * 2.1 + seed);
   out[J.chest * 3 + 2] += br * 2.4;
   out[J.shL * 3 + 2] += br * 2;
@@ -289,7 +317,7 @@ export class MenuFigures {
       const vx = fx - vw / 2;
       const vy = fy + fh * 0.06 - vh;
       for (const g of this.figs) g.group.visible = g === f;
-      waitingPose(f.base, t, f.seed, f.pose);
+      waitingPose(f.base, t, f.seed, f.pose, f.spec.id);
       f.rig.apply(f.pose, f.spec.facing);
       f.group.rotation.y = -f.spec.facing * (f.spec.turn ?? 0.55);
       // camera: world height covered by the viewport = model height * 1.18, looking slightly down at the pedestal

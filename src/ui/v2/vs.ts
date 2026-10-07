@@ -21,6 +21,9 @@ export interface VsSide {
   bust: string;
   label: string; // DU / GEGNER / SPIELER 2
   deck: VsCard[];
+  /** Fighter name and home town (PO S12: the city under every name, clearly). */
+  fighter?: string;
+  city?: string;
 }
 export interface VsModel {
   sides: [VsSide, VsSide];
@@ -68,12 +71,20 @@ export function vsHtml(m: VsModel): string {
     const title = i ? 'GEGNER-DECK' : 'DEIN DECK';
     return `${t(title, [D.title[0] - 6, D.title[1], D.title[2] + 20, D.title[3]], 0, 0, { cls: 'v2-marker', fs: 34, align: 'left' })}${card(0)}${card(1)}${card(2)}`;
   };
+  // fighter name + home town under each deck (the free corner between the deck and the floor)
+  const who = (i: 0 | 1) => {
+    const s = m.sides[i];
+    if (!s.fighter) return '';
+    const [x0, x1] = i ? [1340, 1640] : [32, 332];
+    return `${t(s.fighter, [x0, 696, x1, 752], 0, 0, { cls: `v2-pname v2-vsname p${i + 1}`, fs: 46, align: 'center' })}
+      ${s.city ? t(s.city, [x0, 750, x1, 788], 0, 0, { cls: 'v2-city', fs: 30, align: 'center' }) : ''}`;
+  };
   const S = T.stage;
   const dots = Array.from({ length: Math.min(8, m.arenaCount) }, (_, k) => `<i class="${k === m.arenaIdx ? 'on' : ''}"></i>`).join('');
   const front = `${hazeHtml([300, 600, 1380, 860], '200 170 255', 0.4)}
     <span class="v2-graffiti you" style="--x:${VS_YOU[0]};--y:${VS_YOU[1]};--w:${VS_YOU[2] - VS_YOU[0]};--h:${VS_YOU[3] - VS_YOU[1]};--gs:${gs(m.sides[0].label, 84)}">${esc(m.sides[0].label)}</span>
     <span class="v2-graffiti opp" style="--x:${VS_OPP[0]};--y:${VS_OPP[1]};--w:${VS_OPP[2] - VS_OPP[0]};--h:${VS_OPP[3] - VS_OPP[1]};--gs:${gs(m.sides[1].label, 70)}">${esc(m.sides[1].label)}</span>
-    ${prof(0)}${prof(1)}${deck(0)}${deck(1)}
+    ${prof(0)}${prof(1)}${deck(0)}${deck(1)}${who(0)}${who(1)}
     <button class="v2-hit v2-stagewin" data-arena aria-label="Arena ändern" style="--x:${S.win[0]};--y:${S.win[1]};--w:${S.win[2] - S.win[0]};--h:${S.win[3] - S.win[1]}"><img alt="" src="${m.arena.img}"></button>
     ${t(m.arena.name, [S.label[0] - 40, S.label[1], S.label[2] + 40, S.label[3]], 0, 0, { cls: 'v2-label v2-arenaname', fs: 28, align: 'center' })}
     <span class="v2-dots" style="--x:760;--y:752;--w:150;--h:18">${dots}</span>
