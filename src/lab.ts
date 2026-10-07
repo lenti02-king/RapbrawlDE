@@ -15,6 +15,7 @@ import { ANIM_SETS, motionOf } from './render/animator';
 import { getFighter } from './core/registry';
 import type { AnimSet } from './render/anims/types';
 import { buildCharacter } from './render/characters';
+import { CINEMATICS } from './render/cinematics';
 import { Clip, compose, sampleDef, stabilizeHead, toArr, type PoseDef } from './render/pose';
 
 export function runLab(canvas: HTMLCanvasElement): void {
@@ -59,6 +60,13 @@ export function runLab(canvas: HTMLCanvasElement): void {
     const [kind, key, fr] = spec.split(':');
     const M = motionOf(set) as unknown as Record<string, Clip>;
     if (kind === 'move' && set.moves[key]) return sampleDef(set.moves[key], Number(fr ?? 1));
+    // cine:<id>:<frame> = the attacker clip of a cinematic, cinedef:<id>:<frame> = its victim clip (root x/y zeroed so
+    // the figure stays in the frame; &cineroot=1 keeps them)
+    if ((kind === 'cine' || kind === 'cinedef') && CINEMATICS[key]) {
+      const cd = CINEMATICS[key];
+      const p = sampleDef(kind === 'cine' ? cd.atk : typeof cd.def === 'function' ? cd.def(set) : cd.def, Number(fr ?? 0));
+      return params.get('cineroot') ? p : { ...p, x: 0, y: 0 };
+    }
     if (kind === 'walkF' || kind === 'walkB') return sampleDef(M[kind], Number(key ?? 0));
     if (kind === 'motion' && M[key]) return sampleDef(M[key], Number(fr ?? 0));
     const pj = params.get('pj'); // pose override as JSON (PoseDef), layered on top: fast pose iteration

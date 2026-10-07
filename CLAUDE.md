@@ -51,6 +51,7 @@ node scripts/crowdshot.mjs "style=hipster|rocker&t=1.1&n=1&zoom=1.6" out.png   #
 python3 tools/meshy/props.py [id ..]   # PO prop models (.cache/props, release modelle-2) -> public/assets/props/<id>.glb at real size; check in ?lab=props&ids=..
 node scripts/filmstrip.mjs jazeek walkF,jaz_5L,hit,"seq:F*12.l*2._*20" [every] [q]   # in-game frame strips (GIF=1 CROP=full for an animated GIF)
 node scripts/posesheet.mjs bonez "move:bon_5H:1-35:2"   # authored clip frames straight from the lab (no sim/blending)
+node scripts/posesheet.mjs jazeek "cine:jaz_99:4-160:8"  # cinematic attacker clip frames (cinedef:<id>:<f> = victim clip; root x/y zeroed, &cineroot=1 keeps them)
 node scripts/reach.mjs jazeek|bonez   # fist/foot position at the first active frame vs. the sim hitbox (run after editing strikes)
 node scripts/glb-to-json.mjs in.glb out.gltf.json [--external-images]   # Artifact host does not serve .glb (images as separate files keep each file < 15 MB)
 node scripts/artifact-check.mjs     # build the Artifact payload into dist-single/ (page + assets/**) and assert models AND arena load under an Artifact-like CSP (run before every publish)
@@ -87,6 +88,9 @@ Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.
 Any Mixamo-named humanoid GLB can replace them — see `docs/ASSETS.md`. Debug stepping for captures: `__rb.debugHold = true; __rb.debugAdvance(n)`.
 Lab portrait framing: `/?lab=poses&a=bonez&frame=face|bust|body|hand&hide=other` (window.__lab for debugging).
 Design (D42): two designs in the code — v2 (default, `src/ui/v2/`, PO's second master set) and v1 (D38 screens); `?ui=v1|v2` or EINSTELLUNGEN → DESIGN; v1 snapshot = commit c0e46a0 (local tag `design-v1`). Cinematics run at half speed (`RULES.CINE_RATE`).
+D45 (iPhone round): phones load `<id>.m.glb` (mobile LOD); the living plate checks its first draw (`data-living=ok|fail|lost`, `?livingfail` test hook);
+fight lights are fixed slots (cinematic lights virtual, layer 31) and `GameView.prewarm()` compiles before the round; leg IK `glbRig.plantFeet`;
+sim mechanics `VelocityKey.warp` / `HitDef.reverse`; touch controls in `input/touch.css`; FREUNDE screen `ui/v2/friends.ts`.
 D43: v2 menus are living plates (`ui/v2/living.ts`, `?still` = static); profile/settings/deck/results/pause in v2 = `ui/v2/ring.ts` (+ `ring.css`), v2 HUD skin `ui/v2/hud2.css`; new abilities in `render/abilities11.ts`, cinematics `render/cines11.ts`, clips `render/anims/roster11.ts`.
 UI (D38): the PO's master screenshots are the source — art is cut from their pixels (`tools/ui-extract/`), text is native German; screens in `src/ui/menu/` (mainMenu, loading, charSelect, arenaSelect, shop; shared `kit.ts/.css`; generated `*Art.ts`; sprites in `src/ui/img/<screen>/`). Older screens: `src/ui/street.css` + `src/ui/street.ts` (night-street menus, logo, stage/city art, D34) and `src/ui/hud.css` (HUD, D37) load last, over `src/ui/cr.css`, `src/ui/theme.css`, `src/ui/toon-icons.ts` (filled menu icons), `src/ui/lines.ts` (line icons), `src/ui/portraits.ts` (hero/card/bust/card-art renders).
 Music: `public/assets/music/<fighter>.mp3` / `bgm.mp3` drop-ins (git-ignored, README there, D33/D37); default = original stingers + the procedural 90 BPM beat in `audio.ts` (the sim's beat clock is the truth, RULES.BEAT_FRAMES).

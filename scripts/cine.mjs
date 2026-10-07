@@ -23,7 +23,8 @@ const D43 = {
 const blunt = who === 'blunt';
 const croc = who === 'croc' || who === 'car' || blunt; // card specials (button S1)
 const quick = D43?.quick ?? (who === 'brick' || who === 'volt' ? 'volt,brick' : 'jazeek,bonez');
-await page.goto(`${base}/?quick=${quick}&mode=cpu&q=${process.env.Q ?? 'high'}`);
+page.setDefaultTimeout(240000);
+await page.goto(`${base}/?quick=${quick}&mode=cpu&q=${process.env.Q ?? 'high'}`, { timeout: 240000 });
 await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
 const idx = D43 ? 0 : who === 'brick' || who === 'bonez' || (croc && !blunt) ? 1 : 0;
 await page.evaluate(([idx, croc, who, d43]) => {

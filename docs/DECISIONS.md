@@ -372,3 +372,37 @@ and the croc were hard to read; two new fighters (Manuellsen, Lacazette) exactly
   repository; the public repo makes the macOS minutes free.
 - Upgrade path when needed: Apple Developer Program (paid, PO decision) → signed builds + TestFlight upload from the same
   workflow with App Store Connect API key secrets.
+
+## D45 — iPhone feedback round: memory-safe menus, sound, fight performance, abilities round 2 (2026-10-07)
+The PO tested the sideloaded app (D44) and sent 21 points. Decisions behind the fixes:
+- **Black / partial menu screens** were image decodes failing under memory pressure (the 4K fighter textures decoded
+  at start). Phones now load `<id>.m.glb` (40k tris, 2K colour, 1K normal; `tools/meshy/reduce.py` + `skin.py`
+  output) whenever the texture budget is below 4K. The living plate (D43) no longer builds a composite canvas per
+  screen: the master's tiles are uploaded as they are, the UI mask is a small data texture, depth is read back at 1/3,
+  and the GPU textures are cached per screen (LRU 3 on phones). Every first draw is checked by reading pixels back; a
+  black upload retries once and then falls back to the CSS painting (`root.dataset.living = ok|fail|lost`). The CSS
+  painting is only hidden after a checked draw, so a screen can no longer show only its sprites.
+- **No sound in the native app**: iOS' default audio session (ambient) is muted by the silent switch and WebKit does
+  not count `pointerdown` as an audio gesture. The app sets AVAudioSession `.playback` + `.mixWithOthers` at launch and
+  on every activation; the web side unlocks on `touchend`/`click` and resumes after interruptions.
+- **Stutter in fights** came from shader recompiles (every cinematic/aura lamp changed the light count of all lit
+  materials) and first-use compiles. Lights are now fixed slots (3 point + 1 spot); cinematic lights are virtual and
+  copied onto the slots each frame. `GameView.prewarm()` compiles every projectile/prop of the two fighters against
+  the post-processing target before the round (tone mapping is part of the program key). Projectiles are pooled.
+  Phones adapt the render scale (0.25 steps) to the frame time.
+- **Floating feet**: two-bone leg IK (`glbRig.plantFeet`) pulls a hovering foot onto the floor in standing states;
+  mirrored rigs need the world→local rotation un-mirrored. Contact shadows under each foot.
+- **Abilities round 2**, chosen from the fighters' own image, songs and memes (sim content + tests, presentation in
+  `render/abilities11.ts`, `cines11.ts`): Bonez *Lila Becher* (replaces Abriss; generic purple double cup, no brand),
+  Manuellsen *König im Schatten* (replaces Beton; new sim mechanics `VelocityKey.warp` = reappear behind the opponent,
+  `HitDef.reverse` = knockback toward the attacker's back), Lacazette *Drei Buchstaben* (his three-character song
+  titles as thrown chrome letters) and *Chart-Einstieg* (anti-air launcher). Signatures got second stages: Sofa (the
+  opponent sleeps KO on the sofa, then "König im Schatten" with crown and spot, sofa kicked over), 70 Schüsse (collar
+  grab, KALTER BLICK, push kick). The mob in 5000 Kurden carries the flag of Kurdistan (Ala Rengîn, the flag of the
+  Kurdistan Region) — deliberately not any party or PKK symbol. Ninetynine re-choreographed (lasso in time with the
+  pendant, a cocked arm and a step into each nine, run-up, kick, backflip home so the cinematic ends on his own spot).
+- **Menus**: waiting poses per fighter instead of the upright showcase; home town under the names (select + VS);
+  KÄMPFER swipes/taps between fighters and opens the deck; in-screen taps redraw without the fade (the "delay"); a
+  real FREUNDE screen (own code, add/search, challenge → lobby; the list lives on the device until a server exists).
+- Not done in this round: a full art-style rebuild of the menus (PO item 15) — the PO is producing new artworks
+  (buttons, characters, banners, cards); the screens take them as drop-ins when they arrive.

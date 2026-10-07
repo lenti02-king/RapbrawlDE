@@ -96,7 +96,8 @@ const slapFollow = (side: 'R' | 'L'): PoseDef => ({
 const flexUp: PoseDef = { y: 0.02, aim: { shL: [0.25, 0.1, -1], elL: [0.2, 1, -0.1], shR: [0.25, 0.1, 1], elR: [0.2, 1, 0.1] }, j: { chest: [0, 0, -8], head: [0, 0, -6] } };
 const dustHands: PoseDef = { aim: { shL: [0.6, -0.5, -0.1], elL: [0.4, 0.6, 0.6], shR: [0.6, -0.5, 0.1], elR: [0.4, 0.6, -0.6] }, j: { head: [0, -8, -8] } };
 // index finger to the lips (pssst, he sleeps), the other hand on the hip
-const shush: PoseDef = { aim: { shR: [0.4, 0.15, 0.6], elR: [-0.25, 1, -0.05], shL: [0.1, -0.8, -0.6], elL: [-0.4, 0.4, 0.5] }, j: { head: [0, 18, 6], chest: [0, 10, 2] } };
+// (S12 capture: the old aim put the hand above his head; checked with scripts/posegrid.mjs)
+const shush: PoseDef = { aim: { shR: [0.6, -0.6, 0.3], elR: [-0.2, 0.95, -0.3], shL: [0.1, -0.8, -0.6], elL: [-0.4, 0.4, 0.5] }, j: { head: [0, 18, 6], chest: [0, 10, 2] } };
 // arms crossed high, chest out, chin up: the king in the spotlight
 const kingStand: PoseDef = {
   aim: { shL: [0.35, -0.9, 0], elL: [0.1, 0.05, 1], shR: [0.35, -0.9, 0], elR: [0.1, 0.1, -1] },
@@ -180,20 +181,22 @@ function sofaDef(set: AnimSet): Clip {
         elR: [0, 0, 40],
       },
     });
-  // knocked out on the sofa: sunk deep into the backrest, head rolled over and back, mouth to the sky, arms limp at the
-  // sides, knees apart; `b` 0..1 = the slow breath of a sleeper
+  // knocked out on the sofa: slid down and sunk back into the backrest, head rolled over toward the camera and back
+  // (face readable, mouth to the ceiling), arms dead at the sides, knees apart; `b` 0..1 = the slow breath of a sleeper
+  // (S12 capture: the first version slumped forward and hid the face)
   const ko = (b: number): PoseDef =>
-    compose(sit(0, -26 + b * 2), {
-      y: SEAT_H + 0.02 - pivot,
+    compose(sit(0, 0), {
+      y: SEAT_H - 0.03 - pivot,
       j: {
-        spine: [6, 0, -18 + b * 2],
-        chest: [8, 0, -12 + b * 3],
-        neck: [14, 0, -10],
-        head: [34, -10, -22],
-        thL: [24, 10, 86],
-        knL: [0, 0, -84],
-        thR: [-24, 10, 84],
-        knR: [0, 0, -88],
+        hips: [0, 0, 10],
+        spine: [4, 0, 14 + b * 3],
+        chest: [6, 0, 10 + b * 4],
+        neck: [14, -6, 10],
+        head: [28, -18, 22 + b * 2],
+        thL: [24, 10, 76],
+        knL: [0, 0, -78],
+        thR: [-24, 10, 74],
+        knR: [0, 0, -82],
         shL: [70, 0, 6],
         elL: [0, 0, 12],
         shR: [-70, 0, 6],
@@ -237,8 +240,9 @@ function sofaDef(set: AnimSet): Clip {
 /** Black leather two-seater, seat front facing -x, origin on the floor under the seat's back edge. */
 export function makeSofa(): THREE.Group {
   const g = new THREE.Group();
-  const leather = new THREE.MeshToonMaterial({ color: 0x1a1a20 });
-  const sheen = new THREE.MeshToonMaterial({ color: 0x2c2c36 });
+  // black leather, but light enough that the shape still reads in the dimmed cinematic light
+  const leather = new THREE.MeshToonMaterial({ color: 0x2b2b35 });
+  const sheen = new THREE.MeshToonMaterial({ color: 0x3e3e4c });
   const wood = new THREE.MeshToonMaterial({ color: 0x3a2618 });
   const rb = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 3, r);
   const seat = inked(rb(0.82, 0.2, 1.62, 0.07), sheen);
@@ -431,8 +435,8 @@ export const SOFA_SLAPS: CineDef = {
     { f: 106, pos: [1.2, 1.4, 4.8], target: [1.3, 1.0, 0], fov: 40, cut: true },
     { f: 124, pos: [1.25, 1.38, 4.6], target: [1.35, 0.95, 0], fov: 38 },
     // out cold: close on the sleeper (Zzz)
-    { f: 126, pos: [0.55, 1.35, 1.6], target: [1.35, 0.85, 0], fov: 34, cut: true },
-    { f: 148, pos: [0.65, 1.3, 1.4], target: [1.35, 0.85, 0], fov: 32 },
+    { f: 126, pos: [0.95, 1.3, 1.95], target: [1.45, 0.9, 0], fov: 34, cut: true },
+    { f: 148, pos: [1.0, 1.25, 1.7], target: [1.45, 0.92, 0], fov: 32 },
     // pssst: two-shot
     { f: 150, pos: [1.0, 1.4, 3.6], target: [0.85, 1.15, 0], fov: 38, cut: true },
     { f: 168, pos: [1.0, 1.4, 3.4], target: [0.85, 1.15, 0], fov: 36 },
@@ -516,7 +520,8 @@ const collarL: PoseDef = {
   aim: { shL: [0.9, 0.1, -0.15], elL: [0.9, 0.3, 0], shR: [-0.1, -0.95, 0.3], elR: [0.3, -0.6, 0.3], face: 0.8 },
   j: { chest: [0, -8, -6], spine: [0, -4, -6], head: [0, -6, -4] },
 };
-const collarStare: PoseDef = compose(collarL, { aim: { shR: [0.3, 0.3, 0.55], elR: [-0.2, 1, 0.25] }, j: { head: [0, -4, -14], neck: [0, 0, -6] } });
+// glasses down with the free hand and eyes UP into theirs (they are held higher; S12 capture: he looked at the floor)
+const collarStare: PoseDef = compose(collarL, { aim: { shR: [0.3, 0.3, 0.55], elR: [-0.2, 1, 0.25] }, j: { head: [0, -4, 12], neck: [0, 0, 4] } });
 const GW_ATK = smoothClip(
   [
     { f: 0, p: compose(LS, { j: { head: [0, -6, 4] } }) },
@@ -628,7 +633,7 @@ function gwagonProps(): CineProps {
   let last = -1;
   // stage 2: the cold stare from close up, then the kick
   const blick = signTrack(group, [
-    { f: 198, word: 'KALTER BLICK', fill: '#9fd8ff', w: 1.5, pos: [0.4, 2.25, 0.7], len: 20 },
+    { f: 198, word: 'KALTER BLICK', fill: '#9fd8ff', w: 0.62, pos: [0.6, 2.0, 0.55], len: 20 },
     { f: 226, word: 'BOOM!', fill: '#ff8a2a', w: 1.2, pos: [1.2, 1.7, 0.6], len: 16 },
   ]);
   return {
@@ -754,9 +759,9 @@ export const SEVENTY_SHOTS: CineDef = {
     // stage 2: he walks up to them, two-shot
     { f: 152, pos: [1.6, 1.4, 3.8], target: [0.7, 1.15, 0], fov: 38, cut: true },
     { f: 186, pos: [1.5, 1.45, 3.4], target: [0.7, 1.3, 0], fov: 36 },
-    // the cold stare: his face close, glasses down
-    { f: 188, pos: [1.0, 1.66, 1.35], target: [0.25, 1.62, 0], fov: 30, cut: true },
-    { f: 212, pos: [0.95, 1.66, 1.2], target: [0.25, 1.62, 0], fov: 28 },
+    // the cold stare: both heads in profile, face to face
+    { f: 188, pos: [0.75, 1.8, 2.0], target: [0.6, 1.78, 0], fov: 32, cut: true },
+    { f: 212, pos: [0.72, 1.8, 1.85], target: [0.6, 1.78, 0], fov: 30 },
     // the kick: low and wide, the car behind
     { f: 214, pos: [1.4, 0.8, 4.6], target: [1.4, 1.0, 0], fov: 42, cut: true },
     { f: 236, pos: [1.6, 0.85, 4.9], target: [1.6, 0.95, 0], fov: 42 },
@@ -846,51 +851,194 @@ export function makeNine(): THREE.Group {
   return g;
 }
 
-const chainOverhead = (k: number): PoseDef => ({
-  y: 0.02,
-  aim: { shR: [0.2, 1, 0.1 + 0.3 * Math.sin(k * Math.PI * 2)], elR: [0.3 * Math.cos(k * Math.PI * 2), 1, 0.3 * Math.sin(k * Math.PI * 2)], shL: [0.4, -0.7, -0.4], elL: [0.5, 0.6, -0.2], face: 0.8 },
-  j: { head: [0, 0, 8], chest: [0, -6, 6] },
-});
-const throwPose: PoseDef = {
-  x: 0.12,
-  aim: { shR: [1, 0.25, 0.05], elR: [1, 0.2, 0.05], shL: [-0.3, -1, -0.3], elL: [0.3, -0.7, -0.2], face: 0.8 },
-  j: { hips: [0, 14, 0], spine: [0, 8, -12], chest: [0, 20, -10], thL: [12, 14, 36], knL: [0, 0, -40], thR: [-12, 12, -30], knR: [0, 0, -6] },
+// S12 (PO: "Ninetynine braucht bessere Animation"): every beat gets an anticipation, a snap and a follow-through. He
+// pulls the chain off his chest and spins it over his head (the arm circles in time with the pendant, the body
+// bounces on it), coils and throws, then conducts the nines like a band leader — a cocked arm and a step into each
+// hit — runs up, kicks through the 99 and backflips home into the MVP pose (ends on his own spot: no pop at the end).
+const LASSO0 = 8; // first frame of the overhead spin
+const LASSO_T = 8; // frames per turn (the props use the same phase)
+/** Phase of the pendant spin (radians) at cinematic frame f. */
+const lassoPhase = (f: number) => ((f - LASSO0) / LASSO_T) * Math.PI * 2;
+const chainGrab: PoseDef = {
+  y: -0.03,
+  aim: { shR: [0.45, -0.35, 0.55], elR: [0.15, 0.75, -0.65], shL: [0.2, -1, -0.25], elL: [0.55, -0.35, 0.1], face: 0.5 },
+  j: { chest: [0, -8, -4], head: [0, -6, -10], knL: [0, 0, -38], knR: [0, 0, -26] },
 };
-const conduct = (k: number): PoseDef => ({
-  aim: { shR: [0.6, 0.6 + 0.2 * k, 0.4], elR: [0.6, 0.8, 0.3 - 0.4 * k], shL: [0.6, 0.6 - 0.2 * k, -0.4], elL: [0.6, 0.8, -0.3 + 0.4 * k], face: 0.9 },
-  j: { chest: [0, (k - 0.5) * 16, 8], head: [0, (k - 0.5) * 10, 10] },
-});
+const lasso = (ph: number): PoseDef => {
+  const bob = Math.abs(Math.sin(ph));
+  return {
+    y: 0.0 + bob * 0.035,
+    aim: {
+      shR: [0.12, 1, 0.22],
+      elR: [0.55 * Math.cos(ph), 0.8, 0.55 * Math.sin(ph)],
+      shL: [0.25, -0.45, -0.85],
+      elL: [0.45, -0.15, -0.85],
+      face: 0.6,
+    },
+    j: { hips: [0, -22 + 8 * Math.sin(ph), 0], chest: [0, -8 + 6 * Math.sin(ph), 7], head: [0, 0, 16], knL: [0, 0, -30 - 12 * (1 - bob)], knR: [0, 0, -20 - 10 * (1 - bob)] },
+  };
+};
+const throwCoil: PoseDef = {
+  x: -0.04,
+  y: -0.05,
+  aim: { shR: [-0.75, 0.55, 0.4], elR: [-0.45, 0.85, 0.25], shL: [0.85, 0.2, -0.35], elL: [0.8, 0.45, -0.2], face: 0.9 },
+  j: { hips: [0, -34, 0], spine: [0, -6, 4], chest: [0, -30, 8], thL: [6, 20, 34], knL: [0, 0, -20], thR: [-8, 18, -8], knR: [0, 0, -44] },
+};
+const throwPose: PoseDef = {
+  x: 0.14,
+  y: -0.06,
+  aim: { shR: [1, 0.25, 0.05], elR: [1, 0.2, 0.05], shL: [-0.3, -1, -0.3], elL: [0.3, -0.7, -0.2], face: 0.8 },
+  j: { hips: [0, 14, 0], spine: [0, 8, -12], chest: [0, 20, -10], thL: [12, 14, 40], knL: [0, 0, -44], thR: [-12, 12, -32], knR: [0, 0, -6] },
+};
+const throwFollow: PoseDef = {
+  x: 0.18,
+  y: -0.08,
+  aim: { shR: [0.75, -0.5, -0.4], elR: [0.6, -0.6, -0.5], shL: [-0.4, -1, -0.2], elL: [0.2, -0.8, -0.2], face: 0.8 },
+  j: { hips: [0, 22, 0], spine: [0, 10, -18], chest: [0, 30, -14], thL: [12, 14, 44], knL: [0, 0, -50], thR: [-12, 12, -34], knR: [0, 0, -4] },
+};
+/** Band leader, ready: arms open, chest up, eyes on the floating opponent. */
+const leadReady: PoseDef = {
+  x: 0.12,
+  aim: { shR: [0.35, 0.25, 0.9], elR: [0.65, 0.65, 0.4], shL: [0.35, 0.25, -0.9], elL: [0.65, 0.65, -0.4], face: 0.4 },
+  j: { chest: [0, -6, 10], head: [0, 0, 16] },
+};
+// the three commands: R cocks up and back, then slashes at the nine (58); L the same (70); both arms up, slam (82)
+const cockR: PoseDef = {
+  x: 0.1,
+  y: -0.03,
+  aim: { shR: [-0.35, 0.9, 0.35], elR: [-0.5, 0.8, 0.15], shL: [0.7, 0.2, -0.5], elL: [0.7, 0.6, -0.2], face: 0.5 },
+  j: { hips: [0, -32, 0], chest: [0, -30, 10], head: [0, 0, 14], knL: [0, 0, -24], knR: [0, 0, -40] },
+};
+const slashR: PoseDef = {
+  x: 0.26,
+  y: -0.06,
+  aim: { shR: [1, 0.4, 0.1], elR: [1, 0.35, 0], shL: [-0.2, -0.8, -0.5], elL: [0.3, -0.6, -0.3], face: 0.8 },
+  j: { hips: [0, 8, 0], spine: [0, 6, -12], chest: [0, 24, -8], head: [0, 0, 10], thL: [6, 20, 42], knL: [0, 0, -40], thR: [-8, 16, -26], knR: [0, 0, -12] },
+};
+const followR: PoseDef = {
+  x: 0.28,
+  y: -0.07,
+  aim: { shR: [0.65, -0.45, -0.35], elR: [0.5, -0.6, -0.45], shL: [-0.2, -0.8, -0.5], elL: [0.3, -0.6, -0.3], face: 0.7 },
+  j: { hips: [0, 14, 0], spine: [0, 8, -16], chest: [0, 32, -12], thL: [6, 20, 42], knL: [0, 0, -44], thR: [-8, 16, -26], knR: [0, 0, -10] },
+};
+const cockL: PoseDef = {
+  x: 0.28,
+  y: -0.03,
+  aim: { shL: [-0.35, 0.9, -0.35], elL: [-0.5, 0.8, -0.15], shR: [0.7, 0.2, 0.5], elR: [0.7, 0.6, 0.2], face: 0.5 },
+  j: { hips: [0, 10, 0], chest: [0, 30, 10], head: [0, 0, 14], knL: [0, 0, -36], knR: [0, 0, -26] },
+};
+const slashL: PoseDef = {
+  x: 0.42,
+  y: -0.06,
+  aim: { shL: [1, 0.4, -0.1], elL: [1, 0.35, 0], shR: [-0.2, -0.8, 0.5], elR: [0.3, -0.6, 0.3], face: 0.8 },
+  j: { hips: [0, -36, 0], spine: [0, -8, -12], chest: [0, -30, -8], head: [0, 0, 10], thL: [6, 20, 46], knL: [0, 0, -42], thR: [-8, 16, -28], knR: [0, 0, -12] },
+};
+const followL: PoseDef = {
+  x: 0.44,
+  y: -0.07,
+  aim: { shL: [0.65, -0.45, 0.35], elL: [0.5, -0.6, 0.45], shR: [-0.2, -0.8, 0.5], elR: [0.3, -0.6, 0.3], face: 0.7 },
+  j: { hips: [0, -40, 0], spine: [0, -8, -16], chest: [0, -38, -12], thL: [6, 20, 46], knL: [0, 0, -46], thR: [-8, 16, -28], knR: [0, 0, -10] },
+};
+const bothUp: PoseDef = {
+  x: 0.4,
+  y: 0.05,
+  s: { sq: -0.06 },
+  aim: { shR: [0.12, 1, 0.3], elR: [0.05, 1, 0.25], shL: [0.12, 1, -0.3], elL: [0.05, 1, -0.25], face: 0.4 },
+  j: { hips: [0, -20, 0], spine: [0, 0, 8], chest: [0, -6, 10], head: [0, 0, 16], knL: [0, 0, -8], knR: [0, 0, -4], ftL: [0, 0, -20], ftR: [0, 0, -10] },
+};
+const slamBoth: PoseDef = {
+  x: 0.46,
+  y: -0.15,
+  s: { sq: 0.12 },
+  aim: { shR: [0.9, -0.3, 0.3], elR: [0.9, -0.45, 0.15], shL: [0.9, -0.3, -0.3], elL: [0.9, -0.45, -0.15], face: 0.7 },
+  j: { hips: [0, -20, 0], spine: [0, 0, -24], chest: [0, -6, -14], head: [0, 0, 18], thL: [6, 20, 60], knL: [0, 0, -80], thR: [-8, 18, 10], knR: [0, 0, -76] },
+};
+/** Deep crouch before the take-off: arms swung back, chest over the knees. */
+const takeoffCrouch: PoseDef = {
+  x: 0.86,
+  y: -0.17,
+  s: { sq: 0.14 },
+  aim: { shR: [-0.75, -0.6, 0.3], elR: [-0.6, -0.6, 0.2], shL: [-0.75, -0.6, -0.3], elL: [-0.6, -0.6, -0.2], face: 0.6 },
+  j: { hips: [0, -10, 0], spine: [0, 0, -26], chest: [0, -4, -14], head: [0, 0, 20], thL: [6, 12, 64], knL: [0, 0, -96], thR: [-6, 12, 30], knR: [0, 0, -92] },
+};
+const takeoff: PoseDef = {
+  x: 1.04,
+  y: 0.5,
+  rot: -6,
+  s: { sq: -0.12 },
+  aim: { shR: [0.4, 1, 0.3], elR: [0.3, 1, 0.2], shL: [0.4, 1, -0.3], elL: [0.3, 1, -0.2], face: 0.6 },
+  j: { spine: [0, 0, -8], thL: [6, 10, 86], knL: [0, 0, -120], thR: [-6, 10, -10], knR: [0, 0, -30], ftR: [0, 0, -30] },
+};
+const kickChamber: PoseDef = {
+  x: 1.22,
+  y: 0.98,
+  rot: -14,
+  aim: { shL: [-0.4, 0.6, -0.4], elL: [-0.2, 0.8, -0.3], shR: [-0.5, 0.3, 0.4], elR: [-0.3, 0.6, 0.3] },
+  j: { spine: [0, 0, 6], thR: [-10, 0, 104], knR: [0, 0, -124], thL: [10, 0, 70], knL: [0, 0, -120] },
+};
 const flyKick: PoseDef = {
-  x: 1.4,
-  y: 1.35,
+  x: 1.34,
+  y: 1.05,
   rot: -20,
   aim: { shL: [-0.4, 0.6, -0.4], elL: [-0.2, 0.8, -0.3], shR: [-0.5, 0.3, 0.4], elR: [-0.3, 0.6, 0.3] },
   j: { spine: [0, 0, 12], thR: [-10, 0, 95], knR: [0, 0, -4], ftR: [0, 0, -10], thL: [10, 0, 20], knL: [0, 0, -110] },
+};
+/** Tucked backflip: knees to the chest, hands on the shins. */
+const tuck = (x: number, y: number, rot: number): PoseDef => ({
+  x,
+  y,
+  rot,
+  aim: { shR: [0.6, -0.5, 0.35], elR: [0.8, 0.1, 0.2], shL: [0.6, -0.5, -0.35], elL: [0.8, 0.1, -0.2] },
+  j: { spine: [0, 0, -18], chest: [0, 0, -12], head: [0, 0, -10], thL: [6, 6, 118], knL: [0, 0, -134], thR: [-6, 6, 112], knR: [0, 0, -132] },
+});
+const landing: PoseDef = {
+  x: 0.12,
+  y: -0.17,
+  rot: 360,
+  s: { sq: 0.2 },
+  aim: { shR: [0.5, -0.8, 0.5], elR: [0.6, -0.7, 0.3], shL: [0.6, 0.1, -0.8], elL: [0.7, 0.5, -0.4], face: 0.7 },
+  j: { spine: [0, 0, -22], chest: [0, -10, -10], head: [0, 0, 14], thL: [6, 20, 70], knL: [0, 0, -100], thR: [-8, 18, 6], knR: [0, 0, -96] },
 };
 const mvp: PoseDef = { aim: { shR: [0.3, 1, 0.2], elR: [0.25, 1, 0.15], shL: [0.4, -0.8, -0.3], elL: [0.5, 0.6, -0.2], face: 0.7 }, j: { head: [0, 0, 14], chest: [0, -6, 8] } };
 
 const NINETY_ATK = smoothClip(
   [
     { f: 0, p: compose(JS, { x: 0.1 }) },
-    { f: 6, p: chainOverhead(0), e: 'out' },
-    { f: 10, p: chainOverhead(0.25) },
-    { f: 14, p: chainOverhead(0.5) },
-    { f: 18, p: chainOverhead(0.75) },
-    { f: 22, p: chainOverhead(1) },
-    { f: 28, p: throwPose, e: 'snap' },
-    { f: 40, p: compose(throwPose, { x: 0.08 }) },
-    { f: 48, p: conduct(0), e: 'inOut' },
-    { f: 58, p: conduct(1), e: 'snap' },
-    { f: 70, p: conduct(0), e: 'snap' },
-    { f: 82, p: conduct(1), e: 'snap' },
-    // run-up and the flying kick through the 99
-    { f: 92, p: compose(JS, { x: 0.35, y: -0.08, j: { spine: [0, 0, -16], thL: [12, 14, 60], knL: [0, 0, -70] } }), e: 'inOut' },
-    { f: 100, p: { x: 0.8, y: 0.8, rot: -10, j: { thL: [10, 0, 80], knL: [0, 0, -120], thR: [-10, 0, 40], knR: [0, 0, -100], shL: [20, 0, 120], shR: [-20, 0, 120] } }, e: 'out' },
+    // he takes the chain off his chest, then spins it overhead: one key per quarter turn keeps hand and pendant in sync
+    { f: 4, p: compose(chainGrab, { x: 0.1 }), e: 'out' },
+    ...Array.from({ length: 8 }, (_, i) => ({ f: LASSO0 + i * 2, p: compose(lasso(lassoPhase(LASSO0 + i * 2)), { x: 0.1 }) })),
+    { f: 25, p: throwCoil, e: 'inOut' },
+    { f: 29, p: throwPose, e: 'snap' },
+    { f: 36, p: throwFollow, e: 'out' },
+    { f: 45, p: leadReady, e: 'inOut' },
+    { f: 51, p: cockR, e: 'inOut' },
+    { f: 58, p: slashR, e: 'snap' },
+    { f: 62, p: followR, e: 'out' },
+    { f: 65, p: cockL, e: 'inOut' },
+    { f: 70, p: slashL, e: 'snap' },
+    { f: 74, p: followL, e: 'out' },
+    { f: 78, p: bothUp, e: 'inOut' },
+    { f: 82, p: slamBoth, e: 'snap' },
+    { f: 87, p: compose(slamBoth, { y: -0.12, s: { sq: 0.06 } }), e: 'out' },
+    // run-up: two strides, crouch, take-off, chamber, kick through the 99
+    { f: 91, p: compose(runPose(0.25), { x: 0.56 }), e: 'inOut' },
+    { f: 95, p: compose(runPose(0.75), { x: 0.72 }) },
+    { f: 99, p: takeoffCrouch, e: 'inOut' },
+    { f: 103, p: takeoff, e: 'snap' },
+    { f: 108, p: kickChamber, e: 'out' },
     { f: 112, p: flyKick, e: 'snap' },
-    { f: 118, p: compose(flyKick, { x: 1.55, y: 1.25 }) },
-    { f: 132, p: compose(JS, { x: 0.9, y: -0.12, j: { thL: [12, 14, 60], knL: [0, 0, -80] } }), e: 'in' },
-    { f: 144, p: compose(mvp, { x: 0.9 }), e: 'out' },
-    { f: 160, p: compose(mvp, { x: 0.9, y: 0.02 }) },
+    { f: 115, p: compose(flyKick, { x: 1.4, y: 1.1 }), e: 'out' },
+    // push off their body into a tucked backflip, all the way back to his own spot
+    { f: 119, p: tuck(1.2, 1.4, 70), e: 'inOut' },
+    { f: 124, p: tuck(0.8, 1.6, 190) },
+    { f: 129, p: tuck(0.4, 1.0, 300) },
+    { f: 132, p: compose(JS, { x: 0.18, y: 0.12, rot: 350, s: { sq: -0.06 } }) },
+    { f: 135, p: landing, e: 'in' },
+    // rot 360 == 0: the hold key swaps it without a visible change, so the blend out of the cinematic does not spin
+    { f: 141, p: compose(JS, { x: 0.06, rot: 360 }), e: 'out' },
+    { f: 142, p: compose(JS, { x: 0.06, rot: 0 }), e: 'hold' },
+    { f: 148, p: compose(mvp, { x: 0.04 }), e: 'out' },
+    { f: 160, p: compose(mvp, { x: 0.04, y: 0.02 }) },
   ],
   JS,
 );
@@ -907,17 +1055,18 @@ function ninetyDef(set: AnimSet): Clip {
     [
       { f: 0, p: compose(r.hitHigh, { x: 0.02 }) },
       { f: 16, p: compose(r.hitHigh, { x: -0.02, j: { head: [0, 14, 8] } }) },
-      { f: 30, p: compose(set.stance, { x: 0, j: { head: [0, -10, -16] } }), e: 'inOut' },
-      { f: 34, p: float(0.9, 20, 1), e: 'snap' },
-      { f: 48, p: float(1.3, 8), e: 'out' },
-      { f: 58, p: float(1.25, 30, -1), e: 'snap' },
-      { f: 64, p: float(1.35, 12) },
-      { f: 70, p: float(1.3, -10, 1), e: 'snap' },
-      { f: 76, p: float(1.4, 10) },
-      { f: 82, p: float(1.35, 40, -1), e: 'snap' },
-      { f: 104, p: float(1.45, 18), e: 'inOut' },
-      { f: 112, p: compose(r.juggle, { x: at(VX + 0.2), y: 1.5, rot: 90 }), e: 'snap' },
-      { f: 124, p: compose(r.juggle, { x: at(2.4), y: 1.0, rot: 240 }), e: 'out' },
+      // they watch the pendant spin, then the throw: a flinch
+      { f: 29, p: compose(set.stance, { x: 0, j: { head: [0, -10, -16] } }), e: 'inOut' },
+      { f: 34, p: float(0.7, 20, 1), e: 'snap' },
+      { f: 48, p: float(1.0, 8), e: 'out' },
+      { f: 58, p: float(0.95, 30, -1), e: 'snap' },
+      { f: 64, p: float(1.05, 12) },
+      { f: 70, p: float(1.0, -10, 1), e: 'snap' },
+      { f: 76, p: float(1.1, 10) },
+      { f: 82, p: float(0.9, 40, -1), e: 'snap' },
+      { f: 104, p: float(1.1, 18), e: 'inOut' },
+      { f: 112, p: compose(r.juggle, { x: at(VX + 0.2), y: 1.2, rot: 90 }), e: 'snap' },
+      { f: 124, p: compose(r.juggle, { x: at(2.4), y: 0.9, rot: 240 }), e: 'out' },
       { f: 134, p: compose(r.lying, { x: endX, rot: 450, s: { sq: 0.16 } }), e: 'in' },
       { f: 160, p: compose(r.lying, { x: endX, rot: 450 }) },
     ],
@@ -950,6 +1099,7 @@ function ninetyProps(): CineProps {
   const banner = { s: null as THREE.Sprite | null };
   const light = new THREE.PointLight(0x9fe6ff, 0, 8, 2);
   const tmp = new THREE.Vector3();
+  const held = new THREE.Vector3(1.9, 1.9, 0); // where they were when the 99 shatters
   return {
     group,
     lights: [light],
@@ -957,16 +1107,22 @@ function ninetyProps(): CineProps {
       const atk = c.rigs[0];
       const hand = atk ? atk.joints.haR.getWorldPosition(tmp).clone() : new THREE.Vector3();
       const handL = group.worldToLocal(hand.clone());
-      const vic = new THREE.Vector3(1.9, 1.35, 0);
-      // 0-28: the pendant swings on its chain over his head; 28-34 flies and grows; 34-48 the 99 stands
+      // the floating opponent's hips (attacker-local): the nines orbit and smash what is actually there
+      const vrig = c.rigs[1];
+      const vic = vrig ? group.worldToLocal(vrig.joints.hips.getWorldPosition(tmp).clone()) : new THREE.Vector3(1.9, 1.9, 0);
+      vic.z = 0;
+      if (f < 112) held.copy(vic);
+      // 0-8 hangs from his hand; 8-29 spins overhead in time with his forearm; 29-34 flies and grows; 34-40 the 99 stands
       let size = 0.12;
       const center = new THREE.Vector3();
-      if (f < 28) {
-        const a = c.time * 14;
-        center.copy(handL).add(new THREE.Vector3(Math.cos(a) * 0.45, 0.2, Math.sin(a) * 0.45));
+      if (f < LASSO0) {
+        center.copy(handL).add(new THREE.Vector3(0.03, -0.14 + 0.24 * lin(f, 4, LASSO0), 0.04));
+      } else if (f < 29) {
+        const a = lassoPhase(f) - 0.9;
+        center.copy(handL).add(new THREE.Vector3(Math.cos(a) * 0.45, 0.1, Math.sin(a) * 0.45));
       } else if (f < 34) {
-        const k = lin(f, 28, 34);
-        center.copy(handL).lerp(new THREE.Vector3(1.9, NINE_H * 0.5, -0.2), ease(k));
+        const k = lin(f, 29, 34);
+        center.copy(handL).lerp(new THREE.Vector3(1.9, NINE_H * 0.5, -0.25), ease(k));
         center.y += Math.sin(k * Math.PI) * 0.6;
         size = lerp(0.12, NINE_H, k * k);
       } else {
@@ -986,22 +1142,22 @@ function ninetyProps(): CineProps {
           n.rotation.set(0, f < 34 ? c.time * 8 : 0, f < 34 ? Math.sin(c.time * 10) * 0.3 : 0);
           if (f >= 90) {
             // rejoined behind them, hovering, pulsing
-            n.position.set(vic.x + off * 0.8, 1.5, -0.7);
+            n.position.set(vic.x + off * 0.8, vic.y - 0.2, -0.8);
             n.scale.setScalar(size * 0.85 * (1 + 0.04 * Math.sin(c.time * 12)));
           }
         } else if (split) {
-          // orbit the floating victim; each nine swings in for its hit (58 A, 70 B, 82 both)
-          const ph = c.time * 2.4 + i * Math.PI;
-          let rr = 1.4;
+          // orbit the floating opponent on a flat ellipse (never into the lens), faces turned to the camera; each
+          // nine swings in for its hit (58 A, 70 B, 82 both)
+          const ph = (f - 40) * 0.16 + i * Math.PI;
           const smash = (h: number) => Math.max(0, 1 - Math.abs(f - h) / 5);
-          rr -= 0.9 * (i === 0 ? Math.max(smash(58), smash(82)) : Math.max(smash(70), smash(82)));
-          n.position.set(vic.x + Math.cos(ph) * rr, vic.y + Math.sin(ph * 0.7) * 0.3 - 0.4, Math.sin(ph) * rr);
-          n.rotation.set(0, -ph, Math.sin(ph) * 0.4);
-          n.scale.setScalar(size * 0.7);
+          const k = 1 - 0.85 * (i === 0 ? Math.max(smash(58), smash(82)) : Math.max(smash(70), smash(82)));
+          n.position.set(vic.x + Math.cos(ph) * 1.25 * k, vic.y - 0.35 + Math.sin(ph * 0.7) * 0.25, (Math.sin(ph) * 0.6 - 0.15) * k);
+          n.rotation.set(0, 0.35 * Math.sin(ph), 0.3 * Math.cos(ph * 0.8));
+          n.scale.setScalar(size * 0.62);
         }
       });
       // the chain line from his hand to the pendant while it swings
-      chain.visible = f < 28;
+      chain.visible = f < 29;
       if (chain.visible) {
         const d = center.clone().sub(handL);
         chain.position.copy(handL).add(d.clone().multiplyScalar(0.5));
@@ -1025,7 +1181,7 @@ function ninetyProps(): CineProps {
         if (!m.visible) return;
         const t = (f - 112) / 30;
         const v = m.userData.v as THREE.Vector3;
-        m.position.set(vic.x + v.x * t, 1.5 + v.y * t - 9.8 * t * t * 0.5 * 1.2, -0.4 + v.z * t);
+        m.position.set(held.x + v.x * t, held.y + v.y * t - 9.8 * t * t * 0.5 * 1.2, -0.4 + v.z * t);
         m.rotation.set(f * 0.3, f * 0.2, 0);
       });
       // NINETYNINE banner

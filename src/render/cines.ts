@@ -1044,6 +1044,9 @@ const cool = (drag: number): PoseDef =>
     },
   });
 const exhale = compose(BL.blow, { x: 0.02, aim: { shR: [0.2, -0.6, 0.65], elR: [0.6, 0.7, 0.2] }, j: { head: [0, -4, -14], chest: [0, -6, -12] } });
+// the face close-up drag (96): chin up, he blows it at the ceiling - the face stays in the shot (S12 capture: head down
+// showed only the top of his hair, the forward puff filled the lens)
+const exhaleUp = compose(BL.blow, { x: 0.0, aim: { shR: [0.2, -0.6, 0.65], elR: [0.6, 0.7, 0.2] }, j: { head: [0, -6, 20], neck: [0, 0, 6], chest: [0, -6, 6] } });
 
 const BLUNT_ATK = smoothClip(
   [
@@ -1064,7 +1067,7 @@ const BLUNT_ATK = smoothClip(
     ...[78, 96, 114].flatMap((h, i) => [
       { f: h - 4, p: cool(0.3) },
       { f: h, p: cool(1 + (i === 2 ? 0.4 : 0)), e: 'inOut' as const },
-      { f: h + 6, p: exhale, e: 'snap' as const },
+      { f: h + 6, p: i === 1 ? exhaleUp : exhale, e: 'snap' as const },
       { f: h + 12, p: cool(0.1) },
     ]),
     // the last, biggest exhale: leans into it, flicks the stub away
@@ -1350,9 +1353,20 @@ function bluntProps(): CineProps {
         for (const h of [84, 102])
           if (k >= h && k < h + 5) {
             const head = c.rigs[0]?.joints.head.getWorldPosition(new THREE.Vector3());
-            const mouth = head ? head.add(new THREE.Vector3(c.facing * 0.1, -0.06, 0.05)) : c.world(0.22, 1.62, 0.05);
+            const up = h === 102; // the close-up exhale goes up, past the face, not into the lens
+            const mouth = head ? head.add(new THREE.Vector3(c.facing * 0.1, up ? 0.02 : -0.06, 0.05)) : c.world(0.22, 1.62, 0.05);
             for (let i = 0; i < 2; i++)
-              c.view.fx.smoke.spawn(mouth.clone(), new THREE.Vector3(c.facing * (0.9 + Math.random() * 1.2), 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4), 0xe4e8de, 0.24, 1.5, 2.6, (Math.random() - 0.5) * 2);
+              c.view.fx.smoke.spawn(
+                mouth.clone(),
+                up
+                  ? new THREE.Vector3(c.facing * (0.25 + Math.random() * 0.3), 0.9 + Math.random() * 0.4, -0.1 - Math.random() * 0.2)
+                  : new THREE.Vector3(c.facing * (0.9 + Math.random() * 1.2), 0.2 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4),
+                0xe4e8de,
+                up ? 0.16 : 0.24,
+                1.5,
+                up ? 1.5 : 2.6,
+                (Math.random() - 0.5) * 2,
+              );
           }
         if (k >= 120 && k < 131) {
           // the long last exhale streams into the cloud
@@ -1383,8 +1397,8 @@ export const BLUNT_SESSION: CineDef = {
     // Joint raucht"), back out for the third
     { f: 72, pos: [1.5, 1.5, 3.0], target: [0.4, 1.45, 0], fov: 34, cut: true },
     { f: 88, pos: [1.3, 1.52, 2.7], target: [0.35, 1.5, 0], fov: 32 },
-    { f: 90, pos: [0.75, 1.68, 1.05], target: [0.12, 1.62, 0], fov: 28, cut: true },
-    { f: 108, pos: [0.68, 1.68, 0.92], target: [0.12, 1.63, 0], fov: 26 },
+    { f: 90, pos: [0.7, 1.5, 1.0], target: [0.1, 1.66, 0], fov: 30, cut: true },
+    { f: 108, pos: [0.64, 1.5, 0.9], target: [0.1, 1.68, 0], fov: 28 },
     { f: 110, pos: [1.2, 1.5, 2.8], target: [0.45, 1.45, 0], fov: 34, cut: true },
     { f: 118, pos: [1.1, 1.5, 3.1], target: [0.6, 1.4, 0], fov: 34 },
     // the last exhale and the fly-out: wide
