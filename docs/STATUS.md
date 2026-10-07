@@ -24,7 +24,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Card art for the eight new cards | VERIFIED (deck and HUD screenshots) | `ui/portraits.ts` |
 | v2 profile, settings, deck in the ring (living plate, live favourite fighter); results + pause over the arena; v2 HUD skin | VERIFIED (1672x941 + 932x430 screenshots, e2e checks) | `node scripts/v2shot.mjs "showProfile()"`, `node scripts/v2match.mjs` |
 | Checks: unit 91/91, typecheck, Artifact payload under CSP (4 models, arenas, props, v2 art); Artifact **version 20** published | VERIFIED | `npm test`, `node scripts/artifact-check.mjs` |
-| e2e + netplay | E2E_RESULT | `npm run e2e`, `node scripts/netplay.mjs 60` |
+| e2e 34/34 (v1 desktop + phone flows, v2 flow, new v2 profile/settings/deck checks) + perf probe; netplay 60 ms (16 rollbacks, 0 checksum mismatches) | VERIFIED | `npm run e2e`, `node scripts/netplay.mjs 60` |
 | Feel of the new abilities, iPhone performance of the ink outline and the living plates | UNVERIFIED (PO test on the device) | |
 
 ## Session 10 — design v2, slower specials, reworked abilities, two cartoon fighters (D42)
