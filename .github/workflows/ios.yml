@@ -1,0 +1,52 @@
+name: iOS app (unsigned IPA for sideloading)
+
+# Builds the Capacitor iOS app WITHOUT code signing. The tester installs the .ipa with Sideloadly (Windows/Mac),
+# which signs it with their own free Apple ID (app valid for 7 days, then re-install). No Apple Developer account,
+# no certificates, no secrets in this repository. Public repo: macOS runner minutes are free.
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select the newest installed Xcode
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "using $XC"
+          sudo xcode-select -s "$XC/Contents/Developer"
+          xcodebuild -version
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - name: Build App.app for devices (no signing)
+        working-directory: ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -40
+          test -d build/Build/Products/Release-iphoneos/App.app
+      - name: Package IPA
+        working-directory: ios/App
+        run: |
+          rm -rf Payload && mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry RAPBRAWL.ipa Payload
+          ls -la RAPBRAWL.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rapbrawl-ios-ipa
+          path: ios/App/RAPBRAWL.ipa
+          compression-level: 0
+          retention-days: 30
