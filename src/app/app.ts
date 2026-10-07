@@ -1687,10 +1687,18 @@ export class App {
   }
 
   /** Design v2 deck (D43): deck + collection left, the fighter in the ring (menus only), card details right. */
+  /** The deck as it is, unless it names a card the fighter no longer has (decks saved before a card was replaced,
+   *  e.g. Abriss -> Lila Becher in S12): then the fighter's default deck. */
+  private knownDeck(fid: string, deck: string[] | undefined): string[] {
+    const def = getFighter(fid);
+    const ok = deck && deck.every((id) => def.cards.some((c) => c.id === id));
+    return ok ? deck.slice() : def.defaultLoadout.slice();
+  }
+
   private showDeckV2(player: number, done: () => void, doneLabel: string): void {
     const fid = this.sel.fighters[player];
     const def = getFighter(fid);
-    const deck = this.sel.loadouts[player].slice();
+    const deck = this.knownDeck(fid, this.sel.loadouts[player]);
     let focus: string | null = deck[0] ?? null;
     let placing = false;
     const presets = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {})[fid] ?? { i: 0, decks: [] };
@@ -1797,7 +1805,7 @@ export class App {
     if (design() === 'v2') return this.showDeckV2(player, done, doneLabel);
     const fid = this.sel.fighters[player];
     const def = getFighter(fid);
-    const deck = this.sel.loadouts[player].slice();
+    const deck = this.knownDeck(fid, this.sel.loadouts[player]);
     let focus: string | null = deck[0] ?? null;
     let placing = false;
     const presets = store.get<Record<string, { i: number; decks: string[][] }>>('presets', {})[fid] ?? { i: 0, decks: [] };

@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-07 (session 11: the four fighters from the PO's modelle-3 models with cel look, new signatures and abilities for all four, Blunt rework, living v2 menus, v2 profile/settings/deck/results/pause/HUD; session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-07 (session 12: the PO's iPhone feedback round — menus never black, sound in the native app, fight stutter, feet on the floor, touch controls, FREUNDE screen, home towns, waiting poses, abilities round 2 and second stages for the signatures; session 11: the four fighters from the PO's modelle-3 models with cel look, new signatures and abilities for all four, Blunt rework, living v2 menus, v2 profile/settings/deck/results/pause/HUD; session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
@@ -8,6 +8,28 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - iPhone app (native, no browser): GitHub → Actions → "iOS app (unsigned IPA for sideloading)" → latest run → artifact `rapbrawl-ios-ipa` → install `RAPBRAWL.ipa` with Sideloadly (Windows/Mac) and a free Apple ID; valid 7 days, then re-install (D44). Build VERIFIED (Xcode 26.3, BUILD SUCCEEDED); running on a device UNVERIFIED until the PO's first install.
 - Local: `npm install && npm run dev`.
+
+## Session 12 — iPhone feedback round (21 points): menus, sound, performance, abilities round 2 (D45)
+| Area | Status | Evidence |
+|---|---|---|
+| Menus never black / never only sprites: mobile fighter models `<id>.m.glb`, tiles as textures + GPU cache, checked first draw with CSS fallback, lost-context handling | VERIFIED here (ok/fail/lost states, `?livingfail`, phone emulation); on the iPhone UNVERIFIED (PO re-test) | `node scripts/v2shot.mjs "showHome()"`, `data-living` |
+| Loading screen on phones without the GL plate (the master painting itself) | VERIFIED (932x430) | `node scripts/loadshot.mjs` |
+| Sound in the native app: AVAudioSession playback + unlock on touchend/click + resume | BUILT (iOS build succeeds); on the device UNVERIFIED | `ios/App/App/AppDelegate.swift`, `audio/audio.ts` |
+| Fight stutter: fixed light slots, shader prewarm (0 shader links mid-fight in 200 s bot matches), projectile pool, adaptive render scale on phones | VERIFIED (compile probe); iPhone frame rate UNVERIFIED | `view.ts` `prewarm`, `perf` |
+| Feet on the floor: two-bone leg IK in standing states + contact shadows | VERIFIED (screenshots, filmstrips) | `glbRig.plantFeet` |
+| Touch controls: thumb-arc layout sized by screen height, chunky icon buttons, floating stick | VERIFIED (screenshots 932x430) | `Q=low node scripts/hudshot.mjs out.png 932 430 1` |
+| Hit VFX lighter: see-through stars with a hot core, smaller; inverted frame only for KO/signatures | VERIFIED (VFX sheet before/after) | `node scripts/vfx.mjs` |
+| FREUNDE: own code, add by name + code, search, challenge → lobby (list on the device) | VERIFIED (e2e-style flow + screenshots) | `node scripts/v2shot.mjs "showFriends()"` |
+| Kämpferwahl + VS: home town under the names | VERIFIED (screenshots) | `node scripts/v2shot.mjs` (select, VS) |
+| Waiting poses per fighter (no "candle"), KÄMPFER swipe/tap + deck, in-screen taps without fade | VERIFIED (screenshots) | `render/anims/showcase.ts` |
+| Bonez Lila Becher (replaces Abriss), Manuellsen König im Schatten (replaces Beton; sim `warp` + `reverse`), Lacazette Drei Buchstaben + Chart-Einstieg (replace Kalter Blick / Daunenweste) | VERIFIED (unit tests, film strips) | `tests/abilities.test.ts`, `node scripts/filmstrip.mjs` |
+| 5000 Kurden: waving flag of Kurdistan (Ala Rengîn) | VERIFIED (film strip) | `abilities11.ts` `kurdistanFlagTexture` |
+| Sofa-Backpfeifen two stages (KO sleeping on the sofa, pssst, König im Schatten with crown + spot, sofa kicked over) | VERIFIED (cine sheets) | `Q=medium node scripts/cine.mjs sofa` |
+| 70 Schüsse second stage (collar grab, KALTER BLICK two-shot, push kick) | VERIFIED (cine sheets) | `node scripts/cine.mjs gwagon` |
+| Blunt: joint in his hand at the lips, face close-up on the second drag (smoke up, face visible) | VERIFIED (cine sheets) | `node scripts/cine.mjs blunt` |
+| Ninetynine re-choreographed (lasso in sync, conductor hits with anticipation, run-up, kick, backflip home) | VERIFIED (pose sheets + cine sheet) | `node scripts/posesheet.mjs jazeek "cine:jaz_99:4-160:8"`, `node scripts/cine.mjs 99` |
+| Menu art-style rebuild (PO item 15) | NOT DONE — waits for the PO's artworks (buttons, characters, banners, cards) | |
+| Checks: unit 91/91, typecheck, build; e2e 35/35 (new: a deck saved before S12 with a removed card opens as the default deck instead of crashing); netplay 60 ms (13 rollbacks, 0 checksum mismatches). Artifact not republished this round (PO: next review after the animation + design work) | VERIFIED | `npm test`, `npm run e2e`, `node scripts/netplay.mjs 60` |
 
 ## Session 11 — modelle-3 roster, cel look, new abilities, living menus, v2 everywhere (D43)
 | Area | Status | Evidence |
@@ -252,13 +274,19 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
 - **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release. Their abilities reference real memes/scandals (the Animus slap video, "5000 Kurden", "70 Schüsse aus dem G-Wagon") — check with them and a lawyer; the meme line says 5000 (the PO wrote 3000 — one constant to change). The car is a generic off-roader without badges; gunfire is shown as toy-like flashes (USK).
 - **Design v2 masters** contain generic AI art (the lobby's example friends, preset figures): the game shows its own fighters there; the masters' crown logo and RB belt are the PO's brand.
+- **Lila Becher (Bonez)**: lean (codeine drink) from a generic purple double cup, no brand — like Blunt für dich a depicted
+  drug use (USK, the artist's reputation); decide before release (option: a fictional "Lila Saft").
+- **Flag in 5000 Kurden**: the flag of Kurdistan (Ala Rengîn) as the PO asked — a political symbol; deliberately no party or
+  PKK symbols. Check with Manuellsen and for the release markets.
+- **Lacazette's new cards** quote his three-character song titles and chart entries (taken from public sources) — confirm
+  with him; the "NRW-Verbot" meme the PO mentioned could not be verified and is not used.
 - **Blunt für dich**: a real person (Jazeek) rolling and smoking a joint — affects the USK rating (drug use depicted) and is a reputation question for the artist; decide before release (option: a neutral "Zigarre"/vape or a fictional herb).
 - **Arena paintings**: the PO's two images contain real brands/businesses (festival logo, bar and kiosk names); the game uses retouched copies with fictional names (FESTIVAL-BÜHNE, PIK ASS, KIOSK 069, WEINECK). Check the image source/licence of the paintings themselves.
 - **Crowd look**: built from primitives in the game-art style; for a richer look, a few rigged stylized crowd models (prompt on request) could replace them.
 - Hosting decision for signaling/matchmaking + TURN.
 
 ## Next objectives (suggested order)
-0. PO review of Artifact version 20 on the iPhone: the four new fighters (look, motion), the signatures (Sofa, 70 Schüsse, Ninetynine, Ohne mein Team, the new Blunt), the living menus and the v2 profile/settings/deck/results/HUD; frame rate with the ink outline on the device.
+0. PO re-test on the iPhone (new IPA from the latest push): menus (never black / never only sprites), sound, fight smoothness, feet, touch buttons, the new abilities and the two-stage signatures; report any screen that still breaks with its name.
 0b. PO artworks for characters and cards (announced): drop-in via `assets/cards/<id>.webp` (cards already prefer a painted file) and the select/roster portraits.
 0c. Animation polish on the new bodies: guard hands, tall uppercut reach, per-fighter idle for Manuellsen/Lacazette (they borrow Bonez's/Jazeek's sets).
 1. Human playtest on a real phone (APK / Artifact) → tune touch layout, hitstop, damage, meter, charge rate, fatality minigame timing.

@@ -359,7 +359,7 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/v07_settings.png` });
   await page.evaluate(() => {
     window.__rb.sel.fighters[0] = 'bonez';
-    window.__rb.sel.loadouts[0] = ['bon_croc', 'bon_abriss', 'bon_team'];
+    window.__rb.sel.loadouts[0] = ['bon_croc', 'bon_lean', 'bon_team'];
     window.__rb.showDeck(0, () => window.__rb.showHome());
   });
   await page.waitForSelector('.v2-deckscreen [data-card="bon_smoke"]');
@@ -370,6 +370,15 @@ const sim = (page) =>
   check((await page.evaluate(() => [...document.querySelectorAll('.v2-deckscreen [data-slot]')].map((e) => e.getAttribute('data-slot') && e.closest('.rg-slot')?.querySelector('.rg-dname')?.textContent))).includes('Rauchwand'), 'v2 deck: Rauchwand swapped into special 2');
   check(!(await page.isDisabled('.v2-deckscreen [data-act="ok"]')), 'v2 deck: a legal 2+1 deck enables FERTIG');
   await page.screenshot({ path: `${out}/v08_deck.png` });
+  await page.click('.v2-deckscreen [data-act="ok"]');
+  await page.waitForSelector('.v2-home');
+  // a deck saved before S12 still names removed cards (bon_abriss): the editor falls back to the default deck
+  await page.evaluate(() => {
+    window.__rb.sel.loadouts[0] = ['bon_croc', 'bon_abriss', 'bon_team'];
+    window.__rb.showDeck(0, () => window.__rb.showHome());
+  });
+  await page.waitForSelector('.v2-deckscreen [data-act="ok"]');
+  check(!(await page.isDisabled('.v2-deckscreen [data-act="ok"]')), 'v2 deck: a stale saved deck (removed card) opens as the default deck');
   await page.click('.v2-deckscreen [data-act="ok"]');
   await page.waitForSelector('.v2-home');
   check(errors.length === 0, `no page errors on the v2 ring screens (${errors.slice(0, 3).join(' | ')})`);
