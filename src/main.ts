@@ -3,6 +3,7 @@ import '@fontsource/nunito/700.css';
 import '@fontsource/nunito/800.css';
 import '@fontsource/nunito/900.css';
 import '@fontsource/anton/400.css';
+import '@fontsource/rubik-wet-paint/400.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
 import '@fontsource/barlow-condensed/latin-600-italic.css';

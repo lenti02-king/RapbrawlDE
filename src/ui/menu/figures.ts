@@ -13,6 +13,7 @@ import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
 import { isPhone } from '../../render/textureBudget';
 import { showcasePose } from '../../render/anims/showcase';
+import type { LivingPlate } from '../v2/living';
 
 export interface FigureSpec {
   id: string;
@@ -122,8 +123,21 @@ export function releaseMenuRenderer(): void {
   shared = null;
 }
 
+const byRoot = new WeakMap<HTMLElement, MenuFigures>();
+/** The screen's figure layer (created once per screen root: the living plate and the fighters share it). */
+export function menuFigures(root: HTMLElement): MenuFigures {
+  let f = byRoot.get(root);
+  if (!f || f.disposed) {
+    f = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+    byRoot.set(root, f);
+  }
+  return f;
+}
+
 export class MenuFigures {
   private renderer: THREE.WebGLRenderer | null;
+  private bg: LivingPlate | null = null;
+  disposed = false;
   private scene = new THREE.Scene();
   private cam = new THREE.PerspectiveCamera(18, 1, 0.1, 40);
   private figs: Fig[] = [];
@@ -139,16 +153,25 @@ export class MenuFigures {
     owner?.dispose();
     owner = this;
     root.insertBefore(this.renderer.domElement, before);
-    this.scene.add(new THREE.HemisphereLight(0xe4e6ff, 0x2a2232, 1.05));
-    const key = new THREE.DirectionalLight(0xfff1de, 2.4);
+    // cel-shaded fighters (D43): the toon ramp saturates above ~1, so the menu light is softer than for PBR and the
+    // coloured stage rims carry the scene's colours onto the figure
+    this.scene.add(new THREE.HemisphereLight(0xe4e0ff, 0x2a2232, 0.62));
+    const key = new THREE.DirectionalLight(0xfff1de, 1.45);
     key.position.set(2.5, 4, 5);
-    const fill = new THREE.DirectionalLight(0xbfc8ff, 0.5);
+    const fill = new THREE.DirectionalLight(0xbfc8ff, 0.35);
     fill.position.set(-3, 1.5, 4);
     this.scene.add(key, fill);
   }
 
   get canvas(): HTMLCanvasElement | null {
     return this.renderer?.domElement ?? null;
+  }
+
+  /** The painted background drawn first into the same picture (design v2 living plates, D43). */
+  setBackground(bg: LivingPlate | null): void {
+    this.bg?.dispose();
+    this.bg = bg;
+    if (!this.raf && this.renderer) this.loop();
   }
 
   set(specs: FigureSpec[]): void {
@@ -160,13 +183,13 @@ export class MenuFigures {
       const rig = buildCharacter(spec.id, 0);
       const group = new THREE.Group();
       group.add(rig.root, contactShadow());
-      const rim = new THREE.DirectionalLight(spec.rim, 3.2);
+      const rim = new THREE.DirectionalLight(spec.rim, 2.6);
       rim.position.set(-spec.facing * 3, 2.5, -3);
       rim.target = rig.root;
       this.scene.add(group, rim);
       let rim2: THREE.DirectionalLight | null = null;
       if (spec.rim2 !== undefined) {
-        rim2 = new THREE.DirectionalLight(spec.rim2, 2.6);
+        rim2 = new THREE.DirectionalLight(spec.rim2, 2.1);
         rim2.position.set(spec.facing * 3, 2.2, -2.6);
         rim2.target = rig.root;
         this.scene.add(rim2);
@@ -212,13 +235,23 @@ export class MenuFigures {
     r.setScissor(0, 0, W, H);
     r.setViewport(0, 0, W, H);
     r.clear();
+    const bg = this.bg?.ready ? this.bg : null;
+    const pr = bg?.rect(box) ?? null;
+    if (bg) bg.draw(r, W, H, box);
     const t = (performance.now() - this.t0) / 1000;
     for (const f of this.figs) {
       const a = f.spec.anchor.getBoundingClientRect();
       if (!a.height) continue;
       const fh = a.height; // figure height in px
-      const fx = a.left - box.left + a.width / 2;
-      const fy = a.top - box.top + a.height; // feet
+      let fx = a.left - box.left + a.width / 2;
+      let fy = a.top - box.top + a.height; // feet
+      if (bg && pr) {
+        // stand in the painting: the same parallax as the painted floor under the feet
+        const d = bg.depthAt((fx - pr.x) / pr.u + bg.x0Ref, (fy - pr.y) / pr.u);
+        const [sx, sy] = bg.shiftPx(d, pr.w, pr.h);
+        fx += sx;
+        fy += sy;
+      }
       // viewport: a box around the figure, a bit of room for the shadow below the feet
       const vw = fh * 1.1;
       const vh = fh * 1.18;
@@ -245,8 +278,11 @@ export class MenuFigures {
   }
 
   dispose(): void {
+    this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.bg?.dispose();
+    this.bg = null;
     for (const f of this.figs) {
       this.scene.remove(f.group, f.rim);
       if (f.rim2) this.scene.remove(f.rim2);

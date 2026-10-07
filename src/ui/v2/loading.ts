@@ -49,7 +49,7 @@ export function setLoadingLabelV2(root: HTMLElement, label: string, pulse = fals
 
 export function mountLoadingV2(root: HTMLElement): () => void {
   root.classList.add('v2-loading');
-  const stop = mountV2(root, { embers: 40, hues: [40, 330, 210] });
+  const stop = mountV2(root, { embers: 40, hues: [40, 330, 210], living: A, haze: [0.55, 0.45, 0.8], crowdY: 0.42 });
   let k = 0;
   const tipEl = root.querySelector<HTMLElement>('.v2-tip > span');
   const tipBox = root.querySelector<HTMLElement>('.v2-tip');

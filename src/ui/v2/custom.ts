@@ -2,7 +2,7 @@
 // pedestal (arrows switch fighters), style presets and a preview on the right, LOOK SPEICHERN. Outfits, gloves, shoes
 // and colours do not exist yet: those categories say so honestly ("KOMMT BALD"); POSE switches the menu pose.
 import { de, esc } from '../menu/kit';
-import { MenuFigures } from '../menu/figures';
+import { menuFigures } from '../menu/figures';
 import { CUSTOM_ART, CUSTOM_DIR, CUSTOM_LIGHTS, CUSTOM_PLATE, CUSTOM_TEXT } from './art/custom';
 import { topBarHtml, type TopBar } from './arena';
 import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
@@ -74,8 +74,8 @@ export function customHtml(m: CustomModel): string {
 
 export function mountCustom(root: HTMLElement, id: string, pose: 'showcase' | 'fight'): () => void {
   root.classList.add('v2-custom');
-  const stop = mountV2(root, { hues: [42, 30, 50] });
-  const figs = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+  const stop = mountV2(root, { hues: [42, 30, 50], living: A, haze: [0.62, 0.46, 0.3], crowdY: 0.5 });
+  const figs = menuFigures(root);
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (anchor) figs.set([{ id, anchor, facing: 1, rim: 0xffb02e, rim2: 0xff6a2e, turn: 0.7, showcase: pose === 'showcase' }]);
   return () => {

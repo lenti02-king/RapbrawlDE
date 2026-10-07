@@ -9,6 +9,8 @@
 // the iPhone home indicator.
 import './v2.css';
 import { esc, fitTexts, keepLaidOut, pos, safeInsets, text, type Box, type TextOpts } from '../menu/kit';
+import { menuFigures } from '../menu/figures';
+import { LivingPlate } from './living';
 
 export const REF_W = 1672;
 export const REF_H = 941;
@@ -263,6 +265,13 @@ export function layoutV2(root: HTMLElement): number {
 export interface MountOpts {
   embers?: number | false;
   hues?: number[];
+  /** Living plate (D43): the screen's painting drawn with depth parallax, crowd, lights and haze (needs depth.webp). */
+  living?: ScreenArt;
+  /** Haze colour (0..1 rgb) and the lowest row of the crowd (plate UV, 0 = bottom) for the living plate. */
+  haze?: [number, number, number];
+  crowdY?: number;
+  /** Extra boxes of the painting that must not move (logo etc., [x, y, w, h] reference px). */
+  rigid?: [number, number, number, number][];
 }
 
 /** Mount a v2 screen: layout (resize, fonts), embers, fade in once the plate is decoded (no half-loaded frame).
@@ -279,6 +288,8 @@ export function mountV2(root: HTMLElement, o: MountOpts = {}): () => void {
     root.insertBefore(embers.canvas, front);
     embers.start();
   }
+  const figs = o.living && !new URLSearchParams(location.search).has('still') ? menuFigures(root) : null;
+  figs?.setBackground(new LivingPlate(o.living!, root, { haze: o.haze, crowdY: o.crowdY, rigid: o.rigid }));
   const imgs = [...root.querySelectorAll<HTMLImageElement>('.v2-plate img')];
   const ready = () => root.classList.add('ready');
   const timer = window.setTimeout(ready, 1500);
@@ -289,6 +300,7 @@ export function mountV2(root: HTMLElement, o: MountOpts = {}): () => void {
   return () => {
     stop();
     embers?.stop();
+    figs?.dispose();
     window.clearTimeout(timer);
   };
 }

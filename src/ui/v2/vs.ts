@@ -2,7 +2,7 @@
 // both decks (card art rendered from the fighters' own moves), the arena picture in the master's frame (arrows flip
 // the arena), BEREIT starts loading. Shown between the arena pick and the loading screen.
 import { esc, fitTexts } from '../menu/kit';
-import { MenuFigures } from '../menu/figures';
+import { menuFigures } from '../menu/figures';
 import { VS_ART, VS_DIR, VS_FEET, VS_FIG_H, VS_LIGHTS, VS_OPP, VS_PLATE, VS_TEXT, VS_YOU } from './art/vs';
 import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
 
@@ -97,8 +97,8 @@ export function setVsArena(root: HTMLElement, a: { name: string; img: string }, 
 
 export function mountVs(root: HTMLElement, m: VsModel, onAction: (a: 'ready' | 'arena-prev' | 'arena-next' | 'arena' | 'back') => void): () => void {
   root.classList.add('v2-vs');
-  const stop = mountV2(root, { hues: [210, 350, 42] });
-  const figs = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+  const stop = mountV2(root, { hues: [210, 350, 42], living: A, haze: [0.6, 0.42, 0.7], crowdY: 0.45 });
+  const figs = menuFigures(root);
   figs.set(
     [0, 1].map((i) => ({
       id: m.sides[i].id,

@@ -168,7 +168,7 @@ const sim = (page) =>
   });
   // KO slow-mo, the fatality window (FINISH_WINDOW, nobody plays the card), round over, match over (~600 sim frames)
   const resultsVisible = await page
-    .waitForSelector('.result-banner', { timeout: 300000 })
+    .waitForSelector('.result-banner', { timeout: 600000 }) // SwiftShader: ~2 s per rendered frame with the ink outlines (D43)
     .then(() => true)
     .catch(() => false);
   check(resultsVisible, 'match end shows results screen');
@@ -185,7 +185,7 @@ const sim = (page) =>
   }
   // training mode with hitboxes
   await page.goto(base + '/?quick=bonez,jazeek&mode=training&q=low');
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
   await page.keyboard.press('KeyH');
   await page.keyboard.press('KeyK');
   await page.waitForTimeout(160);
@@ -343,7 +343,7 @@ const sim = (page) =>
     await page.keyboard.press('KeyJ'); // skip the round-1 showcase
     await page.waitForTimeout(600);
   }
-  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 60000 });
+  await page.waitForFunction(() => window.__rb?.runner?.state.phase === 'fight', null, { timeout: 300000 });
   const perf = await page.evaluate(
     () =>
       new Promise((res) => {

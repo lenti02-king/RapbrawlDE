@@ -10,10 +10,12 @@ export const OUTLINE = { value: 0.0019 };
 export const TOON_ON = typeof location === 'undefined' || new URLSearchParams(location.search).get('toon') !== '0';
 
 let ramp: THREE.DataTexture | null = null;
-/** Three light bands (shadow, half-tone, lit): the painted textures already carry the detail. */
+/** Cel bands over N·L from -1 to 1 (8 texels of 0.25): the side turned away from a light gets nothing from it (the
+ *  hemisphere/ambient fills it), a narrow half-tone at the terminator, full light beyond. A ramp whose first band was
+ *  not black let every back/rim light wash the whole figure pale (session-11 first try). */
 export function toonRamp(): THREE.DataTexture {
   if (ramp) return ramp;
-  const steps = [118, 188, 255];
+  const steps = [0, 0, 0, 0, 120, 235, 255, 255];
   const data = new Uint8Array(steps.length * 4);
   steps.forEach((v, i) => data.set([v, v, v, 255], i * 4));
   ramp = new THREE.DataTexture(data, steps.length, 1, THREE.RGBAFormat);

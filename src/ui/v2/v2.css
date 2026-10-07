@@ -223,20 +223,22 @@
   --fill: linear-gradient(180deg, #fff6c0 0%, #ffd450 45%, #f0a020 100%);
   --ol: #2b1503;
 }
-/* brush lettering on the yellow buttons: heavy condensed black paint, slanted, with dry-brush grain */
+/* brush lettering on the yellow buttons: the master's black brush strokes with paint drips (D43; Anton under a
+   grunge mask read grey and flat) */
 .v2 .v2-brush {
-  font-family: 'Anton', 'Barlow Condensed', sans-serif;
+  font-family: 'Rubik Wet Paint', 'Anton', sans-serif;
   font-weight: 400;
-  letter-spacing: 0.015em;
-  --fill: linear-gradient(180deg, #1b1408 0%, #0a0703 100%);
+  letter-spacing: 0.01em;
+  --fill: linear-gradient(180deg, #19120a 0%, #050302 100%);
   --sw: 0;
   --ol: transparent;
-  --sh: 0 0.035em 0 rgba(255, 250, 210, 0.4);
+  --sh: 0 0.03em 0 rgba(255, 246, 190, 0.55), 0 -0.012em 0 rgba(120, 70, 0, 0.35);
 }
-.v2 .v2-brush > i {
-  transform: skewX(-9deg) rotate(-3deg);
-  -webkit-mask: var(--grunge) 0 0 / calc(var(--u) * 150) repeat;
-  mask: var(--grunge) 0 0 / calc(var(--u) * 150) repeat;
+/* the slant sits on the box, not on the <i>: a transform on the background-clip:text element drops its fill in
+   Chromium (only the drop shadow copy was left: the grey "KÄMPFEN" of session 10) */
+.v2 .v2-btn > .v2-brush,
+.v2 .v2-hit > .v2-brush {
+  transform: skewX(-6deg) rotate(-3deg);
 }
 /* hand-lettered marker titles (screen titles, panel heads) */
 .v2 .v2-marker {
@@ -1045,4 +1047,11 @@
 }
 .v2-rtc .v2-pill {
   align-self: flex-start;
+}
+
+/* ------------------------------------------------------------------------------------------- living plates (D43) */
+/* the painting and its light glows are drawn by the menus' WebGL layer (ui/v2/living.ts); the images stay as fallback */
+.v2-living .v2-plate,
+.v2-living .v2-lights {
+  visibility: hidden;
 }

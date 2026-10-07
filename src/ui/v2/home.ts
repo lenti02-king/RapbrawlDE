@@ -2,7 +2,7 @@
 // button stay glued to the painted ring; the player's favourite fighter stands in 3D where the master's illustrated
 // hero crouched (in front of the logo, like in the master). German text natively at the master's text boxes.
 import { de, toast } from '../menu/kit';
-import { MenuFigures } from '../menu/figures';
+import { menuFigures } from '../menu/figures';
 import { HOME_ART, HOME_DIR, HOME_HERO, HOME_LIGHTS, HOME_PLATE, HOME_TEXT } from './art/home';
 import { beamsHtml, button, hazeHtml, hit, lightsHtml, mountV2, plateHtml, screenHtml, sprite, src, t, zone, type ScreenArt } from './stage';
 
@@ -111,7 +111,7 @@ export function homeHtml(m: HomeModel): string {
       `${t('KÄMPFEN', [F.label[0] - 8, F.label[1], F.label[2] + 34, 842], ox, oy, { cls: 'v2-brush', fs: 88, align: 'center' })}
        ${t(m.mode, [F.label[0] + 4, 838, F.label[2] + 30, 866], ox, oy, { cls: 'v2-mode', fs: 22, align: 'center' })}`,
     'v2-main v2-lift',
-    `--mask:url(${src(A, 'fight')})`,
+    `--mask:url(${A.dir}fight_mask.webp)`,
   );
 
   const front = `${hazeHtml([260, 560, 1420, 830], '220 180 255', 0.5)}
@@ -120,8 +120,8 @@ export function homeHtml(m: HomeModel): string {
 }
 
 export function mountHome(root: HTMLElement, m: HomeModel, onAction: (a: HomeAction) => void): () => void {
-  const stop = mountV2(root, { hues: [42, 320, 210] });
-  const figs = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+  const stop = mountV2(root, { hues: [42, 320, 210], living: A, haze: [0.56, 0.44, 0.78], crowdY: 0.42, rigid: [[470, 0, 740, 280]] });
+  const figs = menuFigures(root);
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (anchor) figs.set([{ id: m.fighter, anchor, facing: 1, rim: 0xff4fd0, rim2: 0x4f8dff, turn: 0.85, showcase: true }]);
   root.addEventListener('click', (e) => {

@@ -72,7 +72,7 @@ const errors = [];
 page.on('console', (m) => m.type() === 'error' && !m.text().includes('404') && errors.push(m.text().slice(0, 200)));
 const fetched = new Set();
 page.on('response', (r) => r.ok() && /\.(gltf\.json|jpg)$/.test(r.url()) && fetched.add(new URL(r.url()).pathname));
-await page.goto(`http://localhost:${port}/rapbrawl.html?q=low`);
+await page.goto(`http://localhost:${port}/rapbrawl.html?q=low`, { timeout: 180000 });
 await page.waitForFunction(() => window.__models, null, { timeout: 120000 });
 const models = await page.evaluate(() => window.__models);
 await page.waitForFunction(() => window.__props, null, { timeout: 120000 });
@@ -97,7 +97,7 @@ const v2 = await page
 await page.waitForTimeout(1500);
 await page.screenshot({ path: path.join(out, 'artifact-check-v2.png') });
 // the arena (geometry + baked textures) must load too
-await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training`);
+await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training`, { timeout: 180000 });
 const arenaOk = await page
   .waitForFunction(
     () => {
@@ -114,7 +114,7 @@ await page.screenshot({ path: path.join(out, 'artifact-check-arena.png') });
 // the painted arenas: backdrop plate + floor textures
 const painted = {};
 for (const a of ['festival', 'bahnhof']) {
-  await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training&arena=${a}`);
+  await page.goto(`http://localhost:${port}/rapbrawl.html?q=low&quick=jazeek,bonez&mode=training&arena=${a}`, { timeout: 180000 });
   painted[a] = await page
     .waitForFunction(
       () => {

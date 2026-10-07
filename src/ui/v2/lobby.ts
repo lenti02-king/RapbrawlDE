@@ -142,5 +142,5 @@ export function lobbySheet(root: HTMLElement, html: string): HTMLElement {
 
 export function mountLobby(root: HTMLElement): () => void {
   root.classList.add('v2-lobby');
-  return mountV2(root, { embers: 22, hues: [210, 350, 42] });
+  return mountV2(root, { embers: 22, hues: [210, 350, 42], living: A, haze: [0.45, 0.48, 0.8], crowdY: 0.55 });
 }

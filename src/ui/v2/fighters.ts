@@ -2,7 +2,7 @@
 // the master's coloured cards, free slots stay locked silhouettes), the chosen fighter in 3D in the middle, info panel
 // on the right (class, level, ANGRIFF / TEMPO / LEBEN, the three ability cards), AUSWÄHLEN = favourite fighter.
 import { de, esc } from '../menu/kit';
-import { MenuFigures } from '../menu/figures';
+import { menuFigures } from '../menu/figures';
 import { FIGHTERS_ART, FIGHTERS_CARDS, FIGHTERS_DIR, FIGHTERS_FEET, FIGHTERS_FIG_H, FIGHTERS_LIGHTS, FIGHTERS_PLATE, FIGHTERS_TEXT } from './art/fighters';
 import { topBarHtml, type TopBar } from './arena';
 import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
@@ -98,8 +98,8 @@ export function fightersHtml(roster: RosterEntry[], cur: FighterInfo, tab: numbe
 
 export function mountFighters(root: HTMLElement, id: string): () => void {
   root.classList.add('v2-fighters');
-  const stop = mountV2(root, { hues: [40, 30, 50] });
-  const figs = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+  const stop = mountV2(root, { hues: [40, 30, 50], living: A, haze: [0.6, 0.45, 0.32], crowdY: 0.45 });
+  const figs = menuFigures(root);
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (anchor) figs.set([{ id, anchor, facing: 1, rim: 0xffb02e, rim2: 0xff6a2e, turn: 0.75, showcase: true }]);
   return () => {

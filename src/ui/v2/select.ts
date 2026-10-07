@@ -3,7 +3,7 @@
 // as "coming soon"), the neon P1/P2 frames move with the selection. Same data attributes as the v1 screen
 // (data-f, data-side, data-back, data-ready), so the app logic is shared.
 import { esc } from '../menu/kit';
-import { MenuFigures } from '../menu/figures';
+import { menuFigures } from '../menu/figures';
 import { SELECT_ART, SELECT_CROWN, SELECT_DIR, SELECT_FEET, SELECT_LIGHTS, SELECT_PLATE, SELECT_TEXT, SELECT_TILES } from './art/select';
 import { beamsHtml, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from './stage';
 import type { CsSide, CsTile } from '../menu/charSelect';
@@ -79,8 +79,8 @@ export function selectHtmlV2(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
 
 export function mountSelectV2(root: HTMLElement, sides: [CsSide, CsSide]): () => void {
   root.classList.add('v2-select');
-  const stop = mountV2(root, { hues: [210, 350, 42] });
-  const figs = new MenuFigures(root, root.querySelector('.v2-embers') ?? root.querySelector('.v2-stage.front'));
+  const stop = mountV2(root, { hues: [210, 350, 42], living: A, haze: [0.45, 0.5, 0.85], crowdY: 0.42 });
+  const figs = menuFigures(root);
   figs.set(
     [0, 1]
       .filter((i) => !sides[i].hidden)
