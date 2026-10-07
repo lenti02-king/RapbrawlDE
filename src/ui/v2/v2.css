@@ -380,6 +380,9 @@
   inset: 3% 4% 30% 4%;
   overflow: hidden;
   border-radius: calc(var(--u) * 10);
+  background:
+    radial-gradient(80% 70% at 50% 35%, rgb(var(--tint, 255 196 60) / 0.85), rgb(var(--tint, 255 196 60) / 0.35) 60%, rgb(12 10 24 / 0.95) 100%),
+    #0c0a18;
   -webkit-mask: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
   mask: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
 }

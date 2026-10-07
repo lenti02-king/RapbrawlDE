@@ -11,6 +11,7 @@ import type { FighterAnimator } from './animator';
 import { HeartPool, makeCroc, makeCrocRunner, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
 import { showcaseOf } from '../core/sim';
 import { HandProp } from './handProps';
+import { AbilityFX11, makeProjectile11, updateProjectile11 } from './abilities11';
 import { crocAsHead, crocRunnerModel, hasProp, materialsOf, propMesh, propModel, setOpacity, tunerCarModel } from './propModels';
 import type { CharacterRig } from './glbRig';
 import type { VFX } from './vfx';
@@ -46,8 +47,11 @@ export class SpecialFX {
   /** Cinematics can force the gold teeth on. */
   teethOverride = [false, false];
 
+  private abilities: AbilityFX11;
+
   constructor(private vfx: VFX) {
-    this.group.add(this.notes.group, this.hearts.group, this.smoke.group);
+    this.abilities = new AbilityFX11(vfx);
+    this.group.add(this.notes.group, this.hearts.group, this.smoke.group, this.abilities.group);
     for (let i = 0; i < 2; i++) {
       const mk = (color: number, size: number) => {
         const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glintTexture(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
@@ -126,6 +130,7 @@ export class SpecialFX {
   }
 
   update(s: GameState, dt: number, time: number, anims: FighterAnimator[], rigs: CharacterRig[]): void {
+    this.abilities.update(s, time, anims, rigs);
     this.notes.update(dt);
     this.hearts.update(dt);
     this.smoke.update(dt);
@@ -321,6 +326,8 @@ export class SpecialFX {
       }
       return g;
     }
+    const p11 = makeProjectile11(kind);
+    if (p11) return p11;
     if (kind === 'diamonds') return makeDiamondRain();
     if (kind === 'car') return tunerCarModel() ?? makeTunerCar();
     if (kind === 'crocrun') {
@@ -335,6 +342,7 @@ export class SpecialFX {
 
   /** Returns true if handled. */
   updateProjectile(m: THREE.Object3D, p: ProjectileState, s: GameState, time: number): boolean {
+    if (updateProjectile11(m, p, s, time, this.vfx)) return true;
     if (p.kind === 'voicewave') {
       m.position.set(p.x / U, p.y / U, 0.15);
       m.scale.x = p.dir;

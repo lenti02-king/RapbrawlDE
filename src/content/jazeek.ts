@@ -380,6 +380,35 @@ const moves: MoveDef[] = [
   },
 ];
 
+// NINETYNINE (signature, D43; PO: "visuell und choreographisch viel stärker, mehr zu ihm, seinem Image, seinen
+// Songs"): his chain's iced-out 99 pendant — the album that took him to number one — as the weapon. He whips the
+// chain; on a hit the pendant grows into a giant diamond 99, slams the opponent, both nines orbit and smash them,
+// and he flies through the shattering 99 with a kick. Herzbrecher (jaz_heart) stays in the code, no longer a card.
+moves.push({
+  key: 'jaz_99',
+  name: 'Ninetynine',
+  kind: 'signature',
+  total: 58,
+  superFlash: 36,
+  strikeInvuln: [1, 12],
+  velocity: [
+    { frame: 2, vx: mps(6) },
+    { frame: 12, vx: 0 },
+  ],
+  hits: [
+    hit(9, 14, {
+      damage: 40,
+      chip: 30,
+      strength: 3,
+      blockstun: 22,
+      boxes: [box(0, 1.5, 0.7, 1.8)],
+      cinematic: 'jaz_99',
+      meterOnHit: 0,
+      meterOnBlock: 0,
+    }),
+  ],
+});
+
 export const JAZEEK: FighterDef = {
   id: 'jazeek',
   name: 'JAZEEK',
@@ -468,13 +497,13 @@ export const JAZEEK: FighterDef = {
       ai: 'combo',
     },
     {
-      id: 'jaz_heart',
-      name: 'Herzbrecher',
+      id: 'jaz_99',
+      name: 'Ninetynine',
       category: 'signature',
       cost: 300,
-      move: 'jaz_heart',
+      move: 'jaz_99',
       role: 'Cinematic Signature',
-      description: 'Ein gesungener Ton als Angriff. Bei Treffer: Spotlight, Herzen, musikalischer Moment – und dann eine blitzschnelle Kombo.',
+      description: 'Er peitscht seine Kette – bei Treffer wächst der 99-Anhänger zu einer riesigen Diamant-99, beide Neunen kreisen und krachen in den Gegner, dann fliegt er per Kick durch die zerspringende 99.',
       ai: 'combo',
     },
   ],
@@ -492,6 +521,19 @@ export const JAZEEK: FighterDef = {
       ],
       endDx: m(2.6),
     },
+    jaz_99: {
+      id: 'jaz_99',
+      frames: 160,
+      startDx: m(1.1),
+      hits: [
+        { frame: 34, damage: 40, strength: 2 },
+        { frame: 58, damage: 30, strength: 1 },
+        { frame: 70, damage: 30, strength: 1 },
+        { frame: 82, damage: 35, strength: 1 },
+        { frame: 112, damage: 150, strength: 3 },
+      ],
+      endDx: m(2.6),
+    },
     jaz_heart: {
       id: 'jaz_heart',
       frames: 150,
@@ -506,5 +548,5 @@ export const JAZEEK: FighterDef = {
       endDx: m(2.1),
     },
   },
-  defaultLoadout: ['jaz_blunt', 'jaz_mvp', 'jaz_heart'],
+  defaultLoadout: ['jaz_blunt', 'jaz_mvp', 'jaz_99'],
 };

@@ -8,17 +8,17 @@ const idle = (n: number) => Array.from({ length: n }, () => [0, 0] as [number, n
 
 describe('loadout rule: 2 specials + 1 signature', () => {
   it('accepts the defaults and rejects wrong layouts', () => {
-    expect(validateLoadout('jazeek', ['jaz_wave', 'jaz_mvp', 'jaz_heart'])).toBeNull();
-    expect(validateLoadout('bonez', ['bon_croc', 'bon_smoke', 'bon_palm'])).toBeNull();
+    expect(validateLoadout('jazeek', ['jaz_wave', 'jaz_mvp', 'jaz_99'])).toBeNull();
+    expect(validateLoadout('bonez', ['bon_croc', 'bon_smoke', 'bon_team'])).toBeNull();
     expect(validateLoadout('jazeek', ['jaz_wave', 'jaz_mvp', 'jaz_spot'])).not.toBeNull(); // no signature
-    expect(validateLoadout('jazeek', ['jaz_heart', 'jaz_mvp', 'jaz_wave'])).not.toBeNull(); // signature in wrong slot
-    expect(validateLoadout('jazeek', ['bon_croc', 'jaz_mvp', 'jaz_heart'])).not.toBeNull(); // other fighter's card
+    expect(validateLoadout('jazeek', ['jaz_99', 'jaz_mvp', 'jaz_wave'])).not.toBeNull(); // signature in wrong slot
+    expect(validateLoadout('jazeek', ['bon_croc', 'jaz_mvp', 'jaz_99'])).not.toBeNull(); // other fighter's card
   });
 });
 
 describe('Jazeek', () => {
   it('Stimmwelle hits at mid range and pushes the opponent far away', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s, 2.0);
     s.fighters[0].meter = 100;
     const x0 = s.fighters[1].x;
@@ -30,7 +30,7 @@ describe('Jazeek', () => {
 
   it('Diamanten-Regen: falls over the opponent (any range up to 4.6 m), three hits from above, crouch-block fails, stand-block works', () => {
     const go = (dist: number, p2: number, frames = 110) => {
-      const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+      const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
       place(s, dist);
       s.fighters[0].meter = 200;
       const hp = s.fighters[1].health;
@@ -48,14 +48,14 @@ describe('Jazeek', () => {
   });
 
   it('Diamanten-Regen warns first: nothing hits during the sparkle ring, walking out of it dodges the shower', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s, 2.0);
     s.fighters[0].meter = 200;
     const early = run(s, 1, IN.S1).concat(run(s, 46));
     expect(ofType(early, 'projectile').map((p) => p.kind)).toEqual(['diamonds']);
     expect(ofType(early, 'hit')).toHaveLength(0);
     // Bonez (P2, facing left) walks back out of the zone when the ring appears
-    const s2 = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s2 = newMatch({ ...JB, loadouts: [['jaz_rain', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s2, 2.0);
     s2.fighters[0].meter = 200;
     const evs = run(s2, 1, IN.S1).concat(run(s2, 22), run(s2, 90, 0, IN.RIGHT));
@@ -63,7 +63,7 @@ describe('Jazeek', () => {
   });
 
   it('Spotlight-Dash passes through the opponent and switches sides', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_spot', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_spot', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s, 1.2);
     s.fighters[0].meter = 100;
     run(s, 1, IN.S1);
@@ -73,7 +73,7 @@ describe('Jazeek', () => {
   });
 
   it('Spotlight-Dash is strike-invulnerable at the start', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_spot', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_spot', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s, 1.1);
     s.fighters[0].meter = 100;
     const evs = script(s, [[IN.S1, IN.LIGHT], ...idle(30)]);
@@ -81,7 +81,7 @@ describe('Jazeek', () => {
   });
 
   it('Rhythmus-Konter catches a low attack and punishes', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_counter', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_smoke', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_counter', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
     place(s, 1.0);
     s.fighters[0].meter = 100;
     const evs = script(s, [[IN.S1, 0], [0, IN.DOWN | IN.LIGHT], ...idle(60)]);
@@ -89,7 +89,7 @@ describe('Jazeek', () => {
     expect(ofType(evs, 'hit').filter((h) => h.a === 0).length).toBe(3);
   });
 
-  it('Herzbrecher: cinematic on hit, knockdown after', () => {
+  it('Ninetynine: cinematic on hit, knockdown after', () => {
     const s = newMatch(JB);
     place(s, 1.4);
     s.fighters[0].meter = 300;
@@ -103,7 +103,7 @@ describe('Jazeek', () => {
 });
 
 describe('Jazeek: Blunt für dich', () => {
-  const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_heart'], ['bon_croc', 'bon_abriss', 'bon_palm']] as [string[], string[]] };
+  const BL = { ...JB, loadouts: [['jaz_blunt', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_abriss', 'bon_team']] as [string[], string[]] };
 
   it('grabs a standing opponent close by and rolls them into the joint: three drags + the pop (124 damage)', () => {
     const s = newMatch(BL);
@@ -192,7 +192,7 @@ describe('Bonez MC', () => {
   });
 
   it('Rauchwand absorbs Stimmwelle and survives', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_smoke', 'bon_croc', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_smoke', 'bon_croc', 'bon_team']] });
     place(s, 3.2);
     s.fighters[0].meter = 100;
     s.fighters[1].meter = 100;
@@ -221,7 +221,7 @@ describe('Bonez MC', () => {
 
   it('Tiefergelegt: the car comes from behind, reaches across the screen and knocks down (blockable)', () => {
     const go = (p1: number) => {
-      const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
+      const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_car', 'bon_croc', 'bon_team']] });
       place(s, 4.5);
       s.fighters[1].meter = 200;
       const evs = run(s, 1, p1, IN.S1).concat(run(s, 220 * RULES.CINE_RATE, p1, 0));
@@ -241,7 +241,7 @@ describe('Bonez MC', () => {
   });
 
   it('Tiefergelegt also works with Bonez backed into the corner (the car starts behind the wall)', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_car', 'bon_croc', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_car', 'bon_croc', 'bon_team']] });
     place(s, 3);
     // Bonez (P2) at the right wall, facing left: the car spawns 3.2 m behind him, off stage
     const shift = 74000 - s.fighters[1].x;
@@ -255,7 +255,7 @@ describe('Bonez MC', () => {
   });
 
   it('Goldzahn-Grinsen builds meter', () => {
-    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_heart'], ['bon_grin', 'bon_croc', 'bon_palm']] });
+    const s = newMatch({ ...JB, loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_grin', 'bon_croc', 'bon_team']] });
     place(s, 4);
     s.fighters[1].meter = 0;
     run(s, 1, 0, IN.S1);

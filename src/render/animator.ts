@@ -10,6 +10,7 @@ import { VOLT_ANIMS } from './anims/volt';
 import { JAZEEK_ANIMS } from './anims/jazeek';
 import { BONEZ_ANIMS } from './anims/bonez';
 import { withReach } from './anims/reach';
+import { BON_MOVES, JAZ_MOVES, LACA_MOVES, MANU_MOVES } from './anims/roster11';
 import { compose, lerpPose, type PoseDef, stabilizeHead, toArr } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_SQ } from './rig';
@@ -25,10 +26,10 @@ export const ANIM_SETS: Record<string, AnimSet> = {
   brick: BRICK_ANIMS,
   // D43: the PO's modelle-3 fighters; strikes fitted to each model's reach (anims/reach.ts). The boxer moves like
   // Bonez, the street kid like Jazeek (same move keys)
-  jazeek: withReach(JAZEEK_ANIMS, 'jazeek'),
-  bonez: withReach(BONEZ_ANIMS, 'bonez'),
-  manuellsen: withReach({ ...BONEZ_ANIMS, id: 'manuellsen', stance: compose(BONEZ_ANIMS.stance, MANU_GUARD) }, 'manuellsen'),
-  lacazette: withReach({ ...JAZEEK_ANIMS, id: 'lacazette' }, 'lacazette'),
+  jazeek: withReach({ ...JAZEEK_ANIMS, moves: { ...JAZEEK_ANIMS.moves, ...JAZ_MOVES } }, 'jazeek'),
+  bonez: withReach({ ...BONEZ_ANIMS, moves: { ...BONEZ_ANIMS.moves, ...BON_MOVES } }, 'bonez'),
+  manuellsen: withReach({ ...BONEZ_ANIMS, id: 'manuellsen', stance: compose(BONEZ_ANIMS.stance, MANU_GUARD), moves: { ...BONEZ_ANIMS.moves, ...MANU_MOVES } }, 'manuellsen'),
+  lacazette: withReach({ ...JAZEEK_ANIMS, id: 'lacazette', moves: { ...JAZEEK_ANIMS.moves, ...LACA_MOVES } }, 'lacazette'),
 };
 
 const DEG = Math.PI / 180;

@@ -251,7 +251,34 @@ const GUARD: CharacterVisual = {
   },
 };
 
+/** Generic crew members for the D43 abilities (Bonez's team storming in, the 5000-Kurden crowd): hooded, gold chain,
+ *  no faces of real people, no logos. Several palettes so a group never looks cloned. */
+const CREW: CharacterVisual = {
+  id: 'crew',
+  spec: { ...GUARD.spec, chestR: 0.2, shoulderR: 0.21, shoulderHalf: 0.22 },
+  accents: ['#ffd21f'],
+  palettes: [
+    { skin: 0x8a5a3c, top: 0x16161b, top2: 0x2a2a33, pants: 0x1c1d24, pants2: 0x1c1d24, shoes: 0xf2f2f2, sole: 0xdddddd, hat: 0x16161b, metal: 0xe8c04a, shades: 0x050505 },
+    { skin: 0xc58a62, top: 0x3b1418, top2: 0x5a1c22, pants: 0x22232b, pants2: 0x22232b, shoes: 0x111111, sole: 0x444444, hat: 0x3b1418, metal: 0xe8c04a, shades: 0x050505 },
+    { skin: 0x6b4430, top: 0x2b2f38, top2: 0x3c414c, pants: 0x161616, pants2: 0x161616, shoes: 0xf2f2f2, sole: 0xdddddd, hat: 0x2b2f38, metal: 0xd9d9d9, shades: 0x050505 },
+    { skin: 0xe0b08a, top: 0x1f3a2a, top2: 0x29503a, pants: 0x1a1a20, pants2: 0x1a1a20, shoes: 0x111111, sole: 0x444444, hat: 0x1f3a2a, metal: 0xe8c04a, shades: 0x050505 },
+  ],
+  decorate(rig, p) {
+    const s = rig.spec;
+    const j = rig.joints;
+    const hr = s.headR;
+    // hood behind and over the head, gold chain on the chest
+    addPart(j.head, new THREE.SphereGeometry(hr * 1.18, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), rig.mat(p.hat), { pos: [-hr * 0.12, hr * 0.15, 0], outline: 0.008 });
+    addPart(j.chest, new THREE.TorusGeometry(s.chestR * 0.55, 0.014, 6, 24), rig.mat(p.metal), { pos: [s.chestR * 0.55, s.torsoHigh * 0.72, 0], rot: [0, Math.PI / 2, 0.5], outline: 0 });
+  },
+};
+
 export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
+  crew: CREW,
+  // single-palette variants for cinematic extras (ExtraActor builds palette 0)
+  crew2: { ...CREW, palettes: [CREW.palettes[1]] },
+  crew3: { ...CREW, palettes: [CREW.palettes[2]] },
+  crew4: { ...CREW, palettes: [CREW.palettes[3]] },
   volt: VOLT,
   brick: BRICK,
   guard: GUARD,

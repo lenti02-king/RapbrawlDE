@@ -593,6 +593,7 @@ export class GameView {
       const sc = Math.max(0.3, 1 - anim.vy * 0.35) * (getFighter(f.def).pushHalf / U) * 4.2;
       sh.scale.set(sc * 1.15, sc * 0.55, 1);
       sh.position.set(anim.vx, 0.006, 0);
+      sh.visible = rig.root.visible; // a fighter hidden by a cinematic (turned into a prop) leaves no shadow
       if (rig.props.mic) rig.props.mic.visible = !s.projectiles.some((p) => p.owner === i && p.kind === 'mic');
       rig.root.updateMatrixWorld(true);
       this.toon.track(i, rig);

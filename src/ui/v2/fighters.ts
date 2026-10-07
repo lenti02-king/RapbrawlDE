@@ -43,6 +43,9 @@ function pills(bar: TopBar): string {
 
 const TABS = ['ALLE', 'SCHLÄGER', 'RAPPER', 'TEMPO', 'ABWEHR'];
 
+/** The master's card colours in slot order (gold, purple, blue, red, green, purple, gold, blue, ...). */
+const CARD_TINT = ['255 196 60', '170 90 255', '70 140 255', '255 70 70', '80 220 120', '170 90 255', '255 196 60', '70 140 255', '255 70 70', '80 220 120', '170 90 255', '255 196 60'];
+
 export function fightersHtml(roster: RosterEntry[], cur: FighterInfo, tab: number, bar: TopBar): string {
   const [fx, fy] = FIGHTERS_FEET;
   const back = `${plateHtml(A)}${lightsHtml(A, 20)}
@@ -53,9 +56,11 @@ export function fightersHtml(roster: RosterEntry[], cur: FighterInfo, tab: numbe
     const box = `--x:${c[0]};--y:${c[1]};--w:${c[2] - c[0]};--h:${c[3] - c[1]}`;
     const lvz = T.roster[`lv${i}` as 'lv0'];
     if (!r) return `<button class="v2-hit v2-rcard locked" data-locked aria-label="Kommt bald" style="${box}"></button>${t('BALD', [c[0] + 6, lvz[1], c[2] - 6, lvz[3]], 0, 0, { cls: 'v2-small v2-dim', fs: 22, align: 'right' })}`;
-    return `<button class="v2-hit v2-rcard ${r.id === cur.id ? 'on' : ''}" data-f="${r.id}" aria-label="${esc(r.name)}" style="${box}">
+    // the card's own colour behind the portrait (the master's placeholder silhouettes must not show through); the name
+    // sits right of the class icon, centred, shrunk to fit (D43: names were right-aligned over the icon and cut off)
+    return `<button class="v2-hit v2-rcard ${r.id === cur.id ? 'on' : ''}" data-f="${r.id}" aria-label="${esc(r.name)}" style="${box};--tint:${CARD_TINT[i % CARD_TINT.length]}">
         <span class="v2-rpic"><img alt="" src="${r.img}"></span>${r.fav ? '<span class="v2-fav">★</span>' : ''}</button>
-      ${t(r.name, [c[0] + 8, lvz[1] - 2, c[2] - 8, lvz[3] + 2], 0, 0, { cls: 'v2-label', fs: 24, align: 'right' })}`;
+      ${t(r.name, [c[0] + 50, lvz[1] - 2, c[2] - 6, lvz[3] + 2], 0, 0, { cls: 'v2-label', fs: 22, align: 'center' })}`;
   }).join('');
   const tabs = TABS.map((label, i) => {
     const k = ['all', 'brawler', 'rapper', 'speed', 'defender'][i] as 'all';

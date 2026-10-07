@@ -329,6 +329,13 @@ const moves: MoveDef[] = [
   },
 ];
 
+// OHNE MEIN TEAM (signature, D43; PO: keep the palms at the start, then something personal — scandals, memes,
+// songs, much stronger): the same ground slam raises the palms; on a hit the opponent pulls out a phone to film —
+// HANDYVERBOT (his phone ban at the release show): he slaps it away; then "Ohne mein Team": his crew storms in and
+// buries them, and he sends them flying with one right hand. Palmen-Bassdrop (bon_palm) stays, no longer a card.
+const palm = moves.find((mv) => mv.key === 'bon_palm')!;
+moves.push({ ...palm, key: 'bon_team', name: 'Ohne mein Team', hits: palm.hits.map((h) => ({ ...h, cinematic: 'bon_team' })) });
+
 export const BONEZ: FighterDef = {
   id: 'bonez',
   name: 'BONEZ MC',
@@ -404,13 +411,13 @@ export const BONEZ: FighterDef = {
       ai: 'buff',
     },
     {
-      id: 'bon_palm',
-      name: 'Palmen-Bassdrop',
+      id: 'bon_team',
+      name: 'Ohne mein Team',
       category: 'signature',
       cost: 300,
-      move: 'bon_palm',
+      move: 'bon_team',
       role: 'Cinematic Signature, Bodenwelle',
-      description: 'Schwerer Bodenschlag mit Bassimpuls nach beiden Seiten. Tief: Ducken-Blocken oder Springen. Bei Treffer: Palmen, Bassdrop, Krokodil.',
+      description: 'Bodenschlag, Palmen schießen hoch. Bei Treffer zückt der Gegner das Handy – Handyverbot! Dann stürmt sein Team rein, und eine Rechte schickt ihn durch die Palmen. Tief: Ducken-Blocken oder Springen.',
       ai: 'combo',
     },
   ],
@@ -437,6 +444,19 @@ export const BONEZ: FighterDef = {
       ],
       endDx: m(3.0),
     },
+    bon_team: {
+      id: 'bon_team',
+      frames: 170,
+      startDx: m(1.1),
+      hits: [
+        { frame: 30, damage: 35, strength: 2 },
+        { frame: 62, damage: 25, strength: 1 },
+        { frame: 84, damage: 30, strength: 1 },
+        { frame: 96, damage: 30, strength: 1 },
+        { frame: 130, damage: 140, strength: 3 },
+      ],
+      endDx: m(2.6),
+    },
     bon_palm: {
       id: 'bon_palm',
       frames: 160,
@@ -449,5 +469,5 @@ export const BONEZ: FighterDef = {
       endDx: m(2.3),
     },
   },
-  defaultLoadout: ['bon_croc', 'bon_abriss', 'bon_palm'],
+  defaultLoadout: ['bon_croc', 'bon_abriss', 'bon_team'],
 };

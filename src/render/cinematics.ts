@@ -18,6 +18,7 @@ import { POSE_LEN, R_X, R_Y } from './rig';
 import type { AnimSet } from './anims/types';
 import type { GameView } from './view';
 import { BLUNT_SESSION, CAR_RIDE, CROC_ATTACK, HERZBRECHER, PALMEN_BASSDROP } from './cines';
+import { NINETYNINE, OHNE_MEIN_TEAM, SEVENTY_SHOTS, SOFA_SLAPS } from './cines11';
 import { emoteCamera, emoteFor, emoteFx, emoteTeeth } from './emotes';
 import { FATALITIES } from './fatalities';
 
@@ -63,6 +64,8 @@ export interface PropCtx {
   world(x: number, y: number, z: number): THREE.Vector3;
   dt: number;
   time: number;
+  /** Attacker and victim rigs (hand props, bone positions). */
+  rigs: [CharacterRig, CharacterRig];
 }
 export interface CineProps {
   /** Placed at the attacker, mirrored by facing (author in local space). */
@@ -86,6 +89,8 @@ export interface CineDef {
   teeth?: [number, number][];
   /** Arena darkening per frame (default 0.35). */
   dim?: (f: number) => number;
+  /** Victim hidden during these frame ranges (e.g. turned into a prop). */
+  hide?: [number, number][];
 }
 
 const U = UNITS_PER_METER;
@@ -391,6 +396,11 @@ export const CINEMATICS: Record<string, CineDef> = {
   bon_croc: CROC_ATTACK,
   bon_car: CAR_RIDE,
   jaz_blunt: BLUNT_SESSION,
+  // D43 (session 11)
+  manu_sofa: SOFA_SLAPS,
+  laca_gwagon: SEVENTY_SHOTS,
+  jaz_99: NINETYNINE,
+  bon_team: OHNE_MEIN_TEAM,
   ...FATALITIES,
 };
 
@@ -537,8 +547,12 @@ class CinematicRuntime {
         world: (x, y, z) => new THREE.Vector3(ax + facing * x, y, z),
         dt,
         time: now,
+        rigs: [v.rigs[owner], v.rigs[1 - owner]],
       });
     }
+    // a victim turned into a prop disappears (and its shadow with it)
+    const defRigNow = v.rigs[1 - owner];
+    if (defRigNow) defRigNow.root.visible = !def.hide?.some(([a, b]) => f >= a && f <= b);
 
     // camera (relative to attacker: x forward)
     const shot = sampleCam(def.camera, f);
@@ -666,6 +680,7 @@ class CinematicRuntime {
     if (!this.active) return;
     this.active = null;
     for (const a of this.view.anims) a.override = null;
+    for (const r of this.view.rigs) if (r) r.root.visible = true;
     for (const r of this.extras) r.root.visible = false;
     for (const p of this.props.values()) {
       p.group.visible = false;

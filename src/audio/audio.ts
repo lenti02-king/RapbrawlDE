@@ -919,6 +919,34 @@ export class AudioEngine {
     this.noiseHit(t, 'bandpass', 2400, 1.2, 0.12, 0.4);
   }
 
+  /** A flat-hand slap (batsch): sharp clap transient, a skin-thud body, more weight on the big one. */
+  slap(strength = 1): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    this.noiseHit(t, 'highpass', 1600, 0.7, 0.75 + strength * 0.15, 0.06, 0.25);
+    this.noiseHit(t, 'bandpass', 900, 1.1, 0.5, 0.09);
+    this.tone(t, 'sine', 220 - strength * 40, 70, 0.5 + strength * 0.2, 0.12);
+  }
+
+  /** A burst of `n` cartoon pops (gunfire kept toy-like: short filtered cracks, no realistic report). */
+  shots(n = 6): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    for (let i = 0; i < n; i++) {
+      const ti = t + i * 0.055 + Math.random() * 0.01;
+      this.noiseHit(ti, 'bandpass', 2400 + Math.random() * 900, 1.4, 0.32, 0.035);
+      this.tone(ti, 'square', 520, 140, 0.08, 0.03);
+    }
+  }
+
+  /** Glass/plastic shatter (the phone). */
+  glass(): void {
+    if (!this.ctx) return;
+    const t = this.now();
+    for (let i = 0; i < 7; i++) this.noiseHit(t + i * 0.025 + Math.random() * 0.02, 'highpass', 5000 + Math.random() * 3000, 1.2, 0.22, 0.05);
+    this.tone(t, 'triangle', 3200, 1800, 0.08, 0.12);
+  }
+
   ui(kind: 'click' | 'back'): void {
     if (!this.ctx) return;
     this.tone(this.now(), 'triangle', kind === 'click' ? 1200 : 700, kind === 'click' ? 1500 : 500, 0.06, 0.05);
