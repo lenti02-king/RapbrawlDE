@@ -12,6 +12,11 @@ import { esc, fitTexts, keepLaidOut, pos, safeInsets, text, type Box, type TextO
 import { menuFigures } from '../menu/figures';
 import { LivingPlate } from './living';
 import { isPhone } from '../../render/textureBudget';
+import { isV4 } from '../design';
+
+/** Design v4 (D47, PO S14b): the masters' scene stays the still painting it is - no living plate (depth parallax,
+ *  crowd on the beat), no light glows, beams, haze or embers over it. Only the UI pieces keep their light (v4.css). */
+const still = (): boolean => isV4();
 
 export const REF_W = 1672;
 export const REF_H = 941;
@@ -68,6 +73,7 @@ export function t(s: string, b: Box, ox: number, oy: number, o: TextOpts): strin
 
 /** Glows over the plate's light sources (detected at extraction), each flickering on its own beat. */
 export function lightsHtml(a: ScreenArt, max = 26): string {
+  if (still()) return '';
   return `<div class="v2-lights">${a.lights
     .slice(0, max)
     .map(([x, y, r, c], i) => {
@@ -93,6 +99,7 @@ export interface Beam {
 }
 /** Sweeping light cones from the truss (screen-blended, behind the fighters). */
 export function beamsHtml(list: Beam[]): string {
+  if (still()) return '';
   return `<div class="v2-beams">${list
     .map(
       (b) =>
@@ -171,6 +178,7 @@ function grungeTexture(): string {
 
 /** Drifting floor haze over a band of the scene (in front of the fighters' legs). */
 export function hazeHtml(b: Box, tint = '205 190 255', alpha = 0.55): string {
+  if (still()) return '';
   return `<div class="v2-haze" style="${pos(b[0], b[1], b[2] - b[0], b[3] - b[1])};--c:${tint};--a:${alpha}"><b></b><b></b></div>`;
 }
 
@@ -287,6 +295,7 @@ export interface MountOpts {
 /** Mount a v2 screen: layout (resize, fonts), embers, fade in once the plate is decoded (no half-loaded frame).
  *  Returns the stop function. */
 export function mountV2(root: HTMLElement, o: MountOpts = {}): () => void {
+  if (still()) o = { ...o, living: undefined, embers: false };
   root.classList.add('mm', 'v2');
   const stop = keepLaidOut(root, () => layoutV2(root));
   let embers: Embers | null = null;

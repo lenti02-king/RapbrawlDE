@@ -1,5 +1,6 @@
 // Design v2 living plates (D43): frames of one screen a moment apart + a difference image (what moves).
-// Usage: node scripts/livingshot.mjs "showHome()" artifacts/s11/living [w] [h] [n=3] [gapMs=700]
+// Usage: node scripts/livingshot.mjs "showHome()" artifacts/s11/living [w] [h] [n=3] [gapMs=700]   (UI=v4: design v4, whose
+// painting is still - the diff must show only the UI pieces' light and the 3D fighters)
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
 const [, , js = 'showHome()', out = 'artifacts/living', w = '1672', h = '941', n = '3', gap = '700'] = process.argv;
@@ -9,10 +10,12 @@ const page = await browser.newPage({ viewport: { width: +w, height: +h } });
 const logs = [];
 page.on('pageerror', (e) => logs.push(e.message));
 page.on('console', (m) => m.type() === 'error' && logs.push(m.text()));
-await page.goto(`${base}/?ui=v2&q=low${process.env.EXTRA ?? ''}`);
+const ui = process.env.UI ?? 'v2';
+await page.goto(`${base}/?ui=${ui}&q=low${process.env.EXTRA ?? ''}`);
 await page.waitForFunction(() => window.__rb, null, { timeout: 240000 });
 await page.evaluate(`window.__rb.${js}`);
-await page.waitForFunction(() => document.querySelector('.v2-living'), null, { timeout: 60000 }).catch(() => logs.push('no living plate'));
+if (ui === 'v4') await page.waitForSelector('.screen.ready', { timeout: 60000 });
+else await page.waitForFunction(() => document.querySelector('.v2-living'), null, { timeout: 60000 }).catch(() => logs.push('no living plate'));
 await page.waitForTimeout(3000);
 const files = [];
 for (let i = 0; i < +n; i++) {

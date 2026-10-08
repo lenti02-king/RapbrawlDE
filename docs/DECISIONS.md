@@ -486,6 +486,11 @@ and banners comes from the PO later.
 - **Artwork drop-ins**: `public/assets/ui4/art/` (banners, select boxes per fighter, skins per fighter), listed in
   `manifest.json` by `scripts/art-manifest.mjs` (also run by `npm run build`) so nothing is probed; cards keep
   `assets/cards/<id>.webp`.
+- **Still background (PO, S14b)**: after the first review the PO asked to remove "dieses Ruckeln und die Lichter im
+  Hintergrundbild" and keep the scene as it was: in v4 the stage runtime draws no living plate (depth parallax, crowd
+  on the beat), no light glows, beams, haze or embers (`still()` in `ui/v2/stage.ts`); the painting is the plain
+  image. The UI pieces keep their light (tile sheen, neon frames, gold buttons) and the 3D fighters stay. v2 keeps its
+  living plates.
 - Known limits: the UI-free plates of modes/select/customise/lobby are not good enough for the game (LaMa leaves
   ghost panels in big holes) and are only used in the Figma files; 2 VS 2 / walk-ins / effects / chat / events /
   battle pass / missions are shown as in the masters and announce "kommt bald".
