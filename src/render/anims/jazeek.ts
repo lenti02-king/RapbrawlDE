@@ -526,6 +526,7 @@ export const JAZEEK_ANIMS: AnimSet = {
   idleBounce: 0.01,
   idleLoop: new Clip(JAZ_IDLE.keys.map((p, i) => ({ f: (i * 60) / JAZ_IDLE.fps, p })), undefined, true),
   idleAdditive: 1,
+  idleLegs: 0.3,
   walkLayer: 0.7,
   intro: new Clip(
     [

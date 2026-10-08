@@ -314,6 +314,7 @@ const TURN = 12;
 const UPPER_CH = (['spine', 'chest', 'neck', 'head', 'shL', 'elL', 'haL', 'shR', 'elR', 'haR'] as const).flatMap((j) =>
   [0, 1, 2].map((c) => JOINT_INDEX[j] * 3 + c),
 );
+const LEG_CH = [...(['hips', 'thL', 'knL', 'ftL', 'thR', 'knR', 'ftR'] as const).flatMap((j) => [0, 1, 2].map((c) => JOINT_INDEX[j] * 3 + c)), R_X];
 const GUARD_CH = new Set((['shL', 'elL', 'haL', 'shR', 'elR', 'haR'] as const).flatMap((j) => [0, 1, 2].map((c) => JOINT_INDEX[j] * 3 + c)));
 /** Average pose of a clip (sampled every frame). */
 function clipMean(c: Clip): Float32Array {
@@ -411,6 +412,10 @@ export class FighterAnimator {
                 const w = Math.max(add, GUARD_CH.has(k) ? g : 0);
                 if (w > 0) out[k] += w * (P.stance[k] - mean[k]);
               }
+              // legs calmer than the recording (PO: "die Beine zappeln dauerhaft"): only a share of the leg and hip
+              // motion around the stance stays - the knees still give with the bounce, the feet stop shuffling
+              const legs = this.set.idleLegs ?? 1;
+              if (legs < 1) for (const k of LEG_CH) out[k] = P.stance[k] + legs * (out[k] - P.stance[k]);
             }
             fade = this.key.startsWith('walk') ? 5 : 6;
             break;

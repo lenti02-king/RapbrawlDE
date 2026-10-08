@@ -17,6 +17,8 @@ export interface AnimSet {
   /** 0..1: every channel of the captured idle moved onto the stance (an additive layer: the authored stance with the
    *  recording's weight shifts, bounce and breathing on top). */
   idleAdditive?: number;
+  /** 0..1: share of the captured idle's leg/hip motion (and sway) kept around the stance (1 = all). */
+  idleLegs?: number;
   /** 0..1: the captured idle's upper-body motion layered on the walk cycles. */
   walkLayer?: number;
   stance: PoseDef;
