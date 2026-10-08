@@ -24,6 +24,8 @@ await page.evaluate(() => {
   rb.debugHold = true;
   rb.debugAdvance(40);
 });
+// PRE="<js>" runs in the page before the shots (A/B checks, e.g. PRE="__rb.view.rigs[0].root.traverse(o=>o.receiveShadow=false)")
+if (process.env.PRE) await page.evaluate(process.env.PRE);
 for (const shot of shots) {
   await page.evaluate((shot) => {
     const rb = window.__rb;

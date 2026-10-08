@@ -50,10 +50,11 @@ ap.add_argument('render')
 ap.add_argument('photos')
 ap.add_argument('--ortho', default='0,0.74,0.34,800', help='front render camera: centre x, centre z, ortho scale, px')
 ap.add_argument('--lid', type=float, default=0.6, help='share of the upper-lid darkness (vs. the cheeks) taken away')
+ap.add_argument('--iris', type=float, default=1.0, help='how far the iris moves to the measured colour (0 = keep the sculpt\'s)')
 ap.add_argument('--iris-gain', type=float, default=1.0, help='brightness of the measured iris colour')
 ap.add_argument('--sclera', type=float, default=0.75, help='how far the sclera moves to the measured white')
 ap.add_argument('--rough', type=float, default=0.16, help='roughness of the eye opening (wet look)')
-ap.add_argument('--hair', type=float, default=0.8, help='how far the hair moves to the photos\' measured hair colour (0 = off)')
+ap.add_argument('--hair', type=float, default=0.8, help='how far the hair moves to the photos\' measured hair colour (0 = keep)')
 ap.add_argument('--hair-rough', type=float, default=0.55, help='roughness of the hair (the sculpt\'s is ~0.95: matte felt)')
 ap.add_argument('--quality', type=int, default=92)
 ap.add_argument('--debug', default='')
@@ -250,7 +251,8 @@ tgt_s = lin(SCLERA_RGB)
 new_scl = L + (tgt_s[None, :] * np.clip(lum / max(ref_s, 1e-4), 0.6, 1.25)[:, None] - L) * args.sclera
 w_scl = (open_w * (1 - iris_w))[:, None]
 out = L * (1 - w_scl) + new_scl * w_scl
-out = out * (1 - iris_w[:, None]) + new_iris * iris_w[:, None]
+iw = (iris_w * args.iris)[:, None]
+out = out * (1 - iw) + new_iris * iw
 # upper lid: lift toward the cheek skin when darker
 cheek = np.zeros(len(vy), bool)
 for k in ('R', 'L'):
@@ -282,7 +284,7 @@ else:
     mr2 = None
 
 # ------------------------------------------------------------------ hair: colour + gloss (texel mask from triangles)
-if args.hair > 0:
+if args.hair > 0 or args.hair_rough < 0.9:
     from PIL import ImageDraw
 
     brow_z = max(float(v[:, 1].max()) for v in brows.values())
