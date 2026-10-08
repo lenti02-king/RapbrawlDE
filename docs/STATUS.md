@@ -21,6 +21,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Artwork drop-ins for the PO (banners, select boxes, skins; cards as before) with a manifest so nothing is probed | BUILT (empty until the PO delivers; paths in `design/v4/README.md`) | `scripts/art-manifest.mjs` (runs in `npm run build`) |
 | Fight HUD, pause and results keep the v2 skin; shop keeps the v1 master | as designed (no master for them) | |
 | UI-free plates of modes/select/customise/lobby (LaMa leaves ghost panels in the big holes) | KNOWN LIMIT — only in the Figma files, not in the game | |
+| Checks: unit 91/91, typecheck, e2e 43/43 (new v4 flow: default v4, AUSRÜSTEN → favourite, lobby room code, FIGHT → modes → select (P1 = favourite) → arena (two pages) → loading → match in the picked arena, no page errors; v1 desktop/phone and v2 flows with `?ui=v2`); Artifact payload under CSP (v4 home art, four fighters incl. the phones' copies, props, arenas); Artifact **version 21** published (page + rapbrawl.js + `assets/ui4/**` + the fighters' mobile copies) | VERIFIED | `npm test`, `npm run e2e`, `node scripts/artifact-check.mjs` |
 
 ## Session 13 — animation smoothness system (D46; the v3 design of that session is discarded, see S14)
 | Area | Status | Evidence |
@@ -296,7 +297,7 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
 - **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release. Their abilities reference real memes/scandals (the Animus slap video, "5000 Kurden", "70 Schüsse aus dem G-Wagon") — check with them and a lawyer; the meme line says 5000 (the PO wrote 3000 — one constant to change). The car is a generic off-roader without badges; gunfire is shown as toy-like flashes (USK).
 - **Figma**: to work in Figma directly, connect Figma under claude.ai → Settings → Connectors and start a new session; until then `design/v4/*.svg` are dragged into Figma by hand (guide in `design/v4/README.md`).
-- **Design v4 masters** show real places (Frankfurt Hbf, Pallasseum, Schöneberg): the station's DB / S-Bahn marks were retouched out of the game copies; check the source/licence of the master images themselves and any other recognisable signs before release.
+- **Design v4 masters** show real places (Frankfurt Hbf, Pallasseum, Schöneberg): the station's DB / S-Bahn marks were retouched out of the game copies; the home master still shows real-looking business signs ("YOK YOK KIOSK", "Moseleck") as painted — kept 1:1 as the PO asked; check them (and the source/licence of the master images) before release, fictional names are a quick retouch.
 - **Design v2 masters** contain generic AI art (the lobby's example friends, preset figures): the game shows its own fighters there; the masters' crown logo and RB belt are the PO's brand.
 - **Lila Becher (Bonez)**: lean (codeine drink) from a generic purple double cup, no brand — like Blunt für dich a depicted
   drug use (USK, the artist's reputation); decide before release (option: a fictional "Lila Saft").

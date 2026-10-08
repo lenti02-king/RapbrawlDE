@@ -330,6 +330,7 @@ const sim = (page) =>
   await page.click('.v4-home [data-act="social"]');
   await page.waitForSelector('.v4-lobby.ready');
   check(/RB-[A-Z]{4}/.test(await page.locator('.v4-lobby').innerText()), 'v4 lobby: shows a room code');
+  await page.waitForTimeout(800); // the screen fades in
   await page.screenshot({ path: `${out}/w03_lobby.png` });
   await page.evaluate(() => window.__rb.showHome());
   await page.waitForSelector('.v4-home.ready');
@@ -343,6 +344,7 @@ const sim = (page) =>
   await page.waitForSelector('.v4-select.ready');
   check((await page.locator('.v4-select [data-f]').count()) >= 4, 'v4 fighter select lists the whole roster');
   check(await page.evaluate(() => window.__rb.sel.fighters[0] === 'lacazette'), 'v4 select: P1 starts on the favourite');
+  await page.waitForTimeout(800); // the screen fades in
   await page.screenshot({ path: `${out}/w05_select.png` });
   await page.click('.v4-select [data-ready]');
   await page.waitForSelector('.v4-arena.ready [data-ok]');

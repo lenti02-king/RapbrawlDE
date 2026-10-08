@@ -139,7 +139,8 @@ console.log('podcast arena loaded under CSP:', arenaOk);
 console.log('props loaded under CSP:', props.join(', ') || '(none)');
 console.log('painted arenas loaded under CSP:', JSON.stringify(painted));
 console.log('model/arena files fetched:', [...fetched].sort().join(' '));
-const notJson = ids.filter((id) => ![...fetched].some((f) => f.endsWith(`/${id}.gltf.json`)));
+// below 'high' (and on phones) the game loads the mobile copy <id>.m.gltf.json (S12); both come from the same conversion
+const notJson = ids.filter((id) => ![...fetched].some((f) => f.endsWith(`/${id}.gltf.json`) || f.endsWith(`/${id}.m.gltf.json`)));
 if (notJson.length) {
   console.error('FAIL: did not load the .gltf.json of', notJson.join(', '));
   process.exit(1);
