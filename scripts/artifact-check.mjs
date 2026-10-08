@@ -82,12 +82,12 @@ await page.waitForFunction(() => window.__rb, null, { timeout: 120000 });
 await page.evaluate(() => window.__rb.showFighters(0));
 await page.waitForTimeout(3000);
 await page.screenshot({ path: path.join(out, 'artifact-check.png') });
-// design v2 (D42): the home plate + sprites (assets/ui2/**) must load
+// the default design's home (v4, D47: assets/ui4/**; v2 = assets/ui2/**): plate + sprites must load
 await page.evaluate(() => window.__rb.showHome());
 const v2 = await page
   .waitForFunction(
     () => {
-      const imgs = [...document.querySelectorAll('.v2-home img')];
+      const imgs = [...document.querySelectorAll('.v4-home img, .v2-home img')];
       return imgs.length > 5 && imgs.every((i) => i.complete) ? imgs.filter((i) => !i.naturalWidth).map((i) => i.getAttribute('src')) : null;
     },
     null,
@@ -144,9 +144,9 @@ if (notJson.length) {
   console.error('FAIL: did not load the .gltf.json of', notJson.join(', '));
   process.exit(1);
 }
-console.log('design v2 images that failed under CSP:', v2.length ? v2.join(', ') : '(none)');
+console.log('menu design images that failed under CSP:', v2.length ? v2.join(', ') : '(none)');
 if (v2.length) {
-  console.error('FAIL: design v2 art did not load under the Artifact CSP');
+  console.error('FAIL: menu design art did not load under the Artifact CSP');
   process.exit(1);
 }
 if (!arenaOk) {

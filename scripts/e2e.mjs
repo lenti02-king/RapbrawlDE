@@ -301,7 +301,7 @@ const sim = (page) =>
   await ctx.close();
 }
 
-// ------------------------------------------------ design v2 flow (default, D42)
+// ------------------------------------------------ design v4 flow (default, D47: the PO's street masters)
 {
   const errors = [];
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -311,7 +311,65 @@ const sim = (page) =>
   await page.evaluate(() => localStorage.clear());
   await page.goto(base + '/?touch=0&q=low');
   await page.waitForSelector('.splash');
-  check(await page.evaluate(() => document.documentElement.dataset.design === 'v2'), 'design v2 is the default');
+  check(await page.evaluate(() => document.documentElement.dataset.design === 'v4'), 'design v4 is the default');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('.v4-home.ready');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: `${out}/w01_home.png` });
+  // KÄMPFER -> customise: AUSRÜSTEN makes the shown fighter the favourite; a swipe/next shows the next one
+  await page.click('.v4-home [data-act="fighters"]');
+  await page.waitForSelector('.v4-custom.ready');
+  await page.evaluate(() => window.__rb.showCustomV4('lacazette'));
+  await page.waitForSelector('.v4-custom.ready [data-act="equip"]');
+  await page.click('.v4-custom [data-act="equip"]');
+  check(await page.evaluate(() => JSON.parse(localStorage.getItem('rapbrawl.favFighter') ?? '""') === 'lacazette'), 'v4 customise: AUSRÜSTEN sets the favourite');
+  await page.screenshot({ path: `${out}/w02_custom.png` });
+  await page.click('.v4-custom [data-act="back"]');
+  await page.waitForSelector('.v4-home.ready');
+  // FREUNDE -> lobby with a room code
+  await page.click('.v4-home [data-act="social"]');
+  await page.waitForSelector('.v4-lobby.ready');
+  check(/RB-[A-Z]{4}/.test(await page.locator('.v4-lobby').innerText()), 'v4 lobby: shows a room code');
+  await page.screenshot({ path: `${out}/w03_lobby.png` });
+  await page.evaluate(() => window.__rb.showHome());
+  await page.waitForSelector('.v4-home.ready');
+  // FIGHT -> modes (1 VS 1 offline = vs CPU) -> select -> arena -> loading -> fight
+  await page.click('.v4-home [data-act="fight"]');
+  await page.waitForSelector('.v4-modes.ready');
+  await page.click('.v4-modes [data-act="duel"]');
+  await page.click('.v4-modes [data-act="offline"]');
+  await page.screenshot({ path: `${out}/w04_modes.png` });
+  await page.click('.v4-modes [data-act="next"]');
+  await page.waitForSelector('.v4-select.ready');
+  check((await page.locator('.v4-select [data-f]').count()) >= 4, 'v4 fighter select lists the whole roster');
+  check(await page.evaluate(() => window.__rb.sel.fighters[0] === 'lacazette'), 'v4 select: P1 starts on the favourite');
+  await page.screenshot({ path: `${out}/w05_select.png` });
+  await page.click('.v4-select [data-ready]');
+  await page.waitForSelector('.v4-arena.ready [data-ok]');
+  check((await page.locator('.v4-arena [data-item]').count()) >= 6, 'v4 arena select lists every arena (two pages)');
+  await page.click('.v4-arena [data-more]');
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${out}/w06_arena.png` });
+  await page.click('.v4-arena [data-ok]');
+  await page.waitForSelector('.v4-loading', { timeout: 60000 });
+  await page.screenshot({ path: `${out}/w07_loading.png` });
+  await page.waitForFunction(() => window.__rb.mode === 'cpu' && window.__rb.runner?.state, null, { timeout: 120000 });
+  check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena), 'v4 flow: the arena picked is built');
+  check(errors.length === 0, `no page errors in the v4 flow (${errors.slice(0, 3).join(' | ')})`);
+  await page.close();
+}
+
+// ------------------------------------------------ design v2 flow (D42; selectable in the settings)
+{
+  const errors = [];
+  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  page.setDefaultTimeout(120000);
+  watchErrors(page, errors);
+  await page.goto(base + '/?touch=0&q=low');
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(base + '/?touch=0&q=low&ui=v2');
+  await page.waitForSelector('.splash');
+  check(await page.evaluate(() => document.documentElement.dataset.design === 'v2'), 'design v2 from ?ui=v2');
   await page.keyboard.press('Enter');
   await page.waitForSelector('.v2-home.ready');
   await page.waitForTimeout(600);

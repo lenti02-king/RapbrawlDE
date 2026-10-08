@@ -1,6 +1,6 @@
 # Project status
 
-_Last updated: 2026-10-07 (session 12: the PO's iPhone feedback round — menus never black, sound in the native app, fight stutter, feet on the floor, touch controls, FREUNDE screen, home towns, waiting poses, abilities round 2 and second stages for the signatures; session 11: the four fighters from the PO's modelle-3 models with cel look, new signatures and abilities for all four, Blunt rework, living v2 menus, v2 profile/settings/deck/results/pause/HUD; session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
+_Last updated: 2026-10-08 (session 14: design v4 — the PO's five street masters cut 1:1, layered Figma SVGs, the screens without a master from their pieces, design v3 discarded; session 13: animation smoothness system and the glitch probe; session 12: the PO's iPhone feedback round — menus never black, sound in the native app, fight stutter, feet on the floor, touch controls, FREUNDE screen, home towns, waiting poses, abilities round 2 and second stages for the signatures; session 11: the four fighters from the PO's modelle-3 models with cel look, new signatures and abilities for all four, Blunt rework, living v2 menus, v2 profile/settings/deck/results/pause/HUD; session 10: design v2 from the PO's second master set with a switch back to v1, half-speed specials, Diamanten-Regen / Blunt / croc reworked, Manuellsen + Lacazette as 2D cutouts; session 9d: iPhone crash + layout fixes; session 9c: the PO's prop models at real size, Jazeek's special 'Blunt für dich', arenas Festival-Bühne + Bahnhofsviertel with 3D crowds; session 9b: PO review — master design app-wide, fight intro, charge, fatality minigame, croc + car cinematics, blood; session 9: main menu cut 1:1 from the PO master screenshot; session 8: night-street menus + fight flow, Tekken-style select, arena select, 4 new mechanics incl. fatalities, new strings and abilities, special auras, new sound + beat, HUD redesign)._
 Legend: **VERIFIED** = observed working via automated test or screenshot; **BUILT** = compiles/builds, not exercised; **UNVERIFIED** = implemented, not checked; **BLOCKED** = needs something outside the agent's control.
 
 ## How to play right now
@@ -8,6 +8,28 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 - Android debug APK: GitHub → Actions → "Android debug APK" → latest run → artifact `rapbrawl-debug-apk` (needs "install unknown apps").
 - iPhone app (native, no browser): GitHub → Actions → "iOS app (unsigned IPA for sideloading)" → latest run → artifact `rapbrawl-ios-ipa` → install `RAPBRAWL.ipa` with Sideloadly (Windows/Mac) and a free Apple ID; valid 7 days, then re-install (D44). Build VERIFIED (Xcode 26.3, BUILD SUCCEEDED); running on a device UNVERIFIED until the PO's first install.
 - Local: `npm install && npm run dev`.
+
+## Session 14 — design v4: the PO's street masters 1:1 (D47)
+| Area | Status | Evidence |
+|---|---|---|
+| Design v3 (Blender UI, S13) discarded at the PO's request: code, `tools/ui3`, `assets/ui3` removed (history keeps them); switch EINSTELLUNGEN → DESIGN = STREET (v4, default) / RING (v2) / KLASSISCH (v1), `?ui=v4\|v2\|v1` | VERIFIED (e2e: default is v4, v2 flow with `?ui=v2`) | `src/ui/design.ts` |
+| Five masters cut into plate + sprites + text zones (home, modes, select, customise, lobby): live text removed, DB / S-Bahn marks retouched out, tiles masked inside their frames, state pieces (neon/gold frames, P1/P2 cursors, lit stat cells, ONLINE/OFFLINE, blank buttons/tiles) | VERIFIED (sprite sheets, recomposition vs. master) | `python3 tools/ui-extract/v4_screens.py all` |
+| Figma: layered SVGs per master (scene, panels, every UI element, states hidden, live texts as text layers) + previews; recomposed previews match the masters (mean abs. diff 6–7.6 / 255) | VERIFIED (files + previews); the import into Figma itself UNVERIFIED (no Figma connector in this session) | `design/v4/*.svg`, `design/v4/README.md` |
+| v4 home (amounts, name/level/XP, avatar, tiles, FIGHT, the favourite fighter on the pedestal), modes (ONLINE/OFFLINE, neon selection), select (5x3 grid with busts, moving P1/P2 cursors, names on the plates, 3D fighters), customise (skins row, stat cells per fighter, rotate, AUSRÜSTEN), lobby (friend rows, room code, slots, ANFRAGEN panel) — 1672x941 and 932x430 | VERIFIED (screenshots) | `UI=v4 node scripts/v2shot.mjs "showHome()" artifacts/v4/home "1672x941,932x430"` (also `showModes()`, `beginFlow('cpu', false)`, `showCustomV4('bonez')`, `showOnlineLobby()`) |
+| Life and light on the cut pieces: light sweep per tile (staggered), breathing neon selection frames, pulsing gold chain buttons, living plate (depth parallax), haze, embers | VERIFIED (frame captures); the feel on the iPhone UNVERIFIED | `src/ui/v4/v4.css` |
+| Screens without a master, only from master pieces: profile / settings / deck / friends in the home scene without its UI (`home_clean`) with gold-framed lobby panels and the v4 top bar; arena select on the modes master (blank tiles with the arena picture, ZUFALL / MEHR); loading screen with the profile XP bar; no VS screen in v4 | VERIFIED (screenshots desktop + phone for profile, settings, arena, loading) | `UI=v4 node scripts/v2shot.mjs "showProfile()" ...`, `showArenaSelect(()=>0)` |
+| Artwork drop-ins for the PO (banners, select boxes, skins; cards as before) with a manifest so nothing is probed | BUILT (empty until the PO delivers; paths in `design/v4/README.md`) | `scripts/art-manifest.mjs` (runs in `npm run build`) |
+| Fight HUD, pause and results keep the v2 skin; shop keeps the v1 master | as designed (no master for them) | |
+| UI-free plates of modes/select/customise/lobby (LaMa leaves ghost panels in the big holes) | KNOWN LIMIT — only in the Figma files, not in the game | |
+
+## Session 13 — animation smoothness system (D46; the v3 design of that session is discarded, see S14)
+| Area | Status | Evidence |
+|---|---|---|
+| Glitch probe: seeded bot matches or one signature through the real loop, every key joint every frame → pops, reversals, teleports, snaps, feet through/above/sliding the floor; frame strips around suspects | VERIFIED (reports in `artifacts/probe/`) | `node scripts/animprobe.mjs jazeek,bonez 1800 11`, `CINE=sofa node scripts/animprobe.mjs x 900` |
+| Inertialized transitions, quaternion blending, pose spring; strikes keep their snap | VERIFIED (probe + film strips) | `render/animator.ts` |
+| Clavicles, toes, fists with the arm's extension; foot locks with quick steps, re-anchor on teleports | VERIFIED (film strips) | `render/glbRig.ts` |
+| Facing turns through the front view with a blend into the mirrored stance; downed bodies keep their facing; a new round is a cut; sim relocations glide once | VERIFIED (film strips around the probe's suspect frames) | `SHOTS=903,978 node scripts/animprobe.mjs ...` |
+| Glitch loop over all moves and cinematics | IN PROGRESS — the probe still flags pops (mostly fast strikes and cinematic camera cuts, many intended); next pass per flagged move | `artifacts/probe/*/report.json` |
 
 ## Session 12 — iPhone feedback round (21 points): menus, sound, performance, abilities round 2 (D45)
 | Area | Status | Evidence |
@@ -273,6 +295,8 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 - **Assets**: accessories/outfits and mode tiles — prompts in `docs/ASSET_PROMPTS.md` (croc, car, props now delivered by the PO and in the game).
 - **Assets** (optional upgrade, list in the session report): card art, portraits, logo, arena backdrop, optionally rigged GLB characters into `public/assets/incoming/`.
 - **Manuellsen / Lacazette**: name and likeness rights (real persons) before any release. Their abilities reference real memes/scandals (the Animus slap video, "5000 Kurden", "70 Schüsse aus dem G-Wagon") — check with them and a lawyer; the meme line says 5000 (the PO wrote 3000 — one constant to change). The car is a generic off-roader without badges; gunfire is shown as toy-like flashes (USK).
+- **Figma**: to work in Figma directly, connect Figma under claude.ai → Settings → Connectors and start a new session; until then `design/v4/*.svg` are dragged into Figma by hand (guide in `design/v4/README.md`).
+- **Design v4 masters** show real places (Frankfurt Hbf, Pallasseum, Schöneberg): the station's DB / S-Bahn marks were retouched out of the game copies; check the source/licence of the master images themselves and any other recognisable signs before release.
 - **Design v2 masters** contain generic AI art (the lobby's example friends, preset figures): the game shows its own fighters there; the masters' crown logo and RB belt are the PO's brand.
 - **Lila Becher (Bonez)**: lean (codeine drink) from a generic purple double cup, no brand — like Blunt für dich a depicted
   drug use (USK, the artist's reputation); decide before release (option: a fictional "Lila Saft").
@@ -287,7 +311,7 @@ Deterministic sim (VERIFIED, 49 unit tests incl. symmetry and rollback), rollbac
 
 ## Next objectives (suggested order)
 0. PO re-test on the iPhone (new IPA from the latest push): menus (never black / never only sprites), sound, fight smoothness, feet, touch buttons, the new abilities and the two-stage signatures; report any screen that still breaks with its name.
-0b. PO artworks for characters and cards (announced): drop-in via `assets/cards/<id>.webp` (cards already prefer a painted file) and the select/roster portraits.
+0b. PO artworks (announced) for cards, items, characters, select boxes and banners: drop-ins under `public/assets/ui4/art/` (banners, `select/<id>.webp`, `skins/<id>_<1-6>.webp`) and `public/assets/cards/<id>.webp`; paths and sizes in `design/v4/README.md`, then `npm run build` lists them.
 0c. Animation polish on the new bodies: guard hands, tall uppercut reach, per-fighter idle for Manuellsen/Lacazette (they borrow Bonez's/Jazeek's sets).
 1. Human playtest on a real phone (APK / Artifact) → tune touch layout, hitstop, damage, meter, charge rate, fatality minigame timing.
 1b. Online "Gegen Freunde" (room code) flow polish (PO: later); outfits/accessories once the PO's assets exist.

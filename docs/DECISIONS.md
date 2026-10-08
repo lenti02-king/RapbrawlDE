@@ -453,3 +453,39 @@ that style.
   baked stylized 3D scene and stays.
 - Rendering cost: ~20 min per stadium plate and ~15–30 min per arena at full size on the container's CPU; pieces
   render in seconds. Renders are cached in `.cache/ui3`; outputs are committed.
+
+## D47 — Design v4: the PO's street masters, 1:1 (2026-10-08)
+The PO rejected design v3 (D46's Blender-rendered UI) as "komplett an dem vorbei, was ich meinte" and sent five
+finished master screens (home – Frankfurt Taunusstraße/Moselstraße, modes – Frankfurt Hauptbahnhof, character select –
+Berlin Pallasseum, customise – Berlin Schöneberg, friends lobby – Berlin Pallasstraße) with the instruction: put them
+into Figma as editable UI, implement exactly this design, make the buttons sit in the scene (light them where it
+fits), create **nothing** new (no buttons, images or backgrounds); artwork for cards, items, characters, select boxes
+and banners comes from the PO later.
+- **v3 removed** (code, tools/ui3, assets; history keeps it). The animation work of D46 stays. Design switch:
+  v4 (default) / v2 / v1; a stored 'v3' falls back to the default.
+- **Same pipeline as D42** (`tools/ui-extract/v4_screens.py` on `v2x.py`): the master is the art; the plate is the
+  master with only live text removed (row-wise interpolation `scan` on banded capsules/plates, LaMa elsewhere) and the
+  third-party marks (Deutsche Bahn, S-Bahn logos) retouched out; every button/tile/panel is a sprite on its own
+  pixels. New: tiles inside gold/neon frames are masked by flood-filling the frame interior (`v4x.frame_mask`, gaps
+  in a bevel closed morphologically), state pieces are cut separately (blue selection frame, gold frame, P1/P2
+  cursors with their tags, lit stat cell, ONLINE/OFFLINE labels, blank buttons, blank mode tiles).
+- **Figma**: no Figma connector in the session, so the masters are delivered as layered SVGs (`design/v4/*.svg`,
+  `tools/ui-extract/v4_figma.py`): reference master (hidden), the scene without UI, panels/banners, every UI element,
+  states (hidden) and the live texts as text layers (Barlow Condensed). Dragged into Figma they become editable layers.
+- **Runtime** (`src/ui/v4/`): v2's stage (layout, living plate with MiDaS depth, lights, embers, 3D fighters between
+  the layers). Live data in the masters' places: amounts, name/level/XP, room code, friend rows, stat cells per
+  fighter, roster busts in the grid (with the moving P1/P2 neon cursors), names on the P1/P2 plates. Life: every
+  tile gets a staggered light sweep over its own shape, selection frames breathe like neon, gold chain buttons pulse
+  and shine, haze and embers in the scene.
+- **Screens without a master** use only master pieces: profile/settings/deck/friends stand in the home scene with
+  its UI removed (`home_clean`, the fighter on the pedestal), the customise screen's name plate as title plate, the
+  lobby's blank gold button, panels restyled to the lobby panels (navy, gold frame, upright white headings); the arena
+  select is the modes master with blank tiles (arena picture in the art window, name on the label strip, ZUFALL /
+  MEHR on the ONLINE/OFFLINE capsule); the loading screen is the home scene with the profile's XP bar as progress
+  bar. v4 has no VS screen (select → arena → loading). The fight HUD stays v2's.
+- **Artwork drop-ins**: `public/assets/ui4/art/` (banners, select boxes per fighter, skins per fighter), listed in
+  `manifest.json` by `scripts/art-manifest.mjs` (also run by `npm run build`) so nothing is probed; cards keep
+  `assets/cards/<id>.webp`.
+- Known limits: the UI-free plates of modes/select/customise/lobby are not good enough for the game (LaMa leaves
+  ghost panels in big holes) and are only used in the Figma files; 2 VS 2 / walk-ins / effects / chat / events /
+  battle pass / missions are shown as in the masters and announce "kommt bald".
