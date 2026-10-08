@@ -6,6 +6,7 @@ import { IN } from '../core/input';
 import { getCard, getFighter } from '../core/registry';
 import type { GameState } from '../core/state';
 import { beatDistance, RULES, showcaseOf } from '../core/sim';
+import { hometown } from './hometown';
 import { TAUNT_AT, TAUNTS, TITLE_AT } from '../render/fatalities';
 import { CAT_COLOR, cardIcon, costBadge, UI_ICONS } from './icons';
 import { portrait } from './portraits';
@@ -230,7 +231,7 @@ export class Hud {
       <div class="finish-ui"><div class="finish-title">FERTIGMACHEN!</div><div class="finish-sub"></div>
         <div class="qte"><div class="qte-keys"></div><div class="qte-bar"><i></i></div></div></div>
       <div class="fatal-title">FATALITY</div>
-      <div class="show-ui"><div class="show-tag"></div><div class="show-name"></div><div class="show-sub"></div><div class="show-skip"></div></div>
+      <div class="show-ui"><div class="show-tag"></div><div class="show-name"></div><div class="show-sub"></div><div class="show-tl"></div><div class="show-skip"></div></div>
       <div class="taunt"></div>
       <div class="combo p1"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
       <div class="combo p2"><div class="combo-n"></div><div class="combo-l">TREFFER</div><div class="combo-d"></div></div>
@@ -611,7 +612,9 @@ export class Hud {
         (this.showUi.querySelector('.show-tag') as HTMLElement).textContent = who === 0 ? 'SPIELER 1' : 'SPIELER 2';
         const name = this.showUi.querySelector('.show-name') as HTMLElement;
         name.innerHTML = `<i data-t="${def.name}">${def.name}</i>`;
-        (this.showUi.querySelector('.show-sub') as HTMLElement).textContent = def.tagline;
+        // the home town right under the name (PO), the tagline below it
+        (this.showUi.querySelector('.show-sub') as HTMLElement).textContent = hometown(f.def);
+        (this.showUi.querySelector('.show-tl') as HTMLElement).textContent = def.tagline;
         (this.showUi.querySelector('.show-skip') as HTMLElement).textContent = this.touch ? 'TIPPEN ZUM ÜBERSPRINGEN' : 'TASTE ZUM ÜBERSPRINGEN';
       }
     }

@@ -13,6 +13,8 @@ const A: ScreenArt = { dir: CUSTOM_DIR, plate: CUSTOM_PLATE, art: CUSTOM_ART, li
 export interface CustomV4Model extends Wallet {
   fighter: string;
   name: string;
+  /** Home town (capitals), under the name plate. */
+  city: string;
   /** Lit cells per bar (0..6). */
   stats: { power: number; speed: number; tech: number };
 }
@@ -53,6 +55,7 @@ export function customHtmlV4(m: CustomV4Model): string {
   const front = `${hazeHtml([60, 560, 900, 800], '255 190 120', 0.32)}
     ${topHtml(A, CUSTOM_TEXT, m)}
     ${t(m.name.toUpperCase(), zone(CUSTOM_TEXT.title.name), 0, 0, { cls: 'v4-title', fs: 34, align: 'center' })}
+    ${m.city ? t(m.city, [CUSTOM_TEXT.title.name[0] - 70, CUSTOM_TEXT.title.name[3] + 14, CUSTOM_TEXT.title.name[2] + 70, CUSTOM_TEXT.title.name[3] + 48], 0, 0, { cls: 'v4-city', fs: 28, align: 'center' }) : ''}
     ${button(A, 'tab_skins', 'tab', 'Skins')}${button(A, 'tab_walk', 'tab-walk', 'Walk-in', () => '', 'v4-soon')}${button(A, 'tab_fx', 'tab-fx', 'Effekte', () => '', 'v4-soon')}
     ${skins}${placed(A, 'ring_sel', xywh(CUSTOM_ART.ring_sel), 'v4-sel')}
     ${button(A, 'rot_l', 'rot-l', 'Nach links drehen', () => '', 'v4-btn')}${button(A, 'rot_r', 'rot-r', 'Nach rechts drehen', () => '', 'v4-btn')}

@@ -39,6 +39,14 @@
   }
 }
 
+/* selection frames, cursors and other placed state pieces are decoration: a tap goes through to the tile below */
+.v2 img.v4-sel,
+.v2 img.v4-rest,
+.v2 .v4-frames,
+.v2 .v4-frames > * {
+  pointer-events: none !important;
+}
+
 /* the selection frame (blue neon from the master): breathes like a lit neon tube */
 .v4-sel {
   animation: v4-neon 2.4s ease-in-out infinite;
@@ -152,6 +160,16 @@
 }
 .v2 .v4-pick.p2 {
   --sh: 0 0 0.35em rgba(70, 150, 255, 0.95), 0 0.06em 0 #000;
+}
+
+/* a fighter's home town under the name (PO): gold capitals, clearly readable */
+.v2 .v4-city {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  --fill: linear-gradient(180deg, #fff3c4 0%, #ffd257 55%, #f0a92a 100%);
+  --sw: 0.1em;
+  --ol: #07080d;
+  --sh: 0 0.06em 0 #000, 0 0 0.3em rgba(0, 0, 0, 0.7);
 }
 
 /* stat segments that light up (the master's cyan cells) */
@@ -296,4 +314,53 @@
 }
 .v4-tip {
   justify-content: center;
+}
+
+/* KÄMPFER (S15): every fighter as a card in the lobby panels' look - navy, gold frame, thin blue inner line; the
+   picture window takes the PO's card artwork (assets/ui4/art/fighters/<id>.webp), name + home town under it */
+.v2 .v4-fcard {
+  box-sizing: border-box;
+  border: calc(var(--u) * 4) solid #d9a43a;
+  border-radius: calc(var(--u) * 16);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 30%),
+    linear-gradient(180deg, rgba(14, 20, 46, 0.96) 0%, rgba(8, 11, 28, 0.97) 100%);
+  box-shadow:
+    inset 0 0 0 calc(var(--u) * 2) rgba(70, 130, 255, 0.45),
+    0 0 calc(var(--u) * 10) rgba(255, 190, 60, 0.3),
+    0 calc(var(--u) * 12) calc(var(--u) * 30) rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  transition:
+    transform 0.18s cubic-bezier(0.2, 1.4, 0.4, 1),
+    box-shadow 0.18s,
+    border-color 0.18s;
+}
+.v2 .v4-fcard > .v4-fart {
+  border-radius: calc(var(--u) * 10);
+  background:
+    radial-gradient(120% 90% at 50% 18%, rgba(120, 80, 255, 0.55) 0%, rgba(40, 30, 110, 0.6) 45%, rgba(8, 10, 30, 0.95) 100%);
+  box-shadow: inset 0 0 calc(var(--u) * 14) rgba(0, 0, 0, 0.65);
+}
+.v2 .v4-fcard > .v4-fart > img {
+  object-position: 50% 30%;
+}
+.v2 .v4-fcard.art > .v4-fart > img {
+  object-position: 50% 50%;
+}
+/* the picked card: lifted, gold edge, the masters' blue neon glow */
+.v2 .v4-fcard.on {
+  border-color: #ffd257;
+  transform: translateY(calc(var(--u) * -12));
+  box-shadow:
+    inset 0 0 0 calc(var(--u) * 2) rgba(90, 160, 255, 0.85),
+    0 0 calc(var(--u) * 22) rgba(80, 150, 255, 0.85),
+    0 calc(var(--u) * 16) calc(var(--u) * 34) rgba(0, 0, 0, 0.6);
+}
+.v2 .v4-fcard:active {
+  transform: translateY(calc(var(--u) * -6)) scale(0.98);
+}
+.v2 .v4-favtag {
+  border-radius: calc(var(--u) * 8);
+  background: rgba(6, 8, 20, 0.85);
+  box-shadow: 0 0 0 calc(var(--u) * 2) rgba(255, 200, 70, 0.8);
 }

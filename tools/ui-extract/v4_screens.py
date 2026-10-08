@@ -2,6 +2,7 @@
 
   python3 tools/ui-extract/v4_screens.py prep <dir with the 5 masters>   # -> ref/v4/<screen>.png at 1672x941
   python3 tools/ui-extract/v4_screens.py home|modes|select|custom|lobby|all  # -> public/assets/ui4 + src/ui/v4/art
+  python3 tools/ui-extract/v4_screens.py home_blank   # only the home tiles without their label (after a home run)
 
 Kept as the PO painted it (baked): every static label, icon, frame and the logo. Removed from the plate and set
 natively: live numbers, names, codes. Removed for good: third-party marks (DB, S-Bahn logos)."""
@@ -101,12 +102,34 @@ HOME = {
 }
 # third-party marks on the station bridge (Deutsche Bahn, S-Bahn): removed
 HOME_REMOVE = [(1018, 284, 1066, 322), (1086, 272, 1134, 316)]
-HOME_EXTRA = {'hero': {'feet': [836, 694], 'h': 352}, 'logo': [648, 120, 1030, 360]}
+HOME_EXTRA = {'hero': {'feet': [836, 648], 'h': 306}, 'logo': [648, 120, 1030, 360]}
 
 
 def home():
     v2x.run('home', 'home.png', HOME, remove=HOME_REMOVE, parts={'xp_fill': dict(box=(216, 66, 273, 82), key='bright', lo=60)},
             light_ymax=760, no_lights=[HOME_EXTRA['logo'], (0, 0, 470, 120), (1100, 0, 1672, 70)], extra=HOME_EXTRA)
+    home_blank()
+
+
+# tiles whose painted label gives way to a native one (S15, PO: the customise screen gets its own menu item ANPASSEN
+# on the MISSIONEN tile): label rows interpolated, the chevron stays; label zone = where the native text goes
+HOME_BLANK = {'missions': (1339, 661, 1516, 703)}
+HOME_LABELS = {'missions': [1300, 657, 1560, 707]}
+
+
+def label_blank(screen, tid, z):
+    """A tile sprite of a run with the label rows inside zone z (reference px) interpolated away."""
+    im = Image.open(os.path.join(v4x.PUB, screen, f'{tid}.webp')).convert('RGBA')
+    x, y, w, h = [int(v) for v in TS_ART(screen)[tid]]
+    rgb = cv2.cvtColor(np.asarray(im)[..., :3], cv2.COLOR_RGB2BGR)
+    m = np.zeros(rgb.shape[:2], np.uint8)
+    m[max(0, z[1] - y):z[3] - y, max(0, z[0] - x):z[2] - x] = 255
+    clean = uix.fill_scanlines(rgb, m)
+    return v4x.save_part(screen, f'{tid}_blank', clean, np.asarray(im)[..., 3], (x, y))
+
+
+def home_blank():
+    v4x.append_ts('home', {f'{t}_blank': label_blank('home', t, z) for t, z in HOME_BLANK.items()}, {'labels': HOME_LABELS})
 
 
 # -------------------------------------------------------------------------------------------------------- modes
@@ -135,13 +158,7 @@ def modes():
     }
     # the four tiles without their labels (arena select and other pickers write their own): label rows interpolated
     for tid, z in {'t_1v1': (440, 396, 742, 473), 't_2v2': (940, 396, 1242, 473), 't_friends': (444, 596, 742, 675), 't_training': (944, 596, 1242, 675)}.items():
-        im = Image.open(os.path.join(v4x.PUB, 'modes', f'{tid}.webp')).convert('RGBA')
-        x, y, w, h = [int(v) for v in json.loads(json.dumps(TS_ART('modes')[tid]))]
-        rgb = cv2.cvtColor(np.asarray(im)[..., :3], cv2.COLOR_RGB2BGR)
-        m = np.zeros(rgb.shape[:2], np.uint8)
-        m[max(0, z[1] - y):z[3] - y, max(0, z[0] - x):z[2] - x] = 255
-        clean = uix.fill_scanlines(rgb, m)
-        extra[f'{tid}_blank'] = v4x.save_part('modes', f'{tid}_blank', clean, np.asarray(im)[..., 3], (x, y))
+        extra[f'{tid}_blank'] = label_blank('modes', tid, z)
     v4x.append_ts('modes', extra)
 
 
@@ -294,7 +311,7 @@ def lobby():
     })
 
 
-SCREENS = {'home': home, 'modes': modes, 'select': select, 'custom': custom, 'lobby': lobby}
+SCREENS = {'home': home, 'modes': modes, 'select': select, 'custom': custom, 'lobby': lobby, 'home_blank': home_blank}
 
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
@@ -307,5 +324,5 @@ if __name__ == '__main__':
             im.resize((1672, 941), Image.LANCZOS).save(os.path.join(v4x.REF, f'{name}.png'))
         print('masters ->', v4x.REF)
     else:
-        for k in (SCREENS if what == 'all' else what.split(',')):
+        for k in (list(MASTERS) if what == 'all' else what.split(',')):
             SCREENS[k]()

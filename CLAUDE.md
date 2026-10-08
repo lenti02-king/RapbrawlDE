@@ -74,7 +74,7 @@ node scripts/livingshot.mjs "showHome()" artifacts/s11/living   # living plate f
 Q=medium node scripts/cine.mjs sofa|gwagon|99|team|blunt [f1,f2,..]   # D43 signatures (Q = quality; long runs: BASE_URL=:5174 NO_HMR server)
 node scripts/v2match.mjs artifacts/v2b/match 932x430   # v2 fight HUD, pause and results over the arena
 node scripts/v2shot.mjs "showProfile()" artifacts/v2b/profile "1672x941,932x430"   # v2 ring screens (also showSettings(), showDeck(0, ()=>0))
-UI=v4 node scripts/v2shot.mjs "showHome()" artifacts/v4/home "1672x941,932x430"   # design v4 captures (any window.__rb call: showModes(), beginFlow('cpu', false), showCustomV4('bonez'), showOnlineLobby(), showArenaSelect(()=>0), showProfile())
+UI=v4 node scripts/v2shot.mjs "showHome()" artifacts/v4/home "1672x941,932x430"   # design v4 captures (any window.__rb call: showFightersV4(), showModes(), beginFlow('cpu', false), showCustomV4('bonez'), showOnlineLobby(), showArenaSelect(()=>0), showProfile())
 node scripts/animprobe.mjs jazeek,bonez 1800 11 [out]   # animation glitch probe: seeded bot match, pops/teleports/snaps/feet -> report.json
 SHOTS=903,978 node scripts/animprobe.mjs ...   # + frame strips around those frames;  CINE=sofa|gwagon|99|team|blunt node scripts/animprobe.mjs x 900   # one signature
 scripts/nohmr.sh [5175]              # (re)start the no-HMR dev server by port (needed after code edits AND new public files)
@@ -83,6 +83,8 @@ python3 tools/ui-extract/v4_screens.py all   # design v4: plates + sprites + tex
 python3 tools/ui-extract/v4_figma.py         # layered Figma SVGs (design/v4), UI-free plates <screen>_clean, shared kit (assets/ui4/kit); run after v4_screens
 UI=ui4 python3 tools/ui-extract/depth.py     # depth maps for the v4 living plates (incl. home_clean ... after v4_figma)
 node scripts/art-manifest.mjs               # list the PO's artwork drop-ins (public/assets/ui4/art/**, design/v4/README.md); run by npm run build
+python3 tools/ui-extract/artwork_sheets.py artifacts/s15   # marked artwork-slot screens for the PO -> design/v4/artwork (needs v4 captures, see the script)
+python3 tools/ui-extract/v4_screens.py home_blank   # home tiles without their painted label (MISSIONEN -> native ANPASSEN, S15)
 ```
 Long capture queues: a second dev server without HMR (`NO_HMR=1 npx vite --port 5174`, restart it after edits) keeps
 source edits from reloading a running capture; the HMR server on 5173 reloads open pages on every edit.

@@ -316,14 +316,30 @@ const sim = (page) =>
   await page.waitForSelector('.v4-home.ready');
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${out}/w01_home.png` });
-  // KÄMPFER -> customise: AUSRÜSTEN makes the shown fighter the favourite; a swipe/next shows the next one
+  // KÄMPFER: every fighter as a card, name + home town (S15)
   await page.click('.v4-home [data-act="fighters"]');
-  await page.waitForSelector('.v4-custom.ready');
-  await page.evaluate(() => window.__rb.showCustomV4('lacazette'));
+  await page.waitForSelector('.v4-fighters.ready');
+  check((await page.locator('.v4-fighters [data-f]').count()) >= 4, 'v4 KÄMPFER shows every fighter as a card');
+  const roster = await page.locator('.v4-fighters').innerText();
+  check(['AACHEN', 'HAMBURG', 'BERLIN', 'MÜLHEIM AN DER RUHR'].every((c) => roster.includes(c)), 'v4 KÄMPFER: the home towns under the names');
+  await page.waitForTimeout(800); // the screen fades in
+  await page.screenshot({ path: `${out}/w02_fighters.png` });
+  // Lacazette's card -> ANPASSEN (customise); AUSRÜSTEN makes him the favourite; back -> KÄMPFER -> home
+  await page.click('.v4-fighters [data-f="lacazette"]');
+  await page.click('.v4-fighters [data-act="custom"]');
   await page.waitForSelector('.v4-custom.ready [data-act="equip"]');
+  check((await page.locator('.v4-custom').innerText()).includes('BERLIN'), 'v4 customise: the home town under the name');
   await page.click('.v4-custom [data-act="equip"]');
   check(await page.evaluate(() => JSON.parse(localStorage.getItem('rapbrawl.favFighter') ?? '""') === 'lacazette'), 'v4 customise: AUSRÜSTEN sets the favourite');
   await page.screenshot({ path: `${out}/w02_custom.png` });
+  await page.click('.v4-custom [data-act="back"]');
+  await page.waitForSelector('.v4-fighters.ready');
+  await page.click('.v4-fighters [data-back]');
+  await page.waitForSelector('.v4-home.ready');
+  // ANPASSEN is a menu item of its own on the home screen
+  await page.click('.v4-home [data-act="custom"]');
+  await page.waitForSelector('.v4-custom.ready');
+  check(true, 'v4 home: ANPASSEN opens the customising');
   await page.click('.v4-custom [data-act="back"]');
   await page.waitForSelector('.v4-home.ready');
   // FREUNDE -> lobby with a room code
@@ -351,6 +367,7 @@ const sim = (page) =>
   await page.click('.v4-select [data-f="lacazette"]');
   await page.waitForSelector('.v4-select.ready .v4-pick.p2');
   check(await page.evaluate(() => window.__rb.sel.fighters.join() === 'lacazette,lacazette'), 'v4 select: both sides can pick the same fighter (mirror match)');
+  check((await page.locator('.v4-select').innerText()).includes('BERLIN'), 'v4 select: the home town under the name plates');
   await page.waitForTimeout(800); // the screen fades in
   await page.screenshot({ path: `${out}/w05_select.png` });
   await page.click('.v4-select [data-ready]');

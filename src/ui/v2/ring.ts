@@ -50,7 +50,7 @@ const bar = (p: number, kind = 'gold') => `<span class="rg-bar ${kind}"><b style
 /** Ring backdrop + the figure anchor (feet at the bottom centre of the box). */
 function ringBack(fig: boolean, figH = 600, fy = 912): string {
   const fx = 836;
-  if (isV4()) [figH, fy] = [352, 694]; // on the pedestal of the Frankfurt scene
+  if (isV4()) [figH, fy] = [306, 648]; // in the middle of the Frankfurt scene's pedestal (not on its front edge)
   const A = art();
   return `${plateHtml(A)}${lightsHtml(A, 22)}${fig ? `<span class="fig-anchor" data-fig="0" style="--x:${fx - figH / 4};--y:${fy - figH};--w:${figH / 2};--h:${figH}"></span>` : ''}`;
 }

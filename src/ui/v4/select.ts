@@ -96,6 +96,11 @@ export function selectHtmlV4(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
 
   const T = SELECT_TEXT;
   const name = (i: number) => t(sides[i].hidden ? '???' : sides[i].name, zone((i ? T.p2name : T.p1name).name), 0, 0, { cls: 'v4-pname', fs: 40, align: 'center' });
+  // the home town right under the name plate (PO)
+  const city = (i: number) => {
+    const [x0, , x1, y1] = PLATES[i];
+    return sides[i].hidden || !sides[i].city ? '' : t(sides[i].city.toUpperCase(), [x0 + 10, y1, x1 - 10, y1 + 40], 0, 0, { cls: 'v4-city', fs: 34, align: 'center' });
+  };
   const plates = PLATES.map(
     ([x0, y0, x1, y1], i) =>
       `<button class="v2-hit" data-side="${i}" aria-label="${esc(sides[i].label)}" style="--x:${x0};--y:${y0};--w:${x1 - x0};--h:${y1 - y0}"></button>`,
@@ -105,7 +110,7 @@ export function selectHtmlV4(sides: [CsSide, CsSide], tiles: CsTile[], picking: 
   const pick = status && !sides[picking]?.hidden ? t(status, [px0 - 20, py0 - 44, px1 + 20, py0 - 4], 0, 0, { cls: `v4-title v4-pick p${picking + 1}`, fs: 30, align: 'center' }) : '';
   const front = `${hazeHtml([0, 640, 1672, 880], '170 150 255', 0.35)}
     ${topHtml(A, T, wallet)}${grid}${cursors.join('')}
-    ${name(0)}${name(1)}${plates}${pick}
+    ${name(0)}${name(1)}${city(0)}${city(1)}${plates}${pick}
     ${goldButton(A, 'weiter', 'ready', 'Weiter', 'data-ready data-default')}`;
   return screenHtml(back, front.replace('data-act="back"', 'data-act="back" data-back'));
 }

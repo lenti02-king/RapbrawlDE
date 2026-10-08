@@ -29,6 +29,7 @@ import { boardHtml, mountBoard, type BoardRow } from '../ui/menu/board';
 import { toast } from '../ui/menu/kit';
 import '../ui/menu/skin';
 import { isV2, isV4, design, setDesign, type Design } from '../ui/design';
+import { HOMETOWN, hometown } from '../ui/hometown';
 import { homeHtml, homeToast, mountHome, type HomeAction, type HomeModel } from '../ui/v2/home';
 import { friendsHtml, friendsListHtml, newFriendCode, parseFriendCode, type Friend } from '../ui/v2/friends';
 import { mountVs, setVsArena, vsHtml, type VsSide } from '../ui/v2/vs';
@@ -40,7 +41,8 @@ import { modesHtmlV4, mountModesV4, type ModeTile, type ModesV4Model } from '../
 import { setSelectWallet } from '../ui/v4/select';
 import { customHtmlV4, mountCustomV4, type CustomV4Model } from '../ui/v4/custom';
 import { lobbyHtmlV4, lobbyOpponentV4, lobbyStatusV4, mountLobbyV4 } from '../ui/v4/lobby';
-import { rememberWallet, type Wallet } from '../ui/v4/kit4';
+import { artReady, artUrl, rememberWallet, type Wallet } from '../ui/v4/kit4';
+import { fightersHtmlV4, mountFightersV4, type FighterCardV4 } from '../ui/v4/fighters';
 import type { TopBar } from '../ui/v2/arena';
 import { deckHtml, deckParts, mountOverlay, mountRing, pauseHtml, profileHtml, resultsHtml, settingsHtml, type DeckCard, type DeckModel, type SettingRow } from '../ui/v2/ring';
 import { AudioEngine } from '../audio/audio';
@@ -167,7 +169,6 @@ function rankPct(p: Profile): number {
 }
 
 /** Hometowns on the character-select ribbon (from the PO's master design). */
-const HOMETOWN: Record<string, string> = { jazeek: 'Aachen', bonez: 'Hamburg', manuellsen: 'Mülheim an der Ruhr', lacazette: 'Berlin' };
 const BIG_ARENAS = new Set(['festival', 'bahnhof', 'podcast', 'toon', 'club', 'courtyard']);
 
 type MenuMode = 'quick' | 'ranked' | 'friend' | 'local' | 'training' | 'koop';
@@ -680,7 +681,8 @@ export class App {
       xp: lvl.xp % 400,
       xpMax: 400,
       fighter: this.favorite,
-      avatar: portrait(this.favorite, 'bust'),
+      // the PO's select-box artwork of the favourite doubles as the avatar once it exists
+      avatar: artUrl(`select/${this.favorite}.webp`) ?? portrait(this.favorite, 'bust'),
     };
     const el = this.open(homeHtmlV4(model), 'mm v4-home');
     const soon = (what: string) => homeToastV4(el, `${what} – KOMMT BALD`);
@@ -700,6 +702,8 @@ export class App {
           return leave(() => this.showSettings());
         case 'fighters':
           store.set('rosterSeen', ROSTER.length);
+          return leave(() => this.showFightersV4());
+        case 'custom':
           return leave(() => this.showCustomV4(this.favorite));
         case 'decks':
           return leave(() => this.showDeck(0, () => this.showHome()));
@@ -714,8 +718,6 @@ export class App {
           return soon('EVENTS');
         case 'pass':
           return soon('BATTLE PASS');
-        case 'missions':
-          return soon('MISSIONEN');
         case 'home':
           return;
       }
@@ -756,8 +758,50 @@ export class App {
     });
   }
 
-  /** Design v4 customise (D47): one fighter on the pedestal; swipe for the next; AUSRÜSTEN makes him the favourite. */
-  private showCustomV4(id: string): void {
+  /** Design v4 KÄMPFER (S15): every fighter as a card (the PO's artwork later), name + home town; ANPASSEN / a second
+   *  tap opens the customising, FAVORIT puts him on the home pedestal, DECK opens his cards. */
+  private showFightersV4(view?: string): void {
+    const sel = view && ROSTER.includes(view) ? view : this.favorite;
+    const cards: FighterCardV4[] = ROSTER.map((fid) => {
+      const art = artUrl(`fighters/${fid}.webp`);
+      return { id: fid, name: getFighter(fid).name.toUpperCase(), city: hometown(fid), img: art ?? portrait(fid, 'card'), art: !!art, fav: this.favorite === fid };
+    });
+    const el = this.open(fightersHtmlV4(cards, sel, this.wallet), 'mm v4-fighters');
+    const stop = mountFightersV4(el, sel, (a, id) => {
+      const leave = (fn: () => void) => {
+        stop();
+        fn();
+      };
+      if (a === 'back') return leave(() => this.showHome());
+      if (a === 'custom') return leave(() => this.showCustomV4(id, () => this.showFightersV4(id)));
+      if (a === 'fav') {
+        store.set('favFighter', id);
+        leave(() => this.showFightersV4(id));
+        return toast(this.screen!, `${getFighter(id).name.toUpperCase()} IST JETZT DEIN FAVORIT`);
+      }
+      if (a === 'deck')
+        return leave(() => {
+          // the deck editor works on player 1's pick: put this fighter (with his saved deck) there
+          this.sel.fighters[0] = id;
+          this.sel.loadouts[0] = this.presetDeck(id);
+          store.set('selection', this.sel);
+          this.showDeck(0, () => this.showFightersV4(id), 'FERTIG');
+        });
+    });
+    this.bindTopBar(el, stop);
+    // the PO's card artwork is listed in a manifest that may still be on its way: draw again once it is known
+    if (!artUrl(`fighters/${sel}.webp`))
+      void artReady.then(() => {
+        if (el.isConnected && ROSTER.some((fid) => artUrl(`fighters/${fid}.webp`))) {
+          stop();
+          this.showFightersV4(sel);
+        }
+      });
+  }
+
+  /** Design v4 customise (D47): one fighter on the pedestal; swipe for the next; AUSRÜSTEN makes him the favourite.
+   *  Own menu item ANPASSEN on the home screen (S15); from KÄMPFER it goes back there. */
+  private showCustomV4(id: string, back: () => void = () => this.showHome()): void {
     const all = ROSTER.map((x) => fighterStats(x));
     const lo = (k: 'dmg' | 'speed' | 'reach') => Math.min(...all.map((v) => v[k]));
     const hi = (k: 'dmg' | 'speed' | 'reach') => Math.max(...all.map((v) => v[k]));
@@ -767,6 +811,7 @@ export class App {
       ...this.wallet,
       fighter: id,
       name: getFighter(id).name,
+      city: hometown(id),
       stats: { power: cells('dmg', st.dmg), speed: cells('speed', st.speed), tech: cells('reach', st.reach) },
     };
     const el = this.open(customHtmlV4(model), 'mm v4-custom');
@@ -776,8 +821,8 @@ export class App {
         stop();
         fn();
       };
-      if (a === 'back') return leave(() => this.showHome());
-      if (a === 'next' || a === 'prev') return leave(() => this.showCustomV4(ROSTER[(ROSTER.indexOf(id) + (a === 'next' ? 1 : -1) + n) % n]));
+      if (a === 'back') return leave(back);
+      if (a === 'next' || a === 'prev') return leave(() => this.showCustomV4(ROSTER[(ROSTER.indexOf(id) + (a === 'next' ? 1 : -1) + n) % n], back));
       if (a === 'equip') {
         store.set('favFighter', id);
         return toast(el, `${getFighter(id).name.toUpperCase()} AUSGERÜSTET – STEHT JETZT IM MENÜ`);

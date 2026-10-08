@@ -509,4 +509,20 @@ The PO asked that both players can choose a character, the same one too.
   ink outline (`INK.p2` in `render/cel.ts`; palette 1 in `buildCharacter` → `GlbRig(.., alt)`), in the fight and on
   the select/VS screens (`FigureSpec.alt`). The outline uses the same shader program (colour is a uniform), so the
   shader prewarm stays valid. Procedural rigs keep their second palette.
+- **Follow-ups the same day (PO)**:
+  - Home: the favourite stands in the middle of the pedestal disc (feet y 648, height 306; it stood on the front
+    edge), the same in the v4 ring screens.
+  - KÄMPFER is now the card overview of every fighter (`ui/v4/fighters.ts`: the PO's card artwork
+    `assets/ui4/art/fighters/<id>.webp` in a 4:5 window, the rendered portrait until then; name + home town; ANPASSEN /
+    FAVORIT / DECK). The customise screen got its own menu item: ANPASSEN on the MISSIONEN tile (its painted label
+    interpolated away by `v4_screens.py home_blank`, the native label in the master's style). From KÄMPFER the
+    customise screen goes back to KÄMPFER, from the home tile to home.
+  - Home towns (`ui/hometown.ts`: Jazeek Aachen, Bonez MC Hamburg, Lacazette Berlin, Manuellsen Mülheim an der Ruhr)
+    in gold capitals under the name: select (under the plates), KÄMPFER cards, customise (under the title plate), the
+    fight intro (under the big name, tagline below).
+  - Artwork slots for the PO: `design/v4/artwork/*.jpg` (marked screens, `tools/ui-extract/artwork_sheets.py`) and the
+    table in `design/v4/README.md`; new drop-ins: whole home tiles (`art/home/<tile>.webp`), the KÄMPFER card art; the
+    select box art doubles as the home avatar.
+  - Selection frames and other placed state pieces let taps through (the P1 frame covered the tile the second player
+    had to tap for a mirror match).
 

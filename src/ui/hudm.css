@@ -492,13 +492,23 @@
     0 0 0.4em rgba(0, 0, 0, 0.55);
 }
 .hud.hm .show-sub {
-  bottom: calc(var(--u) * 196);
-  font: italic 700 calc(var(--u) * 40) / 1 'Barlow Condensed', sans-serif;
-  letter-spacing: 0.04em;
-  color: #fff;
+  bottom: calc(var(--u) * 192);
+  font: italic 800 calc(var(--u) * 48) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.1em;
+  color: #ffd257;
   text-shadow:
     0 calc(var(--u) * 3) 0 #04060d,
     0 0 calc(var(--u) * 12) rgba(0, 0, 0, 0.8);
+}
+.hud.hm .show-tl {
+  bottom: calc(var(--u) * 146);
+  font: italic 600 calc(var(--u) * 30) / 1 'Barlow Condensed', sans-serif;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 calc(var(--u) * 2) 0 #04060d;
+}
+.hud.hm .show-ui.in .show-tl {
+  transition-delay: 0.18s;
 }
 .hud.hm .show-skip {
   bottom: calc(var(--u) * 60) !important;

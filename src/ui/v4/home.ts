@@ -4,9 +4,9 @@
 // PO's avatar art exists).
 import { de, toast } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
-import { HOME_ART, HOME_DIR, HOME_HERO, HOME_LIGHTS, HOME_LOGO, HOME_PLATE, HOME_TEXT } from './art/home';
+import { HOME_ART, HOME_DIR, HOME_HERO, HOME_LABELS, HOME_LIGHTS, HOME_LOGO, HOME_PLATE, HOME_TEXT } from './art/home';
 import { button, hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, src, t, zone, type ScreenArt } from '../v2/stage';
-import { goldButton, tileButton, topHtml, type Wallet } from './kit4';
+import { artUrl, goldButton, tileButton, topHtml, type Wallet } from './kit4';
 
 const A: ScreenArt = { dir: HOME_DIR, plate: HOME_PLATE, art: HOME_ART, lights: HOME_LIGHTS };
 const T = HOME_TEXT;
@@ -20,7 +20,7 @@ export interface HomeV4Model extends Wallet {
   avatar: string; // image for the avatar window
 }
 
-export type HomeV4Action = 'profile' | 'shop' | 'news' | 'settings' | 'fighters' | 'decks' | 'events' | 'pass' | 'missions' | 'fight' | 'ranked' | 'social' | 'home';
+export type HomeV4Action = 'profile' | 'shop' | 'news' | 'settings' | 'fighters' | 'custom' | 'decks' | 'events' | 'pass' | 'fight' | 'ranked' | 'social' | 'home';
 
 export function homeHtmlV4(m: HomeV4Model): string {
   const xp = Math.max(0, Math.min(1, m.xp / Math.max(1, m.xpMax)));
@@ -48,13 +48,24 @@ export function homeHtmlV4(m: HomeV4Model): string {
     'v4-btn',
   );
 
+  // the PO's tile artwork (a whole tile with its lettering, same size as the tile: design/v4/README.md) replaces the
+  // master's tile once it exists: assets/ui4/art/home/<file>.webp
+  const tile = (id: string, file: string, act: string, label: string, d: number, inner?: (ox: number, oy: number) => string) => {
+    const u = artUrl(`home/${file}.webp`);
+    const html = tileButton(A, id, act, label, d, '', u ? undefined : inner);
+    return u ? html.split(`${A.dir}${id}.webp`).join(u) : html;
+  };
   const tiles = [
-    tileButton(A, 'fighters', 'fighters', 'Kämpfer', 0),
-    tileButton(A, 'deck', 'decks', 'Deck', 0.5),
-    tileButton(A, 'shop', 'shop', 'Shop', 1),
-    tileButton(A, 'events', 'events', 'Events', 0.25),
-    tileButton(A, 'pass', 'pass', 'Battle Pass', 0.75),
-    tileButton(A, 'missions', 'missions', 'Missionen', 1.25),
+    tile('fighters', 'kaempfer', 'fighters', 'Kämpfer', 0),
+    tile('deck', 'deck', 'decks', 'Deck', 0.5),
+    tile('shop', 'shop', 'shop', 'Shop', 1),
+    tile('events', 'events', 'events', 'Events', 0.25),
+    tile('pass', 'battlepass', 'pass', 'Battle Pass', 0.75),
+    // S15 (PO): the customise screen has its own menu item - the MISSIONEN tile without its painted label, ANPASSEN
+    tile('missions_blank', 'anpassen', 'custom', 'Anpassen', 1.25, (ox, oy) => {
+      const [x0, y0, x1, y1] = HOME_LABELS.missions;
+      return t('ANPASSEN', [x0 - ox, y0 - oy, x1 - ox, y1 - oy], 0, 0, { cls: 'v4-title v4-tlabel', fs: 42, align: 'center' });
+    }),
   ].join('');
   const nav = `<div class="v2-lift v2-group" style="--x:0;--y:0;--w:1672;--h:941">
       ${button(A, 'n_home', 'home', 'Home')}${button(A, 'n_ranked', 'ranked', 'Ranked')}
