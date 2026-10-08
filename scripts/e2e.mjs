@@ -465,7 +465,8 @@ const sim = (page) =>
   await page.waitForSelector('.v2-deckscreen [data-card="bon_smoke"]');
   await page.click('.v2-deckscreen [data-card="bon_smoke"]');
   await page.click('.v2-deckscreen [data-use]');
-  await page.click('.v2-deckscreen [data-slot="1"]');
+  // the target slots wiggle (rg-wiggle) to invite the pick: never "stable" for Playwright at software-GL frame rates
+  await page.click('.v2-deckscreen [data-slot="1"]', { force: true });
   await page.waitForTimeout(200);
   check((await page.evaluate(() => [...document.querySelectorAll('.v2-deckscreen [data-slot]')].map((e) => e.getAttribute('data-slot') && e.closest('.rg-slot')?.querySelector('.rg-dname')?.textContent))).includes('Rauchwand'), 'v2 deck: Rauchwand swapped into special 2');
   check(!(await page.isDisabled('.v2-deckscreen [data-act="ok"]')), 'v2 deck: a legal 2+1 deck enables FERTIG');
