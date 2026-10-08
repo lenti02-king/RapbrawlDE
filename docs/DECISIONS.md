@@ -547,7 +547,8 @@ fighters ("Jazeek" and "Jazeek Cartoon"), embedded so they look like part of thi
 - **Face after the photos** (no reshaping of the sculpt; the PO's new heads already had the hooded lids, moles, thin
   separate moustache and goatee): the stylized body's skin lifted ×1.17 to the head's (and the photos') tone; the
   head's neck fades into the body colour over 4 cm; lips toned toward brown (they were pink), soft shadows under the
-  eyes (the photos' tired look). Anime: lips a touch darker, its drawn eye lines kept.
+  eyes (the photos' tired look), darker and fuller brows (a soft band along each brow, the skin between the sculpted
+  hairs included). Anime: lips a touch darker, its drawn eye lines kept.
 - **Fighters**: `jazeek` now uses the stylized model (modelle-3 copy in git history; landmarks in `tools/meshy/jazeek_cr.py`
   with a thumb-side override — the mass vote picked the spread fingers); **Jazeek Cartoon** is a fighter of its own,
   `jazeektoon` = `{ ...JAZEEK, name, base: 'jazeek' }`: same moves, cards, cinematics, voice/theme and home town, own
