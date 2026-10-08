@@ -5,7 +5,7 @@
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
 import { limitTextures, texLimit } from './textureBudget';
-import { addOutline, INK, toonFrom, TOON_ON } from './cel';
+import { addOutline, INK, lookFor, pbrFrom, rimUniforms, toonFrom, type RimUniforms } from './cel';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { JOINTS, JOINT_INDEX, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
@@ -270,6 +270,8 @@ export class GlbRig implements CharacterRig {
   private refHipsRest = new THREE.Vector3();
   private hipScale = 1;
   private materials: (THREE.MeshStandardMaterial | THREE.MeshToonMaterial)[] = [];
+  /** Rim light of this character (pbr look; the P2 blue in a mirror match). */
+  readonly rim: RimUniforms = rimUniforms();
   private flashColor = new THREE.Color(1, 1, 1);
   private zero = new Float32Array(POSE_LEN);
   private world = new Map<THREE.Object3D, THREE.Quaternion>();
@@ -309,6 +311,7 @@ export class GlbRig implements CharacterRig {
     this.fit.add(this.model);
     this.root.add(this.fit);
     const inked: THREE.Mesh[] = [];
+    const TOON_ON = lookFor(id) === 'toon';
     this.model.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) {
@@ -316,11 +319,17 @@ export class GlbRig implements CharacterRig {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
-          // D43: cartoon / cel shading — no gloss at all, quantised light, black ink outline (?toon=0: original PBR, matte)
+          // D43: cartoon / cel shading — no gloss at all, quantised light, black ink outline (S17: the Jazeek pair is PBR)
           if (TOON_ON && !(m as THREE.Material).name.startsWith('cut_')) {
             const t = toonFrom(m as THREE.Material);
             this.materials.push(t);
             return t;
+          }
+          if (!(m as THREE.Material).name.startsWith('cut_')) {
+            // S17: the models' own PBR maps, arena light + reflections (cel.ts LOOK)
+            const p = pbrFrom(m as THREE.Material, this.rim);
+            this.materials.push(p);
+            return p;
           }
           const c = (m as THREE.Material).clone() as THREE.MeshStandardMaterial;
           if ('roughness' in c) {
@@ -351,6 +360,7 @@ export class GlbRig implements CharacterRig {
       if (pn.includes('prop_mic')) this.props.mic = o;
     });
     for (const m of inked) addOutline(m, alt ? INK.p2 : INK.black);
+    if (alt && !TOON_ON) this.rim.uRim.value.setHex(0x2f7bff).multiplyScalar(0.9); // PBR mirror match P2: a blue rim instead of the blue ink
     const bones = findBones(this.model);
     this.hips = bones.get('Hips')!;
     this.body = this.hips;

@@ -4,6 +4,7 @@
 // Each figure follows an anchor element (feet = anchor's bottom centre, height = anchor's height); one renderer draws
 // all figures with scissored viewports. Presentation only.
 import * as THREE from 'three';
+import { charEnv } from '../../render/cel';
 import { baseOf, getFighter } from '../../core/registry';
 import { UNITS_PER_METER } from '../../core/math';
 import { ANIM_SETS } from '../../render/animator';
@@ -11,7 +12,6 @@ import { buildCharacter } from '../../render/characters';
 import type { CharacterRig } from '../../render/glbRig';
 import { toArr, type PoseDef } from '../../render/pose';
 import { JOINT_INDEX, R_X, R_Y } from '../../render/rig';
-import { isPhone } from '../../render/textureBudget';
 import { showcasePose } from '../../render/anims/showcase';
 import { clearPlateCache, type LivingPlate } from '../v2/living';
 
@@ -220,8 +220,10 @@ export class MenuFigures {
     owner = this;
     this.renderer.domElement.style.visibility = '';
     root.insertBefore(this.renderer.domElement, before);
-    // cel-shaded fighters (D43): the toon ramp saturates above ~1, so the menu light is softer than for PBR and the
+    // S17: PBR fighters - studio reflections (metal chains/watches would render black without), the key and the
     // coloured stage rims carry the scene's colours onto the figure
+    this.scene.environment = charEnv(this.renderer);
+    this.scene.environmentIntensity = 0.7;
     this.scene.add(new THREE.HemisphereLight(0xe4e0ff, 0x2a2232, 0.62));
     const key = new THREE.DirectionalLight(0xfff1de, 1.45);
     key.position.set(2.5, 4, 5);
@@ -292,7 +294,7 @@ export class MenuFigures {
     const W = Math.round(box.width);
     const H = Math.round(box.height);
     if (!W || !H) return;
-    const dpr = Math.min(isPhone() ? 1.5 : 2, window.devicePixelRatio || 1); // phones: the canvas spans the screen
+    const dpr = Math.min(2, window.devicePixelRatio || 1); // S17: phones 2x too (1.5x looked soft); the canvas spans the screen
     if (r.getPixelRatio() !== dpr) r.setPixelRatio(dpr);
     const size = r.getSize(new THREE.Vector2());
     if (size.x !== W || size.y !== H) r.setSize(W, H, false);

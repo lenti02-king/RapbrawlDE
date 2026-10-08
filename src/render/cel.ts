@@ -3,11 +3,102 @@
 // The hull is a second skinned mesh on the SAME skeleton and geometry, pushed out along smoothed normals in view
 // space by a fraction of the depth, so the line has the same on-screen width in the fight, the menus and close-ups.
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 /** Outline width as a fraction of the view depth (≈ 0.3 % of the screen height at the game's field of view). */
 export const OUTLINE = { value: 0.0019 };
-/** `?toon=0` shows the models with their original PBR material (comparison / fallback). */
-export const TOON_ON = typeof location === 'undefined' || new URLSearchParams(location.search).get('toon') !== '0';
+/** Character look (S17, PO: "es sieht aus wie eine primitive Grafik"): 'pbr' = the models' own PBR maps (colour,
+ *  normal, metal/roughness) lit by the arena's lights and reflections, soft shading, no ink - how the models look in
+ *  their viewers; 'toon' = the D43 cel look (3-band ramp + black ink hull). Per fighter: only the modelle-4 Jazeek pair
+ *  is PBR for now - the PO is remaking the other fighters, they stay exactly as they are (PO, S17). */
+export const PBR_FIGHTERS = new Set(['jazeek', 'jazeektoon']);
+/** `?look=toon|pbr` forces one look on every fighter (comparisons). */
+const LOOK_OVERRIDE: 'pbr' | 'toon' | null = (() => {
+  if (typeof location === 'undefined') return null;
+  const v = new URLSearchParams(location.search).get('look');
+  return v === 'toon' || v === 'pbr' ? v : null;
+})();
+export function lookFor(id: string): 'pbr' | 'toon' {
+  return LOOK_OVERRIDE ?? (PBR_FIGHTERS.has(id) ? 'pbr' : 'toon');
+}
+
+/** Rim light of one character (fresnel, added after the lights): the arena's back light colour; the second fighter
+ *  of a mirror match gets the P2 blue instead of a recolour (the textures are real people's skin and clothes). */
+export interface RimUniforms {
+  uRim: { value: THREE.Color };
+  uRimPow: { value: number };
+}
+export function rimUniforms(color = 0x9a7cff, strength = 0.35): RimUniforms {
+  return { uRim: { value: new THREE.Color(color).multiplyScalar(strength) }, uRimPow: { value: 2.6 } };
+}
+
+const envCache = new WeakMap<THREE.WebGLRenderer, THREE.Texture>();
+/** Neutral studio reflections for the PBR fighters where no arena probe exists (menus, portraits, low quality, the
+ *  first frames of a fight): without an environment their metal (chains, watches, rings) renders black. */
+export function charEnv(renderer: THREE.WebGLRenderer): THREE.Texture {
+  let t = envCache.get(renderer);
+  if (!t) {
+    const pm = new THREE.PMREMGenerator(renderer);
+    t = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+    pm.dispose();
+    envCache.set(renderer, t);
+  }
+  return t;
+}
+
+/** Skin-like diffuse for the PBR fighters: wrapped N·L (light reaches a little past the terminator, as through skin
+ *  and cloth) with a warm tint in that band - the hard light/shadow edge on faces read as plastic. Specular stays GGX. */
+const WRAP_LINE = 'reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - F );';
+const SOFT_SKIN_CHUNK = THREE.ShaderChunk.lights_physical_pars_fragment.includes(WRAP_LINE)
+  ? THREE.ShaderChunk.lights_physical_pars_fragment.replace(
+      WRAP_LINE,
+      `float rbWrapNL = saturate( ( dot( geometryNormal, directLight.direction ) + 0.3 ) / 1.3 );
+      vec3 rbWarm = mix( vec3( 1.0 ), vec3( 1.0, 0.8, 0.72 ), saturate( ( rbWrapNL - dotNL ) * 2.5 ) );
+      reflectedLight.directDiffuse += rbWrapNL * directLight.color * rbWarm * BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - F );`,
+    )
+  : THREE.ShaderChunk.lights_physical_pars_fragment;
+
+/** The PBR character material from a glTF material: the model's own maps; metal/roughness from Meshy's map when the
+ *  model carries it (chains and jewellery metal, skin and cloth their own gloss), else a soft skin-like default. */
+export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysicalMaterial {
+  const s = m as THREE.MeshStandardMaterial;
+  const mr = s.roughnessMap ?? s.metalnessMap ?? null;
+  const p = new THREE.MeshPhysicalMaterial({
+    name: s.name,
+    color: s.color ? s.color.clone() : new THREE.Color(1, 1, 1),
+    map: s.map ?? null,
+    normalMap: s.normalMap ?? null,
+    roughnessMap: mr,
+    metalnessMap: mr,
+    roughness: mr ? 1 : 0.62,
+    metalness: mr ? 1 : 0,
+    specularIntensity: 0.55,
+    envMapIntensity: 1.0,
+    emissive: new THREE.Color(0, 0, 0),
+    transparent: s.transparent,
+    alphaTest: s.alphaTest,
+    side: s.side,
+  });
+  if (s.normalMap) p.normalScale.copy(s.normalScale ?? new THREE.Vector2(1, 1));
+  // the face and hands sit at grazing angles in the side-on fight camera: anisotropic filtering keeps them sharp
+  // (three clamps it to the GPU's maximum)
+  for (const t of [p.map, p.normalMap, mr]) if (t) t.anisotropy = 8;
+  p.onBeforeCompile = (sh) => {
+    sh.uniforms.uRim = rim.uRim;
+    sh.uniforms.uRimPow = rim.uRimPow;
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uRim;\nuniform float uRimPow;')
+      .replace('#include <lights_physical_pars_fragment>', SOFT_SKIN_CHUNK)
+      .replace(
+        '#include <lights_fragment_begin>',
+        `#include <lights_fragment_begin>
+        // rim: lifts the silhouette off the background like the key/back light of a character shot
+        totalEmissiveRadiance += uRim * pow( 1.0 - saturate( dot( normal, geometryViewDir ) ), uRimPow ) * diffuseColor.rgb * 2.0;`,
+      );
+  };
+  p.customProgramCacheKey = () => 'rb-pbr-char';
+  return p;
+}
 
 let ramp: THREE.DataTexture | null = null;
 /** Cel bands over N·L from -1 to 1 (8 texels of 0.25): the side turned away from a light gets nothing from it (the

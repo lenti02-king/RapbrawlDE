@@ -128,6 +128,9 @@ def material(name, imgs, work, emissive=False):
         nn = nt.nodes.new('ShaderNodeNormalMap')
         nt.links.new(nm.outputs['Color'], nn.inputs['Color'])
         nt.links.new(nn.outputs['Normal'], bsdf.inputs['Normal'])
+    mr = tex('mr', 'Non-Color')  # glTF metal (B) / roughness (G): loaded, not wired (baked on its own, merge4.py)
+    if mr:
+        mr.name = 'mr_tex'
     return mat
 
 

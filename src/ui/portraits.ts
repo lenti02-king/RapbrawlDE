@@ -4,6 +4,7 @@
 //   hero  — tall full-body key art         art:<cardId> — the fighter at the card move's first active frame
 import { showcasePose } from '../render/anims/showcase';
 import * as THREE from 'three';
+import { charEnv } from '../render/cel';
 import { getCard, getFighter, getMove } from '../core/registry';
 import { ANIM_SETS } from '../render/animator';
 import { buildCharacter } from '../render/characters';
@@ -269,6 +270,8 @@ export function renderPortraits(ids: string[], kinds: PortraitKind[] = ['card', 
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
+  scene.environment = charEnv(renderer); // S17 PBR fighters: reflections for skin gloss and metal
+  scene.environmentIntensity = 0.7;
   scene.add(new THREE.HemisphereLight(0xe8e2ff, 0x2a2230, 0.9));
   const key = new THREE.DirectionalLight(0xfff0dc, 2.8);
   key.position.set(4, 3.5, 5);

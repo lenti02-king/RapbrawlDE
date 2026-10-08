@@ -1,6 +1,7 @@
 // GameView: the presentation layer. Reads GameState + SimEvents, never mutates the sim.
 import * as THREE from 'three';
 import type { SimEvent } from '../core/events';
+import { charEnv } from './cel';
 import { UNITS_PER_METER } from '../core/math';
 import { getFighter, getMove } from '../core/registry';
 import { activeHitboxes, hurtboxes, projectileBox, showcaseOf } from '../core/sim';
@@ -107,9 +108,10 @@ export class GameView {
   constructor(canvas: HTMLCanvasElement, arenaId = new URLSearchParams(location.search).get('arena') ?? 'podcast') {
     const coarse = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    // phones render at 1.5x (1.25x on low): an iPhone's 3x screen would need ~4x the GPU memory for every target (D41)
+    // phones: up to 2x (S17: 1.5x left the fighters soft - "primitive Grafik"; 1.25x on low); never the full 3x of an
+    // iPhone (~4x the GPU memory per target, D41). The frame-time governor (adaptPixelRatio) steps down from here.
     const q = detectQuality();
-    this.renderer.setPixelRatio(Math.min(coarse ? (q === 'low' ? 1.25 : q === 'high' ? 2 : 1.5) : 2, window.devicePixelRatio || 1));
+    this.renderer.setPixelRatio(Math.min(coarse ? (q === 'low' ? 1.25 : q === 'high' ? 2.5 : 2) : 2, window.devicePixelRatio || 1));
     this.perf.max = this.renderer.getPixelRatio();
     this.perf.min = Math.min(this.perf.max, 1);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -185,13 +187,17 @@ export class GameView {
     }
   }
   private applyProbe(rig: CharacterRig): void {
-    if (!this.probe) return;
+    // S17 PBR fighters: the arena's own light as reflections (probe), the neutral studio env until it exists
     rig.root.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[] | undefined;
       for (const mat of Array.isArray(m) ? m : m ? [m] : []) {
         if (!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) continue;
-        mat.envMap = this.probe;
-        mat.envMapIntensity = 0.5;
+        const char = (mat as THREE.MeshPhysicalMaterial).isMeshPhysicalMaterial;
+        if (!this.probe && !char) continue; // everything but the PBR fighters as before: arena probe only
+        const env = this.probe ?? charEnv(this.renderer);
+        if (mat.envMap === env) continue;
+        mat.envMap = env;
+        mat.envMapIntensity = char ? (this.probe ? 0.9 : 0.6) : 0.5;
         mat.needsUpdate = true;
       }
     });

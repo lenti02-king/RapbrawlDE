@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import json
 import math
 import os
 import sys
@@ -48,7 +49,7 @@ STYLES = {
         # cut plane through two midline points (y, z): the throat under the chin and the nape above the chains
         plane=((-0.010, 0.650), (0.100, 0.700)),
         # face retouch after the PO's photos (head file units): eyes (x, z), lips box, strengths
-        eyes=((-0.185, 0.130), (0.190, 0.130)), lips=(-0.33, -0.24, 0.17), lip_tint=(0.78, 0.76, 0.71), eye_dark=0.86,
+        eyes=((-0.185, 0.130), (0.190, 0.130)), lips=(-0.33, -0.24, 0.17), lip_tint=(0.78, 0.76, 0.71), eye_dark=1.0,  # S17: no under-eye shadow (PO: looked stoned/tired)
         facebox=(0.42, 0.30),  # |x| and top z of the face zone (just above the brows)
         brows=((-0.20, 0.245), (0.205, 0.245)), brow_dark=0.74,  # the photos' brows are darker and fuller
         skin_match=True,  # the body's skin is darker than the head's (and the photos): lift it to the head's tone
@@ -58,9 +59,21 @@ STYLES = {
         head_lm=dict(chin=-0.590, nose=(-0.060, -0.7461), nasion=0.180),
         body_lm=dict(chin=0.658, nose=(0.762, -0.1353), nasion=0.810),
         plane=((-0.045, 0.640), (0.080, 0.670)),  # low at the back: the curls reach down to the nape
-        eyes=((-0.180, 0.150), (0.170, 0.150)), lips=(-0.31, -0.19, 0.17), lip_tint=(0.88, 0.86, 0.82), eye_dark=0.93,
+        eyes=((-0.180, 0.150), (0.170, 0.150)), lips=(-0.31, -0.19, 0.17), lip_tint=(0.88, 0.86, 0.82), eye_dark=1.0,
         facebox=(0.42, 0.30),
         skin_match=False,
+    ),
+    # S17: the PO's second cartoon head (a bust with a tank top and a clean chain; heavier lids, straighter brows,
+    # narrower lips - closer to the photos than the first anime head); the anime body stays
+    'anime2': dict(
+        fighter='jazeektoon', body='anime_body_src.glb', head='anime2_head_src.glb',
+        head_lm=dict(chin=-0.280, nose=(0.135, -0.5652), nasion=0.330),
+        body_lm=dict(chin=0.658, nose=(0.762, -0.1353), nasion=0.810),
+        plane=((-0.045, 0.640), (0.080, 0.670)),
+        eyes=((-0.140, 0.295), (0.136, 0.295)), lips=(-0.06, 0.05, 0.13), lip_tint=(0.90, 0.86, 0.84), eye_dark=1.0,
+        facebox=(0.32, 0.42),
+        skin_match=False,
+        head_gain=(1.03, 1.12, 1.10),  # the bust's skin is pinker than the body's (cheek 191/125/108 vs arm 196/141/119)
     ),
 }
 
@@ -80,6 +93,7 @@ ap.add_argument('--margin', type=float, default=0.0012)
 ap.add_argument('--cage', type=float, default=0.006, help='bake cage extrusion (model units)')
 ap.add_argument('--samples', type=int, default=4)
 ap.add_argument('--quality', type=int, default=92)
+ap.add_argument('--facewarp', help='tools/meshy/facewarp.py output: face proportions toward the photos')
 ap.add_argument('--resume', action='store_true', help='reuse the joined + remeshed scene of the last run (work/<style>/remesh.blend)')
 args = ap.parse_args()
 C = STYLES[args.style]
@@ -197,6 +211,25 @@ else:
         return np.array([(q[:, 0].min() + q[:, 0].max()) / 2, (q[:, 1].min() + q[:, 1].max()) / 2])
 
 
+    if args.facewarp:
+        # S17: proportions toward the PO's photos (eyes, brows, nose, lips, jaw) - a thin-plate spline over the front
+        # view, front-facing head vertices only, fading out before the hairline, ears and neck
+        from scipy.interpolate import RBFInterpolator
+
+        fw = json.load(open(args.facewarp))
+        P_ = np.array(fw['points'])
+        D_ = np.array(fw['delta'])
+        c_ = P_.mean(0)
+        ang = np.linspace(0, 2 * np.pi, 32, endpoint=False)
+        anchors = np.concatenate([c_ + np.c_[np.cos(ang), np.sin(ang)] * r_ for r_ in (0.115, 0.15)])
+        rbf = RBFInterpolator(np.r_[P_, anchors], np.r_[D_, np.zeros_like(anchors)], kernel='thin_plate_spline', smoothing=1e-7)
+        rr = np.hypot(hp[:, 0] - c_[0], hp[:, 2] - c_[1])
+        sel = (rr < 0.13) & (hp[:, 1] < -0.015)
+        wv = (1 - smoothstep(0.095, 0.125, rr[sel])) * smoothstep(-0.015, -0.045, hp[sel, 1])
+        dd = rbf(np.c_[hp[sel, 0], hp[sel, 2]])
+        hp[sel, 0] += dd[:, 0] * wv
+        hp[sel, 2] += dd[:, 1] * wv
+        log('face warp', os.path.basename(args.facewarp), 'on', int((wv > 0.01).sum()), 'verts, max', round(float(np.abs(dd * wv[:, None]).max()), 5))
     qb = ring(bpos)
     qh = ring(hp)
     cb, ch = centre(qb), centre(qh)
@@ -254,9 +287,15 @@ else:
     # head: keep triangles whose vertices are all above -OVERLAP (the hidden overlap ends under the body's neck surface)
     hh, ha, hr = polar(hp)
     keep_v = hh > -OVERLAP
+    # just above/below the cut only the neck's skin stays: a bust's chain or shirt there would poke through the body
+    _T = np.asarray(Image.open(io.BytesIO(himg['base'])).convert('RGB'))
+    _c = _T[np.clip((huv[:, 1] * _T.shape[0]).astype(int), 0, _T.shape[0] - 1), np.clip((huv[:, 0] * _T.shape[1]).astype(int), 0, _T.shape[1] - 1)].astype(np.int16)
+    _skin = (_c[:, 0] > _c[:, 1]) & (_c[:, 0] - _c[:, 2] > 20) & (_c[:, 0] > 60)
+    keep_v &= ~((hh < 0.012) & ~_skin)
+    del _T, _c, _skin
     keep_t = keep_v[htri].all(1)
     # 3. neck morph: radial scale toward the body's neck at the plane
-    f = np.clip((Rb - EPS) / Rh, 0.9, 1.1)
+    f = np.clip((Rb - EPS) / Rh, 0.82, 1.12)  # median radii: no stray-curl outliers left to guard against
     ai = (ha + np.pi) / (2 * np.pi) * NB - 0.5
     i0 = np.floor(ai).astype(int) % NB
     fr = ai - np.floor(ai)
@@ -373,9 +412,11 @@ else:
     bimg = dict(bimg, base=open(bpath, 'rb').read())
 
     # per-vertex colour multiplier on the head (linear light): seam fade x lips x under-eye shadow
+    hg = np.array(C.get('head_gain', (1.0, 1.0, 1.0)))
+    Ch = Ch * hg
     gain = lin(Cb) / np.maximum(lin(Ch), 1e-4)
     Hsrc = hpos[used]  # head file units for the face landmarks
-    tint = np.ones((len(H_pos), 3))
+    tint = np.ones((len(H_pos), 3)) * (hg ** 2.2)[None, :]
     tint *= 1 + (gain[None, :] - 1) * H_w[:, None]
     z0, z1, xh = C['lips']
     cz = (z0 + z1) / 2
@@ -414,6 +455,7 @@ else:
         mat = glbfast.material(name, imgs, WORK)
         nt = mat.node_tree
         tex = [nd for nd in nt.nodes if nd.type == 'TEX_IMAGE' and nd.image.colorspace_settings.name == 'sRGB'][0]
+        tex.name = 'base_tex'
         uvn = nt.nodes.new('ShaderNodeUVMap')
         uvn.uv_map = 'UVMap'
         for nd in nt.nodes:
@@ -433,6 +475,8 @@ else:
         nt.links.new(at.outputs['Color'], mix.inputs['B'])
         nt.links.new(mix.outputs['Result'], bsdf.inputs['Base Color'])
         em = nt.nodes.new('ShaderNodeEmission')
+        em.name = 'bake_emit'
+        mix.name = 'tint_mix'
         nt.links.new(mix.outputs['Result'], em.inputs['Color'])
         add = nt.nodes.new('ShaderNodeAddShader')
         nt.links.new(bsdf.outputs['BSDF'], add.inputs[0])
@@ -665,7 +709,7 @@ def uv_masks(size):
     return np.asarray(m_all) > 0, np.asarray(m_hair) > 0
 
 
-def cleanup(a):
+def cleanup(a, hair=True):
     """Baked colour fixes: (1) ray misses (pure black texels inside the islands) filled from their neighbours;
     (2) in the hair, skin-coloured texels (rays that reached the scalp between the sculpted curls - the game copy's
     hair is one closed surface) turned into the hair colour."""
@@ -685,6 +729,9 @@ def cleanup(a):
         f[grow] = acc[grow] / w[grow, None]
         valid |= grow
         miss &= ~grow
+    if not hair:
+        log('cleanup: ray misses filled', n_miss)
+        return np.clip(f, 0, 255).astype(np.uint8)
     lum = f @ np.array([0.3, 0.59, 0.11], np.float32)
     hair_dark = m_hair & (lum < 45) & valid
     # the hair's own median, pulled toward a neutral dark brown (the sculpt's darkest texels lean purple)
@@ -705,13 +752,29 @@ def bake(kind, name, noncolor):
     t = time.time()
     if kind == 'NORMAL':
         bpy.ops.object.bake(type='NORMAL', normal_space='TANGENT')
+    elif kind == 'MR':
+        # the sources' glTF metal/roughness maps through the same rays (sources without one: rough 0.6, no metal)
+        for mat in high.data.materials:
+            nt_ = mat.node_tree
+            em_ = nt_.nodes['bake_emit']
+            mr_ = nt_.nodes.get('mr_tex')
+            if mr_:
+                nt_.links.new(mr_.outputs['Color'], em_.inputs['Color'])
+            else:
+                for l_ in list(em_.inputs['Color'].links):
+                    nt_.links.remove(l_)
+                em_.inputs['Color'].default_value = (0.0, 0.6, 0.0, 1.0)
+        bpy.ops.object.bake(type='EMIT')
+        for mat in high.data.materials:
+            nt_ = mat.node_tree
+            nt_.links.new(nt_.nodes['tint_mix'].outputs['Result'], nt_.nodes['bake_emit'].inputs['Color'])
     else:
         bpy.ops.object.bake(type='EMIT')
     px = np.empty(args.tex * args.tex * 4, np.float32)
     im.pixels.foreach_get(px)
     a = (np.clip(px.reshape(args.tex, args.tex, 4)[::-1, :, :3], 0, 1) * 255 + 0.5).astype(np.uint8)
-    if kind == 'EMIT':
-        a = cleanup(a)
+    if kind in ('EMIT', 'MR'):
+        a = cleanup(a, hair=kind == 'EMIT')
     path = os.path.join(WORK, f'{name}.jpg')
     Image.fromarray(a).save(path, quality=args.quality, subsampling=0, optimize=True)
     log('baked', kind, f'{time.time() - t:.0f}s ->', path, f'{os.path.getsize(path) / 1e6:.1f} MB')
@@ -720,6 +783,7 @@ def bake(kind, name, noncolor):
 
 base_path = bake('EMIT', 'bake_base', False)
 norm_path = bake('NORMAL', 'bake_normal', True)
+mr_path = bake('MR', 'bake_mr', True)  # S17: the game renders the fighters PBR (glossy chains, skin and cloth gloss)
 
 # ------------------------------------------------------------------ 7. game material + export
 nt = lm.node_tree
@@ -735,6 +799,13 @@ tn.image.colorspace_settings.name = 'Non-Color'
 nmap = nt.nodes.new('ShaderNodeNormalMap')
 nt.links.new(tn.outputs['Color'], nmap.inputs['Color'])
 nt.links.new(nmap.outputs['Normal'], bsdf.inputs['Normal'])
+tm = nt.nodes.new('ShaderNodeTexImage')
+tm.image = bpy.data.images.load(mr_path)
+tm.image.colorspace_settings.name = 'Non-Color'
+sep = nt.nodes.new('ShaderNodeSeparateColor')
+nt.links.new(tm.outputs['Color'], sep.inputs['Color'])
+nt.links.new(sep.outputs['Green'], bsdf.inputs['Roughness'])
+nt.links.new(sep.outputs['Blue'], bsdf.inputs['Metallic'])
 nt.nodes.remove(target)
 me = low.data
 me.polygons.foreach_set('use_smooth', np.ones(len(me.polygons), bool))
