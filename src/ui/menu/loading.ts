@@ -5,7 +5,8 @@
 import { MM_ART } from './mainMenuArt';
 import { LD_ART, LD_BOXES } from './loadingArt';
 import { clamp, coverOf, fitTexts, pos, safeInsets, text } from './kit';
-import { isV2 } from '../design';
+import { isV2, isV4 } from '../design';
+import { loadingHtmlV4, mountLoadingV4, setLoadingLabelV4, setLoadingV4 } from '../v4/loading';
 import { loadingHtmlV2, mountLoadingV2, setLoadingLabelV2, setLoadingV2 } from '../v2/loading';
 
 const REF_W = 2000;
@@ -22,6 +23,7 @@ const GW = T.w;
 const GH = T.y + T.h - GY0;
 
 export function loadingHtml(label: string): string {
+  if (isV4()) return loadingHtmlV4(label);
   if (isV2()) return loadingHtmlV2(label);
   return `<div class="mm-bg ld-bg" style="background-image:url(${LD_ART.bg.src})"></div>
     <div class="ld-logo" style="${pos(LX0, LY0, LX1 - LX0, LY1 - LY0)}"><img alt="RAP BRAWL" draggable="false" src="${MM_ART.logo.src}"></div>
@@ -35,6 +37,7 @@ export function loadingHtml(label: string): string {
 
 /** Set the bar to `p` (0..1): the fill strip grows from its left cap; the spark rides on its end. */
 export function setLoading(root: HTMLElement, p: number): void {
+  if (root.querySelector('.v4-ldbar')) return setLoadingV4(root, p);
   if (root.classList.contains('v2')) return setLoadingV2(root, p);
   const k = clamp(p, 0, 1);
   const w = 40 + k * (CH1 - F.x - 40);
@@ -46,6 +49,7 @@ export function setLoading(root: HTMLElement, p: number): void {
 }
 
 export function setLoadingLabel(root: HTMLElement, label: string, pulse = false): void {
+  if (root.querySelector('.v4-ldbar')) return setLoadingLabelV4(root, label, pulse);
   if (root.classList.contains('v2')) return setLoadingLabelV2(root, label, pulse);
   const t = root.querySelector<HTMLElement>('.ld-label');
   if (!t) return;
@@ -89,6 +93,7 @@ export function layoutLoading(root: HTMLElement): void {
 }
 
 export function mountLoading(root: HTMLElement): () => void {
+  if (root.querySelector('.v4-ldbar')) return mountLoadingV4(root);
   if (root.querySelector('.v2-stage')) return mountLoadingV2(root);
   root.classList.add('mm', 'ld');
   const re = () => layoutLoading(root);

@@ -40,7 +40,7 @@ import { modesHtmlV4, mountModesV4, type ModeTile, type ModesV4Model } from '../
 import { setSelectWallet } from '../ui/v4/select';
 import { customHtmlV4, mountCustomV4, type CustomV4Model } from '../ui/v4/custom';
 import { lobbyHtmlV4, lobbyOpponentV4, lobbyStatusV4, mountLobbyV4 } from '../ui/v4/lobby';
-import type { Wallet } from '../ui/v4/kit4';
+import { rememberWallet, type Wallet } from '../ui/v4/kit4';
 import type { TopBar } from '../ui/v2/arena';
 import { deckHtml, deckParts, mountOverlay, mountRing, pauseHtml, profileHtml, resultsHtml, settingsHtml, type DeckCard, type DeckModel, type SettingRow } from '../ui/v2/ring';
 import { AudioEngine } from '../audio/audio';
@@ -657,7 +657,7 @@ export class App {
   /** Design v4 wallet (the masters' capsules): coins and gems of the local economy, rank points as trophies. */
   private get wallet(): Wallet {
     const eco = economyOf(this.profileData);
-    return { coins: eco.coins, gems: eco.gems, trophies: store.get('rp', 0) };
+    return rememberWallet({ coins: eco.coins, gems: eco.gems, trophies: store.get('rp', 0) });
   }
 
   /** Design v4 home (D47, the PO's Frankfurt master): FIGHT opens the modes, the tiles the menus, the favourite stands
@@ -954,7 +954,7 @@ export class App {
   /** Currencies for the v2 top bars (local placeholder economy). */
   private get topBar(): TopBar {
     const eco = economyOf(this.profileData);
-    return { coins: eco.coins, gems: eco.gems, energy: '40/40', mail: store.get('newsSeen', 0) < NEWS_VERSION };
+    return { coins: eco.coins, gems: eco.gems, energy: '40/40', mail: store.get('newsSeen', 0) < NEWS_VERSION, trophies: store.get('rp', 0) };
   }
 
   /** v2 top bar buttons (currencies, mail, settings) on sub-screens; `leave` stops the screen first. */
@@ -962,7 +962,7 @@ export class App {
     el.querySelectorAll<HTMLElement>('.v2-stage [data-act]').forEach((b) =>
       b.addEventListener('click', (e) => {
         const a = b.dataset.act;
-        if (a === 'shop' || a === 'settings' || a === 'news') e.stopPropagation();
+        if (a === 'shop' || a === 'settings' || a === 'news' || a === 'social') e.stopPropagation();
         if (a === 'shop') {
           leave();
           this.showShop();
@@ -972,6 +972,9 @@ export class App {
         } else if (a === 'news') {
           store.set('newsSeen', NEWS_VERSION);
           this.showNews(el);
+        } else if (a === 'social') {
+          leave();
+          this.showOnlineLobby();
         }
       }),
     );
@@ -1339,7 +1342,8 @@ export class App {
       (e.currentTarget as HTMLButtonElement).disabled = true;
       const go = () => {
         stop();
-        if (isV2()) this.showVs();
+        // design v4 has no VS master: straight from the arena into the loading screen (D47)
+        if (isV2() && !isV4()) this.showVs();
         else this.launch();
       };
       if (cands.length < 2) return go();

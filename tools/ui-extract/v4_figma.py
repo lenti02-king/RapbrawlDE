@@ -60,6 +60,8 @@ PANELS = {
                'Namensschild': (120, 22, 476, 98), 'AUSRÜSTEN-Rahmen mit Ketten': (1074, 752, 1622, 912)},
     'lobby': {'Freunde-Panel': (34, 224, 614, 762), 'Lobby-Panel': (1082, 226, 1632, 802), 'LOBBY ERSTELLEN-Rahmen mit Ketten': (546, 786, 1118, 916)},
 }
+# panel layers that the screens without a master reuse (public/assets/ui4/kit/<name>.webp)
+KIT = {'custom': {'Namensschild': 'title'}, 'select': {'Namensschild P1': 'plate_p1', 'Namensschild P2': 'plate_p2'}}
 SAMPLE = {'amount': {'coins': '125,430', 'gems': '3,260', 'trophies': '1,420'}, 'name': 'BeatKing', 'level': '32', 'xp': '2,480 / 3,500',
           'code': 'RB-2048', 'label': 'EINLADEN', 'status': 'Online'}
 
@@ -85,6 +87,46 @@ def b64(im: Image.Image, fmt='PNG', q=90) -> str:
 
 def esc(s):
     return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+
+
+def kit_save(name, im, box):
+    """A shared v4 piece -> public/assets/ui4/kit/<name>.webp + its master box in kit.json."""
+    d = os.path.join(PUB, 'kit')
+    os.makedirs(d, exist_ok=True)
+    im.save(os.path.join(d, f'{name}.webp'), 'WEBP', quality=92)
+    p = os.path.join(d, 'kit.json')
+    boxes = json.load(open(p)) if os.path.exists(p) else {}
+    boxes[name] = box
+    json.dump(boxes, open(p, 'w'), indent=1, sort_keys=True)
+
+
+def kit_sprites():
+    """Sprites of the masters the other screens reuse as they are (back button, the blank gold / blue buttons)."""
+    for name, (screen, sid) in {'back': ('select', 'back'), 'gold': ('lobby', 'btn_gold'), 'blue': ('lobby', 'btn_blue'), 'fill': ('home', 'xp_fill')}.items():
+        art, _ = table(screen)
+        kit_save(name, Image.open(os.path.join(PUB, screen, f'{sid}.webp')), art[sid])
+    # the profile's XP track (empty: rebuilt by the run) as a bar track for progress (loading screen)
+    bg = Image.open(os.path.join(ROOT, '.cache', 'ui4', 'home_bg.png')).convert('RGB')
+    kit_save('track', bg.crop((214, 63, 419, 85)), [214, 63, 205, 22])
+
+
+def clean_plate(screen, clean):
+    """The scene without UI as a game plate of its own (<screen>_clean): the screens without a master stand in it
+    (D47: nothing new, only the PO's scenes). Wings: the screen's outpainted wings, darkened like v2x."""
+    side = v2x.SIDE
+    wings = cv2.imread(os.path.join(ROOT, '.cache', 'ui4', f'{screen}_wings.png'))
+    wide = wings.copy()
+    wide[:, side:side + W] = clean
+    t = np.linspace(0.0, 1.0, side, dtype=np.float32)
+    k = (0.35 + 0.65 * t ** 0.8)[None, :, None]
+    wide[:, :side] = (wide[:, :side].astype(np.float32) * k).astype(np.uint8)
+    wide[:, side + W:] = (wide[:, side + W:].astype(np.float32) * k[:, ::-1]).astype(np.uint8)
+    name = f'{screen}_clean'
+    out_dir = os.path.join(PUB, name)
+    os.makedirs(out_dir, exist_ok=True)
+    tiles = v2x.split_plate(wide, out_dir, side, W)
+    lt = v2x.lights(clean, y_max=780)
+    v2x.write_ts(name, {}, {}, tiles, lt, {}, (W, H))
 
 
 def build(screen):
@@ -117,9 +159,13 @@ def build(screen):
         rgba = np.dstack([cv2.cvtColor(bg[by0:by1, bx0:bx1], cv2.COLOR_BGR2RGB), a[by0:by1, bx0:bx1]])
         panels[pn] = (Image.fromarray(rgba, 'RGBA'), bx0, by0)
         hole |= (m > 0).astype(np.uint8) * 255
+    for pn, out in KIT.get(screen, {}).items():  # shared v4 pieces for the screens without a master
+        im, kx, ky = panels[pn]
+        kit_save(out, im, [int(kx), int(ky), im.width, im.height])
     hole = uix.dilate(hole, 6)
     clean = uix.inpaint(bg, hole, max_side=1024, ctx=0.5)
     cv2.imwrite(os.path.join(ROOT, '.cache', 'ui4', f'{screen}_clean.png'), clean)
+    clean_plate(screen, clean)
     clean_im = Image.fromarray(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB))
 
     L = [f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="{W}" height="{H}" viewBox="0 0 {W} {H}">',
@@ -173,3 +219,4 @@ def build(screen):
 if __name__ == '__main__':
     for s in sys.argv[1:] or ['home', 'modes', 'select', 'custom', 'lobby']:
         build(s)
+    kit_sprites()

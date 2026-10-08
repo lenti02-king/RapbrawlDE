@@ -5,11 +5,14 @@
 
 Kept as the PO painted it (baked): every static label, icon, frame and the logo. Removed from the plate and set
 natively: live numbers, names, codes. Removed for good: third-party marks (DB, S-Bahn logos)."""
+import json
 import os
+import re
 import sys
 
 import cv2
 import numpy as np
+from PIL import Image
 
 sys.path.insert(0, os.path.dirname(__file__))
 import uix  # noqa: E402
@@ -17,6 +20,13 @@ import v2x  # noqa: E402
 import v4x  # noqa: E402
 
 MASTERS = {'modes': '46', 'custom': '47', 'select': '48', 'home': '49', 'lobby': '50'}
+
+
+def TS_ART(screen):
+    """The generated sprite table of a screen (after its run)."""
+    ts = open(os.path.join(v2x.TS_DIR, f'{screen}.ts')).read()
+    m = re.search(r'_ART = (\{.*?\n\}) as const;', ts, re.S)
+    return json.loads(re.sub(r',(\s*\})', r'\1', m.group(1)))
 
 
 def btn(box, inset=4, **kw):
@@ -123,6 +133,15 @@ def modes():
         'on_label': white_part('modes', 'on_label', img, (632, 718, 792, 768)),
         'off_label': white_part('modes', 'off_label', img, (874, 718, 1034, 768)),
     }
+    # the four tiles without their labels (arena select and other pickers write their own): label rows interpolated
+    for tid, z in {'t_1v1': (440, 396, 742, 473), 't_2v2': (940, 396, 1242, 473), 't_friends': (444, 596, 742, 675), 't_training': (944, 596, 1242, 675)}.items():
+        im = Image.open(os.path.join(v4x.PUB, 'modes', f'{tid}.webp')).convert('RGBA')
+        x, y, w, h = [int(v) for v in json.loads(json.dumps(TS_ART('modes')[tid]))]
+        rgb = cv2.cvtColor(np.asarray(im)[..., :3], cv2.COLOR_RGB2BGR)
+        m = np.zeros(rgb.shape[:2], np.uint8)
+        m[max(0, z[1] - y):z[3] - y, max(0, z[0] - x):z[2] - x] = 255
+        clean = uix.fill_scanlines(rgb, m)
+        extra[f'{tid}_blank'] = v4x.save_part('modes', f'{tid}_blank', clean, np.asarray(im)[..., 3], (x, y))
     v4x.append_ts('modes', extra)
 
 

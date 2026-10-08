@@ -5,7 +5,8 @@
 // place (no re-render), so the tile roulette can animate.
 import { AS_ART, AS_BOXES } from './arenaSelectArt';
 import { esc, fitTexts, keepLaidOut, layoutStage, pos, text, type Box } from './kit';
-import { isV2 } from '../design';
+import { isV2, isV4 } from '../design';
+import { mountShowcaseV4, showcaseHtmlV4, showcaseSelectV4 } from '../v4/arena';
 import { mountShowcaseV2, showcaseHtmlV2, showcaseSelectV2, type TopBar } from '../v2/arena';
 
 export interface ShowcaseItem {
@@ -43,6 +44,7 @@ const box = (b: readonly number[]) => b as unknown as Box;
 const ROW_H = 40;
 
 export function showcaseHtml(items: ShowcaseItem[], cur: ShowcaseItem, o: ShowcaseOpts & { bar?: TopBar | null }): string {
+  if (isV4()) return showcaseHtmlV4(items, cur, o);
   if (isV2()) return showcaseHtmlV2(items, cur, o);
   const bg = AS_ART.bg;
   const pv = AS_ART.preview;
@@ -118,6 +120,7 @@ function setText(root: HTMLElement, sel: string, t: string): void {
 
 /** Show `it` as the current item (preview, info panel, selected tile frame) without re-rendering. */
 export function showcaseSelect(root: HTMLElement, it: ShowcaseItem): void {
+  if (root.classList.contains('v4-arena')) return showcaseSelectV4(root, it);
   if (root.classList.contains('v2')) return showcaseSelectV2(root, it);
   root.querySelectorAll<HTMLElement>('.as-tile').forEach((t) => t.classList.toggle('on', t.dataset.item === it.id));
   const pv = root.querySelector<HTMLImageElement>('.as-preview');
@@ -142,6 +145,7 @@ export function setShowcaseChip(root: HTMLElement, label: string, on: boolean): 
 }
 
 export function mountShowcase(root: HTMLElement): () => void {
+  if (root.querySelector('.v4-pages')) return mountShowcaseV4(root);
   if (root.querySelector('.v2-stage')) return mountShowcaseV2(root);
   root.classList.add('mm', 'as');
   const stage = root.querySelector<HTMLElement>('.cs-stage')!;

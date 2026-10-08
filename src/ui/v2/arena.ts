@@ -6,6 +6,8 @@ import { de, esc, fitTexts } from '../menu/kit';
 import type { ShowcaseItem, ShowcaseOpts } from '../menu/arenaSelect';
 import { ARENA_ART, ARENA_CARDS, ARENA_DIR, ARENA_TEXT } from './art/arena';
 import { mountV2, screenHtml, src, t, type ScreenArt } from './stage';
+import { isV4 } from '../design';
+import { topBarV4 } from '../v4/kit4';
 
 const A: ScreenArt = { dir: ARENA_DIR, plate: { l: [], c: [], r: [] }, art: ARENA_ART, lights: [] };
 const T = ARENA_TEXT;
@@ -19,6 +21,8 @@ export interface TopBar {
   gems: number;
   energy: string;
   mail?: boolean;
+  /** Rank points (design v4: the trophy capsule). */
+  trophies?: number;
 }
 
 const ICON: Record<string, string> = {
@@ -62,6 +66,7 @@ function btnSpr(id: keyof typeof ARENA_ART, attrs: string, label: string, inner 
 /** The shared top bar of the v2 sub-screens: back, title strip (+ logo), currencies, mail, settings. `title` null =
  *  back button only (screens whose master has its own logo top left). */
 export function topBarHtml(title: string | null, bar: TopBar | null): string {
+  if (isV4()) return topBarV4(title, bar ? { coins: bar.coins, gems: bar.gems, trophies: bar.trophies ?? 0 } : null);
   const cur = bar
     ? `${spr('coin')}${t(de(bar.coins), [1008, 20, 1080, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus1', 'data-act="shop"', 'Münzen')}
        ${spr('gem')}${t(de(bar.gems), [1204, 20, 1266, 58], 0, 0, { cls: 'v2-num', fs: 27 })}${btnSpr('plus2', 'data-act="shop"', 'Diamanten')}

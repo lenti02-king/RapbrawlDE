@@ -4,16 +4,22 @@
 // one, the chained gold button, marker headings) and keep a live 3D fighter in the middle of the ring.
 // Results and pause lie over the running arena instead (the winner celebrates in the match itself).
 import './ring.css';
+import { isV4 } from '../design';
 import { esc } from '../menu/kit';
 import { menuFigures } from '../menu/figures';
 import { LINE } from '../lines';
 import { RING_DIR, RING_LIGHTS, RING_PLATE } from './art/ring';
+import { HOME_CLEAN_DIR, HOME_CLEAN_LIGHTS, HOME_CLEAN_PLATE } from '../v4/art/home_clean';
 import { FIGHTERS_DIR } from './art/fighters';
 import { topBarHtml, type TopBar } from './arena';
 import { hazeHtml, lightsHtml, mountV2, plateHtml, screenHtml, t, type ScreenArt } from './stage';
 
-const A: ScreenArt = { dir: RING_DIR, plate: RING_PLATE, art: {}, lights: RING_LIGHTS };
-const GOLD = `${FIGHTERS_DIR}select.webp`; // the master's chained gold button (443 x 113)
+const A2: ScreenArt = { dir: RING_DIR, plate: RING_PLATE, art: {}, lights: RING_LIGHTS };
+/** Design v4 (D47): the Frankfurt scene of the PO's home master without its UI; the fighter on its pedestal. */
+const A4: ScreenArt = { dir: HOME_CLEAN_DIR, plate: HOME_CLEAN_PLATE, art: {}, lights: HOME_CLEAN_LIGHTS };
+const art = (): ScreenArt => (isV4() ? A4 : A2);
+const GOLD2 = `${FIGHTERS_DIR}select.webp`; // the master's chained gold button (443 x 113)
+const GOLD4 = 'assets/ui4/lobby/btn_gold.webp'; // the v4 lobby's gold button, its lettering removed
 const CROWN = `<svg viewBox="0 0 64 52" aria-hidden="true"><path d="M6 46l4-30 12 12 10-20 10 20 12-12 4 30z" fill="currentColor" stroke="#1a0f02" stroke-width="4" stroke-linejoin="round"/></svg>`;
 
 type Rect = [number, number, number, number]; // x, y, w, h in reference px
@@ -22,9 +28,11 @@ const at = (r: Rect) => `--x:${r[0]};--y:${r[1]};--w:${r[2]};--h:${r[3]}`;
 /** The chained gold button with brush lettering (the main action of a screen). */
 export function goldBtn(act: string, label: string, r: Rect, fs = 54, main = true): string {
   const [, , w, h] = r;
-  // label zone of the sprite (fighters master: 1318..1570 x 778..866 inside 1200..1643 x 772..885)
-  const lz: [number, number, number, number] = [w * 0.2, h * 0.05, w * 0.85, h * 0.83];
-  return `<button class="v2-btn rg-goldbtn ${main ? 'v2-main' : ''}" data-act="${act}" aria-label="${esc(label)}" style="${at(r)};--mask:url(${GOLD})"><img class="v2-face" alt="" draggable="false" src="${GOLD}">${t(label, lz, 0, 0, { cls: 'v2-brush', fs, align: 'center' })}</button>`;
+  const v4 = isV4();
+  const gold = v4 ? GOLD4 : GOLD2;
+  // label zone of the sprite (v2 fighters master: 1318..1570 x 778..866 inside 1200..1643 x 772..885; v4: centred)
+  const lz: [number, number, number, number] = v4 ? [w * 0.1, h * 0.1, w * 0.9, h * 0.86] : [w * 0.2, h * 0.05, w * 0.85, h * 0.83];
+  return `<button class="v2-btn rg-goldbtn ${main ? 'v2-main' : ''}" data-act="${act}" aria-label="${esc(label)}" style="${at(r)};--mask:url(${gold})"><img class="v2-face" alt="" draggable="false" src="${gold}">${t(label, lz, 0, 0, { cls: 'v2-brush', fs: v4 ? Math.round(fs * 0.9) : fs, align: 'center' })}</button>`;
 }
 
 /** Navy pill button with a gold rim (secondary actions). */
@@ -42,6 +50,8 @@ const bar = (p: number, kind = 'gold') => `<span class="rg-bar ${kind}"><b style
 /** Ring backdrop + the figure anchor (feet at the bottom centre of the box). */
 function ringBack(fig: boolean, figH = 600, fy = 912): string {
   const fx = 836;
+  if (isV4()) [figH, fy] = [352, 694]; // on the pedestal of the Frankfurt scene
+  const A = art();
   return `${plateHtml(A)}${lightsHtml(A, 22)}${fig ? `<span class="fig-anchor" data-fig="0" style="--x:${fx - figH / 4};--y:${fy - figH};--w:${figH / 2};--h:${figH}"></span>` : ''}`;
 }
 
@@ -55,7 +65,9 @@ export interface RingMount {
 /** Mount a ring screen: living plate + the fighter (when `fig` is set; menus only - in a match the game owns the GL). */
 export function mountRing(root: HTMLElement, fig: string | null, living = true): () => void {
   root.classList.add('v2-rs');
-  const stop = mountV2(root, living ? { hues: [40, 210, 320], living: A, haze: [0.42, 0.36, 0.7], crowdY: 0.38 } : { hues: [40, 210, 320] });
+  if (isV4()) root.classList.add('v4r'); // design v4: the masters' gold-framed panels (v4.css)
+  const A = art();
+  const stop = mountV2(root, living ? { hues: [40, 210, 320], living: A, haze: [0.42, 0.36, 0.7], crowdY: 0.38, rigid: isV4() ? [[648, 120, 382, 240]] : undefined } : { hues: [40, 210, 320] });
   const figs = fig && living ? menuFigures(root) : null;
   const anchor = root.querySelector<HTMLElement>('[data-fig="0"]');
   if (figs && anchor && fig) figs.set([{ id: fig, anchor, facing: 1, rim: 0xffb02e, rim2: 0x6a7dff, turn: 0.7, showcase: true }]);
@@ -321,5 +333,6 @@ export function pauseHtml(training: string): string {
 /** Overlay screens (results, pause) over the running arena: only the layout (no plate, no figures). */
 export function mountOverlay(root: HTMLElement): () => void {
   root.classList.add('v2-rs', 'v2-over');
+  if (isV4()) root.classList.add('v4r');
   return mountV2(root, { embers: 18, hues: [40, 50, 30] });
 }
