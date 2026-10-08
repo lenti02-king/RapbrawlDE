@@ -19,6 +19,7 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | KÄMPFER = card overview of all four fighters (portrait until the PO's card art), name + home town, ANPASSEN / FAVORIT / DECK; ANPASSEN as its own home tile (MISSIONEN tile, label replaced) | VERIFIED (screenshots 1672x941 + 932x430, e2e) | `UI=v4 node scripts/v2shot.mjs "showFightersV4()" ...` |
 | Home towns under the names: select, KÄMPFER, customise, fight intro | VERIFIED (screenshots, intro frame, e2e text checks) | `node scripts/introshot.mjs 60` |
 | Artwork slots marked for the PO (home tiles, avatar, banners, select boxes, fighter cards, skins, card art) + README table with sizes and card IDs | DONE | `design/v4/artwork/`, `python3 tools/ui-extract/artwork_sheets.py artifacts/s15` |
+| Checks: unit 91/91, typecheck, e2e 51/51 (new: KÄMPFER cards + home towns, ANPASSEN tile, mirror pick + P2 outline colour), Artifact payload under CSP; Artifact **version 23** published | VERIFIED | `npm test`, `npm run e2e`, `node scripts/artifact-check.mjs` |
 | Feel of the pick flow on the iPhone | UNVERIFIED (PO test) | |
 
 ## Session 14 — design v4: the PO's street masters 1:1 (D47)
