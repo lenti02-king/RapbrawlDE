@@ -32,6 +32,13 @@ export interface RimUniforms {
  *  brightness): the podcast studio's purple ambient, purple back light and pink probe turned real skin magenta (S17
  *  in-game check against the photos). The environment around them keeps its colours. */
 export const CHAR_NEUTRAL = { value: 0.55 };
+/** Colour grade of the PBR fighters' own output, before the scene's tone mapping and the arena's grade (saturation
+ *  x1.32, contrast x1.16 for the podcast studio): measured on Jazeek's cheeks in-game against his photos (S17: in-game
+ *  saturation 0.60 vs 0.33 in the photos, darker and redder) - sat < 1 pulls toward grey, gain lifts the exposure, tint
+ *  takes out the pink the studio's lights leave (hue 7 vs 10-12 in the photos). Calibrated with scripts/gradeprobe.mjs:
+ *  sat 0.5 / gain 1.5 -> cheek saturation 89/255 (photos 78-91). */
+export const CHAR_GRADE = { sat: { value: 0.5 }, gain: { value: 1.5 }, tint: { value: new THREE.Vector3(1, 1.07, 1.03) } };
+if (typeof window !== 'undefined') (window as unknown as { __rbLook: unknown }).__rbLook = { grade: CHAR_GRADE, neutral: CHAR_NEUTRAL }; // calibration hook (scripts/gradeprobe.mjs)
 export function rimUniforms(color = 0xc4b8ff, strength = 0.3): RimUniforms {
   return { uRim: { value: new THREE.Color(color).multiplyScalar(strength) }, uRimPow: { value: 2.6 } };
 }
@@ -101,6 +108,9 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
     sh.uniforms.uRim = rim.uRim;
     sh.uniforms.uRimPow = rim.uRimPow;
     sh.uniforms.uNeutral = CHAR_NEUTRAL;
+    sh.uniforms.uCharSat = CHAR_GRADE.sat;
+    sh.uniforms.uCharGain = CHAR_GRADE.gain;
+    sh.uniforms.uCharTint = CHAR_GRADE.tint;
     sh.fragmentShader = sh.fragmentShader
       .replace(
         '#include <common>',
@@ -108,9 +118,17 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
         uniform vec3 uRim;
         uniform float uRimPow;
         uniform float uNeutral;
+        uniform float uCharSat;
+        uniform float uCharGain;
+        uniform vec3 uCharTint;
         vec3 rbNeutral( vec3 c ) { return mix( c, vec3( dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ) ), uNeutral ); }`,
       )
       .replace('#include <lights_physical_pars_fragment>', SOFT_SKIN_CHUNK + NEUTRAL_DIRECT)
+      .replace(
+        '#include <opaque_fragment>',
+        `outgoingLight = mix( vec3( dot( outgoingLight, vec3( 0.2126, 0.7152, 0.0722 ) ) ), outgoingLight, uCharSat ) * uCharGain * uCharTint;
+        #include <opaque_fragment>`,
+      )
       .replace(
         '#include <lights_fragment_end>',
         `irradiance = rbNeutral( irradiance );
