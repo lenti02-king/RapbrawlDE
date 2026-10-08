@@ -28,6 +28,12 @@ const FIST_STRIKE = 0.45;
 /** Arm length relative to the sculpt (PO: arms looked oversized next to the body; the hands read better smaller too).
  *  Applied as upper-arm bone scale, so the whole arm chain shrinks toward the shoulder. */
 const ARM_SCALE: Record<string, number> = {};
+/** Test hook: ?blink=0..1 holds the eyelids at that closure. */
+const BLINK_HOLD: number | null = (() => {
+  if (typeof location === 'undefined') return null;
+  const v = new URLSearchParams(location.search).get('blink');
+  return v === null ? null : Number(v);
+})();
 /** Thumb fold across the fingers at a full fist (deg, per model: the sculpted thumbs point different ways). */
 const THUMB_FOLD: Record<string, number> = {};
 
@@ -293,6 +299,12 @@ export class GlbRig implements CharacterRig {
   /** Set per frame by the view: hold planted feet where they touched down (standing still: idle, guard, crouch). */
   lock = false;
   private locks: { on: boolean; pos: THREE.Vector3; from: THREE.Vector3; t: number }[] = [];
+  /** S17: meshes with a 'blink' morph target (tools/meshy/blink.py) - the eyes blink every few seconds. */
+  private blinkMeshes: { mesh: THREE.Mesh; i: number }[] = [];
+  private nextBlink = 0;
+  private blinkAt = -10;
+  /** Set by the view: 0..1 eyelid closure on top of the blinks (hit flinch, KO). */
+  eyesClosed = 0;
   /** Toe length per leg (m, model space) for the toe roll. */
   private toeLen: number[] = [];
 
@@ -316,6 +328,8 @@ export class GlbRig implements CharacterRig {
       const mesh = o as THREE.Mesh;
       if (mesh.isMesh) {
         mesh.frustumCulled = false;
+        const bi = mesh.morphTargetDictionary?.blink;
+        if (bi !== undefined) this.blinkMeshes.push({ mesh, i: bi });
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         const mats = (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).map((m) => {
@@ -584,6 +598,20 @@ export class GlbRig implements CharacterRig {
     }
     const [w, h] = squashScale(p[S_SQ]);
     this.root.scale.set(facing * w, h, w);
+    if (this.blinkMeshes.length) this.blink();
+  }
+
+  /** Blinks (presentation only): closing in 60 ms, opening in 120 ms, every 2-6 s; ?blink=0..1 holds the lids. */
+  private blink(): void {
+    const now = performance.now() / 1000;
+    if (now > this.nextBlink) {
+      this.blinkAt = now;
+      this.nextBlink = now + 2.2 + Math.random() * 3.8;
+    }
+    const d = now - this.blinkAt;
+    const b = d < 0.06 ? d / 0.06 : d < 0.18 ? 1 - (d - 0.06) / 0.12 : 0;
+    const w = BLINK_HOLD ?? Math.max(b, this.eyesClosed);
+    for (const m of this.blinkMeshes) m.mesh.morphTargetInfluences![m.i] = w;
   }
 
   /** Shoulder girdle (S13): lift and forward slide of the clavicle from the reference arm direction in chest space.
