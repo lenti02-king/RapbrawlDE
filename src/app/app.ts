@@ -549,6 +549,14 @@ export class App {
     });
   }
 
+  /** Who picks now on the character select (status line / toast). */
+  private pickLabel(picking: number): string {
+    const m = this.flow.mode;
+    if (m === 'local') return `SPIELER ${picking + 1} WÄHLT`;
+    if (picking === 0) return 'WÄHLE DEINEN KÄMPFER';
+    return m === 'training' ? 'TRAININGSPARTNER WÄHLEN' : 'CPU-GEGNER WÄHLEN';
+  }
+
   private sideLabel(i: number): string {
     const m = this.flow.mode;
     if (m === 'local') return `SPIELER ${i + 1}`;
@@ -1243,14 +1251,11 @@ export class App {
       name: getFighter(fid).name,
       tags: [0, 1].filter((i) => this.sel.fighters[i] === fid && !(m === 'online' && i === 1)),
     }));
-    const status = m === 'local' ? `SPIELER ${picking + 1} WÄHLT` : m === 'online' ? 'GEGNER WÄHLT ONLINE' : m === 'training' ? 'TRAININGSPARTNER' : 'GEGNER: CPU';
+    const status = m === 'online' ? 'GEGNER WÄHLT ONLINE' : this.pickLabel(picking);
     if (isV4()) setSelectWallet(this.wallet);
     const el = this.open(charSelectHtml(sides, tiles, picking, { hint: 'TIPPEN ZUM WÄHLEN', status }), 'st-select');
     const stop = mountCharSelect(el, sides);
-    if (isV4()) {
-      this.bindTopBar(el, stop);
-      if (m === 'local') toast(el, `SPIELER ${picking + 1} WÄHLT`);
-    }
+    if (isV4()) this.bindTopBar(el, stop); // the pick line over the plate says who picks
     const go = (fn: () => void) => () => {
       stop();
       fn();
@@ -1260,19 +1265,12 @@ export class App {
         const fid = b.dataset.f!;
         this.sel.fighters[picking] = fid;
         if (validateLoadout(fid, this.sel.loadouts[picking])) this.sel.loadouts[picking] = picking === 0 ? this.presetDeck(fid) : getFighter(fid).defaultLoadout.slice();
-        // vs CPU: the opponent follows to the other fighter (a mirror match stays possible by picking on P2)
-        if (picking === 0 && m !== 'local' && this.sel.fighters[1] === fid) {
-          const other = ROSTER.find((x) => x !== fid);
-          if (other) {
-            this.sel.fighters[1] = other;
-            this.sel.loadouts[1] = getFighter(other).defaultLoadout.slice();
-          }
-        }
+        // both sides pick their own fighter, the same one too (mirror match: P2 gets the blue outline, view.ts)
         store.set('selection', this.sel);
         this.audio.ui('click');
         stop();
-        // two players: P1 picked -> P2's turn
-        this.showCharSelect(m === 'local' && picking === 0 ? 1 : picking);
+        // P1 picked -> the other side's turn (second player, CPU opponent or training partner); online: only P1
+        this.showCharSelect(m !== 'online' && picking === 0 ? 1 : picking);
       }),
     );
     el.querySelector('[data-random]')?.addEventListener('click', () => {

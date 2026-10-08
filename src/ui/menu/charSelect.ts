@@ -44,7 +44,7 @@ function sprite(id: 'back' | 'ready'): string {
 }
 
 export function charSelectHtml(sides: [CsSide, CsSide], tiles: CsTile[], picking: number, v2?: SelectOpts): string {
-  if (isV4()) return selectHtmlV4(sides, tiles, picking);
+  if (isV4()) return selectHtmlV4(sides, tiles, picking, v2?.status);
   if (isV2()) return selectHtmlV2(sides, tiles, picking, v2 ?? { hint: 'TIPPEN ZUM WÄHLEN', status: 'WÄHLE DEINEN KÄMPFER' });
   const bg = CS_ART.bg;
   const fighter = (i: number) => {
@@ -106,6 +106,7 @@ export function mountCharSelect(root: HTMLElement, sides: [CsSide, CsSide]): () 
       .filter((i) => !sides[i].hidden)
       .map((i) => ({
         id: sides[i].id,
+        alt: i === 1 && sides[0].id === sides[1].id, // mirror match: P2 with the blue outline
         anchor: root.querySelector<HTMLElement>(`[data-fig="${i}"]`)!,
         facing: (i ? -1 : 1) as 1 | -1,
         rim: i ? 0x3d8dff : 0xff5a2a,

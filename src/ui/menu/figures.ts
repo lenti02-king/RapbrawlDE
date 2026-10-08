@@ -28,6 +28,8 @@ export interface FigureSpec {
   rim2?: number;
   /** Upright hero pose for showcase screens instead of the fight stance (D42). */
   showcase?: boolean;
+  /** Second fighter of a mirror match (the P2 blue outline, as in the fight). */
+  alt?: boolean;
 }
 
 interface Fig {
@@ -125,15 +127,17 @@ let owner: MenuFigures | null = null;
 // Rigs kept between screens (S12, PO: "kleine Delays bei jedem Tippen"): building a fighter clones the GLB, so a
 // screen change or a tap on another fighter re-used to cost a rebuild per figure; now they come out of a pool.
 const rigPool = new Map<string, CharacterRig[]>();
-function takeRig(id: string): CharacterRig {
-  return rigPool.get(id)?.pop() ?? buildCharacter(id, 0);
+const poolKey = (s: FigureSpec) => (s.alt ? `${s.id}#alt` : s.id);
+function takeRig(s: FigureSpec): CharacterRig {
+  return rigPool.get(poolKey(s))?.pop() ?? buildCharacter(s.id, s.alt ? 1 : 0);
 }
-function giveRig(id: string, rig: CharacterRig): void {
+function giveRig(s: FigureSpec, rig: CharacterRig): void {
   rig.root.removeFromParent();
-  const list = rigPool.get(id) ?? [];
+  const key = poolKey(s);
+  const list = rigPool.get(key) ?? [];
   if (list.length < 2) {
     list.push(rig);
-    rigPool.set(id, list);
+    rigPool.set(key, list);
   } else disposeRig(rig);
 }
 function disposeRig(rig: CharacterRig): void {
@@ -240,7 +244,7 @@ export class MenuFigures {
   set(specs: FigureSpec[]): void {
     this.releaseFigs();
     this.figs = specs.map((spec, i) => {
-      const rig = takeRig(spec.id);
+      const rig = takeRig(spec);
       const group = new THREE.Group();
       group.add(rig.root, contactShadow());
       const rim = new THREE.DirectionalLight(spec.rim, 2.6);
@@ -340,7 +344,7 @@ export class MenuFigures {
     for (const f of this.figs) {
       this.scene.remove(f.group, f.rim);
       if (f.rim2) this.scene.remove(f.rim2);
-      giveRig(f.spec.id, f.rig);
+      giveRig(f.spec, f.rig);
     }
     this.figs = [];
   }

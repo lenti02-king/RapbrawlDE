@@ -344,6 +344,13 @@ const sim = (page) =>
   await page.waitForSelector('.v4-select.ready');
   check((await page.locator('.v4-select [data-f]').count()) >= 4, 'v4 fighter select lists the whole roster');
   check(await page.evaluate(() => window.__rb.sel.fighters[0] === 'lacazette'), 'v4 select: P1 starts on the favourite');
+  // both sides pick, the same fighter too: P1 picks -> the CPU opponent's turn -> P2 takes the same fighter
+  await page.click('.v4-select [data-f="lacazette"]');
+  await page.waitForSelector('.v4-select.ready .v4-pick.p2');
+  check(true, 'v4 select: after P1 picks, P2 (CPU opponent) is picking');
+  await page.click('.v4-select [data-f="lacazette"]');
+  await page.waitForSelector('.v4-select.ready .v4-pick.p2');
+  check(await page.evaluate(() => window.__rb.sel.fighters.join() === 'lacazette,lacazette'), 'v4 select: both sides can pick the same fighter (mirror match)');
   await page.waitForTimeout(800); // the screen fades in
   await page.screenshot({ path: `${out}/w05_select.png` });
   await page.click('.v4-select [data-ready]');
@@ -357,6 +364,19 @@ const sim = (page) =>
   await page.screenshot({ path: `${out}/w07_loading.png` });
   await page.waitForFunction(() => window.__rb.mode === 'cpu' && window.__rb.runner?.state, null, { timeout: 120000 });
   check(await page.evaluate(() => window.__rb.viewArena === window.__rb.sel.arena), 'v4 flow: the arena picked is built');
+  // mirror match: both fighters are Lacazette, P2 drawn with the blue ink outline (P1 black)
+  const inks = await page.evaluate(() => {
+    const st = window.__rb.runner.state;
+    const ink = (i) => {
+      let c = null;
+      window.__rb.view.rigs[i]?.root.traverse((o) => {
+        if (c === null && o.name.endsWith('_ink')) c = o.material.color.getHex();
+      });
+      return c;
+    };
+    return { defs: st.fighters.map((f) => f.def).join(), p1: ink(0), p2: ink(1) };
+  });
+  check(inks.defs === 'lacazette,lacazette' && inks.p1 !== null && inks.p2 !== null && inks.p1 !== inks.p2, `v4 flow: mirror match starts, P2 has its own outline colour (${JSON.stringify(inks)})`);
   check(errors.length === 0, `no page errors in the v4 flow (${errors.slice(0, 3).join(' | ')})`);
   await page.close();
 }

@@ -5,7 +5,7 @@
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
 import { limitTextures, texLimit } from './textureBudget';
-import { addOutline, toonFrom, TOON_ON } from './cel';
+import { addOutline, INK, toonFrom, TOON_ON } from './cel';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { JOINTS, JOINT_INDEX, type JointName, LIMB_STRETCH, POSE_LEN, type Rig, S_SQ, squashScale } from './rig';
@@ -298,6 +298,8 @@ export class GlbRig implements CharacterRig {
     id: string,
     private ref: Rig,
     heightM: number,
+    /** Second fighter of a mirror match: the P2 blue ink outline instead of black (the models have one texture). */
+    alt = false,
   ) {
     const src = loaded.get(id);
     if (!src) throw new Error(`no model for ${id}`);
@@ -348,7 +350,7 @@ export class GlbRig implements CharacterRig {
       }
       if (pn.includes('prop_mic')) this.props.mic = o;
     });
-    for (const m of inked) addOutline(m);
+    for (const m of inked) addOutline(m, alt ? INK.p2 : INK.black);
     const bones = findBones(this.model);
     this.hips = bones.get('Hips')!;
     this.body = this.hips;

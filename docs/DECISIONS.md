@@ -494,3 +494,19 @@ and banners comes from the PO later.
 - Known limits: the UI-free plates of modes/select/customise/lobby are not good enough for the game (LaMa leaves
   ghost panels in big holes) and are only used in the Figma files; 2 VS 2 / walk-ins / effects / chat / events /
   battle pass / missions are shown as in the masters and announce "kommt bald".
+
+## D48 — Both sides pick their fighter, mirror matches (2026-10-08)
+The PO asked that both players can choose a character, the same one too.
+- **Flow**: in every offline mode (vs CPU, 2 players, training) P1 picks first, then the pick passes to the other
+  side (second player, CPU opponent, training partner); tapping a pedestal or a name plate hands the pick to that
+  side. WEITER goes on at any time. The old rule that moved the CPU off the player's fighter is gone. Online: only P1
+  picks (the opponent picks on their device).
+- **Who picks** (v4): a line over that side's name plate in its colour ("WÄHLE DEINEN KÄMPFER", "CPU-GEGNER WÄHLEN",
+  "SPIELER 2 WÄHLT", "TRAININGSPARTNER WÄHLEN"); that side's neon frame breathes, the other one rests dimmer. On a
+  shared tile the P2 frame sits inside the P1 frame (margin clipped, P1 drawn over it) so both frames and tags show.
+- **Telling mirror fighters apart**: the fighters are the PO's textured models with one texture each, so a colour
+  swap would mean recolouring real people (skin included). Instead the second fighter of a mirror match gets a P2-blue
+  ink outline (`INK.p2` in `render/cel.ts`; palette 1 in `buildCharacter` → `GlbRig(.., alt)`), in the fight and on
+  the select/VS screens (`FigureSpec.alt`). The outline uses the same shader program (colour is a uniform), so the
+  shader prewarm stays valid. Procedural rigs keep their second palette.
+

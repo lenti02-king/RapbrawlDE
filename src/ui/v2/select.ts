@@ -89,6 +89,7 @@ export function mountSelectV2(root: HTMLElement, sides: [CsSide, CsSide]): () =>
       .filter((i) => !sides[i].hidden)
       .map((i) => ({
         id: sides[i].id,
+        alt: i === 1 && sides[0].id === sides[1].id, // mirror match: P2 with the blue outline
         anchor: root.querySelector<HTMLElement>(`[data-fig="${i}"]`)!,
         facing: (i ? -1 : 1) as 1 | -1,
         rim: i ? 0xff3355 : 0x3d8dff,

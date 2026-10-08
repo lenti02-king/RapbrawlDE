@@ -290,7 +290,8 @@ export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
   lacazette: { ...JAZEEK_VISUAL, accents: ['#e9e6f2', '#7a5cff'] },
 };
 
-/** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. */
+/** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. Palette 1 = the
+ *  second fighter of a mirror match (procedural: its second colour set; models: the P2 blue outline). */
 export function buildCharacter(id: string, paletteIndex: number): CharacterRig {
   if (hasModel(id)) {
     let h = 1.8;
@@ -299,7 +300,7 @@ export function buildCharacter(id: string, paletteIndex: number): CharacterRig {
     } catch {
       /* non-fighter visual */
     }
-    return new GlbRig(id, buildProceduralRig(id, paletteIndex), h);
+    return new GlbRig(id, buildProceduralRig(id, paletteIndex), h, paletteIndex === 1);
   }
   return buildProceduralRig(id, paletteIndex);
 }

@@ -113,6 +113,7 @@ export function mountVs(root: HTMLElement, m: VsModel, onAction: (a: 'ready' | '
   figs.set(
     [0, 1].map((i) => ({
       id: m.sides[i].id,
+      alt: i === 1 && m.sides[0].id === m.sides[1].id, // mirror match: P2 with the blue outline
       anchor: root.querySelector<HTMLElement>(`[data-fig="${i}"]`)!,
       facing: (i ? -1 : 1) as 1 | -1,
       rim: i ? 0xff2d4a : 0x2f8bff,

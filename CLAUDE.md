@@ -31,7 +31,7 @@ npx tsx scripts/botmatch.ts 120 hard   # headless bot-vs-bot balance probe
 node scripts/single-file.mjs out.html  # one self-contained HTML page (used for the claude.ai Artifact)
 node scripts/vfx.mjs [low|medium|high]  # frame-accurate hit-VFX capture sheet -> artifacts/vfx
 node scripts/mechanics.mjs duel|splat|fatality|fatality-bonez [every] [q]  # session 8 mechanics in-game (F=jazeek,jazeek for a duel)
-node scripts/hudshot.mjs out.png [w] [h] [touch]   # one in-game frame with the HUD
+node scripts/hudshot.mjs out.png [w] [h] [touch]   # one in-game frame with the HUD (F=bonez,bonez: mirror match, P2 blue outline, D48)
 node scripts/handshot.mjs jazeek move:jaz_5L:6 out.png [haL|haR]   # hand close-up (fist/thumb checks; EXTRA="&thz=..&thx=..")
 node scripts/cards.mjs              # deck screens of both fighters (card art)
 node scripts/arena-thumbs.mjs       # arena select thumbnails -> src/ui/img/arena-<id>.jpg

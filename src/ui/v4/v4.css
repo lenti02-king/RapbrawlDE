@@ -137,6 +137,23 @@
   --sw: 0.07em;
 }
 
+/* character select: the frame of the side that is not picking rests (no breathing), a little dimmer */
+.v4-rest {
+  filter: brightness(0.82) saturate(0.85);
+}
+/* mirror match: the P2 frame inside the P1 frame, without the sprite's margin */
+.v4-curin {
+  clip-path: inset(7%);
+}
+/* who picks now: a line over that side's name plate in the side's colour */
+.v2 .v4-pick {
+  animation: v4-pulse 1.4s ease-in-out infinite;
+  --sh: 0 0 0.35em rgba(255, 60, 90, 0.95), 0 0.06em 0 #000;
+}
+.v2 .v4-pick.p2 {
+  --sh: 0 0 0.35em rgba(70, 150, 255, 0.95), 0 0.06em 0 #000;
+}
+
 /* stat segments that light up (the master's cyan cells) */
 .v4-seg {
   animation: v4-seg 3.2s ease-in-out infinite;

@@ -85,10 +85,13 @@ function smoothNormals(g: THREE.BufferGeometry): void {
   g.setAttribute('outlineNormal', new THREE.BufferAttribute(out, 3));
 }
 
-let inkMat: THREE.MeshBasicMaterial | null = null;
-function ink(): THREE.MeshBasicMaterial {
-  if (inkMat) return inkMat;
-  const m = new THREE.MeshBasicMaterial({ color: 0x08070a, side: THREE.BackSide });
+/** Ink colours: black, and the P2 blue for the second fighter of a mirror match (same fighter on both sides). */
+export const INK = { black: 0x08070a, p2: 0x2f7bff } as const;
+const inkMats = new Map<number, THREE.MeshBasicMaterial>();
+function ink(color: number = INK.black): THREE.MeshBasicMaterial {
+  const cached = inkMats.get(color);
+  if (cached) return cached;
+  const m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uOutline = OUTLINE;
     sh.vertexShader = sh.vertexShader
@@ -109,22 +112,22 @@ function ink(): THREE.MeshBasicMaterial {
       );
   };
   m.customProgramCacheKey = () => 'rb-ink';
-  inkMat = m;
+  inkMats.set(color, m);
   return m;
 }
 
 /** Adds the ink hull next to a (skinned) mesh. Returns the hull so callers can hide it with the fighter. */
-export function addOutline(mesh: THREE.Mesh): THREE.Mesh | null {
+export function addOutline(mesh: THREE.Mesh, color: number = INK.black): THREE.Mesh | null {
   if (!mesh.parent) return null;
   smoothNormals(mesh.geometry);
   let hull: THREE.Mesh;
   const sk = mesh as THREE.SkinnedMesh;
   if (sk.isSkinnedMesh) {
-    const s = new THREE.SkinnedMesh(mesh.geometry, ink());
+    const s = new THREE.SkinnedMesh(mesh.geometry, ink(color));
     s.bind(sk.skeleton, sk.bindMatrix);
     s.bindMode = sk.bindMode;
     hull = s;
-  } else hull = new THREE.Mesh(mesh.geometry, ink());
+  } else hull = new THREE.Mesh(mesh.geometry, ink(color));
   hull.name = `${mesh.name}_ink`;
   hull.position.copy(mesh.position);
   hull.quaternion.copy(mesh.quaternion);
