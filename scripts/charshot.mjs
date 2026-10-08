@@ -1,7 +1,8 @@
 // In-game character quality captures (S17): the real fight renderer, arena and lights, the camera moved by
 // view.menuShot. Per fighter: the fight framing, a full-body 3/4 shot and a face close-up.
 // Usage: F=jazeek,bonez node scripts/charshot.mjs <out-prefix> [WxH=1280x720] [dpr=2] [quality=high]
-//   EXTRA="&toon=0" adds URL params (A/B comparisons), SHOTS=fight,body0,face0,body1,face1 picks shots.
+//   EXTRA="&toon=0" adds URL params (A/B comparisons), SHOTS=fight,body0,face0,front0,body1,face1,front1 picks shots
+//   (front = straight at the face, for the landmark comparison with the photos).
 import { chromium } from 'playwright';
 
 const [, , out = 'artifacts/charshot/x', size = '1280x720', dpr = '2', q = 'high'] = process.argv;
@@ -37,7 +38,10 @@ for (const shot of shots) {
       const hips = rig.joints.hips.getWorldPosition(new V());
       const other = v.rigs[1 - i].joints.hips.getWorldPosition(new V());
       const f = Math.sign(other.x - hips.x) || 1; // the fighter looks toward the opponent
-      if (shot.startsWith('face')) {
+      if (shot.startsWith('front')) {
+        // straight at the face (landmark comparison with the photos: tools/meshy/facemarks.py + facesheet.py)
+        v.menuShot = { pos: new V(head.x + f * 0.8, head.y + 0.03, head.z + 0.05), target: new V(head.x, head.y + 0.03, head.z), fov: 20 };
+      } else if (shot.startsWith('face')) {
         v.menuShot = { pos: new V(head.x + f * 0.42, head.y + 0.04, head.z + 0.62), target: new V(head.x + f * 0.03, head.y + 0.02, head.z), fov: 22 };
       } else {
         v.menuShot = { pos: new V(hips.x + f * 1.5, hips.y + 0.35, hips.z + 2.6), target: new V(hips.x, hips.y + 0.2, hips.z), fov: 34 };

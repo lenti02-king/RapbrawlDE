@@ -523,6 +523,45 @@ else:
         preview('geo', VIEWS)
         sys.exit(0)
 
+    def capped_copy(ob, name='low'):
+        from scipy.sparse import coo_matrix
+        from scipy.sparse.csgraph import connected_components
+
+        me = ob.data
+        me.calc_loop_triangles()
+        t = np.empty(len(me.loop_triangles) * 3, np.int64)
+        me.loop_triangles.foreach_get('vertices', t)
+        t = t.reshape(-1, 3)
+        p = np.empty(len(me.vertices) * 3, np.float32)
+        me.vertices.foreach_get('co', p)
+        p = p.reshape(-1, 3)
+        # weld first: the sculpts' UV islands are separate geometry (coincident vertices along every seam), and only
+        # the real holes may get a cap
+        p, inv = np.unique(np.round(p / 1e-5).astype(np.int64), axis=0, return_inverse=True)
+        p = (p * 1e-5).astype(np.float32)
+        t = inv.reshape(-1)[t]
+        t = t[(t[:, 0] != t[:, 1]) & (t[:, 1] != t[:, 2]) & (t[:, 2] != t[:, 0])]
+        N = len(p)
+        e = np.sort(np.concatenate([t[:, [0, 1]], t[:, [1, 2]], t[:, [2, 0]]]), axis=1)
+        u, cnt = np.unique(e[:, 0] * N + e[:, 1], return_counts=True)
+        del e
+        b = u[cnt == 1]
+        del u, cnt
+        b = np.c_[b // N, b % N]
+        nc, caps, cen = 0, np.zeros((0, 3), np.int64), np.zeros((0, 3), np.float32)
+        if len(b):
+            bv, bi = np.unique(b, return_inverse=True)
+            bi = bi.reshape(-1, 2)
+            g = coo_matrix((np.ones(len(bi)), (bi[:, 0], bi[:, 1])), shape=(len(bv), len(bv)))
+            nc, lab = connected_components(g, directed=False)
+            cen = np.zeros((nc, 3))
+            np.add.at(cen, lab, p[bv])
+            cen = (cen / np.bincount(lab, minlength=nc)[:, None]).astype(np.float32)
+            caps = np.c_[b, N + lab[bi[:, 0]]]
+        low = glbfast.build(name, np.r_[p, cen], np.r_[t, caps])
+        log('remesh input:', len(b), 'open edges in', nc, 'holes capped')
+        return low
+
     # ------------------------------------------------------------------ 4. low-poly: one closed surface
     for o in bpy.data.objects:
         o.select_set(o in (body, head))
@@ -531,14 +570,13 @@ else:
     high = body
     high.name = 'high'
     high.data.name = 'high'
-    low_me = high.data.copy()
-    low = bpy.data.objects.new('low', low_me)
-    bpy.context.scene.collection.objects.link(low)
-    for a_ in list(low_me.color_attributes):
-        low_me.color_attributes.remove(a_)
-    while low_me.uv_layers:
-        low_me.uv_layers.remove(low_me.uv_layers[0])
-    low_me.materials.clear()
+    # S17: the remesh input is the joined surface with every open boundary capped (head bottom, body top, holes left
+    # where the cut dropped chain links fused into the neck skin): two closed volumes meeting at the plane unite into
+    # one, where two open tubes only did when their rims matched to a voxel - the new cartoon head (a bust with a chain)
+    # leaked and the remesh kept nothing but the closed curls. Caps are fans to each hole's centroid, built in numpy
+    # (Blender's fill_holes in edit mode crashed on the 2.8M-triangle mesh).
+    low = capped_copy(high)
+    low_me = low.data
     rm = low.modifiers.new('vox', 'REMESH')
     rm.mode = 'VOXEL'
     rm.voxel_size = args.voxel
@@ -548,6 +586,26 @@ else:
         o.select_set(o is low)
     bpy.ops.object.modifier_apply(modifier='vox')
     log('voxel remesh', args.voxel, '->', len(low.data.polygons), 'faces')
+    # S17: where the body's rim meets the head's neck the union leaves a ridge of up to a voxel - smoothed over a band
+    # of +-8 mm around the plane (neck only)
+    lp = np.empty(len(low.data.vertices) * 3, np.float32)
+    low.data.vertices.foreach_get('co', lp)
+    lh, _, lr = polar(lp.reshape(-1, 3))
+    wgt = (1 - smoothstep(0.003, 0.008, np.abs(lh))) * (lr < 0.10)
+    vg = low.vertex_groups.new(name='seam')
+    for lvl in np.arange(0.1, 1.01, 0.1):
+        idx = np.nonzero((wgt > lvl - 0.1) & (wgt <= lvl + 1e-6))[0]
+        if len(idx):
+            vg.add(idx.tolist(), float(lvl), 'REPLACE')
+    sm = low.modifiers.new('seam', 'SMOOTH')
+    sm.factor = 0.5
+    sm.iterations = 8
+    sm.vertex_group = 'seam'
+    bpy.ops.object.modifier_apply(modifier='seam')
+    if 'seam' in low.vertex_groups:
+        low.vertex_groups.remove(low.vertex_groups['seam'])
+    log('neck seam smoothed on', int((wgt > 0.05).sum()), 'verts')
+    del lp, lh, lr, wgt
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     log('saved', BLEND)
 

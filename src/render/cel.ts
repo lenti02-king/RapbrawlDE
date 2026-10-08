@@ -28,6 +28,10 @@ export interface RimUniforms {
   uRim: { value: THREE.Color };
   uRimPow: { value: number };
 }
+/** How much of the arena lights' colour the PBR fighters' shading drops (0 = all, 1 = white light of the same
+ *  brightness): the podcast studio's purple ambient, purple back light and pink probe turned real skin magenta (S17
+ *  in-game check against the photos). The environment around them keeps its colours. */
+export const CHAR_NEUTRAL = { value: 0.55 };
 export function rimUniforms(color = 0x9a7cff, strength = 0.35): RimUniforms {
   return { uRim: { value: new THREE.Color(color).multiplyScalar(strength) }, uRimPow: { value: 2.6 } };
 }
@@ -53,10 +57,20 @@ const SOFT_SKIN_CHUNK = THREE.ShaderChunk.lights_physical_pars_fragment.includes
   ? THREE.ShaderChunk.lights_physical_pars_fragment.replace(
       WRAP_LINE,
       `float rbWrapNL = saturate( ( dot( geometryNormal, directLight.direction ) + 0.3 ) / 1.3 );
-      vec3 rbWarm = mix( vec3( 1.0 ), vec3( 1.0, 0.8, 0.72 ), saturate( ( rbWrapNL - dotNL ) * 2.5 ) );
+      vec3 rbWarm = mix( vec3( 1.0 ), vec3( 1.0, 0.88, 0.8 ), saturate( ( rbWrapNL - dotNL ) * 2.5 ) );
       reflectedLight.directDiffuse += rbWrapNL * directLight.color * rbWarm * BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - F );`,
     )
   : THREE.ShaderChunk.lights_physical_pars_fragment;
+/** Direct lights reach the BRDF with their colour pulled toward grey (CHAR_NEUTRAL). */
+const NEUTRAL_DIRECT = `
+void RE_Direct_RB( const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
+  IncidentLight rbLight = directLight;
+  rbLight.color = rbNeutral( rbLight.color );
+  RE_Direct_Physical( rbLight, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+}
+#undef RE_Direct
+#define RE_Direct RE_Direct_RB
+`;
 
 /** The PBR character material from a glTF material: the model's own maps; metal/roughness from Meshy's map when the
  *  model carries it (chains and jewellery metal, skin and cloth their own gloss), else a soft skin-like default. */
@@ -86,9 +100,23 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
   p.onBeforeCompile = (sh) => {
     sh.uniforms.uRim = rim.uRim;
     sh.uniforms.uRimPow = rim.uRimPow;
+    sh.uniforms.uNeutral = CHAR_NEUTRAL;
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uRim;\nuniform float uRimPow;')
-      .replace('#include <lights_physical_pars_fragment>', SOFT_SKIN_CHUNK)
+      .replace(
+        '#include <common>',
+        `#include <common>
+        uniform vec3 uRim;
+        uniform float uRimPow;
+        uniform float uNeutral;
+        vec3 rbNeutral( vec3 c ) { return mix( c, vec3( dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ) ), uNeutral ); }`,
+      )
+      .replace('#include <lights_physical_pars_fragment>', SOFT_SKIN_CHUNK + NEUTRAL_DIRECT)
+      .replace(
+        '#include <lights_fragment_end>',
+        `irradiance = rbNeutral( irradiance );
+        iblIrradiance = rbNeutral( iblIrradiance );
+        #include <lights_fragment_end>`,
+      )
       .replace(
         '#include <lights_fragment_begin>',
         `#include <lights_fragment_begin>
