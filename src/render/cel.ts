@@ -22,8 +22,8 @@ export function lookFor(id: string): 'pbr' | 'toon' {
   return LOOK_OVERRIDE ?? (PBR_FIGHTERS.has(id) ? 'pbr' : 'toon');
 }
 
-/** Rim light of one character (fresnel, added after the lights): the arena's back light colour; the second fighter
- *  of a mirror match gets the P2 blue instead of a recolour (the textures are real people's skin and clothes). */
+/** Rim light of one character (fresnel, added after the lights): a pale tint of the arena's purple back light (S17: the
+ *  saturated purple read as pink on skin); the second fighter of a mirror match gets the P2 blue instead of a recolour. */
 export interface RimUniforms {
   uRim: { value: THREE.Color };
   uRimPow: { value: number };
@@ -32,7 +32,7 @@ export interface RimUniforms {
  *  brightness): the podcast studio's purple ambient, purple back light and pink probe turned real skin magenta (S17
  *  in-game check against the photos). The environment around them keeps its colours. */
 export const CHAR_NEUTRAL = { value: 0.55 };
-export function rimUniforms(color = 0x9a7cff, strength = 0.35): RimUniforms {
+export function rimUniforms(color = 0xc4b8ff, strength = 0.3): RimUniforms {
   return { uRim: { value: new THREE.Color(color).multiplyScalar(strength) }, uRimPow: { value: 2.6 } };
 }
 

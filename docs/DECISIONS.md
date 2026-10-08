@@ -562,3 +562,40 @@ fighters ("Jazeek" and "Jazeek Cartoon"), embedded so they look like part of thi
 - Not done (honest): the stylized body's chains are Meshy's melted silver with brown flecks — readable as chains at
   game distance, not a clean Cuban link; a modelled chain + "99" pendant would replace them. The cel ramp posterises
   the baked face shading a little in the fight close-up.
+
+## D50 — Jazeek pair: face measured against the real photos, PBR look in the game (2026-10-08)
+The PO (S17): the S16 face was compared model-to-model, not with Jazeek's real photos; the under-eye shadows made him
+look "stoned and tired"; in the game every fighter looked like "primitive graphics", nothing like the models — make it
+AAA, compare with the real photos as often as possible, in Blender AND in the game. Mid-session: change nothing on the
+other fighters (new models are coming for them), only Jazeek and Jazeek Cartoon.
+- **Answer to the PO's question** (honest): in S16 the face shapes were NOT adapted from the photos — only colours
+  (skin tone, lips, brows, the under-eye shadows); the photos were only looked at next to renders.
+- **Measured, not eyeballed**: `tools/meshy/facemarks.py` runs MediaPipe FaceLandmarker (478 points incl. irises,
+  head pose) on the photos and on renders/in-game captures, removes the head rotation and measures proportions in
+  units of the eye distance. `facewarp.py` turns the differences (photos fitted onto the model by the stable points:
+  eye corners, nasion, cheekbones) into a symmetric thin-plate-spline warp of the head (85 % of the way, ≤ 6 mm), applied
+  by `merge4.py --facewarp`; `facefit.py` is the score (mean landmark distance in % of the eye-corner span);
+  `facesheet.py` the sheet for the PO (photos | Blender | game, photo contours over the model). Stylized Jazeek:
+  2.18 % → 1.56 % (eyes 0.66 → 0.46, nose 2.53 → 1.61, lips 2.37 → 1.70, jaw 4.94 → 3.81). Two photos (event, wall);
+  the beach selfie is excluded (wide-angle distortion).
+- **No more tired look**: no under-eye shadow (all styles); `faceretouch.py` works texel by texel on the baked maps
+  (every face texel gets its 3D position by rasterising the triangles in UV space): iris colour and sclera MEASURED on
+  the photos (the sculpt's iris was near-black, the sclera grey-red), wet eyes (roughness 0.16 → catchlights in the
+  PBR look), upper-lid band lifted toward the cheek tone, hair from purple-black matte felt to the photos' dark brown
+  with some gloss. Cartoon: only wet eyes and glossier curls (its drawn eyes and black hair are the PO's design).
+- **New cartoon head** ("Neuer Cartoon Kopf Jazeek.glb", a bust with tank top and chain) = Jazeek Cartoon: heavier lids,
+  straighter brows and narrower lips read closer to the photos than the S16 anime head (score 1.89 %; the cartoon
+  exaggerates lips, nose width and eye opening on purpose). Merging it broke the voxel remesh (chain links fused into
+  the neck skin left holes at the cut, the volume leaked, only the closed curls survived): the remesh input is now
+  welded (the sculpts' UV islands are split geometry) and every real hole capped by a fan to its centroid, so head
+  and body are two closed volumes that unite; the neck seam is smoothed ±8 mm.
+- **Why the game looked primitive**: the D43 cel material (3-band ramp + ink hull) posterised the models' baked
+  shading into flat bands, there were no reflections at all (metal = black), and the phone DPR was capped low.
+  **PBR look for the Jazeek pair** (`render/cel.ts`, `lookFor(id)`; Bonez, Manuellsen, Lacazette stay cel as the PO
+  asked): MeshPhysicalMaterial with the models' colour, normal and (new, baked by merge4) metal/roughness maps,
+  arena probe or a studio environment (RoomEnvironment PMREM) for reflections, a fresnel rim in the arena's back-light
+  colour (P2 of a mirror match: blue rim instead of the blue ink), wrapped soft-skin diffuse, anisotropic filtering,
+  and the arena lights' colour taken only half way (`CHAR_NEUTRAL` 0.55: the podcast studio's purple ambient and back
+  light turned his real skin magenta in the in-game photo check). Phones render the fight at DPR 2 (medium) / 2.5 (high).
+- `?look=toon|pbr` forces one look on everyone (comparisons); `scripts/charshot.mjs` = in-game close-ups (fight, body,
+  3/4 face, frontal face for the landmark check; `PRE=` hook for A/B).

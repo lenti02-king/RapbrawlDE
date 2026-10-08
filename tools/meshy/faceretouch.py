@@ -54,6 +54,8 @@ ap.add_argument('--iris', type=float, default=1.0, help='how far the iris moves 
 ap.add_argument('--iris-gain', type=float, default=1.0, help='brightness of the measured iris colour')
 ap.add_argument('--sclera', type=float, default=0.75, help='how far the sclera moves to the measured white')
 ap.add_argument('--rough', type=float, default=0.16, help='roughness of the eye opening (wet look)')
+ap.add_argument('--catch', type=float, default=0.85, help='painted catchlight in each iris (0 = none): the photos\' key light')
+ap.add_argument('--wb', type=float, default=0.5, help='white balance of the measured eye colours by the photos\' sclera (0 = as measured)')
 ap.add_argument('--hair', type=float, default=0.8, help='how far the hair moves to the photos\' measured hair colour (0 = keep)')
 ap.add_argument('--hair-rough', type=float, default=0.55, help='roughness of the hair (the sculpt\'s is ~0.95: matte felt)')
 ap.add_argument('--quality', type=int, default=92)
@@ -153,6 +155,9 @@ cols = [photo_colours(p) for p in args.photos.split(',')]
 HAIR_RGB = np.mean([photo_hair(p) for p in args.photos.split(',')], 0)
 IRIS_RGB = np.mean([c[0] for c in cols], 0) * args.iris_gain
 SCLERA_RGB = np.mean([c[1] for c in cols], 0)
+# the photos' warm light: the sclera is near-neutral in reality, so its cast is the photos' white balance
+_wbk = (SCLERA_RGB.mean() / SCLERA_RGB) ** args.wb
+IRIS_RGB, SCLERA_RGB = IRIS_RGB * _wbk, SCLERA_RGB * _wbk
 print('photos: iris', IRIS_RGB.round(1), 'sclera', SCLERA_RGB.round(1), 'hair', HAIR_RGB.round(1))
 
 # ------------------------------------------------------------------ texel positions of the eye area
@@ -253,6 +258,14 @@ w_scl = (open_w * (1 - iris_w))[:, None]
 out = L * (1 - w_scl) + new_scl * w_scl
 iw = (iris_w * args.iris)[:, None]
 out = out * (1 - iw) + new_iris * iw
+# catchlight: a soft bright spot up and to the image right of each iris centre, where the photos' key light sits
+if args.catch > 0:
+    for k in ('R', 'L'):
+        c = iris_c[k] + np.array([0.22, 0.30]) * iris_r[k]
+        dd = np.linalg.norm(xz - c, axis=1) / (0.17 * iris_r[k])
+        cw = (np.clip(1.25 - dd, 0, 1) ** 1.5 * eye_in * args.catch)[:, None]
+        out = out * (1 - cw) + lin(np.array([245, 243, 240]))[None, :] * cw
+
 # upper lid: lift toward the cheek skin when darker
 cheek = np.zeros(len(vy), bool)
 for k in ('R', 'L'):

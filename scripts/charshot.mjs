@@ -42,7 +42,7 @@ for (const shot of shots) {
       const f = Math.sign(other.x - hips.x) || 1; // the fighter looks toward the opponent
       if (shot.startsWith('front')) {
         // straight at the face (landmark comparison with the photos: tools/meshy/facemarks.py + facesheet.py)
-        v.menuShot = { pos: new V(head.x + f * 0.8, head.y + 0.03, head.z + 0.05), target: new V(head.x, head.y + 0.03, head.z), fov: 20 };
+        v.menuShot = { pos: new V(head.x + f * 0.8, head.y + 0.09, head.z + 0.05), target: new V(head.x, head.y + 0.09, head.z), fov: 20 }; // eye level
       } else if (shot.startsWith('face')) {
         v.menuShot = { pos: new V(head.x + f * 0.42, head.y + 0.04, head.z + 0.62), target: new V(head.x + f * 0.03, head.y + 0.02, head.z), fov: 22 };
       } else {
