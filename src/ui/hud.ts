@@ -3,7 +3,7 @@
 // cinematic letterbox and screen flash.
 import type { SimEvent } from '../core/events';
 import { IN } from '../core/input';
-import { getCard, getFighter } from '../core/registry';
+import { baseOf, getCard, getFighter } from '../core/registry';
 import type { GameState } from '../core/state';
 import { beatDistance, RULES, showcaseOf } from '../core/sim';
 import { hometown } from './hometown';
@@ -670,7 +670,7 @@ export class Hud {
     if (fatal && fatal.frame >= TAUNT_AT) {
       if (!this.tauntEl.classList.contains('show')) {
         const w = s.fighters[fatal.owner];
-        const lines = TAUNTS[w.def] ?? ['Nächster!'];
+        const lines = TAUNTS[baseOf(w.def)] ?? ['Nächster!'];
         this.tauntEl.textContent = lines[(s.rng + s.round) % lines.length];
         this.tauntEl.classList.add('show');
       }

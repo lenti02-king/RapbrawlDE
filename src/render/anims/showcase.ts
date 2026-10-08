@@ -3,6 +3,7 @@
 // breathes on top. Authored for the menus' 3/4 front view (scripts/posegrid.mjs). Presentation only.
 // Leg axes: thigh x = sideways (abduction), y = twist, z = forward; knee z < 0 bends. Arms via aim (character space:
 // x forward, y up, z toward the camera in the side view; the left arm is the far one).
+import { baseOf } from '../../core/registry';
 import { compose, type PoseDef } from '../pose';
 
 const LEGS: PoseDef = {
@@ -58,5 +59,5 @@ export const SHOWCASE: Record<string, PoseDef> = {
 };
 
 export function showcasePose(id: string, _stance: PoseDef): PoseDef {
-  return SHOWCASE[id] ?? STARE;
+  return SHOWCASE[id] ?? SHOWCASE[baseOf(id)] ?? STARE;
 }

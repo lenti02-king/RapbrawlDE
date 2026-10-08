@@ -4,7 +4,7 @@ import '../content';
 import { BOT_LEVELS, Bot } from '../ai/bot';
 import type { SimEvent } from '../core/events';
 import { IN } from '../core/input';
-import { getCard, getFighter, getMove, SIGNATURE_SLOT, validateLoadout } from '../core/registry';
+import { baseOf, getCard, getFighter, getMove, SIGNATURE_SLOT, validateLoadout } from '../core/registry';
 import { createMatch, defaultConfig, RULES } from '../core/sim';
 import type { GameState } from '../core/state';
 import { ROSTER } from '../content';
@@ -1743,7 +1743,7 @@ export class App {
     const p = this.profileData;
     const games = p.byFighter[id]?.m ?? 0;
     const CLS: Record<string, number> = { jazeek: 2, bonez: 1, manuellsen: 1, lacazette: 3 };
-    const roster: RosterEntry[] = ROSTER.map((fid) => ({ id: fid, name: getFighter(fid).name.toUpperCase(), img: portrait(fid, 'card'), cls: CLS[fid] ?? 1, fav: this.favorite === fid }));
+    const roster: RosterEntry[] = ROSTER.map((fid) => ({ id: fid, name: getFighter(fid).name.toUpperCase(), img: portrait(fid, 'card'), cls: CLS[fid] ?? CLS[baseOf(fid)] ?? 1, fav: this.favorite === fid }));
     const deck = this.presetDeck(id);
     const el = this.open(
       fightersHtml(

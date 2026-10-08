@@ -322,6 +322,7 @@ const sim = (page) =>
   check((await page.locator('.v4-fighters [data-f]').count()) >= 4, 'v4 KÄMPFER shows every fighter as a card');
   const roster = await page.locator('.v4-fighters').innerText();
   check(['AACHEN', 'HAMBURG', 'BERLIN', 'MÜLHEIM AN DER RUHR'].every((c) => roster.includes(c)), 'v4 KÄMPFER: the home towns under the names');
+  check(roster.includes('JAZEEK CARTOON') && (await page.locator('.v4-fighters [data-f="jazeektoon"]').count()) === 1, 'v4 KÄMPFER: Jazeek Cartoon (S16) has a card of his own');
   await page.waitForTimeout(800); // the screen fades in
   await page.screenshot({ path: `${out}/w02_fighters.png` });
   // Lacazette's card -> ANPASSEN (customise); AUSRÜSTEN makes him the favourite; back -> KÄMPFER -> home
@@ -479,6 +480,26 @@ const sim = (page) =>
   await page.click('.v2-deckscreen [data-act="ok"]');
   await page.waitForSelector('.v2-home');
   check(errors.length === 0, `no page errors on the v2 ring screens (${errors.slice(0, 3).join(' | ')})`);
+  await page.close();
+}
+
+// ------------------------------------------------------- S16: Jazeek Cartoon plays with Jazeek's kit on its own model
+{
+  const errors = [];
+  const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+  page.setDefaultTimeout(120000);
+  watchErrors(page, errors);
+  await page.goto(base + '/?quick=jazeektoon,jazeek&mode=cpu&q=low');
+  await page.waitForFunction(() => window.__rb?.runner?.state && window.__rb.view.rigs.length === 2, null, { timeout: 180000 });
+  const info = await page.evaluate(() => {
+    const st = window.__rb.runner.state;
+    const rigs = window.__rb.view.rigs.map((r) => r.constructor.name + ':' + (r.model ? 'glb' : 'proc'));
+    return { defs: st.fighters.map((f) => f.def).join(), deck: st.fighters[0].loadout?.join() ?? '', rigs };
+  });
+  check(info.defs === 'jazeektoon,jazeek' && info.rigs.every((r) => r.endsWith(':glb')), `S16: Jazeek Cartoon vs Jazeek starts with both 3D models (${JSON.stringify(info)})`);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${out}/s16_toon_vs_jazeek.png` });
+  check(errors.length === 0, `no page errors with Jazeek Cartoon (${errors.slice(0, 3).join(' | ')})`);
   await page.close();
 }
 

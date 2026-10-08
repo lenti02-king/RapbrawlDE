@@ -288,6 +288,8 @@ export const CHARACTER_VISUALS: Record<string, CharacterVisual> = {
   // kid) and are the fallback when a model does not load
   manuellsen: { ...BONEZ_VISUAL, accents: ['#e8312f', '#ffd23c'] },
   lacazette: { ...JAZEEK_VISUAL, accents: ['#e9e6f2', '#7a5cff'] },
+  // S16: the anime / cel-shaded Jazeek (modelle-4) - Jazeek's proportions as fallback, cooler accents
+  jazeektoon: { ...JAZEEK_VISUAL, accents: ['#5ee0ff', '#ff4fa3'] },
 };
 
 /** Procedural rig, or the imported model (assets/characters/<id>.glb) driven by it when present. Palette 1 = the

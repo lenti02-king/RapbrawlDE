@@ -16,6 +16,12 @@ export function getFighter(id: string): FighterDef {
   return f;
 }
 
+/** The fighter whose presentation (animation set, emotes, signature music, taunts) a fighter id uses: its `base` for a
+ *  look variant, else itself. Unknown ids map to themselves (cinematic extras, procedural looks). */
+export function baseOf(id: string): string {
+  return fighters.get(id)?.base ?? id;
+}
+
 export function listFighters(): FighterDef[] {
   return [...fighters.values()];
 }

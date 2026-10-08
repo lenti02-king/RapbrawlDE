@@ -11,7 +11,7 @@ import path from 'node:path';
 const out = path.resolve(process.argv[2] ?? 'dist-single');
 fs.mkdirSync(path.join(out, 'assets/characters'), { recursive: true });
 execSync(`node scripts/single-file.mjs ${path.join(out, 'rapbrawl.html')} --split`, { stdio: 'inherit' }); // page + rapbrawl.js (D41)
-const ids = ['jazeek', 'bonez', 'manuellsen', 'lacazette']; // the PO's modelle-3 fighters (D43)
+const ids = ['jazeek', 'bonez', 'manuellsen', 'lacazette', 'jazeektoon']; // modelle-3 fighters (D43) + the modelle-4 Jazeek pair (S16)
 for (const id of ids)
   for (const v of ['', '.m']) // full model + the phones' copy (S12)
     execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}${v}.glb ${path.join(out, 'assets/characters', id + v + '.gltf.json')} --external-images`, { stdio: 'inherit' });

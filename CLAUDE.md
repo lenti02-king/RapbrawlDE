@@ -21,7 +21,7 @@ node scripts/play.mjs basic|super   # scripted gameplay screenshots -> artifacts
 node scripts/shot.mjs "/?lab=poses&pose=crouch" out.png   # pose lab screenshot
 node scripts/moves.mjs jazeek|bonez # every move at first active frame + hitbox overlay -> contact sheet
 node scripts/cine.mjs jazeek|bonez|croc|car|blunt [f1,f2,..]  # frame-accurate cinematic capture (croc/car = Bonez' grabbing specials, blunt = Jazeek's)
-node scripts/introshot.mjs [f1,f2,..]   # round-1 fighter showcase (emote, face close-up, name) at intro frames -> artifacts/intro
+F=jazeektoon,jazeek node scripts/introshot.mjs [f1,f2,..]   # round-1 fighter showcase (emote, face close-up, name) at intro frames -> artifacts/intro
 node scripts/specials.mjs           # special-move VFX/props sheet (voice wave, spotlight, croc, smoke, grin)
 node scripts/ui.mjs                 # menu flow + HUD screenshots, desktop and phone landscape -> artifacts/ui
 EXTRA="&glb=jazeek:test-models/Xbot.glb" node scripts/moves.mjs jazeek   # test a GLB model (public/test-models is gitignored)
@@ -42,6 +42,7 @@ python3 tools/ui-extract/loading.py|char_select.py|arena_select.py|shop.py   # t
 node scripts/loadshot.mjs | selectshot.mjs | shopshot.mjs [out]   # captures of those screens (2000x1125 + phones)
 node scripts/flowshot.mjs out 750 300 && node scripts/screens.mjs out 750 300   # iPhone in a browser/viewer (~750x300): menu flow + classic screens (D41)
 python3 tools/ui-extract/skin_backdrop.py   # stadium backdrop without the baked logo for the classic screens
+python3 tools/meshy/merge4.py styl|anime   # modelle-4 head + body -> .cache/meshy4/jazeek_src.glb | jazeektoon_src.glb (D49; then reduce.py/skin.py with --dir meshy4)
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
@@ -91,7 +92,7 @@ source edits from reloading a running capture; the HMR server on 5173 reloads op
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
-Fighter models (D43): `public/assets/characters/<id>.glb` = the PO's modelle-3 models for all four fighters (Jazeek, Bonez, Manuellsen, Lacazette), cel look
+Fighter models (D43, D49): `public/assets/characters/<id>.glb` = the PO's modelle-3 models (Bonez, Manuellsen, Lacazette) and the modelle-4 Jazeek pair rebuilt by `tools/meshy/merge4.py` (Jazeek stylized, `jazeektoon` = Jazeek Cartoon: a look variant via `FighterDef.base` / `baseOf()`), cel look
 (`render/cel.ts`: MeshToonMaterial + ink outline; `?toon=0` = flat PBR), reach fit per move (`render/anims/reach.ts`). Older notes: the PO's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.

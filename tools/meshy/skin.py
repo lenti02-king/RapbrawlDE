@@ -199,7 +199,35 @@ else:
     rm.voxel_size = 0.007
     bpy.ops.object.modifier_apply(modifier='dec')
     bpy.ops.object.modifier_apply(modifier='vox')
-    log('helper', len(ob.data.vertices), 'verts')
+    # bone heat fails for the WHOLE mesh when one loose speck can't see a bone (S16: an 8-vertex crumb of the merged
+    # Jazeek): keep only the big connected parts
+    import bmesh  # noqa: E402
+
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bm.verts.ensure_lookup_table()
+    seen = set()
+    parts = []
+    for v in bm.verts:
+        if v.index in seen:
+            continue
+        stack, part = [v], []
+        seen.add(v.index)
+        while stack:
+            a = stack.pop()
+            part.append(a)
+            for e in a.link_edges:
+                b = e.other_vert(a)
+                if b.index not in seen:
+                    seen.add(b.index)
+                    stack.append(b)
+        parts.append(part)
+    small = [v for part in parts if len(part) < 0.01 * len(bm.verts) for v in part]
+    if small:
+        bmesh.ops.delete(bm, geom=small, context='VERTS')
+        bm.to_mesh(ob.data)
+    bm.free()
+    log('helper', len(ob.data.vertices), 'verts', f'(dropped {len(small)} in loose specks)' if small else '')
     arm_data = bpy.data.armatures.new('rig')
     arm = bpy.data.objects.new('rig', arm_data)
     bpy.context.scene.collection.objects.link(arm)
@@ -272,6 +300,7 @@ for side, nm in (('L', 'Left'), ('R', 'Right')):
     lat = (V - wr) @ a
     band = hv & (t > 0.15) & (t < 0.5)
     ts = 1.0 if np.median(lat[band]) > 0 else -1.0
+    ts = float(getattr(spec, 'THUMB_SIDE', {}).get(side, ts))  # per-model override when the mass vote picks the fingers
     thumb = hv & (t < spec.THUMB_T) & (lat * ts > spec.THUMB_LAT)
     fingers = hv & ~thumb
     f1 = smoothstep(spec.KNUCKLE - 0.05, spec.KNUCKLE + 0.04, t) * fingers

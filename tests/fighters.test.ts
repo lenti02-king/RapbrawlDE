@@ -383,3 +383,29 @@ describe('target combos (buttons only)', () => {
     });
   }
 });
+
+describe('Jazeek Cartoon (S16: look variant)', () => {
+  it('is registered with Jazeek as its base and plays exactly like him', async () => {
+    const { baseOf, getFighter } = await import('../src/core/registry');
+    const { ROSTER } = await import('../src/content');
+    expect(ROSTER).toContain('jazeektoon');
+    expect(baseOf('jazeektoon')).toBe('jazeek');
+    expect(baseOf('jazeek')).toBe('jazeek');
+    expect(baseOf('crew')).toBe('crew'); // unknown ids map to themselves
+    expect(getFighter('jazeektoon').name).toBe('JAZEEK CARTOON');
+    expect(validateLoadout('jazeektoon', ['jaz_wave', 'jaz_mvp', 'jaz_99'])).toBeNull();
+    // the same inputs give the same fight: P1 as Jazeek vs P1 as Jazeek Cartoon
+    const play = (p1: string) => {
+      const s = newMatch({ fighters: [p1, 'bonez'], loadouts: [['jaz_wave', 'jaz_mvp', 'jaz_99'], ['bon_croc', 'bon_smoke', 'bon_team']] });
+      place(s, 0.7);
+      s.fighters[0].meter = 200;
+      const seq: [number, number][] = [...Array(60)].map((_, i) => [i % 9 < 2 ? IN.LIGHT : i === 40 ? IN.S1 : 0, 0]);
+      script(s, seq);
+      run(s, 120);
+      return [s.fighters[0].health, s.fighters[1].health, s.fighters[0].x, s.fighters[1].x, s.fighters[0].meter];
+    };
+    const a = play('jazeek');
+    expect(a[1]).toBeLessThan(1050); // the script lands hits on Bonez (1050 HP), not an idle comparison
+    expect(play('jazeektoon')).toEqual(a);
+  });
+});

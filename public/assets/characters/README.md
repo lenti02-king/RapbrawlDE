@@ -1,6 +1,30 @@
 # Fighter models
 
-`jazeek.glb`, `bonez.glb`, `manuellsen.glb` and `lacazette.glb` are the product owner's **stylized mobile-game Meshy
+**S16 (D49): `jazeek.glb` and `jazeektoon.glb` ("Jazeek Cartoon")** are built from the product owner's modelle-4 Meshy
+models (GitHub release `modelle-4`): a separately generated close-up head merged onto a full body, once in the
+stylized 3D look and once anime / cel shaded. Unlike the modelle-3 models below they are *rebuilt*, not used 1:1:
+
+| fighter | head | body | stored locally as |
+|---|---|---|---|
+| Jazeek | `Meshy_AI_CharacterHeadCloseUpU_1008130600…glb` (7.7M tris) | `Meshy_AI_Curly_Confidence_1008134741…glb` | `.cache/meshy4/styl_head_src.glb`, `styl_body_src.glb` |
+| Jazeek Cartoon | `Meshy_AI_anime_head_cel_shaded_1008133027…glb` (4M tris) | `Meshy_AI_anime_mobile_characte_1008130706…glb` | `.cache/meshy4/anime_head_src.glb`, `anime_body_src.glb` |
+
+```
+python3 tools/meshy/merge4.py styl|anime      # -> .cache/meshy4/jazeek_src.glb | jazeektoon_src.glb (~10 min, 16 GB RAM is enough)
+python3 tools/meshy/merge4.py anime --stage profile|geo   # neck ring table / merged previews without baking
+python3 tools/meshy/reduce.py jazeek --dir meshy4          # 120k game copy (+ --tris 40000 --base 2048 --maps 1024 --out .cache/meshy4/jazeek_mob_src.glb)
+python3 tools/meshy/skin.py jazeek --dir meshy4 --src .cache/meshy4/jazeek_std_src.glb --out public/assets/characters/jazeek.glb
+```
+`merge4.py`: head scaled + placed by chin / nose tip / nasion measured on both midline profiles; one tilted plane under
+the chin and above the chains (lower at the nape for the anime curls) cuts both; the head's neck is bent radially onto
+the body's at the plane; one closed surface (voxel remesh 1.6 mm) decimated to 160k triangles with the face and hands
+on their own budget (50k); new UVs with the face islands x3.6 and the hair islands x0.45; base colour and normal map
+baked (Cycles, selected-to-active) from the full-resolution sources, then ray misses filled and scalp texels inside the
+hair turned into hair colour. Colour work: the stylized body's skin lifted to the head's tone; the head's neck fades
+into the body's colour over 4 cm; after the PO's photos the lips are toned toward brown and the under-eyes shaded.
+The previous modelle-3 Jazeek game copy is in git history (before S16).
+
+The other fighters — `bonez.glb`, `manuellsen.glb` and `lacazette.glb` — are the product owner's **stylized mobile-game Meshy
 models** (GitHub release `modelle-3`, Oct 2026, D43), used with the same mesh shapes, UVs and texture content. The
 originals are 37–51 MB each and stay out of git (`.cache/` is ignored). The game renders them cel shaded
 (`src/render/cel.ts`: MeshToonMaterial, no gloss, black ink outline).

@@ -31,6 +31,8 @@ export const ANIM_SETS: Record<string, AnimSet> = {
   bonez: withReach({ ...BONEZ_ANIMS, moves: { ...BONEZ_ANIMS.moves, ...BON_MOVES } }, 'bonez'),
   manuellsen: withReach({ ...BONEZ_ANIMS, id: 'manuellsen', stance: compose(BONEZ_ANIMS.stance, MANU_GUARD), moves: { ...BONEZ_ANIMS.moves, ...MANU_MOVES } }, 'manuellsen'),
   lacazette: withReach({ ...JAZEEK_ANIMS, id: 'lacazette', moves: { ...JAZEEK_ANIMS.moves, ...LACA_MOVES } }, 'lacazette'),
+  // S16: Jazeek Cartoon = Jazeek's clips, fitted to its own model's reach
+  jazeektoon: withReach({ ...JAZEEK_ANIMS, id: 'jazeektoon', moves: { ...JAZEEK_ANIMS.moves, ...JAZ_MOVES } }, 'jazeektoon'),
 };
 
 const DEG = Math.PI / 180;

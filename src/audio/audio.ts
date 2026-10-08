@@ -2,7 +2,7 @@
 // Web Audio API (no external assets → no licensing risk during development).
 // Final game audio can replace individual cues by name (see `cue` mapping).
 import type { SimEvent } from '../core/events';
-import { getCard } from '../core/registry';
+import { baseOf, getCard } from '../core/registry';
 import type { GameState } from '../core/state';
 
 /** 90 BPM = one beat every 40 sim frames (RULES.BEAT_FRAMES): Beat-Drop hits are judged on the sim's beat clock. */
@@ -692,6 +692,7 @@ export class AudioEngine {
   /** Plays the fighter's Signature music (licensed excerpt if present, else an original stinger), ducking the beat. */
   signatureMusic(fighter: string): void {
     if (!this.ctx || this.muted) return;
+    fighter = baseOf(fighter); // look variants (Jazeek Cartoon) sing their base fighter's theme
     const ctx = this.ctx;
     const t = this.now();
     const tr = this.tracks.get(fighter);

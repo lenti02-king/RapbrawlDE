@@ -4,7 +4,7 @@
 // Each figure follows an anchor element (feet = anchor's bottom centre, height = anchor's height); one renderer draws
 // all figures with scissored viewports. Presentation only.
 import * as THREE from 'three';
-import { getFighter } from '../../core/registry';
+import { baseOf, getFighter } from '../../core/registry';
 import { UNITS_PER_METER } from '../../core/math';
 import { ANIM_SETS } from '../../render/animator';
 import { buildCharacter } from '../../render/characters';
@@ -78,7 +78,7 @@ const STYLE: Record<string, { nod: number; breath: number; sway: number; look: n
 
 /** Relaxed waiting loop on top of the fighter's stance: breathing, a slow weight shift, small look-arounds. */
 export function waitingPose(base: Float32Array, t: number, seed: number, out: Float32Array, id = ''): void {
-  const st = STYLE[id] ?? { nod: 0, breath: 1, sway: 1, look: 1 };
+  const st = STYLE[id] ?? STYLE[baseOf(id)] ?? { nod: 0, breath: 1, sway: 1, look: 1 };
   out.set(base);
   if (st.nod) {
     // head bob on the 90 BPM menu beat (down on the beat, quick and loose)

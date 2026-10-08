@@ -25,18 +25,26 @@ export interface FighterCardV4 {
 
 export type FightersV4Action = 'back' | 'custom' | 'fav' | 'deck';
 
-/** Card geometry (reference px): four cards in a row under the logo, the buttons below. */
+/** Card geometry (reference px): the cards in a row under the logo, the buttons below. Up to four at full size; a
+ *  fifth fighter (S16: Jazeek Cartoon) shrinks the row so it still fits between the screen edges. */
 const CARD = { w: 292, h: 438, gap: 36, y: 362 };
 const WIN = { x: 10, y: 10, w: 272, h: 334 }; // picture window inside the card (4:5 artwork, see README)
 
 function cardHtml(c: FighterCardV4, i: number, n: number, on: boolean): string {
-  const x0 = (1672 - (n * CARD.w + (n - 1) * CARD.gap)) / 2 + i * (CARD.w + CARD.gap);
+  const k = Math.min(1, 1500 / (n * CARD.w + (n - 1) * CARD.gap));
+  const w = Math.round(CARD.w * k);
+  const h = Math.round(CARD.h * k);
+  const gap = Math.round(CARD.gap * k);
+  const win = { x: WIN.x * k, y: WIN.y * k, w: WIN.w * k, h: WIN.h * k };
+  const x0 = (1672 - (n * w + (n - 1) * gap)) / 2 + i * (w + gap);
+  const y0 = CARD.y + (CARD.h - h) / 2;
   const pic = c.img ? `<img alt="" draggable="false" src="${c.img}">` : '';
-  return `<button class="v2-btn v4-fcard ${on ? 'on' : ''} ${c.art ? 'art' : ''}" data-f="${esc(c.id)}" aria-label="${esc(c.name)}" style="--x:${x0};--y:${CARD.y};--w:${CARD.w};--h:${CARD.h};--d:${i * 0.5}s">
-      <span class="v4-win v4-fart" style="--x:${WIN.x};--y:${WIN.y};--w:${WIN.w};--h:${WIN.h}">${pic}</span>
-      ${c.fav ? t('FAVORIT', [WIN.x + 10, WIN.y + 10, WIN.x + 120, WIN.y + 40], 0, 0, { cls: 'v4-city v4-favtag', fs: 20, align: 'center' }) : ''}
-      ${t(c.name, [8, WIN.y + WIN.h + 6, CARD.w - 8, WIN.y + WIN.h + 50], 0, 0, { cls: 'v4-pname', fs: 34, align: 'center' })}
-      ${t(c.city, [8, WIN.y + WIN.h + 52, CARD.w - 8, WIN.y + WIN.h + 82], 0, 0, { cls: 'v4-city', fs: 24, align: 'center' })}
+  const name = c.name.length > 10 ? 34 * k * 0.82 : 34 * k;
+  return `<button class="v2-btn v4-fcard ${on ? 'on' : ''} ${c.art ? 'art' : ''}" data-f="${esc(c.id)}" aria-label="${esc(c.name)}" style="--x:${x0};--y:${y0};--w:${w};--h:${h};--d:${i * 0.5}s">
+      <span class="v4-win v4-fart" style="--x:${win.x};--y:${win.y};--w:${win.w};--h:${win.h}">${pic}</span>
+      ${c.fav ? t('FAVORIT', [win.x + 10, win.y + 10, win.x + 120 * k, win.y + 40 * k], 0, 0, { cls: 'v4-city v4-favtag', fs: 20 * k, align: 'center' }) : ''}
+      ${t(c.name, [6, win.y + win.h + 6 * k, w - 6, win.y + win.h + 50 * k], 0, 0, { cls: 'v4-pname', fs: name, align: 'center' })}
+      ${t(c.city, [6, win.y + win.h + 52 * k, w - 6, win.y + win.h + 82 * k], 0, 0, { cls: 'v4-city', fs: 24 * k, align: 'center' })}
     </button>`;
 }
 

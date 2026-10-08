@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { SimEvent } from '../core/events';
 import { UNITS_PER_METER } from '../core/math';
-import { getMove } from '../core/registry';
+import { baseOf, getMove } from '../core/registry';
 import type { GameState, ProjectileState } from '../core/state';
 import type { FighterAnimator } from './animator';
 import { HeartPool, makeCroc, makeCrocRunner, makeSpotlight, noteTexture, smokeTexture, SpritePool, type Croc } from './props';
@@ -115,13 +115,13 @@ export class SpecialFX {
       } else if (e.t === 'projectile' && e.kind === 'voicewave') {
         const f = s.fighters[e.p];
         this.noteBurst(f.x / U + f.facing * 0.5, 1.45, 5, f.facing, 2.2);
-      } else if (e.t === 'counter' && s.fighters[e.p].def === 'jazeek') {
+      } else if (e.t === 'counter' && baseOf(s.fighters[e.p].def) === 'jazeek') {
         const f = s.fighters[e.p];
         this.noteBurst(f.x / U, 1.3, 10, f.facing, 2.6);
-      } else if (e.t === 'meterGain' && s.fighters[e.p].def === 'bonez') {
+      } else if (e.t === 'meterGain' && baseOf(s.fighters[e.p].def) === 'bonez') {
         const f = s.fighters[e.p];
         this.vfx.sparks(f.x / U + f.facing * 0.12, 1.72, 18, new THREE.Color(0xffd65a), 4, f.facing, 2);
-      } else if (e.t === 'hit' && !e.projectile && s.fighters[e.a].def === 'jazeek' && e.strength >= 2) {
+      } else if (e.t === 'hit' && !e.projectile && baseOf(s.fighters[e.a].def) === 'jazeek' && e.strength >= 2) {
         this.heartBurst(e.x / U, e.y / U, 2);
       }
     }
@@ -144,7 +144,7 @@ export class SpecialFX {
       const inMove = (k: string) => f.state === 'move' && f.move === k;
 
       // --- Jazeek: the gold mic in his right hand whenever he sings (Stimmwelle, intro emote, Signature, win, finisher)
-      if (f.def === 'jazeek' && hasProp('mic')) {
+      if (baseOf(f.def) === 'jazeek' && hasProp('mic')) {
         const mic = this.mics[i] ?? (this.mics[i] = new HandProp('mic', this.group));
         const sc = showcaseOf(s);
         const cineF = s.cine && s.cine.owner === i && s.cine.id === 'jaz_heart' ? s.cine.frame : -1;
@@ -160,7 +160,7 @@ export class SpecialFX {
       }
 
       // --- Jazeek: Diamanten-Regen — the diamond chain flashes (frames 2-24), star glints run along it
-      if (f.def === 'jazeek') {
+      if (baseOf(f.def) === 'jazeek') {
         const rf = inMove('jaz_rain') ? f.mf : -1;
         const on = rf >= 2 && rf <= 26;
         const chest = on ? rig.joints.chest.getWorldPosition(new THREE.Vector3()) : null;
@@ -183,7 +183,7 @@ export class SpecialFX {
 
       // --- Jazeek: Blunt für dich is a grab now (D42): the giant joint is the cinematic's own prop (cines.ts); the
       // hand joint, its tip and the lighter flame stay hidden
-      if (f.def === 'jazeek') {
+      if (baseOf(f.def) === 'jazeek') {
         this.joints[i]?.place(rig, 'haR', false);
         this.tip[i].visible = false;
         this.flame[i].visible = false;
@@ -210,14 +210,14 @@ export class SpecialFX {
       }
       // --- win flourishes
       const won = (s.phase === 'roundOver' || s.phase === 'matchOver') && f.state === 'win' && s.roundWinner === i;
-      if (won && f.def === 'jazeek') {
+      if (won && baseOf(f.def) === 'jazeek') {
         spotI = Math.max(spotI, ramp(f.sf, 10, 30));
         if (emitTick && Math.random() < 0.25) this.heartBurst(x, 1.9, 1);
         if (emitTick && Math.random() < 0.3) this.noteBurst(x + f.facing * 0.2, 1.75, 1, f.facing, 1);
       }
       spot.setIntensity(spotI);
       spot.group.position.set(x, 0, 0);
-      if (won && f.def === 'bonez') {
+      if (won && baseOf(f.def) === 'bonez') {
         winCrocShown = true;
         const t = f.sf;
         const c = this.winCroc;
@@ -232,7 +232,7 @@ export class SpecialFX {
       }
 
       // --- smoke wall: show a gold glint "hint" of Bonez when he stands behind his own smoke
-      if (f.def === 'bonez') {
+      if (baseOf(f.def) === 'bonez') {
         const smoke = s.projectiles.find((p) => p.owner === i && p.kind === 'smoke');
         const hidden = smoke && Math.abs(smoke.x / U - x) < 0.9;
         this.glint.visible = !!hidden;
@@ -252,7 +252,7 @@ export class SpecialFX {
   prewarm(defs: string[]): void {
     this.abilities.prewarm(defs);
     defs.forEach((d, i) => {
-      if (d === 'jazeek' && !this.mics[i] && hasProp('mic')) this.mics[i] = new HandProp('mic', this.group);
+      if (baseOf(d) === 'jazeek' && !this.mics[i] && hasProp('mic')) this.mics[i] = new HandProp('mic', this.group);
     });
   }
 

@@ -3,6 +3,7 @@
 // each, skippable); this file is the presentation: the emote clips, the camera path and the per-fighter effects.
 import * as THREE from 'three';
 import { BONEZ_ANIMS, BONEZ_POSES } from './anims/bonez';
+import { baseOf } from '../core/registry';
 import { JAZEEK_ANIMS, JAZEEK_POSES } from './anims/jazeek';
 import type { AnimSet } from './anims/types';
 import type { CamKey } from './cinematics';
@@ -73,7 +74,7 @@ const EMOTES: Record<string, Clip> = { jazeek: JAZEEK_EMOTE, bonez: BONEZ_EMOTE 
 
 /** The fighter's showcase emote (other fighters fall back to their round intro clip). */
 export function emoteFor(set: AnimSet): Clip {
-  return EMOTES[set.id] ?? set.intro;
+  return EMOTES[baseOf(set.id)] ?? set.intro;
 }
 
 /** Gold teeth during Bonez' grin. */
@@ -103,6 +104,7 @@ export interface EmoteFxCtx {
 /** One-shot effects per emote frame. */
 export function emoteFx(id: string, f: number, c: EmoteFxCtx): void {
   const { face: p, facing } = c;
+  id = baseOf(id);
   if (id === 'jazeek') {
     if (f >= 12 && f <= 40 && f % 5 === 0) c.notes(p.x + facing * 0.15, p.y - 0.1, 1, facing);
     if (f === 53) c.hearts(p.x + facing * 0.35, p.y - 0.05, 6);

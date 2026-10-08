@@ -1,5 +1,5 @@
 // Round-1 fighter showcase (emote, face close-up, name overlay) at chosen intro frames.
-// Usage: node scripts/introshot.mjs [f1,f2,..] [w] [h]  -> artifacts/intro/<frame>.png + sheet.png
+// Usage: node scripts/introshot.mjs [f1,f2,..] [w] [h]  -> artifacts/intro/<frame>.png + sheet.png  (F=jazeektoon,jazeek: other pairing)
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -13,7 +13,7 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
-await page.goto(`${base}/?quick=jazeek,bonez&mode=cpu${process.env.EXTRA ?? ''}`);
+await page.goto(`${base}/?quick=${process.env.F ?? 'jazeek,bonez'}&mode=cpu${process.env.EXTRA ?? ''}`);
 await page.waitForFunction(() => window.__rb?.runner?.state, null, { timeout: 300000 });
 await page.evaluate(() => {
   const r = window.__rb.runner;

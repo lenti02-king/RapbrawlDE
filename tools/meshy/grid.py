@@ -18,10 +18,20 @@ ppm = float(sys.argv[4]) if len(sys.argv) > 4 else 500.0
 zoom = [float(v) for v in sys.argv[5].split(',')] if len(sys.argv) > 5 else None
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.import_scene.gltf(filepath=src)
-ob = [o for o in bpy.data.objects if o.type == 'MESH'][0]
-bb = [ob.matrix_world @ v.co for v in ob.data.vertices]
-xs = [p.x for p in bb]; ys = [p.y for p in bb]; zs = [p.z for p in bb]
+if os.path.getsize(src) > 60e6:
+    # multi-million-triangle sculpts (modelle-4 heads): numpy loader, the glTF add-on needs minutes
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import glbfast
+    ob = glbfast.load(src, 'src', work=os.path.join(os.path.dirname(os.path.abspath(outp)), '.grid_work'))
+else:
+    bpy.ops.import_scene.gltf(filepath=src)
+    ob = [o for o in bpy.data.objects if o.type == 'MESH'][0]
+import numpy as np  # noqa: E402
+
+_co = np.empty(len(ob.data.vertices) * 3)
+ob.data.vertices.foreach_get('co', _co)
+_co = _co.reshape(-1, 3) @ np.array(ob.matrix_world)[:3, :3].T + np.array(ob.matrix_world)[:3, 3]
+xs = _co[:, 0]; ys = _co[:, 1]; zs = _co[:, 2]
 print('bbox x', min(xs), max(xs), 'y', min(ys), max(ys), 'z', min(zs), max(zs), flush=True)
 sc = bpy.context.scene
 sc.render.engine = 'CYCLES'

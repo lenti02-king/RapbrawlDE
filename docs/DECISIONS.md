@@ -526,3 +526,38 @@ The PO asked that both players can choose a character, the same one too.
   - Selection frames and other placed state pieces let taps through (the P1 frame covered the tile the second player
     had to tap for a mirror match).
 
+
+## D49 — modelle-4: head + body merged, Jazeek (stylized) and Jazeek Cartoon (anime) (2026-10-08)
+The PO generated Jazeek a second time in Meshy (release `modelle-4`), this time as a close-up head (for a face that
+reads as him) plus a full body, once in the stylized 3D look and once anime / cel shaded, and asked to join each head
+to its body cleanly, improve the models, match the face to three reference photos and put both in the game as
+fighters ("Jazeek" and "Jazeek Cartoon"), embedded so they look like part of this world.
+- **Merge = rebuild, not 1:1** (`tools/meshy/merge4.py`, unlike D43's untouched modelle-3 models): the heads come as
+  4–7.7M-triangle sculpts whose 4K atlas spends ~90 % on thousands of curl islands (the face was a corner). Pipeline:
+  head scaled/placed by chin, nose tip and nasion measured on both midline profiles (scale 0.166 / 0.197); one tilted
+  cut plane under the chin and above the chains (higher at the back like a collar line, lower at the nape for the anime
+  curls); the head's neck bent radially onto the body's at the plane (median radius per angle, clamped ±10 %); one
+  closed surface by voxel remesh (1.6 mm) so there is no seam, no crack for the ink outline and a watertight skin
+  helper; collapse decimation to 160k triangles in two passes (Blender freezes edges whose vertices both have weight 0:
+  rest → 110k, then face/ears/beard + hands → 50k); smart-project UVs with face islands ×3.6 and hair islands ×0.45;
+  base colour and tangent normal map baked selected-to-active from the full-resolution sources (bake source head
+  decimated to 2.5M to stay in 16 GB); ray misses filled; skin-coloured texels inside the hair (rays reaching the
+  scalp between curls) turned into hair colour — but only outside the face zone, because brows, lashes, moustache and
+  goatee are dark too (the first try painted black triangles into the face).
+- **Face after the photos** (no reshaping of the sculpt; the PO's new heads already had the hooded lids, moles, thin
+  separate moustache and goatee): the stylized body's skin lifted ×1.17 to the head's (and the photos') tone; the
+  head's neck fades into the body colour over 4 cm; lips toned toward brown (they were pink), soft shadows under the
+  eyes (the photos' tired look). Anime: lips a touch darker, its drawn eye lines kept.
+- **Fighters**: `jazeek` now uses the stylized model (modelle-3 copy in git history; landmarks in `tools/meshy/jazeek_cr.py`
+  with a thumb-side override — the mass vote picked the spread fingers); **Jazeek Cartoon** is a fighter of its own,
+  `jazeektoon` = `{ ...JAZEEK, name, base: 'jazeek' }`: same moves, cards, cinematics, voice/theme and home town, own
+  model, own reach fit and own decks/stats. New `FighterDef.base` + `baseOf(id)` (registry): presentation keyed by
+  fighter id (emotes, specials, fatality id, taunts, signature music, showcase pose, menu idle style) resolves through
+  it; the sim needs nothing (test: the same inputs give the same fight for both ids).
+- Reach re-fitted for the realistic proportions (longer legs: low kick / LLL / sweep pulled back 10–12 cm, two
+  punches pushed 15 cm); every strike within ±5 cm of its box's far edge (`scripts/reach.mjs`), Ninetynine's
+  cinematic grab excepted (also before).
+- KÄMPFER fits five cards (the row shrinks to the screen width), names in capitals like the others.
+- Not done (honest): the stylized body's chains are Meshy's melted silver with brown flecks — readable as chains at
+  game distance, not a clean Cuban link; a modelled chain + "99" pendant would replace them. The cel ramp posterises
+  the baked face shading a little in the fight close-up.

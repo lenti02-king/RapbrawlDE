@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import type { AudioEngine } from '../audio/audio';
 import { UNITS_PER_METER } from '../core/math';
+import { baseOf } from '../core/registry';
 import { RULES, showcaseOf } from '../core/sim';
 import type { GameState } from '../core/state';
 import { BRICK_ANIMS } from './anims/brick';
@@ -501,7 +502,7 @@ class CinematicRuntime {
       return true;
     }
     // a fatality runs on the same machinery, keyed to the finish phase's own frame counter
-    const cine = s.cine ?? (s.fatal ? { id: `fatal_${s.fighters[s.fatal.owner].def}`, owner: s.fatal.owner, frame: s.fatal.frame } : null);
+    const cine = s.cine ?? (s.fatal ? { id: `fatal_${baseOf(s.fighters[s.fatal.owner].def)}`, owner: s.fatal.owner, frame: s.fatal.frame } : null);
     if (!cine) {
       this.end();
       return false;

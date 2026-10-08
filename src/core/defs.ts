@@ -194,6 +194,11 @@ export interface FighterDef {
   id: string;
   /** Hidden from the roster UI (legacy/dev test fighters). */
   hidden?: boolean;
+  /**
+   * Look variant of another fighter (S16: "Jazeek Cartoon" = Jazeek's moves, cards, cinematics and voice with its own
+   * 3D model and name). Presentation code keyed by fighter id resolves through baseOf(); the sim needs nothing extra.
+   */
+  base?: string;
   name: string;
   tagline: string;
   archetype: string;
