@@ -8,6 +8,17 @@ export interface AnimSet {
   pivot?: number;
   /** Idle bounce amplitude synced to the music beat (m). */
   idleBounce?: number;
+  /** Captured idle (S17: motion capture instead of the static stance + sine breathing), looped by time; frames are
+   *  60 Hz game frames. */
+  idleLoop?: Clip;
+  /** 0..1: the captured idle's arms are moved onto the stance's guard by this share (the recording's own arm motion
+   *  stays on top) - fighting-game guard height with a real boxer's movement. */
+  idleGuard?: number;
+  /** 0..1: every channel of the captured idle moved onto the stance (an additive layer: the authored stance with the
+   *  recording's weight shifts, bounce and breathing on top). */
+  idleAdditive?: number;
+  /** 0..1: the captured idle's upper-body motion layered on the walk cycles. */
+  walkLayer?: number;
   stance: PoseDef;
   r: Reactions;
   walkF: [PoseDef, PoseDef];

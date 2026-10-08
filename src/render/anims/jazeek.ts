@@ -3,6 +3,9 @@ import { Clip, compose, type PoseDef } from '../pose';
 import { strike } from './motion';
 import { reactions } from './stances';
 import type { AnimSet } from './types';
+import { strikeClip } from './mocap/apply';
+import { JAZ_IDLE } from './mocap/jaz_idle';
+import { JAZ_JAB } from './mocap/jaz_jab';
 
 export const JAZEEK_STANCE: PoseDef = {
   y: -0.03,
@@ -126,30 +129,9 @@ const CLINCH: PoseDef = {
 
 // ---- normals: anticipation -> contact (with cartoon reach) -> follow-through -> settle (anims/motion.ts strike())
 const normals: Record<string, Clip> = {
-  // jab, startup 5 / active 2 / total 14: small pull-back, the lead fist whips out with the hips behind it
-  jaz_5L: strike(
-    {
-      startup: 5,
-      active: 2,
-      total: 14,
-      wind: { x: -0.02, s: { sq: 0.04 }, j: { chest: [0, -6, -2], shL: [16, 0, 38], elL: [0, 0, 114], haL: [0, 0, 12] } },
-      hit: {
-        x: 0.04,
-        s: { aL: 0.06 },
-        aim: { shL: [1, 0.3, 0.3], elL: [1, 0.3, 0.3], face: 0.6 },
-        j: { hips: [0, -24, 0], spine: [0, -8, -10], chest: [0, -22, -8], haL: [0, 0, -6], shR: [-14, 0, 34], elR: [0, 0, 134], thL: [6, 20, 30], knL: [0, 0, -38] },
-      },
-      hold: {
-        x: 0.05,
-        s: { aL: 0.08 },
-        aim: { shL: [1, 0.28, 0.26], elL: [1, 0.28, 0.26], face: 0.6 },
-        j: { hips: [0, -25, 0], spine: [0, -8, -10], chest: [0, -24, -8], haL: [0, 0, -6], shR: [-14, 0, 34], elR: [0, 0, 134], thL: [6, 20, 30], knL: [0, 0, -38] },
-      },
-      follow: { x: 0.05, s: { aL: 0.06 }, aim: { shL: [0.8, -0.2, 0.3], elL: [0.3, 0.9, 0.3], face: 0.4 }, j: { chest: [0, -28, -6], shR: [-14, 0, 30], elR: [0, 0, 128] } },
-      settle: { y: -0.045, s: { sq: 0.04 }, j: { chest: [0, -12, -4] } },
-    },
-    S,
-  ),
+  // jab, startup 5 / active 2 / total 14: a captured boxer's jab (CMU 14_01, tools/mocap/strike.py) time-warped onto
+  // the frame data - lead fist on the hitbox by aim, hip turn, shoulder roll, step-in and snap-back from the recording
+  jaz_5L: strikeClip(S, JAZ_JAB),
   // backhand, startup 9 / active 3 / total 27: coils away (near shoulder forward), then unwinds through the target
   jaz_5H: strike(
     {
@@ -542,6 +524,9 @@ export const JAZEEK_ANIMS: AnimSet = {
   // light, bouncy steps
   walk: { step: 0.46, bob: 0.032, lift: 24, twist: 8, lean: -4 },
   idleBounce: 0.01,
+  idleLoop: new Clip(JAZ_IDLE.keys.map((p, i) => ({ f: (i * 60) / JAZ_IDLE.fps, p })), undefined, true),
+  idleAdditive: 1,
+  walkLayer: 0.7,
   intro: new Clip(
     [
       { f: 0, p: { j: { head: [0, -30, 4], neck: [0, -10, 0], shR: [-30, 0, 66], elR: [0, 0, 142], shL: [20, 0, 10], elL: [0, 0, 20] } } },

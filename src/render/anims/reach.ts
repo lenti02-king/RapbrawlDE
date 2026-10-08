@@ -11,8 +11,8 @@ import type { AnimSet } from './types';
 
 export const REACH_FIX: Record<string, Record<string, number>> = {
   // S16: the modelle-4 Jazeek (realistic proportions: longer legs, the kicks overreach)
-  jazeek: { jaz_5H: 0.3, jaz_HH: 0.41, jaz_HL: 0.09, jaz_LLH: 0.18, jaz_2LH: 0.42, jaz_blunt: 0.08, jaz_counter_fu: 0.15, jaz_mvp_fu: 0.21, jaz_2L: -0.12, jaz_LLL: -0.1, jaz_2H: -0.1 },
-  jazeektoon: { jaz_5H: 0.3, jaz_HH: 0.41, jaz_HL: 0.09, jaz_LLH: 0.18, jaz_2LH: 0.42, jaz_blunt: 0.08, jaz_counter_fu: 0.15, jaz_mvp_fu: 0.21, jaz_2L: -0.12, jaz_LLL: -0.1, jaz_2H: -0.1 },
+  jazeek: { jaz_5L: 0.03, jaz_5H: 0.3, jaz_HH: 0.41, jaz_HL: 0.09, jaz_LLH: 0.18, jaz_2LH: 0.42, jaz_blunt: 0.08, jaz_counter_fu: 0.15, jaz_mvp_fu: 0.21, jaz_2L: -0.12, jaz_LLL: -0.1, jaz_2H: -0.1 },
+  jazeektoon: { jaz_5L: 0.03, jaz_5H: 0.3, jaz_HH: 0.41, jaz_HL: 0.09, jaz_LLH: 0.18, jaz_2LH: 0.42, jaz_blunt: 0.08, jaz_counter_fu: 0.15, jaz_mvp_fu: 0.21, jaz_2L: -0.12, jaz_LLL: -0.1, jaz_2H: -0.1 },
   bonez: { bon_5H: 0.17, bon_LLL: 0.14, bon_HH: 0.2, bon_2LH: 0.45, bon_HL: 0.45, bon_2H: 0.45, bon_jH: 0.42, bon_lean: 0.25 },
   manuellsen: { bon_2L: -0.1, bon_5H: 0.11, bon_HH: 0.14, bon_2LH: 0.3, bon_HL: 0.3, bon_2H: 0.3, bon_jH: 0.3 },
   lacazette: { jaz_5H: 0.3, jaz_HH: 0.45, jaz_LLH: 0.2, jaz_2LH: 0.45 },

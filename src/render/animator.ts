@@ -12,7 +12,7 @@ import { BONEZ_ANIMS } from './anims/bonez';
 import { withReach } from './anims/reach';
 import { BON_MOVES, JAZ_MOVES, LACA_MOVES, MANU_MOVES } from './anims/roster11';
 import * as THREE from 'three';
-import { compose, lerpPose, poseJointQ, type PoseDef, stabilizeHead, toArr, writeJointQ } from './pose';
+import { type Clip, compose, lerpPose, poseJointQ, type PoseDef, stabilizeHead, toArr, writeJointQ } from './pose';
 import { type MotionClips, motionClips } from './anims/motion';
 import { JOINTS, POSE_LEN, R_ROT, R_X, R_Y, R_YAW, JOINT_INDEX, S_AL, S_AR, S_LL, S_LR, S_SQ, type JointName } from './rig';
 
@@ -310,6 +310,23 @@ const TURN = 12;
  * animations are short cross-fades from the pose on screen (1-8 frames by kind) instead of a permanent lag filter,
  * so strikes keep their snap and holds stay still.
  */
+/** Arm joints moved onto the stance guard when an idle loop is layered (AnimSet.idleGuard). */
+const UPPER_CH = (['spine', 'chest', 'neck', 'head', 'shL', 'elL', 'haL', 'shR', 'elR', 'haR'] as const).flatMap((j) =>
+  [0, 1, 2].map((c) => JOINT_INDEX[j] * 3 + c),
+);
+const GUARD_CH = new Set((['shL', 'elL', 'haL', 'shR', 'elR', 'haR'] as const).flatMap((j) => [0, 1, 2].map((c) => JOINT_INDEX[j] * 3 + c)));
+/** Average pose of a clip (sampled every frame). */
+function clipMean(c: Clip): Float32Array {
+  const acc = new Float32Array(POSE_LEN);
+  const tmp = new Float32Array(POSE_LEN);
+  const n = Math.max(1, Math.floor(c.length));
+  for (let f = 0; f < n; f++) {
+    c.sample(f, tmp);
+    for (let k = 0; k < POSE_LEN; k++) acc[k] += tmp[k] / n;
+  }
+  return acc;
+}
+
 export class FighterAnimator {
   readonly current = new Float32Array(POSE_LEN);
   /** Final pose handed to the rig: `current` plus the head stabiliser (kept separate so fades start unmodified). */
@@ -329,6 +346,9 @@ export class FighterAnimator {
   private turnFrom = 0;
   private turnT = 99;
   private key = '';
+  /** Mean pose of the captured idle loop (guard layering). */
+  private idleMean: Float32Array | null = null;
+  private layerTmp: Float32Array | null = null;
   private lastSf = 0;
   private walkPhase = 0;
   private lastX = 0;
@@ -377,6 +397,24 @@ export class FighterAnimator {
           break;
         case 'idle':
         case 'crouch': {
+          if (f.state === 'idle' && this.set.idleLoop) {
+            // captured idle: weight shifts, guard and breathing all come from the recording (looped)
+            const L = this.set.idleLoop;
+            L.sample((((time * 60 + this.idx * 41) % L.length) + L.length) % L.length, out);
+            // layering: the recording's motion around its own mean, moved onto the authored stance (all channels by
+            // idleAdditive, the arms at least by idleGuard)
+            const add = this.set.idleAdditive ?? 0;
+            const g = this.set.idleGuard ?? 0;
+            if (add > 0 || g > 0) {
+              const mean = (this.idleMean ??= clipMean(L));
+              for (let k = 0; k <= R_YAW; k++) {
+                const w = Math.max(add, GUARD_CH.has(k) ? g : 0);
+                if (w > 0) out[k] += w * (P.stance[k] - mean[k]);
+              }
+            }
+            fade = this.key.startsWith('walk') ? 5 : 6;
+            break;
+          }
           out.set(f.state === 'idle' ? P.stance : P.crouch);
           const br = Math.sin(time * 2.6 + this.idx);
           out[JOINT_INDEX.chest * 3 + 2] += br * 2.2;
@@ -403,6 +441,15 @@ export class FighterAnimator {
           this.walkPhase += (Math.abs(x - this.lastX) / M.step) * 2;
           const ph = ((this.walkPhase % 4) + 4) % 4;
           (fwd ? M.walkF : M.walkB).sample(ph, out);
+          // the captured idle's torso/arm/head motion on top of the walk cycle (the legs stay synced to the ground)
+          const wl = this.set.walkLayer ?? 0;
+          if (wl > 0 && this.set.idleLoop) {
+            const L = this.set.idleLoop;
+            const mean = (this.idleMean ??= clipMean(L));
+            const tmp = (this.layerTmp ??= new Float32Array(POSE_LEN));
+            L.sample((((time * 60 + this.idx * 41) % L.length) + L.length) % L.length, tmp);
+            for (const k of UPPER_CH) out[k] += wl * (tmp[k] - mean[k]);
+          }
           fade = 4;
           break;
         }
