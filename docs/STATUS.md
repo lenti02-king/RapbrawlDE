@@ -21,7 +21,11 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Artifact | v25 published | https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv |
 | e2e suite after the S17 renderer changes | UNVERIFIED (not re-run yet) | |
 | Phone DPR raised (medium 2, high 2.5) — performance on the iPhone | UNVERIFIED (PO test) | |
-| PO audit answered (engine, reduction, textures, materials, light, causes): bodies look rubbery/mechanical because of a 21-bone skeleton without twist bones + automatic weights and hand-built poses (no motion capture); whole-frame grade saturation ×1.32 / contrast ×1.16 | OPEN — next: Jazeek only (PO), AAA+ | D50, chat report |
+| PO audit answered (engine, reduction, textures, materials, light, causes) | DONE (reported) | D50 |
+| Jazeek motion capture: idle (boxer bounce as a layer over the stance), walk upper body, jab (captured, time-warped onto the frame data, fist on the hitbox) | VERIFIED (film strips, GIF, `reach.mjs` ok, animprobe: no errors, pops in range, idle foot slide 4 vs 23 frames) | `tools/mocap/`, `node scripts/filmstrip.mjs jazeek idle 8 low 160` |
+| Jazeek skin in-game measured against the photos and calibrated (cheek saturation 0.60 → 0.35, photos 0.31–0.36) | VERIFIED (numbers) | `node scripts/gradeprobe.mjs`, D50 |
+| Jazeek blinks (morph target), eyes squeeze on hits, shut on KO | VERIFIED (face captures open / half / closed) | `tools/meshy/blink.py`, `?blink=1` |
+| Elbow/wrist deformation (twist bones), kicks/acrobatics from capture, hair silhouette, facial expressions | OPEN | D50 |
 
 ## Session 16 — modelle-4: Jazeek + Jazeek Cartoon, head merged onto body (D49)
 | Area | Status | Evidence |

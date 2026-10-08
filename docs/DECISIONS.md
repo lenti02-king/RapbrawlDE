@@ -599,3 +599,27 @@ other fighters (new models are coming for them), only Jazeek and Jazeek Cartoon.
   light turned his real skin magenta in the in-game photo check). Phones render the fight at DPR 2 (medium) / 2.5 (high).
 - `?look=toon|pbr` forces one look on everyone (comparisons); `scripts/charshot.mjs` = in-game close-ups (fight, body,
   3/4 face, frontal face for the landmark check; `PRE=` hook for A/B).
+- **Jazeek only, AAA pass** (PO after the audit: the bodies look rubbery and mechanical; work only on Jazeek until a
+  finished one exists). Causes found: hand-built pose clips (no motion capture), a 21-bone skeleton with automatic
+  weights, the arena's whole-frame grade. Done for Jazeek:
+  - **Motion capture** (`tools/mocap/`): CMU Graphics Lab Motion Capture Database (free for research and commercial
+    projects; BVH conversion by B. Hahne, mirrored on GitHub). `retarget.py` puts every reference-rig joint at the
+    capture's world orientation re-expressed in the fighter frame (x = guard direction of the window, y up, z camera),
+    rest poses aligned by shortest arc (T-pose arm = reference arm raised sideways, elbow hinge forward), local Euler ZYX
+    from the reference hierarchy. **Idle** = a boxer's bounce (14_02, 2.6 s loop) as an additive layer over the authored
+    stance (`AnimSet.idleLoop` + `idleAdditive`): the pure capture stood in profile with a low guard and lost the
+    fighting-game silhouette, the layer keeps the stance and adds the weight shifts. **Walk**: the game walks at
+    3.7 m/s, a boxer's steps at ~0.6 m/s - six times faster would look frantic, so the walk keeps its cycle and gets the
+    captured upper-body motion (`walkLayer`). **Jab** (`strike.py`): a captured jab time-warped onto the frame data
+    (hand leaves the guard on frame 0, full extension on the first active frame, guard on the last), the striking arm
+    as aim directions (fist on the hitbox, `reach.mjs` ok) and every other joint as a change added to the stance. A
+    captured uppercut for the Encore-Haken was tried and dropped (a flat shovel hook with the next punch starting at
+    its end - weaker than the authored finisher); the "Rückhand" is a lead backfist, no capture of it exists.
+    `punches.py` lists every punch of a clip (hand, kind, start/peak/end).
+  - **Colour grade** (`CHAR_GRADE` in `render/cel.ts`, calibrated with `scripts/gradeprobe.mjs`): in-game cheek
+    saturation 0.60 against 0.33 in the photos (studio grade sat x1.32 / contrast x1.16 and pink lights) -> the PBR
+    fighters' own output is pulled to sat 0.5, gain 1.5 and a slight warm tint before tone mapping: 89/255 (photos 78-91).
+  - **Blinks** (`tools/meshy/blink.py`): a sparse 'blink' morph target from the photo-measured eye openings (upper lid
+    to the lower lid, 2 mm toward the camera), driven by GlbRig every 2-6 s; eyes squeeze on hits, shut on KO.
+  - Open: twist bones / corrective shapes for elbows and wrists, the remaining moves (kicks, acrobatics have no
+    capture), hair silhouette (the remeshed curls fray), facial expressions beyond blinking (needs a face rig).

@@ -43,6 +43,15 @@ node scripts/loadshot.mjs | selectshot.mjs | shopshot.mjs [out]   # captures of 
 node scripts/flowshot.mjs out 750 300 && node scripts/screens.mjs out 750 300   # iPhone in a browser/viewer (~750x300): menu flow + classic screens (D41)
 python3 tools/ui-extract/skin_backdrop.py   # stadium backdrop without the baked logo for the classic screens
 python3 tools/meshy/merge4.py styl|anime   # modelle-4 head + body -> .cache/meshy4/jazeek_src.glb | jazeektoon_src.glb (D49; then reduce.py/skin.py with --dir meshy4)
+python3 tools/meshy/merge4.py styl|anime2 [--facewarp warp.json]   # modelle-4 head + body (anime2 = the PO's new cartoon head, S17; welded + capped remesh input)
+.cache/mpvenv/bin/python tools/meshy/facemarks.py fm.json photo.png render.png   # MediaPipe landmarks + proportions (venv: pip install mediapipe), D50
+python3 tools/meshy/facewarp.py fm.json render photo1,photo2 warp.json && python3 tools/meshy/facefit.py fm.json render photo1,photo2   # face warp toward the photos / score
+python3 tools/meshy/facesheet.py fm.json out.jpg "photo:FOTO 1,.." "render:BLENDER,shot:SPIEL"   # comparison sheet for the PO
+python3 tools/meshy/faceretouch.py jazeek fm.json render photo1,photo2   # eyes (iris/sclera/catchlight/wet), lid band, hair colour + gloss on the baked maps (then reduce.py + skin.py)
+python3 tools/meshy/blink.py fm.json render public/assets/characters/jazeek.glb public/assets/characters/jazeek.m.glb   # 'blink' morph target (run on fresh skin.py output)
+F=jazeek,bonez node scripts/charshot.mjs out 1280x720 1 high   # in-game close-ups (SHOTS=fight,body0,face0,front0; PRE="js" for A/B)
+node scripts/gradeprobe.mjs out "0.5:1.5,.."   # in-game PBR colour grade calibration shots (window.__rbLook)
+python3 tools/mocap/punches.py clip.bvh   # punches in a CMU clip;  tools/mocap/retarget.py (loops, --loop/--twist) and strike.py (moves) -> src/render/anims/mocap/*.ts (D50)
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export
 python3 tools/arena/podcast.py preview|bake # podcast arena: Cycles preview / bake -> public/assets/arena/podcast (~10 min on CPU)
@@ -93,7 +102,7 @@ Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrd
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
 Fighter models (D43, D49): `public/assets/characters/<id>.glb` = the PO's modelle-3 models (Bonez, Manuellsen, Lacazette) and the modelle-4 Jazeek pair rebuilt by `tools/meshy/merge4.py` (Jazeek stylized, `jazeektoon` = Jazeek Cartoon: a look variant via `FighterDef.base` / `baseOf()`), cel look
-(`render/cel.ts`: MeshToonMaterial + ink outline; `?toon=0` = flat PBR), reach fit per move (`render/anims/reach.ts`). Older notes: the PO's textured Meshy models used 1:1 (reduced copy + skin, D28;
+(`render/cel.ts`: MeshToonMaterial + ink outline for Bonez/Manuellsen/Lacazette; the Jazeek pair renders PBR since S17 - `lookFor(id)`, `CHAR_NEUTRAL`/`CHAR_GRADE`, `?look=toon|pbr`), reach fit per move (`render/anims/reach.ts`). Jazeek's idle/walk/jab use motion capture (D50, `src/render/anims/mocap/`). Older notes: the PO's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.
 Props (D40): the PO's Meshy props in `public/assets/props/` (`render/propModels.ts`, procedural fallback); hand-held ones via `render/handProps.ts` (grips per prop).
