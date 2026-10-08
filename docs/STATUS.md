@@ -18,8 +18,8 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Jazeek + Jazeek Cartoon render with a realistic PBR material (colour/normal/metal-roughness, reflections, rim, soft skin, half-neutral light colour); Bonez, Manuellsen, Lacazette unchanged (cel), as the PO asked | VERIFIED (in-game captures) | `render/cel.ts` `lookFor()`, `scripts/charshot.mjs` |
 | New cartoon head ("Neuer Cartoon Kopf Jazeek.glb") = Jazeek Cartoon; remesh leak fixed (welded + capped input) | VERIFIED (Blender renders, rig, `reach.mjs jazeektoon` all strikes ok) | `artifacts/meshy4/anime2_final.jpg` |
 | Unit tests 92/92, typecheck, Artifact payload check (models + arenas under CSP) | VERIFIED | `npm test`, `node scripts/artifact-check.mjs` |
-| Artifact | v25 published | https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv |
-| e2e suite after the S17 renderer changes | UNVERIFIED (not re-run yet) | |
+| Artifact | v26 published (v25: PBR + photo match; v26: motion capture, grade, blinks) | https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv |
+| e2e suite after the S17 changes | VERIFIED 54/54 (the v2 deck slot click is forced: its wiggle never reads "stable" at 3 fps, same before S17) | `npm run e2e` |
 | Phone DPR raised (medium 2, high 2.5) — performance on the iPhone | UNVERIFIED (PO test) | |
 | PO audit answered (engine, reduction, textures, materials, light, causes) | DONE (reported) | D50 |
 | Jazeek motion capture: idle (boxer bounce as a layer over the stance), walk upper body, jab (captured, time-warped onto the frame data, fist on the hitbox) | VERIFIED (film strips, GIF, `reach.mjs` ok, animprobe: no errors, pops in range, idle foot slide 4 vs 23 frames) | `tools/mocap/`, `node scripts/filmstrip.mjs jazeek idle 8 low 160` |
