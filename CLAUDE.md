@@ -1,9 +1,21 @@
 # RAPBRAWL — agent guide
 
 Competitive 2.5D fighting game (German rap / creator culture), mobile-first (iOS/Android), web tech.
-Product owner defines WHAT; the agent owns HOW. Read `docs/STATUS.md` first — it is the live state.
+Product owner defines WHAT; the agent owns HOW. Read `PROJECT_HANDOVER.md` (German: vision, decided vs proposed vs open,
+current work, how to resume) and `docs/STATUS.md` (live state) first.
+
+## Standing PO rules (until the PO says otherwise)
+- Work on Jazeek (and the Jazeek Cartoon slot) only; do not change Bonez, Manuellsen, Lacazette (new models are coming).
+- No paid tools/credits (Higgsfield, Faceit, Character Creator, ...) without explicit PO approval.
+- Report to the PO in German, short; send screenshots of visual work as it progresses; keep the Artifact preview current.
+- Honest status: VERIFIED (test/screenshot) vs BUILT vs UNVERIFIED (e.g. real-iPhone performance). Never fabricate.
+- Real persons in the roster: rights unresolved; describe faces by features only; no third-party logos or music.
+- Style: Jazeek pair = PBR stylized (no cel/outline); the modelle-5 Jazeek Cartoon is a stylized mobile-game character
+  ("wie ein Clash Royale Character"): keep the style, match the face to the photos only gently (no goggle eyes, no eye bags).
+- Design v4 menus are the default; no living plate / glows / haze in v4. Design v3 was rejected.
 
 ## Docs map
+- `PROJECT_HANDOVER.md` — handover for local/new-session work: goals, decisions, rejected approaches, open tasks, resume steps.
 - `docs/STATUS.md` — what works / verified / unverified, known issues, next objectives. **Update at end of every session.**
 - `docs/DECISIONS.md` — architecture decision log (engine, perspective, netcode, …). Append, don't rewrite history.
 - `docs/DESIGN.md` — combat design: controls, mechanics, frame-data conventions, cards, fighters.
@@ -44,6 +56,9 @@ node scripts/flowshot.mjs out 750 300 && node scripts/screens.mjs out 750 300   
 python3 tools/ui-extract/skin_backdrop.py   # stadium backdrop without the baked logo for the classic screens
 python3 tools/meshy/merge4.py styl|anime   # modelle-4 head + body -> .cache/meshy4/jazeek_src.glb | jazeektoon_src.glb (D49; then reduce.py/skin.py with --dir meshy4)
 python3 tools/meshy/merge4.py styl|anime2 [--facewarp warp.json]   # modelle-4 head + body (anime2 = the PO's new cartoon head, S17; welded + capped remesh input)
+python3 tools/meshy/merge4.py v5 --scale 1.12 --facewarp tools/meshy/warps/warp_v5.json   # modelle-5 (S18): headless body, head sized by its neck, eyefix -> jazeektoon (full chain: PROJECT_HANDOVER.md §9)
+python3 tools/meshy/faceretouch.py jazeektoon fm.json render photos --iris 0 --sclera 0 --lid 0 --hair 0 --catch 0 --underlid 0.95   # S18 under-eye retouch (UL_DEBUG=dir plots the masks)
+CLEAN=1 python3 tools/meshy/grid.py model.glb out front 6000 x0,z0,x1,z1   # plain ortho render (no grid), e.g. eye close-ups
 .cache/mpvenv/bin/python tools/meshy/facemarks.py fm.json photo.png render.png   # MediaPipe landmarks + proportions (venv: pip install mediapipe), D50
 python3 tools/meshy/facewarp.py fm.json render photo1,photo2 warp.json && python3 tools/meshy/facefit.py fm.json render photo1,photo2   # face warp toward the photos / score
 python3 tools/meshy/facesheet.py fm.json out.jpg "photo:FOTO 1,.." "render:BLENDER,shot:SPIEL"   # comparison sheet for the PO
@@ -103,7 +118,7 @@ source edits from reloading a running capture; the HMR server on 5173 reloads op
 Published preview (private Artifact): https://claude.ai/artifact/QxFGw7nin7xvWrdnmQZuiv — run `node scripts/artifact-check.mjs`, then publish `dist-single/rapbrawl.html` with `rapbrawl.js` (+ changed files under `dist-single/assets/`) as supporting files (D41: the inline single page is refused by the host's check).
 Headless Chromium uses SwiftShader (software GL): visuals are verifiable, FPS numbers are NOT representative.
 Quality tiers: `?q=low|medium|high` (phones default medium, desktop high). Phones also get a texture budget and one shared menu GL context (D41, `render/textureBudget.ts`; `?tex=1024` test hook). Functional tests use `q=low` (full pipeline is too slow in SwiftShader).
-Fighter models (D43, D49): `public/assets/characters/<id>.glb` = the PO's modelle-3 models (Bonez, Manuellsen, Lacazette) and the modelle-4 Jazeek pair rebuilt by `tools/meshy/merge4.py` (Jazeek stylized, `jazeektoon` = Jazeek Cartoon: a look variant via `FighterDef.base` / `baseOf()`), cel look
+Fighter models (D43, D49, D51): `public/assets/characters/<id>.glb` = the PO's modelle-3 models (Bonez, Manuellsen, Lacazette), the modelle-4 Jazeek (stylized) and, since S18, the modelle-5 Jazeek Cartoon (`jazeektoon`, a look variant via `FighterDef.base` / `baseOf()`), all rebuilt by `tools/meshy/merge4.py`; `<id>.m.glb` = phones MITTEL/NIEDRIG, `<id>.h.glb` = phones HOCH (texcap.py), cel look
 (`render/cel.ts`: MeshToonMaterial + ink outline for Bonez/Manuellsen/Lacazette; the Jazeek pair renders PBR since S17 - `lookFor(id)`, `CHAR_NEUTRAL`/`CHAR_GRADE`, `?look=toon|pbr`), reach fit per move (`render/anims/reach.ts`). Jazeek's idle/walk/jab use motion capture (D50, `src/render/anims/mocap/`). Older notes: the PO's textured Meshy models used 1:1 (reduced copy + skin, D28;
 sources not in git, see `public/assets/characters/README.md`; landmarks in `tools/meshy/<id>_cr.py`). Older pipelines: `tools/meshy/build.py`, `tools/cartoon`, `tools/characters`.
 Default arena: podcast studio (`src/render/arenas/podcast.ts`, baked by `tools/arena/podcast.py`, D29); `?arena=festival|bahnhof` = the PO's paintings as backdrop + 3D floor + instanced crowd (`arenas/painted.ts`, `crowd.ts`, D40); `?arena=courtyard|club|toon` for the old ones.

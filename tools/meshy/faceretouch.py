@@ -58,6 +58,8 @@ ap.add_argument('--catch', type=float, default=0.85, help='painted catchlight in
 ap.add_argument('--wb', type=float, default=0.5, help='white balance of the measured eye colours by the photos\' sclera (0 = as measured)')
 ap.add_argument('--hair', type=float, default=0.8, help='how far the hair moves to the photos\' measured hair colour (0 = keep)')
 ap.add_argument('--hair-rough', type=float, default=0.55, help='roughness of the hair (the sculpt\'s is ~0.95: matte felt)')
+ap.add_argument('--underlid', type=float, default=0.0, help='S18: the under-eye crescent (bags, a painted crease line) replaced by the cheek '
+                'colour around it, the texture\'s fine detail kept (0 = off, 1 = full)')
 ap.add_argument('--quality', type=int, default=92)
 ap.add_argument('--debug', default='')
 args = ap.parse_args()
@@ -172,12 +174,15 @@ TH, TW, _ = base.shape
 allx = np.concatenate([v[:, 0] for v in eyes.values()] + [v[:, 0] for v in brows.values()])
 allz = np.concatenate([v[:, 1] for v in eyes.values()] + [v[:, 1] for v in brows.values()])
 X0, X1 = allx.min() - 0.03, allx.max() + 0.03
-Z0, Z1 = allz.min() - 0.03, allz.max() + 0.015
+Z0, Z1 = allz.min() - (0.05 if args.underlid > 0 else 0.03), allz.max() + 0.015
 tc = pos[tris].mean(1)
 fn = np.cross(pos[tris[:, 1]] - pos[tris[:, 0]], pos[tris[:, 2]] - pos[tris[:, 0]])
 fn /= np.maximum(np.linalg.norm(fn, axis=1, keepdims=True), 1e-12)
 front_y = np.percentile(tc[(tc[:, 0] > X0) & (tc[:, 0] < X1) & (tc[:, 2] > Z0) & (tc[:, 2] < Z1), 1], 2)
-sel = (tc[:, 0] > X0) & (tc[:, 0] < X1) & (tc[:, 2] > Z0) & (tc[:, 2] < Z1) & (fn[:, 1] < -0.15) & (tc[:, 1] < front_y + 0.045)
+# the under-eye band reaches toward the temples, where the face turns away from the camera: a deeper, more oblique
+# selection then (S18: the narrow one left the band's outer side untouched - a hard edge)
+_deep, _fn = (0.075, 0.25) if args.underlid > 0 else (0.045, -0.15)
+sel = (tc[:, 0] > X0) & (tc[:, 0] < X1) & (tc[:, 2] > Z0) & (tc[:, 2] < Z1) & (fn[:, 1] < _fn) & (tc[:, 1] < front_y + _deep)
 print('face triangles in the eye area', int(sel.sum()), 'front y', round(float(front_y), 4))
 PX = np.full((TH, TW, 3), np.nan, np.float32)
 for t in tris[sel]:
@@ -281,6 +286,72 @@ if ref_c is not None and args.lid > 0:
     out = out * (1 + (lift[:, None] - 1) * lw)
     print('lid: cheek lum', round(lum_c, 4), 'band median before', round(float(np.median(lum_o[lid_w > 0.5])), 4) if (lid_w > 0.5).any() else '-',
           'after', round(float(np.median((out @ [0.2126, 0.7152, 0.0722])[lid_w > 0.5])), 4) if (lid_w > 0.5).any() else '-')
+if args.underlid > 0:
+    # S18 (PO: "Augenringe"): per eye a crescent under the lower lid (from 0.4 mm below the lash line down to ~2.4x the
+    # opening's height in the middle) gets the colour of the skin AROUND it - a Gaussian-weighted interpolation from
+    # the cheek below and the skin beside it, in face (x/z) space, not texture space, so UV seams do not matter - with
+    # the texture's own fine detail (ratio to its local mean) kept
+    from scipy.spatial import cKDTree
+
+    for k in ('R', 'L'):
+        poly = eyes[k]
+        low = poly[np.argsort(poly[:, 1])[:9]]
+        lo = low[np.argsort(low[:, 0])]
+        zl = np.interp(xz[:, 0], lo[:, 0], lo[:, 1])
+        x0e, x1e = poly[:, 0].min(), poly[:, 0].max()
+        He = float(np.ptp(poly[:, 1]))
+        cxe, hw = (x0e + x1e) / 2, (x1e - x0e) / 2
+        dz = zl - xz[:, 1]
+        u = (xz[:, 0] - cxe) / (hw * 1.15)
+        depth = 2.2 * He * np.clip(1 - u ** 2, 0, 1)  # parabolic crescent: no steep sides (S18 first try left vertical edges)
+        band = (np.abs(u) < 1) & (dz > 0.0004) & (dz < depth) & ~eye_in
+        ring = ~band & ~eye_in & (np.abs(u) < 1.25) & (dz > depth + 0.2 * He) & (dz < depth + 1.6 * He)  # the cheek below only
+        bi, ri = np.nonzero(band)[0], np.nonzero(ring)[0]
+        if len(bi) < 50 or len(ri) < 50:
+            print('underlid', k, 'skipped: band', len(bi), 'ring', len(ri))
+            continue
+        if len(ri) > 20000:
+            ri = ri[np.random.default_rng(1).choice(len(ri), 20000, replace=False)]
+        sig = 0.8 * He
+        tr = cKDTree(xz[ri])
+        dd, ii = tr.query(xz[bi], k=min(96, len(ri)))
+        ww = np.exp(-(dd / sig) ** 2 / 2) + 1e-12
+        tgt = (out[ri][ii] * ww[..., None]).sum(1) / ww.sum(1)[:, None]
+        trb = cKDTree(xz[bi])
+        db, ib = trb.query(xz[bi], k=min(24, len(bi)))
+        loc = out[bi][ib].mean(1)
+        det = np.clip(out[bi] / np.maximum(loc, 1e-5), 0.8, 1.25)
+        w = (np.clip((dz[bi] - 0.0004) / 0.0012, 0, 1) * np.clip((depth[bi] - dz[bi]) / (0.8 * He), 0, 1)
+             * np.clip((1 - np.abs(u[bi])) / 0.35, 0, 1) * args.underlid)[:, None]
+        if os.environ.get('UL_DEBUG'):
+            from PIL import ImageDraw as _D
+            dbg_im = Image.new("RGB", (900, 600), "black")
+            dr_ = _D.Draw(dbg_im)
+            xa, za = cxe - 2.2 * hw, zl.mean() - 4 * He
+            sx_ = 900 / (4.4 * hw)
+            allp = np.arange(len(xz))[::7]
+            for i_ in allp:
+                X_ = (xz[i_, 0] - xa) * sx_
+                Z_ = 600 - (xz[i_, 1] - za) * sx_
+                if 0 <= X_ < 900 and 0 <= Z_ < 600:
+                    dr_.point((X_, Z_), fill=(60, 60, 60))
+            for i_, ww_ in zip(bi, w[:, 0]):
+                X_ = (xz[i_, 0] - xa) * sx_
+                Z_ = 600 - (xz[i_, 1] - za) * sx_
+                if 0 <= X_ < 900 and 0 <= Z_ < 600:
+                    dr_.point((X_, Z_), fill=(int(255 * ww_), int(255 * ww_), 0))
+            for i_ in ri[::3]:
+                X_ = (xz[i_, 0] - xa) * sx_
+                Z_ = 600 - (xz[i_, 1] - za) * sx_
+                if 0 <= X_ < 900 and 0 <= Z_ < 600:
+                    dr_.point((X_, Z_), fill=(0, 120, 255))
+            pp = [((q[0] - xa) * sx_, 600 - (q[1] - za) * sx_) for q in poly]
+            dr_.polygon(pp, outline=(255, 0, 0))
+            dbg_im.save(os.path.join(os.environ["UL_DEBUG"], f"underlid_{k}.png"))
+        lum_b = float(np.median(out[bi] @ [0.2126, 0.7152, 0.0722]))
+        out[bi] = out[bi] * (1 - w) + tgt * det * w
+        print('underlid', k, 'band texels', len(bi), 'ring', len(ri), 'band lum', round(lum_b, 4), '->',
+              round(float(np.median(out[bi] @ [0.2126, 0.7152, 0.0722])), 4), 'cheek', round(float(np.median(out[ri] @ [0.2126, 0.7152, 0.0722])), 4))
 new = base.copy()
 new[vy, vx] = srgb(out)
 print('iris before', srgb(np.median(L[im_ & (pupil_w < 0.1)], 0)).round(0), 'after', srgb(np.median(out[im_ & (pupil_w < 0.1)], 0)).round(0),

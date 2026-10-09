@@ -635,3 +635,23 @@ other fighters (new models are coming for them), only Jazeek and Jazeek Cartoon.
     decode spike) and keep the detail maps at 2K (`limitTextures(.., fullDetail)`); MITTEL/NIEDRIG keep the 40k copy.
     Re-run texcap after every change to `<id>.glb`.
 
+## D51 — modelle-5: the third Jazeek replaces Jazeek Cartoon (2026-10-09)
+The PO generated Jazeek again in Meshy (release draft `modelle-5`: a close-up head, 1.6M tris, and a body WITHOUT a head,
+785k tris, 4K maps) as a "stylized 3D mobile game character, wenig toon, wie ein Clash Royale Character", close to the
+original already but with goggle eyes and eye bags, and asked to merge it, fix the face against the photos and put it in
+the Jazeek Cartoon slot (`jazeektoon`). Decisions:
+- `merge4.py v5`: no body face to measure against, so the head is sized by its neck (neck radius at the stub), scaled
+  x1.12 for mobile-game proportions (chosen side by side), and the whole figure normalised to the modelle-4 frame (feet
+  -0.95, crown 0.95) so every downstream constant and tool keeps working.
+- Eyes: geometry `eyefix` (opening and lid margin 0.010 head units back; the bag low-passed in depth, clipped to 0.012)
+  plus the photo warp with eyes at alpha 0.9 and the rest at 0.5 (keep the style): MediaPipe eye width 0.496 -> 0.445,
+  opening 0.151 -> 0.116 (photos 0.40-0.42 / 0.10-0.12). The painted bags are replaced in texel space
+  (`faceretouch.py --underlid`): a parabolic crescent under each lower lid gets the cheek colour interpolated in face
+  (x/z) space, fine detail kept; the texel selection reaches deeper/obliquer so the band's temple side is covered.
+- Skin: the body's skin lifted to the face (arm 211/137/90 -> cheek 251/170/120; the neck seam overshoots).
+- Rig landmarks from cross-section clusters (`jazeektoon_cr.py`); reach fix recalibrated (all moves ok except the
+  chain whip of Ninetynine, as for Jazeek). Research notes (kept for the agent): KTX2/Basis (ktx2-encoder via npm) would
+  cut texture memory 4-8x for 4K on phones - needs a real-iPhone test; Meshy/Mixamo auto-rig and Character Creator are
+  desktop/PO-side options; separate eyeballs and mouth interiors are needed for look-at and open-mouth expressions.
+- Open: the in-game frontal face may read heavy-lidded (camera below eye level?) - check at eye level, soften the eye
+  warp if needed; preview not yet republished.

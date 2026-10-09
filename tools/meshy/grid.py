@@ -1,7 +1,7 @@
 """Orthographic front/side renders of a Meshy GLB with a coordinate grid (Blender units, Z up), for placing the
 skeleton landmarks in tools/meshy/<id>_cr.py.
 
-Usage: python3 tools/meshy/grid.py model.glb outprefix [views=front,side] [px_per_m=500] [zoom=x0,z0,x1,z1]
+Usage: python3 tools/meshy/grid.py model.glb outprefix [views=front,side] [px_per_m=500] [zoom=x0,z0,x1,z1]   (CLEAN=1: no grid)
 """
 from __future__ import annotations
 
@@ -66,6 +66,12 @@ for view in views:
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
     im = Image.open(path).convert('RGB')
+    if os.environ.get('CLEAN'):  # CLEAN=1: no grid (MediaPipe landmarks on the plain render)
+        im.save(path)
+        import json
+        json.dump({'view': view, 'x0': x0, 'x1': x1, 'z0': z0, 'z1': z1, 'W': im.size[0], 'H': im.size[1]}, open(path[:-4] + '.json', 'w'))
+        print('wrote', path, im.size, flush=True)
+        continue
     d = ImageDraw.Draw(im)
     W, H = im.size
     step = 0.05

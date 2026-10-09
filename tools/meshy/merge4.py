@@ -75,6 +75,25 @@ STYLES = {
         skin_match=False,
         head_gain=(1.03, 1.12, 1.10),  # the bust's skin is pinker than the body's (cheek 191/125/108 vs arm 196/141/119)
     ),
+    # S18: modelle-5 (release draft), the PO's third Jazeek: a stylized-toon close-up head (1.6M tris, 4K) and a body
+    # WITHOUT a head (neck stub only, 785k tris, 4K) - replaces Jazeek Cartoon. No body face to measure against: the
+    # head is sized by its neck (`neck`), the figure normalised to the modelle-4 frame afterwards. PO: very close to
+    # him already, but goggle eyes and eye bags - `eyefix` (geometry) + a lifted under-eye crescent (eye_dark > 1).
+    'v5': dict(
+        fighter='jazeektoon', body='v5_body_src.glb', head='v5_head_src.glb',
+        neck=dict(head_z=-0.68, rmax=0.5, below=0.006),
+        plane=((-0.016, 0.893), (0.151, 0.905)),  # raw body units: throat / nape of the neck stub, above the chain
+        eyes=((-0.197, 0.194), (0.204, 0.191)), lips=(-0.27, -0.17, 0.17), lip_tint=(0.90, 0.86, 0.84), eye_dark=1.0,
+        facebox=(0.42, 0.40),
+        brows=((-0.25, 0.350), (0.255, 0.346)), brow_dark=0.85,
+        # MediaPipe on the head's front render: opening half-width 0.102 / half-height 0.032, lower lid at z 0.162
+        eyefix=dict(eyes=((-0.197, 0.194), (0.204, 0.191)), ew=0.102, eh=0.032, push=0.010, bag=0.9, bag_max=0.012, bagcol=1.0),
+        # the body's skin is darker than the head's (211/137/90 vs 251/170/120 on arm and cheek): lift it to the head's
+        # tone; the trousers (beige 99 print, skin-like ratios) are left out by geometry: below the belt, inside the legs
+        skin_match=True, trousers=(0.33, 0.06, -0.25),
+        skin_gain=(1.19, 1.24, 1.33),  # arm 211/137/90 -> cheek 251/170/120 (the neck seam is shaded darker: overshoots)
+        hands_x=0.36,
+    ),
 }
 
 ap = argparse.ArgumentParser()
@@ -176,13 +195,71 @@ else:
     hpos, hnor, huv, htri, himg, _ = glbfast.arrays(os.path.join(CACHE, C['head']))
     log('body', len(bpos), 'verts', len(btri), 'tris; head', len(hpos), 'verts', len(htri), 'tris')
 
+    if C.get('eyefix'):
+        # S18 (PO: "Glubschaugen und Augenringe"): in head units, before anything else. Per eye: the opening and the
+        # lid margin go back by `push` (the eyeball sat flush with the brow ridge); below the lower lid the bag (a
+        # bulge and the crease under it) is pulled onto a smooth quadratic surface fitted to the cheek around it.
+        ef = C['eyefix']
+        ew, eh = ef['ew'], ef['eh']
+        front = hpos[:, 1] < -0.30
+        for ex, ez in ef['eyes']:
+            r = np.hypot((hpos[:, 0] - ex) / ew, (hpos[:, 2] - ez) / eh)
+            w = (1 - smoothstep(0.75, 1.45, r)) * front
+            hpos[:, 1] += ef['push'] * w
+            # the bag: its depth low-passed (mean of the surface within 0.035 around each vertex, the eye opening left
+            # out), clipped to a few millimetres - a bulge goes back, the crease under it comes forward
+            from scipy.spatial import cKDTree
+
+            bz_ = ez - eh * 1.85  # bag centre, under the lid margin
+            rb = np.hypot((hpos[:, 0] - ex) / (ew * 1.15), (hpos[:, 2] - bz_) / (eh * 1.5))
+            zone = front & (rb < 1.0) & (hpos[:, 2] < ez - eh * 0.9)
+            src_ = front & (rb < 2.2) & (r > 1.2)
+            pts = hpos[src_]
+            tr_ = cKDTree(pts[:, [0, 2]])
+            z_ = hpos[zone]
+            nb = tr_.query_ball_point(z_[:, [0, 2]], 0.035)
+            ys = pts[:, 1]
+            yfit = np.array([ys[i].mean() if len(i) else y for i, y in zip(nb, z_[:, 1])])
+            wb = (1 - smoothstep(0.45, 1.0, rb[zone])) * smoothstep(ez - eh * 0.9, ez - eh * 1.25, z_[:, 2]) * ef['bag']
+            dy = np.clip((yfit - z_[:, 1]) * wb, -ef.get('bag_max', 0.012), ef.get('bag_max', 0.012))
+            hpos[np.nonzero(zone)[0], 1] += dy
+            log(f'eyefix eye ({ex:+.3f},{ez:.3f}): pushed {int((w > 0.01).sum())} verts by <= {ef["push"]}; bag {int((wb > 0.05).sum())} verts, '
+                f'max move {float(np.abs(dy).max()):.4f}, mean {float(np.abs(dy[wb > 0.3]).mean()) if (wb > 0.3).any() else 0:.4f}')
+
     # ------------------------------------------------------------------ 1. align
-    hl, bl = C['head_lm'], C['body_lm']
-    s_nose = (bl['nose'][0] - bl['chin']) / (hl['nose'][0] - hl['chin'])
-    s_nas = (bl['nasion'] - bl['chin']) / (hl['nasion'] - hl['chin'])
-    s = 0.5 * (s_nose + s_nas) * args.scale
-    log('scale from nose', round(s_nose, 4), 'nasion', round(s_nas, 4), '->', round(s, 4))
-    (fy, fz), (by, bz) = C['plane']
+    if C.get('neck'):
+        # S18 (modelle-5): the body has no head, only a neck stub - the head is sized so its neck fits the stub, then
+        # the whole figure is normalised to the modelle-4 frame (feet at -0.95, crown at 0.95): every constant below
+        # (bands, voxel size, views, the later tools) keeps working
+        nk = C['neck']
+        (fy, fz), (by, bz) = C['plane']
+        zc0 = (fz + bz) / 2
+
+        def neck_r(p, z, half):
+            q = p[(np.abs(p[:, 2] - z) < half) & (np.abs(p[:, 0]) < nk['rmax'])]
+            c = np.array([(q[:, 0].min() + q[:, 0].max()) / 2, (q[:, 1].min() + q[:, 1].max()) / 2])
+            return float(np.median(np.hypot(q[:, 0] - c[0], q[:, 1] - c[1])))
+
+        rb_ = neck_r(bpos, zc0 - nk['below'], 0.004)
+        rh_ = neck_r(hpos, nk['head_z'], 0.01)
+        s = rb_ / rh_ * args.scale
+        top = zc0 + (hpos[:, 2].max() - nk['head_z']) * s
+        k = 1.9 / (top - bpos[:, 2].min())
+        z_off = -0.95 - bpos[:, 2].min() * k
+        bpos = bpos * k
+        bpos[:, 2] += z_off
+        (fy, fz), (by, bz) = (fy * k, fz * k + z_off), (by * k, bz * k + z_off)
+        s *= k
+        hp = hpos * s
+        hp[:, 2] += zc0 * k + z_off - nk['head_z'] * s
+        log('neck radius body', round(rb_, 4), 'head', round(rh_, 4), '-> head scale', round(s, 4), '; figure normalised x', round(k, 4))
+    else:
+        hl, bl = C['head_lm'], C['body_lm']
+        s_nose = (bl['nose'][0] - bl['chin']) / (hl['nose'][0] - hl['chin'])
+        s_nas = (bl['nasion'] - bl['chin']) / (hl['nasion'] - hl['chin'])
+        s = 0.5 * (s_nose + s_nas) * args.scale
+        log('scale from nose', round(s_nose, 4), 'nasion', round(s_nas, 4), '->', round(s, 4))
+        (fy, fz), (by, bz) = C['plane']
     n = np.array([0.0, -(bz - fz), (by - fy)])  # plane normal: up and toward the face's back-tilt
     n /= np.linalg.norm(n)
     if n[2] < 0:
@@ -194,8 +271,9 @@ else:
         return (p - p0) @ n
 
 
-    hp = hpos * s
-    hp[:, 2] += bl['chin'] - hl['chin'] * s
+    if not C.get('neck'):
+        hp = hpos * s
+        hp[:, 2] += bl['chin'] - hl['chin'] * s
 
 
     def ring(p, h0=-0.002, h1=0.002, rmax=0.095):
@@ -394,7 +472,8 @@ else:
 
         Hh, Ww, _ = TB.shape
         tc_b = B_pos[B_tri].mean(1)
-        upper = ~((np.abs(tc_b[:, 0]) < 0.30) & (tc_b[:, 2] < 0.36))
+        tx, tz, tflare = C.get('trousers', (0.30, 0.36, -9.0))
+        upper = ~((tc_b[:, 2] < tz) & ((np.abs(tc_b[:, 0]) < tx) | (tc_b[:, 2] < tflare)))
         mimg = Image.new('L', (Ww, Hh), 0)
         dr = ImageDraw.Draw(mimg)
         uvt = B_uv[B_tri[upper]] * [Ww, Hh]
@@ -403,7 +482,7 @@ else:
         geo = np.asarray(mimg.filter(ImageFilter.MaxFilter(5))) > 0
         sk = skinlike(TB) & geo
         skm = np.asarray(Image.fromarray((sk * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1.5))).astype(np.float32)[..., None] / 255
-        g_skin = Ch / np.maximum(Cb, 1)
+        g_skin = np.array(C['skin_gain']) if C.get('skin_gain') else Ch / np.maximum(Cb, 1)
         body_tex = np.clip(TB * (1 + (g_skin - 1) * skm), 0, 255)
         Cb = Cb * g_skin
         log('body skin lifted by', g_skin.round(3), 'on', int(sk.sum()), 'texels')
@@ -431,6 +510,24 @@ else:
         dx = (Hsrc[:, 0] - ex) / 0.115
         dz = (Hsrc[:, 2] - (ez - 0.072)) / 0.042
         eyew = np.maximum(eyew, np.exp(-(dx ** 2 + dz ** 2) ** 1.6) * (Hsrc[:, 1] < -0.40))
+    if C.get('eyefix', {}).get('bagcol'):
+        # S18: the painted bag (a redder, darker band under the lower lid) toward the cheek colour just below it, per
+        # vertex (the head is dense enough for it to act like a texel retouch); the lid margin itself is left alone
+        ef = C['eyefix']
+        ew_, eh_ = ef['ew'], ef['eh']
+        for ex, ez in ef['eyes']:
+            bz_ = ez - eh_ * 1.85
+            rb = np.hypot((Hsrc[:, 0] - ex) / (ew_ * 1.15), (Hsrc[:, 2] - bz_) / (eh_ * 1.5))
+            frontv = Hsrc[:, 1] < -0.30
+            ref = frontv & (rb > 1.15) & (rb < 1.7) & (Hsrc[:, 2] < bz_)
+            cc = hc[ref]
+            cc = cc[skinlike(cc)]
+            Cc = np.median(cc, 0)
+            zone = frontv & (rb < 1.0) & (Hsrc[:, 2] < ez - eh_ * 1.0)
+            wz = (1 - smoothstep(0.45, 1.0, rb[zone])) * smoothstep(ez - eh_ * 1.0, ez - eh_ * 1.25, Hsrc[zone, 2]) * ef['bagcol']
+            g = np.clip(lin(Cc)[None, :] / np.maximum(lin(hc[zone]), 1e-4), 0.6, 4.0)
+            tint[np.nonzero(zone)[0]] *= 1 + (g - 1) * wz[:, None]
+            log(f'under-eye colour ({ex:+.3f}): cheek {Cc.round(0)}, {int((wz > 0.3).sum())} verts, mean gain {g[wz > 0.3].mean(0).round(3) if (wz > 0.3).any() else 1}')
     dark = float(lin(C['eye_dark'] * 255) / lin(255))
     tint *= 1 + (np.array([dark, dark * 0.985, dark * 0.99]) - 1)[None, :] * eyew[:, None]
     browsw = np.zeros(len(H_pos))
@@ -502,7 +599,7 @@ else:
     bp_ = np.empty(len(body.data.vertices) * 3)
     body.data.vertices.foreach_get('co', bp_)
     pa = body.data.attributes.new('prot', 'FLOAT', 'POINT')
-    pa.data.foreach_set('value', np.where(np.abs(bp_[0::3]) > 0.40, 1.0, 0.0).astype(np.float32))
+    pa.data.foreach_set('value', np.where(np.abs(bp_[0::3]) > C.get('hands_x', 0.40), 1.0, 0.0).astype(np.float32))
     del hh2, hr2, mh, H_tri, H_w, B_tri, tint, lipw, eyew, browsw, lipbox, pink, hair_h, lower_face, bp_, keep_v, keep_t, used, remap, hh, ha, hr, w, scale_r, radial, d, fa, fr, i0, ai, Rh_a, hcol_w, hpos, hp, hnor, huv, htri, bpos, bnor, buv, btri, TH, TB, body_tex, hc, Hsrc, H_pos, H_uv, H_nor, B_pos, B_uv, B_nor
     import gc  # noqa: E402
 
