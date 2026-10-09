@@ -4,7 +4,8 @@
 // (world-space delta), after aligning the model's rest pose (T/A-pose) to the reference rest pose
 // (arms down). So all move clips, cinematics, intros and wins work unchanged on imported models.
 import * as THREE from 'three';
-import { limitTextures, texLimit } from './textureBudget';
+import { isPhone, limitTextures, texLimit } from './textureBudget';
+import { detectQuality } from './post';
 import { addOutline, INK, lookFor, pbrFrom, rimUniforms, toonFrom, type RimUniforms } from './cel';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -152,11 +153,13 @@ function parseWithImageElements(loader: GLTFLoader, buf: ArrayBuffer | string, p
  * (scripts/glb-to-json.mjs). Safe under the Artifact CSP (see gltfJsonToGlb / parseWithImageElements).
  * Resolves null when neither file exists.
  */
-export async function fetchGltf(base: string, exact?: string, mobile = false): Promise<GLTF | null> {
+export async function fetchGltf(base: string, exact?: string, mobile: boolean | 'high' = false): Promise<GLTF | null> {
   let url = '';
   let res: Response | null = null;
   const full = [`${base}.glb`, `${base}.gltf.json`];
-  for (const u of exact ? [exact] : mobile ? [`${base}.m.glb`, `${base}.m.gltf.json`, ...full] : full) {
+  const m = [`${base}.m.glb`, `${base}.m.gltf.json`, ...full];
+  // 'high': phones on HOCH - the full mesh with the textures already capped at 2K (<id>.h.glb, tools/meshy/texcap.py)
+  for (const u of exact ? [exact] : mobile === 'high' ? [`${base}.h.glb`, `${base}.h.gltf.json`, ...m] : mobile ? m : full) {
     const r = await fetch(u).catch(() => null);
     const type = r?.headers.get('content-type') ?? '';
     if (r && r.ok && !type.includes('text/html')) {
@@ -188,13 +191,16 @@ export async function loadCharacterModels(
       try {
         // phones / below 'high': the fighter's mobile copy (<id>.m.glb: 40k triangles, 2K colour, 1K normal map, S12) -
         // the 4K originals cost ~80 MB of decoding each before they were shrunk, and that spike starved the iPhone
-        const gltf = await fetchGltf(`${base}/${id}`, overrides[id], texLimit('character') < 4096);
+        // (S17: phones on HOCH take <id>.h.glb where a fighter has one: full geometry, textures pre-shrunk to 2K)
+        const small = texLimit('character') < 4096;
+        const hd = small && isPhone() && detectQuality() === 'high';
+        const gltf = await fetchGltf(`${base}/${id}`, overrides[id], hd ? 'high' : small);
         if (!gltf) return;
         if (!isHumanoid(gltf.scene)) {
           console.warn(`[models] ${id}: no humanoid skeleton (Mixamo bone names expected) — using placeholder`);
           return;
         }
-        limitTextures(gltf.scene, texLimit('character')); // phones: 4K -> 2K (D41)
+        limitTextures(gltf.scene, texLimit('character'), hd); // phones: 4K -> 2K (D41)
         loaded.set(id, gltf.scene);
         ok.push(id);
       } catch (e) {

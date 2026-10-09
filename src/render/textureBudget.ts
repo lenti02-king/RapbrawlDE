@@ -63,8 +63,9 @@ function settle(tex: THREE.Texture, c: HTMLCanvasElement): void {
 }
 
 /** Downscale, in place, every texture of `root` larger than `max` px (call once, right after loading). Below 4K the
- *  detail maps (normal, roughness, ...) get half the colour map's size: on a phone screen nobody sees the difference. */
-export function limitTextures(root: THREE.Object3D, max: number): number {
+ *  detail maps (normal, roughness, ...) get half the colour map's size: on a phone screen nobody sees the difference
+ *  (S17: except on HOCH, where the PO wants no loss - `fullDetail` keeps them at `max`). */
+export function limitTextures(root: THREE.Object3D, max: number, fullDetail = false): number {
   const seen = new Set<THREE.Texture>();
   let n = 0;
   for (const m of materialsOf(root)) {
@@ -72,7 +73,7 @@ export function limitTextures(root: THREE.Object3D, max: number): number {
       const t = (m as unknown as TexHolder)[k];
       if (!t || seen.has(t)) continue;
       seen.add(t);
-      const lim = k === 'map' || k === 'emissiveMap' || max >= 4096 ? max : Math.max(512, max / 2);
+      const lim = k === 'map' || k === 'emissiveMap' || max >= 4096 || fullDetail ? max : Math.max(512, max / 2);
       const c = t.image ? shrunk(t.image as Img, lim) : null;
       if (!c) continue;
       settle(t, c);

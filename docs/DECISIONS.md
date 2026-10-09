@@ -623,3 +623,15 @@ other fighters (new models are coming for them), only Jazeek and Jazeek Cartoon.
     to the lower lid, 2 mm toward the camera), driven by GlbRig every 2-6 s; eyes squeeze on hits, shut on KO.
   - Open: twist bones / corrective shapes for elbows and wrists, the remaining moves (kicks, acrobatics have no
     capture), hair silhouette (the remeshed curls fray), facial expressions beyond blinking (needs a face rig).
+  - **Render pass** (PO, after v26: Jazeek still "wie mit Paint gemalt", "draufgekackt"): in-game the grade above pulled
+    him to grey and lifted everything (gain 1.5), the arena's frontal key plus purple ambient/IBL and the wrapped
+    diffuse filled every shadow - no form, a pale cut-out on a saturated stage. Now (`CHAR_LIGHT`, chosen side by side
+    with `scripts/lookprobe.mjs`): a key light of their own fixed to the camera (upper left, in front, ~50 degrees off
+    the view axis) so the body has a lit and a shadow side, the arena's ambient/environment fill x0.45, arena light colour
+    0.7 neutral, grade sat 0.95 / gain 0.95, specular 1 and roughness x0.8 (skin ~0.5: a sheen on the forms). The skin is
+    no longer calibrated to the photos' cheek saturation - the stage look wins over the measurement here. A hook for
+    baked AO on the direct light exists (`CHAR_LIGHT.ao`, needs an AO map: next step).
+  - **Phones on HOCH** get `<id>.h.glb` (full mesh, every map capped at 2K offline by `tools/meshy/texcap.py`, no
+    decode spike) and keep the detail maps at 2K (`limitTextures(.., fullDetail)`); MITTEL/NIEDRIG keep the 40k copy.
+    Re-run texcap after every change to `<id>.glb`.
+

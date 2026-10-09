@@ -31,14 +31,26 @@ export interface RimUniforms {
 /** How much of the arena lights' colour the PBR fighters' shading drops (0 = all, 1 = white light of the same
  *  brightness): the podcast studio's purple ambient, purple back light and pink probe turned real skin magenta (S17
  *  in-game check against the photos). The environment around them keeps its colours. */
-export const CHAR_NEUTRAL = { value: 0.55 };
+export const CHAR_NEUTRAL = { value: 0.7 };
 /** Colour grade of the PBR fighters' own output, before the scene's tone mapping and the arena's grade (saturation
  *  x1.32, contrast x1.16 for the podcast studio): measured on Jazeek's cheeks in-game against his photos (S17: in-game
  *  saturation 0.60 vs 0.33 in the photos, darker and redder) - sat < 1 pulls toward grey, gain lifts the exposure, tint
  *  takes out the pink the studio's lights leave (hue 7 vs 10-12 in the photos). Calibrated with scripts/gradeprobe.mjs:
- *  sat 0.5 / gain 1.5 -> cheek saturation 89/255 (photos 78-91). */
-export const CHAR_GRADE = { sat: { value: 0.5 }, gain: { value: 1.5 }, tint: { value: new THREE.Vector3(1, 1.07, 1.03) } };
-if (typeof window !== 'undefined') (window as unknown as { __rbLook: unknown }).__rbLook = { grade: CHAR_GRADE, neutral: CHAR_NEUTRAL }; // calibration hook (scripts/gradeprobe.mjs)
+ *  sat 0.5 / gain 1.5 -> cheek saturation 89/255 (photos 78-91). S17 render pass (PO: "wie mit Paint gemalt"): that grey,
+ *  lifted grade flattened the figure into a pale cut-out - now sat 0.95 / gain 0.95 with the character key light
+ *  (CHAR_LIGHT), less arena fill and more neutral arena light (0.7); chosen with scripts/lookprobe.mjs. */
+export const CHAR_GRADE = { sat: { value: 0.95 }, gain: { value: 0.95 }, tint: { value: new THREE.Vector3(1, 1.07, 1.03) } };
+/** The PBR fighters' own light (S17 render pass, PO: "wie mit Paint gemalt"): a key light fixed to the camera (view
+ *  space, from the upper left and in front, ~50 degrees off the view axis) that models the body into a lit and a shadow
+ *  side, the arena's ambient/environment fill scaled down (`amb`) so that shadow side stays darker, and the baked
+ *  ambient occlusion (creases, armpits, under the chain) applied to the direct light too (`ao`). */
+export const CHAR_LIGHT = {
+  amb: { value: 0.45 },
+  keyDir: { value: new THREE.Vector3(-0.62, 0.55, 0.56).normalize() },
+  keyCol: { value: new THREE.Color(1.4, 1.25, 1.1) },
+  ao: { value: 0 },
+};
+if (typeof window !== 'undefined') (window as unknown as { __rbLook: unknown }).__rbLook = { grade: CHAR_GRADE, neutral: CHAR_NEUTRAL, light: CHAR_LIGHT }; // calibration hook (scripts/gradeprobe.mjs, lookprobe.mjs)
 export function rimUniforms(color = 0xc4b8ff, strength = 0.3): RimUniforms {
   return { uRim: { value: new THREE.Color(color).multiplyScalar(strength) }, uRimPow: { value: 2.6 } };
 }
@@ -91,9 +103,9 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
     normalMap: s.normalMap ?? null,
     roughnessMap: mr,
     metalnessMap: mr,
-    roughness: mr ? 1 : 0.62,
+    roughness: mr ? 0.8 : 0.62, // S17 render pass: x0.8 on the map - skin 0.62 -> ~0.5, a soft sheen on the forms
     metalness: mr ? 1 : 0,
-    specularIntensity: 0.55,
+    specularIntensity: 1,
     envMapIntensity: 1.0,
     emissive: new THREE.Color(0, 0, 0),
     transparent: s.transparent,
@@ -111,6 +123,10 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
     sh.uniforms.uCharSat = CHAR_GRADE.sat;
     sh.uniforms.uCharGain = CHAR_GRADE.gain;
     sh.uniforms.uCharTint = CHAR_GRADE.tint;
+    sh.uniforms.uAmb = CHAR_LIGHT.amb;
+    sh.uniforms.uKeyDir = CHAR_LIGHT.keyDir;
+    sh.uniforms.uKeyCol = CHAR_LIGHT.keyCol;
+    sh.uniforms.uAoDirect = CHAR_LIGHT.ao;
     sh.fragmentShader = sh.fragmentShader
       .replace(
         '#include <common>',
@@ -121,9 +137,21 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
         uniform float uCharSat;
         uniform float uCharGain;
         uniform vec3 uCharTint;
+        uniform float uAmb;
+        uniform vec3 uKeyDir;
+        uniform vec3 uKeyCol;
+        uniform float uAoDirect;
         vec3 rbNeutral( vec3 c ) { return mix( c, vec3( dot( c, vec3( 0.2126, 0.7152, 0.0722 ) ) ), uNeutral ); }`,
       )
       .replace('#include <lights_physical_pars_fragment>', SOFT_SKIN_CHUNK + NEUTRAL_DIRECT)
+      .replace(
+        '#include <aomap_fragment>',
+        `#include <aomap_fragment>
+        #ifdef USE_AOMAP
+        reflectedLight.directDiffuse *= mix( 1.0, ambientOcclusion, uAoDirect );
+        reflectedLight.directSpecular *= mix( 1.0, ambientOcclusion, uAoDirect );
+        #endif`,
+      )
       .replace(
         '#include <opaque_fragment>',
         `outgoingLight = mix( vec3( dot( outgoingLight, vec3( 0.2126, 0.7152, 0.0722 ) ) ), outgoingLight, uCharSat ) * uCharGain * uCharTint;
@@ -131,13 +159,20 @@ export function pbrFrom(m: THREE.Material, rim: RimUniforms): THREE.MeshPhysical
       )
       .replace(
         '#include <lights_fragment_end>',
-        `irradiance = rbNeutral( irradiance );
-        iblIrradiance = rbNeutral( iblIrradiance );
+        `irradiance = rbNeutral( irradiance ) * uAmb;
+        iblIrradiance = rbNeutral( iblIrradiance ) * uAmb;
         #include <lights_fragment_end>`,
       )
       .replace(
         '#include <lights_fragment_begin>',
         `#include <lights_fragment_begin>
+        {
+          IncidentLight rbKey;
+          rbKey.direction = uKeyDir;
+          rbKey.color = uKeyCol;
+          rbKey.visible = true;
+          RE_Direct_Physical( rbKey, geometryPosition, geometryNormal, geometryViewDir, geometryClearcoatNormal, material, reflectedLight );
+        }
         // rim: lifts the silhouette off the background like the key/back light of a character shot
         totalEmissiveRadiance += uRim * pow( 1.0 - saturate( dot( normal, geometryViewDir ) ), uRimPow ) * diffuseColor.rgb * 2.0;`,
       );

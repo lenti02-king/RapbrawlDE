@@ -51,6 +51,8 @@ python3 tools/meshy/faceretouch.py jazeek fm.json render photo1,photo2   # eyes 
 python3 tools/meshy/blink.py fm.json render public/assets/characters/jazeek.glb public/assets/characters/jazeek.m.glb   # 'blink' morph target (run on fresh skin.py output)
 F=jazeek,bonez node scripts/charshot.mjs out 1280x720 1 high   # in-game close-ups (SHOTS=fight,body0,face0,front0; PRE="js" for A/B)
 node scripts/gradeprobe.mjs out "0.5:1.5,.."   # in-game PBR colour grade calibration shots (window.__rbLook)
+F=jazeek,bonez node scripts/lookprobe.mjs out '{"sat":0.9};{"amb":0.5,"key":[1.2,1.1,1]}' fight,body,face   # PBR look variants side by side (CHAR_GRADE/CHAR_LIGHT + material)
+python3 tools/meshy/texcap.py public/assets/characters/jazeek.glb public/assets/characters/jazeek.h.glb   # phones' HOCH copy: full mesh, maps capped at 2K (re-run after every <id>.glb change)
 python3 tools/mocap/punches.py clip.bvh   # punches in a CMU clip;  tools/mocap/retarget.py (loops, --loop/--twist) and strike.py (moves) -> src/render/anims/mocap/*.ts (D50)
 python3 tools/meshy/reduce.py jazeek|bonez  # game copy of the PO's textured model (.cache/meshy2/<id>_src.glb): 120k tris, 4K/2K textures
 python3 tools/meshy/skin.py jazeek --src .cache/meshy2/jazeek_std_src.glb --out public/assets/characters/jazeek.glb  # rig without re-export

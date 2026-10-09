@@ -26,6 +26,11 @@ Legend: **VERIFIED** = observed working via automated test or screenshot; **BUIL
 | Jazeek skin in-game measured against the photos and calibrated (cheek saturation 0.60 → 0.35, photos 0.31–0.36) | VERIFIED (numbers) | `node scripts/gradeprobe.mjs`, D50 |
 | Jazeek blinks (morph target), eyes squeeze on hits, shut on KO | VERIFIED (face captures open / half / closed) | `tools/meshy/blink.py`, `?blink=1` |
 | Elbow/wrist deformation (twist bones), kicks/acrobatics from capture, hair silhouette, facial expressions | OPEN | D50 |
+| Idle legs calmer (30 % of the captured leg/hip motion; PO: "die Beine zappeln dauerhaft") | VERIFIED (film strip) | `idleLegs` in `anims/jazeek.ts` |
+| Render pass (PO: "wie mit Paint gemalt"): the grey, lifted grade (sat 0.5 / gain 1.5) made Jazeek a pale cut-out - now a character key light fixed to the camera, less arena fill, sat 0.95 / gain 0.95, skin sheen (spec 1, roughness x0.8) | VERIFIED (in-game before/after sheets) | `scripts/lookprobe.mjs`, `CHAR_LIGHT` in `render/cel.ts`, `artifacts/look/` |
+| iPhone on GRAFIKQUALITÄT HOCH loads the full Jazeek (120k triangles, all maps 2K: `<id>.h.glb` by `tools/meshy/texcap.py`) instead of the 40k copy; MITTEL unchanged | VERIFIED (iPhone 13 emulation: files fetched, triangle count, texture sizes) - performance on the device UNVERIFIED | `render/glbRig.ts` `fetchGltf(.., 'high')` |
+| IPA download from this container | BLOCKED (proxy denies GitHub's artifact storage host) - the PO downloads it from the Actions run | |
+| Baked ambient occlusion for Jazeek (creases, armpits, under the chain), auto-slip on block (PO idea, proposal sent), VFX restyle, Mixamo moves | OPEN | |
 
 ## Session 16 — modelle-4: Jazeek + Jazeek Cartoon, head merged onto body (D49)
 | Area | Status | Evidence |

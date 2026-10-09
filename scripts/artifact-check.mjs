@@ -13,8 +13,9 @@ fs.mkdirSync(path.join(out, 'assets/characters'), { recursive: true });
 execSync(`node scripts/single-file.mjs ${path.join(out, 'rapbrawl.html')} --split`, { stdio: 'inherit' }); // page + rapbrawl.js (D41)
 const ids = ['jazeek', 'bonez', 'manuellsen', 'lacazette', 'jazeektoon']; // modelle-3 fighters (D43) + the modelle-4 Jazeek pair (S16)
 for (const id of ids)
-  for (const v of ['', '.m']) // full model + the phones' copy (S12)
-    execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}${v}.glb ${path.join(out, 'assets/characters', id + v + '.gltf.json')} --external-images`, { stdio: 'inherit' });
+  for (const v of ['', '.m', '.h']) // full model + the phones' copy (S12) + the phones' HOCH copy where there is one (S17)
+    if (fs.existsSync(`public/assets/characters/${id}${v}.glb`))
+      execSync(`node scripts/glb-to-json.mjs public/assets/characters/${id}${v}.glb ${path.join(out, 'assets/characters', id + v + '.gltf.json')} --external-images`, { stdio: 'inherit' });
 // the Vite build copies public/ (incl. .glb and the gitignored test models); the Artifact gets none of that
 fs.rmSync(path.join(out, 'test-models'), { recursive: true, force: true });
 for (const dir of ['assets/characters', 'assets/arena/podcast', 'assets/props'])
